@@ -2550,3 +2550,31 @@ When retiring a per-subclass display property from the plugin's own UI renderers
 - Constitution §V (Extensibility Without Core Modification) — the underlying principle this DEC applies to the specific "retire UI usage" refactor pattern.
 - `DEC-CROSS-SURFACE-PARITY-UNIFY-AT-DATA-LAYER` (D43) — companion. D43 unifies the DTO producer across surfaces; this DEC ensures the DTO field itself survives even when the surfaces that consume it change.
 - `DEC-F034-SELF-CONTAINED-SUBSYSTEM-CONTRACT` (D35) — parent. D35 established WHERE the per-subclass metadata lives (method-with-default on abstract base + DTO field). This DEC governs HOW to change UI usage of that metadata without breaking the contract.
+
+---
+
+### DEC-CROSS-SURFACE-VISUAL-PARITY-VIA-SHARED-MARKUP-CONTRACT — When two surfaces render the same walkthrough, use the same class names + visual scaffold on both
+
+**Status**
+Active (Feature 077)
+
+**Context**
+The plugin has multiple admin surfaces rendering the same "configure this MCP client" walkthrough — the Quick Setup wizard's Step 11 (React) and the per-server MCP Clients admin tab (PHP). F073 shipped the wizard's numbered STEP 1..4 scaffold; F075 follow-up extended it with STEP 5 (restart). The admin tab kept rendering the same content in a flat "label + value + textarea + notice" layout with no numbered headers. Operators navigating between the two surfaces read the same information twice under different visual scaffolding — confusing at best, feels like an unfinished plugin at worst.
+
+**Decision**
+When two surfaces render the same domain object walkthrough, both surfaces MUST use the same class names + visual scaffold, not just the same data. D43 unifies the DTO producer (the DATA that reaches each surface); this DEC extends the same principle to the MARKUP CONTRACT (the SCAFFOLD around each rendered field). Concretely for F077: both the wizard's JSX and the admin PHP wrap their content in `<div class="qs-step"><h3 class="qs-step-heading"><span class="qs-step-heading__num">Step N</span> <title></h3><div class="qs-step-body">…</div></div>` scaffolds with identical class names on both surfaces. Both surfaces' stylesheets provide matching `.qs-step*` CSS rules with the same visual (color literals resolved from a single palette — either shared via variables or duplicated with paired code review discipline).
+
+**How to apply**
+- Reviewers: when a PR ships a new admin surface that renders content also rendered on an existing admin/wizard surface, reject renderer designs that invent new class names or divergent HTML shape. Ask "does the operator navigate between these two surfaces, and if so, will the walkthroughs read consistently?" — if not, align via shared class names + matching CSS rules.
+- Rule of thumb for stylesheet sharing: 4–10 CSS rules → duplicate with color literals (F077's choice). 10+ CSS rules → extract to a shared SCSS partial imported from both bundles. Cite F077 in the review comment either way.
+- Cite this DEC in the plan.md § Constitution Check row for §VI (DRY) when a UI refactor unifies markup across surfaces.
+
+**Trade-offs**
+- Gained: cross-surface consistency for operators. When an existing surface's layout changes, the sister surface can be aligned in a small follow-up PR (F077 was a 2-file change: refactor one PHP method + port 4 CSS rules). Sets a precedent for future admin surfaces (settings tabs, connector detail pages, embed configurators) to match established scaffolds rather than invent new ones.
+- Made harder: two source files carry the same 4 CSS rules — a change to one requires a change to the other. Mitigated by keeping the rules trivially small (F077's are 4 declarations each) and by naming convention (both files use `.qs-step*` so the parity is discoverable via `grep '.qs-step' src/scss/`).
+- Reconsider: when the two surfaces legitimately need to diverge visually (different context, different embedding constraint), split via new class names (`.qs-step` vs `.admin-step`) rather than forcing lockstep. Document the divergence in a comment on both surfaces.
+
+**Related**
+- D43 / DEC-CROSS-SURFACE-PARITY-UNIFY-AT-DATA-LAYER (parent) — D43 covers the DATA producer; this DEC extends the same principle to the MARKUP scaffold.
+- D47 / DEC-ABSTRACT-BASE-DEFAULT-COMPOSES-FROM-SIBLING-METHODS — companion. D47 ensures the abstract-base defaults compose so third-party contributions render correctly on any surface; this DEC ensures those renderings share visual shape.
+- D48 / DEC-RETIRE-UI-USAGE-KEEP-EXTENSION-SURFACE — companion. D48 preserves the extension surface when UI changes; this DEC ensures cross-surface UI stays aligned when it does change.

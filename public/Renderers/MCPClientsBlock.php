@@ -177,7 +177,7 @@ final class MCPClientsBlock extends AbstractClientRenderer {
 		$description   = $client->get_description();
 		$config_file   = $client->get_config_file();
 		$top_level_key = $client->get_top_level_key();
-		$instructions  = $client->get_instructions();
+		$restart_step  = $client->get_restart_step_text();
 
 		// Heading + subtitle. F076 — no emoji prefix on the client name.
 		printf(
@@ -191,38 +191,58 @@ final class MCPClientsBlock extends AbstractClientRenderer {
 			);
 		}
 
-		// Generate button + hint. Override sub_client so the button's
-		// data-client-slug matches the textarea id (see below) and the
-		// JS handler can find and update it.
+		// F077 — numbered STEP 1..5 layout matching Quick Setup wizard Step 11.
+		// Same content as the pre-F077 flat rows; reorganized under numbered
+		// step headers so both surfaces read identically.
+
+		// ─── STEP 1 — Generate the password ─────────────────────────────────
 		$button_context               = $context;
 		$button_context['sub_client'] = $slug;
-		echo '<div class="password-actions">';
+		echo '<div class="qs-step">';
+		printf(
+			'<h3 class="qs-step-heading"><span class="qs-step-heading__num">%1$s</span>%2$s</h3>',
+			esc_html__( 'Step 1', 'acrossai-mcp-manager' ),
+			esc_html__( 'Generate the password', 'acrossai-mcp-manager' )
+		);
+		echo '<div class="qs-step-body password-actions">';
 		$this->passwords_generate_button( $server, $button_context );
 		printf(
 			'<p class="description">%s</p>',
 			esc_html__( 'Creates a one-time password via WordPress Application Passwords. Shown only once — store it safely.', 'acrossai-mcp-manager' )
 		);
-		echo '</div>';
+		echo '</div></div>';
 
-		// Config File row.
+		// ─── STEP 2 — Open the config file ──────────────────────────────────
 		if ( '' !== $config_file ) {
+			echo '<div class="qs-step">';
 			printf(
-				'<div class="acrossai-mcp-meta-row"><span class="acrossai-mcp-meta-label">%1$s</span><span class="acrossai-mcp-meta-value">%2$s</span></div>',
-				esc_html__( 'Config File', 'acrossai-mcp-manager' ),
-				esc_html( $config_file )
+				'<h3 class="qs-step-heading"><span class="qs-step-heading__num">%1$s</span>%2$s</h3>',
+				esc_html__( 'Step 2', 'acrossai-mcp-manager' ),
+				esc_html__( 'Open the config file', 'acrossai-mcp-manager' )
 			);
+			printf(
+				'<div class="qs-step-body"><input type="text" class="widefat code" readonly value="%s" /></div>',
+				esc_attr( $config_file )
+			);
+			echo '</div>';
 		}
 
-		// Top-Level Key row.
+		// ─── STEP 3 — Locate the top-level key ──────────────────────────────
 		if ( '' !== $top_level_key ) {
+			echo '<div class="qs-step">';
 			printf(
-				'<div class="acrossai-mcp-meta-row"><span class="acrossai-mcp-meta-label">%1$s</span><span class="acrossai-mcp-meta-value">"%2$s"</span></div>',
-				esc_html__( 'Top-Level Key', 'acrossai-mcp-manager' ),
-				esc_html( $top_level_key )
+				'<h3 class="qs-step-heading"><span class="qs-step-heading__num">%1$s</span>%2$s</h3>',
+				esc_html__( 'Step 3', 'acrossai-mcp-manager' ),
+				esc_html__( 'Locate the top-level key', 'acrossai-mcp-manager' )
 			);
+			printf(
+				'<div class="qs-step-body"><input type="text" class="widefat code" readonly value="&quot;%s&quot;" /></div>',
+				esc_attr( $top_level_key )
+			);
+			echo '</div>';
 		}
 
-		// Configuration JSON block — matches reference plugin's textarea shape.
+		// ─── STEP 4 — Copy this config and paste it under the top-level key ─
 		$server_url  = rest_url(
 			trailingslashit( (string) $server['server_route_namespace'] ) . (string) $server['server_route']
 		);
@@ -232,12 +252,13 @@ final class MCPClientsBlock extends AbstractClientRenderer {
 			? (string) wp_json_encode( $snippet, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES )
 			: (string) $snippet;
 
-		echo '<div class="mcp-config-json">';
+		echo '<div class="qs-step">';
 		printf(
-			'<label for="%1$s"><strong>%2$s</strong></label>',
-			esc_attr( $textarea_id ),
-			esc_html__( 'Configuration JSON', 'acrossai-mcp-manager' )
+			'<h3 class="qs-step-heading"><span class="qs-step-heading__num">%1$s</span>%2$s</h3>',
+			esc_html__( 'Step 4', 'acrossai-mcp-manager' ),
+			esc_html__( 'Copy this config and paste it under the top-level key', 'acrossai-mcp-manager' )
 		);
+		echo '<div class="qs-step-body mcp-config-json">';
 		// Feature 075 — small local-dev note above the copied JSON.
 		if ( LocalEnvironment::needs_tls_bypass() ) {
 			printf(
@@ -261,28 +282,31 @@ final class MCPClientsBlock extends AbstractClientRenderer {
 			esc_attr( $textarea_id ),
 			esc_html__( 'Copy Configuration', 'acrossai-mcp-manager' )
 		);
-		echo '</div>';
+		echo '</div></div>';
 
-		// Restart / reload step — client-specific action needed after pasting
-		// the config. Matches the wizard's Step 11 § Step 5 block so both
-		// surfaces surface the same instruction. Source of truth is
-		// AbstractMCPClient::get_restart_step_text() — see F075 follow-up.
-		$restart_step = $client->get_restart_step_text();
+		// ─── STEP 5 — Restart the MCP client ────────────────────────────────
+		// Client-specific action from AbstractMCPClient::get_restart_step_text()
+		// — see F075 follow-up. Skipped when a subclass returns an empty
+		// string (bare / strictly-typed contributions from filter plugins).
 		if ( '' !== $restart_step ) {
+			echo '<div class="qs-step">';
 			printf(
-				'<div class="notice notice-info inline" style="border-left-color: #72aee6;"><p><strong>%1$s</strong> %2$s</p></div>',
-				esc_html__( 'Restart:', 'acrossai-mcp-manager' ),
+				'<h3 class="qs-step-heading"><span class="qs-step-heading__num">%1$s</span>%2$s</h3>',
+				esc_html__( 'Step 5', 'acrossai-mcp-manager' ),
+				esc_html__( 'Restart the MCP client', 'acrossai-mcp-manager' )
+			);
+			printf(
+				'<div class="qs-step-body"><p style="margin: 0;">%s</p></div>',
 				esc_html( $restart_step )
 			);
+			echo '</div>';
 		}
 
-		// Instructions callout — reuse WP core notice styles.
-		if ( '' !== $instructions ) {
-			printf(
-				'<div class="notice notice-info inline"><p>%1$s</p><p>%2$s</p></div>',
-				esc_html( $instructions ),
-				esc_html__( 'The generated password belongs to your current WordPress user. Access Control still applies to every MCP request, so a user who is not allowed for this server will receive an access denied response even if they have a saved config.', 'acrossai-mcp-manager' )
-			);
-		}
+		// Access Control caveat — rendered AFTER the last qs-step block per
+		// FR-004, matching the wizard's Step 11 placement.
+		printf(
+			'<div class="notice notice-info inline" style="margin-top: 20px;"><p>%s</p></div>',
+			esc_html__( 'The generated password belongs to your current WordPress user. Access Control still applies to every MCP request, so a user who is not allowed for this server will receive an access denied response even if they have a saved config.', 'acrossai-mcp-manager' )
+		);
 	}
 }

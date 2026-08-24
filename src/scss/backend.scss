@@ -415,3 +415,47 @@
 		font-size: 11px;
 	}
 }
+
+// F077 — Numbered STEP 1..5 layout on the per-server MCP Clients tab.
+// Same class names + visual as the Quick Setup wizard's step scaffold
+// (see src/scss/quick-setup.scss:681-714). Ported here with explicit
+// color literals so the admin bundle doesn't have to import wizard
+// SCSS variables (see specs/077-admin-tab-step-layout/research.md
+// Decision 1 for the "duplicate over shared partial" tradeoff).
+
+.qs-step {
+	margin-bottom: 20px;
+
+	&:last-of-type {
+		margin-bottom: 0;
+	}
+}
+
+.qs-step-heading {
+	margin: 0 0 10px;
+	font-size: 15px;
+	font-weight: 600;
+	color: #1e1e1e; // resolved from wizard's $qs-text
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	line-height: 1.4;
+}
+
+.qs-step-heading__num {
+	font-size: 10px;
+	font-weight: 700;
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+	color: #3858e9; // resolved from wizard's $qs-primary
+	padding: 3px 8px;
+	background: #eef1ff; // light tint of $qs-primary
+	border-radius: 3px;
+	flex: 0 0 auto;
+	line-height: 1.4;
+}
+
+.qs-step-body {
+	// Container for whatever the step needs: a button, an input, a textarea.
+	// No forced alignment — the child element controls its own width.
+}
