@@ -327,18 +327,15 @@ const Step11_ClientDetail = () => {
 					{ window.acrossaiMcpQuickSetup?.tlsBypass?.enabled && (
 						<div style={ { marginBottom: 12 } }>
 							<Notice status="warning">
-								<p>{ window.acrossaiMcpQuickSetup.tlsBypass.message }</p>
-								<p>
-									{ window.acrossaiMcpQuickSetup.tlsBypass.hint }
-									{ ' ' }
-									<a
-										href={ window.acrossaiMcpQuickSetup.tlsBypass.docUrl }
-										target="_blank"
-										rel="noopener noreferrer"
-									>
-										{ window.acrossaiMcpQuickSetup.tlsBypass.linkText }
-									</a>
-								</p>
+								{ window.acrossaiMcpQuickSetup.tlsBypass.message }
+								{ ' ' }
+								<a
+									href={ window.acrossaiMcpQuickSetup.tlsBypass.docUrl }
+									target="_blank"
+									rel="noopener noreferrer"
+								>
+									{ window.acrossaiMcpQuickSetup.tlsBypass.linkText }
+								</a>
 							</Notice>
 						</div>
 					) }

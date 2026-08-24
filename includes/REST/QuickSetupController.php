@@ -222,12 +222,25 @@ final class QuickSetupController {
 	 *
 	 * Inherits TASK-SEC-003 error-hygiene constraint from the class docblock.
 	 *
+	 * Accepts an optional `?server_id=N` query param — used when the wizard
+	 * deep-links straight to a late step (e.g. Step 11 with `?server=1` in
+	 * the browser URL) without having written the scratchpad's `server_id`
+	 * via the usual server-picker step. Without this fallback,
+	 * `ConnectionMethodRegistry::get_clients()` returns metadata-only DTOs
+	 * (no `config` field), which the JSX then dumps raw. Query param loses
+	 * to scratchpad when both are present — the scratchpad is the
+	 * authoritative wizard state.
+	 *
 	 * @since 0.2.11
+	 * @param WP_REST_Request|null $request Optional request (for `?server_id=` fallback).
 	 * @return WP_REST_Response|WP_Error
 	 */
-	public function handle_state() {
+	public function handle_state( ?WP_REST_Request $request = null ) {
 		$wizard_state = $this->read_scratchpad();
 		$server_id    = isset( $wizard_state['server_id'] ) ? (int) $wizard_state['server_id'] : 0;
+		if ( 0 === $server_id && null !== $request ) {
+			$server_id = (int) $request->get_param( 'server_id' );
+		}
 
 		$servers   = $this->collect_servers();
 		$abilities = $this->collect_abilities_summary( $server_id > 0 ? $server_id : null );

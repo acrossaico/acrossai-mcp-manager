@@ -237,19 +237,17 @@ final class MCPClientsBlock extends AbstractClientRenderer {
 			esc_attr( $textarea_id ),
 			esc_html__( 'Configuration JSON', 'acrossai-mcp-manager' )
 		);
-		// Feature 075 — local-dev warning above the copied JSON.
+		// Feature 075 — small local-dev note above the copied JSON.
 		if ( LocalEnvironment::needs_tls_bypass() ) {
 			printf(
-				'<div class="notice notice-warning inline" style="margin: 8px 0;"><p>%1$s</p><p>%2$s</p><p>%3$s <a href="%4$s" target="_blank" rel="noopener noreferrer">%5$s</a></p></div>',
+				'<div class="notice notice-warning inline" style="margin: 8px 0;"><p>%1$s <a href="%2$s" target="_blank" rel="noopener noreferrer">%3$s</a></p></div>',
 				sprintf(
 					/* translators: %s: the injected env var wrapped in <code>. */
-					esc_html__( 'Local dev detected — we added %s to this snippet as an insecure convenience for local testing.', 'acrossai-mcp-manager' ),
+					esc_html__( 'Local dev — added %s for local testing (never use on a live site).', 'acrossai-mcp-manager' ),
 					'<code>NODE_TLS_REJECT_UNAUTHORIZED: "0"</code>'
 				),
-				esc_html__( 'On a local HTTPS site with a self-signed certificate this stops the proxy from rejecting the cert. On a plain-HTTP local site the flag does nothing but is harmless. Never use this setting against a live site — it disables all TLS verification.', 'acrossai-mcp-manager' ),
-				esc_html__( 'If your MCP client still shows zero tools after copying this JSON, check the troubleshooting doc for other common local-dev fixes:', 'acrossai-mcp-manager' ),
 				esc_url( LocalEnvironment::troubleshooting_doc_url() ),
-				esc_html__( 'Automattic mcp-wordpress-remote troubleshooting.', 'acrossai-mcp-manager' )
+				esc_html__( 'More info', 'acrossai-mcp-manager' )
 			);
 		}
 		printf(

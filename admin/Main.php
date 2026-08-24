@@ -243,9 +243,8 @@ class Main {
 				// per-server tab notice — copy MUST match MCPClientsBlock).
 				'tlsBypass'        => array(
 					'enabled'  => LocalEnvironment::needs_tls_bypass(),
-					'message'  => __( 'Local dev detected — we added NODE_TLS_REJECT_UNAUTHORIZED: "0" to this snippet as an insecure convenience for local testing. On a local HTTPS site with a self-signed certificate this stops the proxy from rejecting the cert. On a plain-HTTP local site the flag does nothing but is harmless. Never use this setting against a live site — it disables all TLS verification.', 'acrossai-mcp-manager' ),
-					'hint'     => __( 'If your MCP client still shows zero tools after copying this JSON, check the troubleshooting doc for other common local-dev fixes:', 'acrossai-mcp-manager' ),
-					'linkText' => __( 'Automattic mcp-wordpress-remote troubleshooting.', 'acrossai-mcp-manager' ),
+					'message'  => __( 'Local dev — added NODE_TLS_REJECT_UNAUTHORIZED: "0" for local testing (never use on a live site).', 'acrossai-mcp-manager' ),
+					'linkText' => __( 'More info', 'acrossai-mcp-manager' ),
 					'docUrl'   => LocalEnvironment::troubleshooting_doc_url(),
 				),
 			)
