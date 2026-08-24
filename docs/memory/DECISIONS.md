@@ -2444,3 +2444,47 @@ Local-dev-only affordances (warnings about insecure convenience flags, self-sign
 **Related**
 - DEC-MCPCLIENT-BUILD-ENV-SHARED — the shared helper is the injection point this decision relies on.
 - Spec F075 § Clarifications Q4 (2026-08-24) — the on-the-record decision trace that overrode the earlier HTTPS-only gate.
+
+---
+
+### DEC-ABSTRACT-BASE-DEFAULT-COMPOSES-FROM-SIBLING-METHODS — New per-subclass display-string methods must have composed defaults, not hardcoded generic strings
+
+**Status**
+Active (Feature 075 follow-up)
+
+**Context**
+F075 follow-up added a new per-subclass display method, `AbstractMCPClient::get_restart_step_text()`, that surfaces "Step 5 — Restart the MCP client" copy on two admin surfaces (Quick Setup Step 11 + per-server MCP Clients tab). Third-party MCP client subclasses contributed via the `acrossai_mcp_client_classes` filter needed a working default — otherwise every companion plugin would ship broken/empty Step 5 UI until they explicitly overrode the method.
+
+**Decision**
+When adding a new per-subclass display-string method to an abstract base — labels, restart hints, help text, tooltips, anything a UI renders one-per-subclass — the base's default implementation MUST compose from another already-abstract method (typically the display-name method) rather than returning a hardcoded generic string. Bare / third-party subclasses ship working UI copy the moment they extend the base; no override required.
+
+**Reference implementation** (`includes/MCPClients/AbstractMCPClient.php`):
+
+```php
+public function get_restart_step_text(): string {
+    $name = $this->get_client_name();
+    return '' === $name
+        ? __( 'Restart your MCP client to load the new server.', 'acrossai-mcp-manager' )
+        : sprintf(
+            __( 'Restart %s to load the new MCP server.', 'acrossai-mcp-manager' ),
+            $name
+        );
+}
+```
+
+The empty-name fallback is the belt-and-braces branch — if a subclass legitimately overrides `get_client_name()` to `''` (unlikely but not prohibited), the default still degrades to a readable sentence.
+
+**How to apply**
+- Reviewers: reject any new abstract-base per-subclass display method whose default is a hardcoded generic string like `return __( 'Configure this integration', 'text-domain' )`. Ask "what does this default look like for a third-party subclass named `FooBarClient`?" — if the answer is "generic mystery text with no reference to the concrete client", the default must compose from `get_client_name()` (or the equivalent abstract-name method).
+- Only override the composed default when the concrete subclass has a genuinely different action shape (F075: VS Code overrides because "reload" ≠ "restart"; GitHub Copilot because two targets need restarting; Cline/Roo Code/Kilo Code because they hot-reload).
+- Grep-gate at review time: for every new `public function get_*(): string` on an abstract base under `includes/*Client*/` or `includes/*Profile*/` or `includes/*Provider*/`, verify the default body either (a) composes from `sprintf(__(…), $this->…())` or (b) returns `''` (deferred to subclass; no default UI at all — acceptable when subclasses that omit the override should render nothing rather than a wrong default).
+
+**Trade-offs**
+- Gained: third-party contributors get working UI copy on the first ship — the abstract base's contract carries semantic weight, not just syntactic. Reduces surface for the "generic UI text landing on wrong client" class of bug.
+- Made harder: the default's readability depends on the sibling method returning a well-formed name. The empty-name fallback is mandatory.
+- Reconsider: when the display method's shape isn't a template (e.g. a full multi-sentence paragraph), a hardcoded default may be more readable than a multi-line sprintf. In that case, cite this DEC in the docblock and explain why hardcoded is safer.
+
+**Related**
+- D35 / DEC-F034-SELF-CONTAINED-SUBSYSTEM-CONTRACT (parent) — established WHERE per-subclass metadata lives (method-with-default on the abstract base, not a const on a Renderer). This DEC tightens WHAT the default should be.
+- D43 / DEC-CROSS-SURFACE-PARITY-UNIFY-AT-DATA-LAYER (companion) — the composed default reaches every rendering surface identically because the same DTO producer (or direct base-class call) feeds them all. F075 renders `restartStep` on both the wizard's Step 11 and the per-server admin tab from the same `get_restart_step_text()` call.
+- D45 / DEC-MCPCLIENT-BUILD-ENV-SHARED (sibling in the same subsystem) — same pattern applied to env-block plumbing on the same feature.
