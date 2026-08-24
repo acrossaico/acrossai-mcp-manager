@@ -279,3 +279,14 @@ This is a changelog entry, not a durable lesson. It records what happened, not w
     - `docs/memory/BUGS.md` — the 2026-08-24 "Retired-symbol names inside code comments" entry (F076 authoring gotcha).
     - `specs/076-remove-client-picker-icons/` — full design + verification trace.
     - `docs/planings-tasks/076-remove-client-picker-icons.md` — plain-English planning doc.
+
+### 2026-08-24 — 9 MCP client configs fixed after upstream-docs verification pass (F078)
+
+- **Why durable**: Establishes `DEC-UPSTREAM-DOC-VERIFICATION-CADENCE` — periodic audit of each `MCPClient` subclass's return values against its official upstream docs. F078 was the first execution; found 3 breaking issues (Kilo Code shape refactor, VS Code + GitHub Copilot wrong macOS path) + 6 misleading restart phrasings + 2 optional cleanups (Zed `source`/`enabled` prefix, Amazon Q `default.json` note). Every fix cites a first-party upstream URL in `specs/078-client-config-upstream-fixes/research.md`.
+- **Future mistake prevented**: Ships broken instructions accumulating silently as upstream vendors drift their docs. Next audit triggers: (a) new `MCPClient` subclass added, (b) plugin major version bump planned, (c) operator report of "wrong path / can't parse config."
+- **Evidence**: 4 parallel `general-purpose` research agents verified all 16 clients in ~90 minutes; 9 of 16 needed fixes; PHPUnit 100 tests / 195 assertions green; PHPCS + PHPStan L8 clean on all 9 modified client classes.
+- **Where future contributors should look**:
+    - `docs/memory/DECISIONS.md` — `DEC-UPSTREAM-DOC-VERIFICATION-CADENCE` (the codified pattern).
+    - `specs/078-client-config-upstream-fixes/research.md` — 15+ upstream URLs cited per-client (baseline for future drift detection).
+    - `docs/planings-tasks/078-client-config-upstream-fixes.md` — plain-English planning doc.
+    - `includes/MCPClients/{Kilo,VSCode,GitHubCopilot,Cursor,Windsurf,Zed,Antigravity,AmazonQ,RooCode}Client.php` — the 9 modified files.

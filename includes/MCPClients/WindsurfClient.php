@@ -84,7 +84,18 @@ final class WindsurfClient extends AbstractMCPClient {
 	 * {@inheritDoc}
 	 */
 	public function get_instructions(): string {
-		return __( 'Generate a password → copy the JSON → open ~/.codeium/windsurf/mcp_config.json → paste under mcpServers → restart Windsurf.', 'acrossai-mcp-manager' );
+		return __( 'Generate a password → copy the JSON → open ~/.codeium/windsurf/mcp_config.json → paste under mcpServers → click Refresh in Cascade\'s MCP panel (or restart Windsurf).', 'acrossai-mcp-manager' );
+	}
+
+	/**
+	 * {@inheritDoc}
+	 *
+	 * F078 — Cascade has a dedicated Refresh button in the MCP panel; a
+	 * full restart is heavier than necessary. Source:
+	 * https://docs.windsurf.com/plugins/cascade/mcp
+	 */
+	public function get_restart_step_text(): string {
+		return __( 'Click Refresh in Cascade\'s MCP panel to load the new MCP server (a full Windsurf restart also works).', 'acrossai-mcp-manager' );
 	}
 
 	/**

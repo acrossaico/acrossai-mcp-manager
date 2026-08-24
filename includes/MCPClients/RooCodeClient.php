@@ -89,10 +89,13 @@ final class RooCodeClient extends AbstractMCPClient {
 	}
 
 	/**
-	 * {@inheritDoc}
+	 * F078 (2026-08-24) — Roo Code docs describe a per-server Restart
+	 * button in the MCP Servers panel; "hot-reload" is not an
+	 * upstream-documented concept. Source:
+	 * https://roocodeinc.github.io/Roo-Code/features/mcp/using-mcp-in-roo
 	 */
 	public function get_restart_step_text(): string {
-		return __( 'Roo Code hot-reloads MCP servers — reopen the MCP Servers panel in the Roo Code sidebar to confirm the new server is listed.', 'acrossai-mcp-manager' );
+		return __( 'Open the MCP Servers panel in the Roo Code sidebar; the new server should appear automatically. If it does not, click Restart on the server row.', 'acrossai-mcp-manager' );
 	}
 
 	/**

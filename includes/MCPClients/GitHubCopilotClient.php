@@ -70,9 +70,13 @@ final class GitHubCopilotClient extends AbstractMCPClient {
 
 	/**
 	 * {@inheritDoc}
+	 *
+	 * F078 (2026-08-24) — corrected macOS user-level path (same fix as
+	 * VSCodeClient). Source:
+	 * https://code.visualstudio.com/docs/copilot/customization/mcp-servers
 	 */
 	public function get_config_file(): string {
-		return '~/.vscode/mcp.json';
+		return '~/Library/Application Support/Code/User/mcp.json';
 	}
 
 	/**
@@ -86,14 +90,17 @@ final class GitHubCopilotClient extends AbstractMCPClient {
 	 * {@inheritDoc}
 	 */
 	public function get_instructions(): string {
-		return __( 'Generate a password → copy the JSON → open the user-level ~/.vscode/mcp.json → paste under servers → restart VS Code + GitHub Copilot extension.', 'acrossai-mcp-manager' );
+		return __( 'Generate a password → copy the JSON → open the user-level ~/Library/Application Support/Code/User/mcp.json (or Cmd/Ctrl + Shift + P → "MCP: Open User Configuration") → paste under servers. In Copilot Chat, switch to Agent mode to see the new tools.', 'acrossai-mcp-manager' );
 	}
 
 	/**
 	 * {@inheritDoc}
+	 *
+	 * F078 — Copilot picks up new MCP servers automatically once VS Code
+	 * (re)starts them; the operator just needs to be in Agent mode.
 	 */
 	public function get_restart_step_text(): string {
-		return __( 'Restart VS Code and reactivate the GitHub Copilot extension to load the new MCP server.', 'acrossai-mcp-manager' );
+		return __( 'Ensure Copilot Chat is in Agent mode; VS Code auto-starts the new MCP server once the config is saved (reload the window if it does not appear).', 'acrossai-mcp-manager' );
 	}
 
 	/**

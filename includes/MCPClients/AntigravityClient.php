@@ -86,7 +86,19 @@ final class AntigravityClient extends AbstractMCPClient {
 	 * {@inheritDoc}
 	 */
 	public function get_instructions(): string {
-		return __( 'Generate a password → copy the JSON → open ~/.gemini/config/mcp_config.json (global) or .agents/mcp_config.json (workspace) → paste under mcpServers → restart Antigravity.', 'acrossai-mcp-manager' );
+		return __( 'Generate a password → copy the JSON → open ~/.gemini/config/mcp_config.json (global) or .agents/mcp_config.json (workspace) → paste under mcpServers → reload via /mcp (CLI) or Manage MCP Servers (IDE).', 'acrossai-mcp-manager' );
+	}
+
+	/**
+	 * {@inheritDoc}
+	 *
+	 * F078 — Antigravity ships dedicated reload paths: `/mcp` command in
+	 * the CLI, Manage MCP Servers panel in the IDE. A full restart also
+	 * works but is heavier. Sources: https://antigravity.google/docs/cli/mcp
+	 * and https://antigravity.google/docs/ide/mcp
+	 */
+	public function get_restart_step_text(): string {
+		return __( 'Reload MCP servers via the /mcp command in the Antigravity CLI, or the Manage MCP Servers panel in the IDE. A full Antigravity restart also works.', 'acrossai-mcp-manager' );
 	}
 
 	/**

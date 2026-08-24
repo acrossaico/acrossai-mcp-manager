@@ -85,7 +85,7 @@ final class AmazonQClient extends AbstractMCPClient {
 	 * {@inheritDoc}
 	 */
 	public function get_instructions(): string {
-		return __( 'Generate a password → copy the JSON → open ~/.aws/amazonq/mcp.json (global) or .amazonq/mcp.json (project) → paste under mcpServers → restart Amazon Q.', 'acrossai-mcp-manager' );
+		return __( 'Generate a password → copy the JSON → open ~/.aws/amazonq/mcp.json (CLI + legacy IDE) or ~/.aws/amazonq/default.json (current IDE default) → paste under mcpServers → restart Amazon Q Developer.', 'acrossai-mcp-manager' );
 	}
 
 	/**

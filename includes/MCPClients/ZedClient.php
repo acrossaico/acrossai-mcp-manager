@@ -15,9 +15,13 @@ defined( 'ABSPATH' ) || exit;
  *
  * Target file: `~/.config/zed/settings.json`
  * Top-level key: `context_servers` (Zed's own naming — differs from the
- * near-universal `mcpServers` used by every other client). Each server
- * entry MUST include `source: 'custom'` + `enabled: true` for Zed to load
- * user-configured MCP servers correctly.
+ * near-universal `mcpServers` used by every other client).
+ *
+ * F078 (2026-08-24) — dropped the `source: 'custom'` + `enabled: true`
+ * prefix that F071 shipped based on community sample code; Zed's official
+ * docs at https://zed.dev/docs/ai/mcp show only the standard stdio shape
+ * (command / args / env). Zed live-reloads settings.json — no restart
+ * required.
  */
 final class ZedClient extends AbstractMCPClient {
 
@@ -47,8 +51,6 @@ final class ZedClient extends AbstractMCPClient {
 		return array(
 			'context_servers' => array(
 				$this->derive_server_key( $server_url ) => array(
-					'source'  => 'custom',
-					'enabled' => true,
 					'command' => 'npx',
 					'args'    => array( '-y', '@automattic/mcp-wordpress-remote@latest' ),
 					'env'     => $this->build_env( $server_url, $auth_token ),
@@ -89,7 +91,15 @@ final class ZedClient extends AbstractMCPClient {
 	 * {@inheritDoc}
 	 */
 	public function get_instructions(): string {
-		return __( 'Generate a password → copy the JSON → open ~/.config/zed/settings.json → merge under context_servers → restart Zed.', 'acrossai-mcp-manager' );
+		return __( 'Generate a password → copy the JSON → open ~/.config/zed/settings.json → merge under context_servers → open the Agent Panel (Zed live-reloads settings).', 'acrossai-mcp-manager' );
+	}
+
+	/**
+	 * F078 (2026-08-24) — Zed live-reloads settings.json; a full restart
+	 * is not required. Source: https://zed.dev/docs/ai/mcp
+	 */
+	public function get_restart_step_text(): string {
+		return __( 'Zed live-reloads settings.json — open the Agent Panel to confirm the new MCP tools appear.', 'acrossai-mcp-manager' );
 	}
 
 	/**
