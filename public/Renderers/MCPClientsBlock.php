@@ -262,6 +262,19 @@ final class MCPClientsBlock extends AbstractClientRenderer {
 		);
 		echo '</div>';
 
+		// Restart / reload step — client-specific action needed after pasting
+		// the config. Matches the wizard's Step 11 § Step 5 block so both
+		// surfaces surface the same instruction. Source of truth is
+		// AbstractMCPClient::get_restart_step_text() — see F075 follow-up.
+		$restart_step = $client->get_restart_step_text();
+		if ( '' !== $restart_step ) {
+			printf(
+				'<div class="notice notice-info inline" style="border-left-color: #72aee6;"><p><strong>%1$s</strong> %2$s</p></div>',
+				esc_html__( 'Restart:', 'acrossai-mcp-manager' ),
+				esc_html( $restart_step )
+			);
+		}
+
 		// Instructions callout — reuse WP core notice styles.
 		if ( '' !== $instructions ) {
 			printf(
