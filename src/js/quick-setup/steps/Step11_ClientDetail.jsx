@@ -185,9 +185,10 @@ const Step11_ClientDetail = () => {
 							onClick={ () => setActiveSlug( c.slug ) }
 							className={ isActive ? 'qs-btn' : 'qs-btn qs-btn--secondary' }
 						>
-							{ c.icon && (
-								<span style={ { marginRight: 6 } }>{ c.icon }</span>
-							) }
+							{ /* F076 — picker button body is client name only; the
+							     get_icon() DTO value is intentionally not rendered
+							     here (companion plugins may still read it from
+							     the ConnectionMethodRegistry DTO). */ }
 							{ c.name || c.slug }
 						</button>
 					);

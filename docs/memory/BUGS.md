@@ -2176,3 +2176,37 @@ In-browser verification on `http://wordpress-7-0.local` after F075 shipped — u
 - `src/js/quick-setup/hooks/useWizardState.js::refetch` — reference implementation of URL-param forwarding.
 - `src/js/quick-setup/steps/Step11_ClientDetail.jsx:141` — the `JSON.stringify` fallback that made the bug visible (arguably the reason the bug was caught quickly rather than staying silent).
 - Any future wizard step JSX with a `useMemo(() => activeThing.foo || JSON.stringify(activeThing))` — review for the same class of leak.
+
+---
+
+### 2026-08-24 — Retired-symbol names inside code comments trigger canary-grep false positives
+
+**Status**
+Retired (fixed within F076 during implementation)
+
+**Symptoms**
+Feature 076's SC-003 canary grep (`grep -RnE 'get_icon\(\)' public/Renderers/MCPClientsBlock.php`) reported one match after the two rendering `printf` calls had been rewritten. Manual inspection showed the "match" was a code comment I had added right above the rewritten `printf` explaining that the `get_icon()` method stays defined on subclasses even though the picker no longer renders it. The comment embedded the retired symbol name verbatim, which the grep then flagged as "still in use."
+
+**Root Cause**
+A well-intentioned code comment that referenced the retired symbol by its literal name (`get_icon()`) triggered the very canary grep the spec used to prove the symbol had been retired from the file. The comment was correct English; the grep pattern was correctly written; both were doing their job. The problem is that plain-text `grep` cannot distinguish comments from code.
+
+**Future mistake prevented**
+When retiring a symbol from a file and the plan includes a canary grep to prove non-usage, the replacement code comments MUST NOT reference the retired symbol by its literal name. Either:
+- Rephrase the comment to describe the retired symbol semantically (e.g., "the abstract client method that returns the per-client emoji" instead of "the `get_icon()` method"), OR
+- Split the grep into two — one for the retired usage in code, one for the retired usage in comments — accepting that the second may have hits by design.
+
+Option 1 is simpler and matches the F076 fix.
+
+**Evidence**
+- Initial comment in `public/Renderers/MCPClientsBlock.php` sub-nav pill block referenced `get_icon()` verbatim → SC-003 grep reported 1 match.
+- Rewrote comment to "the abstract client method that returns the per-client emoji" → SC-003 grep reported zero matches ✓.
+- Fixed within F076 implementation phase; caught by running the canary greps from the spec's SC criteria as part of implementation verification, before commit.
+
+**Prevention / Detection**
+- **Author checklist**: when writing a canary-grep-verified subtractive change, spot-check the replacement comments for any occurrence of the retired symbol before running the canary.
+- **Spec-side prevention**: when writing SC criteria for a subtractive change, prefer grep patterns that anchor on code syntax (e.g., `->methodName(` or `$var = methodName(`) rather than the bare symbol name (`methodName`). Anchored patterns skip comments naturally.
+- **Reviewer checklist**: for any PR whose spec's SC criteria include a "grep returns zero" canary, spot-check the touched files for any explanatory comment that names the retired symbol.
+
+**Where to look next**
+- Recent PRs' SC canary grep results — if any show a stray match after the change lands, apply the same rephrase-or-anchor fix.
+- Future spec-kit specs on subtractive changes — favor `->methodName(` over `methodName` in SC grep patterns.
