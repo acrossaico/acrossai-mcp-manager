@@ -93,6 +93,13 @@ final class CustomClient extends AbstractMCPClient {
 	/**
 	 * {@inheritDoc}
 	 */
+	public function get_restart_step_text(): string {
+		return __( 'Restart your MCP client (or reload its window / extension) to load the new MCP server. Consult your client\'s docs for the exact reload action.', 'acrossai-mcp-manager' );
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
 	public function get_priority(): int {
 		return 80;
 	}

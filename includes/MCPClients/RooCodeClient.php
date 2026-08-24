@@ -91,6 +91,13 @@ final class RooCodeClient extends AbstractMCPClient {
 	/**
 	 * {@inheritDoc}
 	 */
+	public function get_restart_step_text(): string {
+		return __( 'Roo Code hot-reloads MCP servers — reopen the MCP Servers panel in the Roo Code sidebar to confirm the new server is listed.', 'acrossai-mcp-manager' );
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
 	public function get_priority(): int {
 		return 75;
 	}

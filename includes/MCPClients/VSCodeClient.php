@@ -92,6 +92,13 @@ final class VSCodeClient extends AbstractMCPClient {
 	/**
 	 * {@inheritDoc}
 	 */
+	public function get_restart_step_text(): string {
+		return __( 'Reload VS Code (Cmd/Ctrl + Shift + P → Developer: Reload Window) to load the new MCP server.', 'acrossai-mcp-manager' );
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
 	public function get_priority(): int {
 		return 30;
 	}

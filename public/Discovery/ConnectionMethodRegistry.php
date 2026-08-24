@@ -219,6 +219,10 @@ final class ConnectionMethodRegistry {
 				// F073 — surfaced so Step 11 can render the same instructions
 				// callout the Clients tab shows (MCPClientsBlock:252-258).
 				'instructions' => $client->get_instructions(),
+				// F075 follow-up — Step 5 in the wizard's per-client detail
+				// tells the operator the client-specific restart / reload
+				// action needed after pasting the config.
+				'restartStep'  => $client->get_restart_step_text(),
 				'meta'         => array(
 					'config_file'   => $client->get_config_file(),
 					'top_level_key' => $client->get_top_level_key(),

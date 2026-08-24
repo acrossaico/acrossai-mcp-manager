@@ -140,6 +140,30 @@ abstract class AbstractMCPClient {
 	}
 
 	/**
+	 * Short, client-specific action the operator has to perform AFTER
+	 * pasting the config so the client picks up the new MCP server —
+	 * rendered as Step 5 in the Quick Setup wizard's per-client detail.
+	 *
+	 * Most clients need a full restart. Some (VS Code, Cline, Kilo Code,
+	 * Roo Code) hot-reload from a sidebar or command palette. Each concrete
+	 * client should return the exact phrasing that matches its own docs.
+	 * Default is a generic "restart <name>" so a bare subclass still gets
+	 * a sensible instruction without needing to override.
+	 *
+	 * @return string
+	 */
+	public function get_restart_step_text(): string {
+		$name = $this->get_client_name();
+		return '' === $name
+			? __( 'Restart your MCP client to load the new server.', 'acrossai-mcp-manager' )
+			: sprintf(
+				/* translators: %s: MCP client display name (e.g. "Claude Desktop"). */
+				__( 'Restart %s to load the new MCP server.', 'acrossai-mcp-manager' ),
+				$name
+			);
+	}
+
+	/**
 	 * Sub-nav slot preference. Lower values sort earlier. WP-idiomatic
 	 * (matches `add_action` priority semantics). Default 100 places
 	 * third-party contributions AFTER all eight built-ins (which use
