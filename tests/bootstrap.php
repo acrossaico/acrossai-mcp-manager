@@ -104,3 +104,52 @@ if ( ! function_exists( 'esc_html__' ) ) {
 		return htmlspecialchars( $text, ENT_QUOTES, 'UTF-8' );
 	}
 }
+
+// ────────────────────────────────────────────────────────────────────────────
+// Feature 075 — additional WP-free stubs so `Utilities\LocalEnvironment` can
+// be exercised inside the mcpclients suite (SC-003 WP-free contract). The
+// `acrossai_test_home_url` + `acrossai_test_env_type` globals are the knobs
+// each test flips before calling `LocalEnvironment::needs_tls_bypass()`.
+// ────────────────────────────────────────────────────────────────────────────
+
+// Default to a NON-local host + production env so any test class that does
+// not explicitly manage these globals (e.g. ConcreteClientsTest with its
+// golden fixtures) sees LocalEnvironment::needs_tls_bypass() === false —
+// which matches the shape those fixtures were captured against. Tests that
+// exercise the local-dev branch (LocalEnvironmentTest) set these knobs
+// explicitly per test and reset them in tearDown.
+if ( ! isset( $GLOBALS['acrossai_test_home_url'] ) ) {
+	$GLOBALS['acrossai_test_home_url'] = 'http://example.com';
+}
+if ( ! isset( $GLOBALS['acrossai_test_env_type'] ) ) {
+	$GLOBALS['acrossai_test_env_type'] = 'production';
+}
+
+if ( ! function_exists( 'home_url' ) ) {
+	function home_url( string $path = '', ?string $scheme = null ): string {
+		unset( $path, $scheme );
+		return (string) $GLOBALS['acrossai_test_home_url'];
+	}
+}
+
+if ( ! function_exists( 'wp_get_environment_type' ) ) {
+	function wp_get_environment_type(): string {
+		return (string) $GLOBALS['acrossai_test_env_type'];
+	}
+}
+
+if ( ! function_exists( 'wp_parse_url' ) ) {
+	/**
+	 * Thin wrapper around parse_url matching WordPress core's signature for
+	 * the argument shapes LocalEnvironment uses (scheme + host).
+	 *
+	 * @param string $url       URL to parse.
+	 * @param int    $component PHP_URL_* constant.
+	 *
+	 * @return string|null
+	 */
+	function wp_parse_url( string $url, int $component = -1 ) {
+		$parsed = parse_url( $url, $component );
+		return false === $parsed ? null : $parsed;
+	}
+}

@@ -2107,3 +2107,36 @@ For every match, PR review MUST ask "would this need updating if the source regi
 - **B44** (BerlinDB Table added but uninstall.php DROP list not updated) — same class of "two artifacts must stay in sync" bug, applied to BerlinDB tables + uninstall.php.
 - **PATTERN-COMPILE-TIME-COUPLING-MISSING** — when two artifacts must stay in sync, enforce it via a shared registry OR a test gate that reads the registry at run time. The `count(SOURCE_ARRAY)` fix IS the coupling.
 - **D35** (F034 self-contained subsystem contract) — F034 established that consumers of `get_all_registered_clients()` should not hardcode knowledge of specific clients. B48 generalizes: consumers should not hardcode knowledge of the CARDINALITY either.
+
+---
+
+### 2026-08-24 — MCP client "connected" but tool list empty on local dev
+
+**Status**
+Retired (Feature 075 shipped the affordance + fix)
+
+**Symptoms**
+Operator on Local by Flywheel / MAMP / DDEV / `wp-env` pastes the generated MCP JSON into Claude Desktop / Cursor / VS Code. The client's MCP indicator turns green ("connected"), but `tools/list` returns zero results. No error surface anywhere the operator would look. First impression of the plugin: "it doesn't work."
+
+**Root Cause**
+`@automattic/mcp-wordpress-remote` Node proxy establishes a TCP connection to the WP site (proxy-side happy) then Node's TLS layer rejects the site's self-signed HTTPS certificate during the first HTTP call, silently dropping the JSON-RPC bootstrap. The MCP client interprets the live TCP socket as "connected" but never receives a `tools/list` response.
+
+**Future mistake prevented**
+Any future "connected but no data" symptom on local dev is likely a self-signed-cert TLS rejection, not an auth / protocol / capability problem. First check: what does `home_url()` scheme return, and does the site have a valid cert? Only after that rule-out should protocol traces or Application Password checks kick in.
+
+**Evidence**
+- User report (raftaar1191, 2026-08-24) hitting the symptom on `http://wordpress-7-0.local` and expecting the plugin to surface a fix.
+- Automattic's own troubleshooting doc (`https://github.com/Automattic/mcp-wordpress-remote/blob/trunk/Docs/troubleshooting.md`) documents `NODE_TLS_REJECT_UNAUTHORIZED=0` as the last-resort workaround.
+- Fix verified: F075 auto-injects the flag on local sites; operator restarts client → tools appear.
+
+**Prevention / Detection**
+- Auto-inject `NODE_TLS_REJECT_UNAUTHORIZED: "0"` into every generated MCP client JSON when the site looks local (any scheme). Injection routes through `AbstractMCPClient::build_env()` so every new client subclass inherits it for free — see `DEC-MCPCLIENT-BUILD-ENV-SHARED`.
+- Static warning notice above the JSON on both surfaces (per-server MCP Clients tab + Quick Setup Step 11) with a link to Automattic's troubleshooting doc — helps operators whose case is NOT TLS-shaped (stale Application Password, disabled pretty permalinks, npm proxy version drift) find the right fix.
+- Detection helper is a pure static function at `Utilities\LocalEnvironment::needs_tls_bypass()` — testable in the WP-free `mcpclients` PHPUnit suite. 100/100 assertions green on merge.
+
+**Where to look next**
+- `includes/Utilities/LocalEnvironment.php` — the detection rule.
+- `includes/MCPClients/AbstractMCPClient::build_env()` — the injection point.
+- `public/Renderers/MCPClientsBlock.php` — admin-side warning.
+- `src/js/quick-setup/steps/Step11_ClientDetail.jsx` — wizard-side warning.
+- `docs/planings-tasks/075-local-dev-tls-bypass-notice.md` + `specs/075-local-dev-tls-bypass-notice/` — full design trace.

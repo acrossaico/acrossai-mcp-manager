@@ -250,3 +250,15 @@ This is a changelog entry, not a durable lesson. It records what happened, not w
 - Security reviews: `docs/security-reviews/2026-07-29-037-user-accessible-mcp-servers-shortcode-{plan,tasks}.md`
 
 **Follow-up (not blocking)**: `/speckit-security-review-branch` + `/speckit-architecture-guard-architecture-review` post-implement scans; `/speckit-analyze` cross-artifact consistency check; then `/speckit-git-commit` → PR against `main`.
+
+### 2026-08-24 — Local-dev TLS bypass affordance for MCP client JSON snippets (F075)
+
+- **Why durable**: Names the "silent connected-but-no-tools" symptom that stumps every operator on their first local-dev try — retired as `BUGS.md` "MCP client connected but tool list empty on local dev" the same day the affordance shipped. Every current and future MCPClient subclass (built-in or contributed via `acrossai_mcp_client_classes` filter) inherits the affordance for free via `AbstractMCPClient::build_env()`.
+- **Future mistake prevented**: A new MCPClient contributor won't re-inline the pre-F075 env-array literal (which would drift from the shared helper and skip the TLS bypass on local dev). Also anchors the broader principle "dev-only affordances go through `Utilities/*Environment` detection helpers, not admin toggles" — the affordance's blast radius is bounded by the static detection rule, not the operator's discipline.
+- **Evidence**: F075 refactored 16 concrete client classes, added `Utilities\LocalEnvironment` (mirrors `SiteSlug` shape), 100 / 100 PHPUnit assertions green, PHPCS + PHPStan L8 clean on all touched files. Live sites unaffected (verified via production simulation per spec § SC-003).
+- **Where future contributors should look**:
+    - `includes/Utilities/LocalEnvironment.php` — detection rule + `troubleshooting_doc_url()` constant.
+    - `includes/MCPClients/AbstractMCPClient::build_env()` — injection point.
+    - `docs/memory/DECISIONS.md` — `DEC-MCPCLIENT-BUILD-ENV-SHARED` + `DEC-LOCAL-DEV-AFFORDANCE-SCHEME-AGNOSTIC`.
+    - `docs/planings-tasks/075-local-dev-tls-bypass-notice.md` + `specs/075-local-dev-tls-bypass-notice/` — design trace.
+    - `tests/phpunit/MCPClients/LocalEnvironmentTest.php` — the eleven detection axes.

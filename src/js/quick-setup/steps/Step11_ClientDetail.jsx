@@ -316,6 +316,32 @@ const Step11_ClientDetail = () => {
 					{ __( 'Copy this config and paste it under the top-level key', 'acrossai-mcp-manager' ) }
 				</h3>
 				<div className="qs-step-body">
+					{ /* F075 — Local-dev TLS bypass callout. When the server-
+					     side detection fires, the JSON below already contains
+					     NODE_TLS_REJECT_UNAUTHORIZED (baked in by
+					     ConnectionMethodRegistry → AbstractMCPClient::build_env).
+					     This callout tells the operator what we did and why.
+					     Copy sourced from window.acrossaiMcpQuickSetup.tlsBypass
+					     so admin PHP (MCPClientsBlock.php) and this JSX never
+					     drift on translation edits. */ }
+					{ window.acrossaiMcpQuickSetup?.tlsBypass?.enabled && (
+						<div style={ { marginBottom: 12 } }>
+							<Notice status="warning">
+								<p>{ window.acrossaiMcpQuickSetup.tlsBypass.message }</p>
+								<p>
+									{ window.acrossaiMcpQuickSetup.tlsBypass.hint }
+									{ ' ' }
+									<a
+										href={ window.acrossaiMcpQuickSetup.tlsBypass.docUrl }
+										target="_blank"
+										rel="noopener noreferrer"
+									>
+										{ window.acrossaiMcpQuickSetup.tlsBypass.linkText }
+									</a>
+								</p>
+							</Notice>
+						</div>
+					) }
 					<CodeBlock variant="pane" title={ configTitle }>
 						{ configText }
 					</CodeBlock>
