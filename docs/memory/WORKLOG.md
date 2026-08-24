@@ -280,13 +280,14 @@ This is a changelog entry, not a durable lesson. It records what happened, not w
     - `specs/076-remove-client-picker-icons/` — full design + verification trace.
     - `docs/planings-tasks/076-remove-client-picker-icons.md` — plain-English planning doc.
 
-### 2026-08-24 — 9 MCP client configs fixed after upstream-docs verification pass (F078)
+### 2026-08-24 — Upstream-docs audit of all 16 MCP clients; VS Code + GitHub Copilot path fix shipped (F078)
 
-- **Why durable**: Establishes `DEC-UPSTREAM-DOC-VERIFICATION-CADENCE` — periodic audit of each `MCPClient` subclass's return values against its official upstream docs. F078 was the first execution; found 3 breaking issues (Kilo Code shape refactor, VS Code + GitHub Copilot wrong macOS path) + 6 misleading restart phrasings + 2 optional cleanups (Zed `source`/`enabled` prefix, Amazon Q `default.json` note). Every fix cites a first-party upstream URL in `specs/078-client-config-upstream-fixes/research.md`.
+- **Why durable**: Establishes `DEC-UPSTREAM-DOC-VERIFICATION-CADENCE` — periodic audit of each `MCPClient` subclass's return values against its official upstream docs. F078 was the first execution; four parallel `general-purpose` research agents verified all 16 clients against first-party upstream docs (Anthropic, Microsoft, OpenAI, Google, AWS, Cursor, Codeium/Windsurf, Zed, Cline, Roo Code, Kilo Code, OpenCode, Antigravity, MCP spec) in ~90 minutes. Findings for 9 clients captured in `specs/078-client-config-upstream-fixes/research.md` with first-party URLs — that file becomes the drift-detection baseline for the next audit.
+- **What actually shipped in F078**: Only the two P1-correctness path fixes for **VS Code + GitHub Copilot** (`~/.vscode/mcp.json` → `~/Library/Application Support/Code/User/mcp.json`, plus GitHub Copilot restart phrasing mentioning Agent mode). Additional findings for 7 other clients (Kilo Code shape refactor per v7.0.33+, restart-phrasing polish for Cursor/Windsurf/Zed/Antigravity/Roo Code, Zed `source`/`enabled` cleanup, Amazon Q `default.json` note) were deferred to a follow-up PR pending review — the audit RECORD in research.md is still the durable artefact.
 - **Future mistake prevented**: Ships broken instructions accumulating silently as upstream vendors drift their docs. Next audit triggers: (a) new `MCPClient` subclass added, (b) plugin major version bump planned, (c) operator report of "wrong path / can't parse config."
-- **Evidence**: 4 parallel `general-purpose` research agents verified all 16 clients in ~90 minutes; 9 of 16 needed fixes; PHPUnit 100 tests / 195 assertions green; PHPCS + PHPStan L8 clean on all 9 modified client classes.
+- **Evidence**: PHPUnit 100 tests / 195 assertions green after F078 scoping; PHPCS + PHPStan L8 clean on VSCodeClient + GitHubCopilotClient.
 - **Where future contributors should look**:
-    - `docs/memory/DECISIONS.md` — `DEC-UPSTREAM-DOC-VERIFICATION-CADENCE` (the codified pattern).
-    - `specs/078-client-config-upstream-fixes/research.md` — 15+ upstream URLs cited per-client (baseline for future drift detection).
+    - `docs/memory/DECISIONS.md` — `DEC-UPSTREAM-DOC-VERIFICATION-CADENCE` (the codified audit-cadence pattern; applies regardless of what F078 shipped).
+    - `specs/078-client-config-upstream-fixes/research.md` — 15+ upstream URLs cited per-client (baseline for future drift detection AND the source-of-truth for the deferred 7-client fixes).
     - `docs/planings-tasks/078-client-config-upstream-fixes.md` — plain-English planning doc.
-    - `includes/MCPClients/{Kilo,VSCode,GitHubCopilot,Cursor,Windsurf,Zed,Antigravity,AmazonQ,RooCode}Client.php` — the 9 modified files.
+    - `includes/MCPClients/{VSCode,GitHubCopilot}Client.php` — the 2 files F078 actually modified.

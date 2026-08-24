@@ -84,18 +84,7 @@ final class CursorClient extends AbstractMCPClient {
 	 * {@inheritDoc}
 	 */
 	public function get_instructions(): string {
-		return __( 'Generate a password → copy the JSON → open ~/.cursor/mcp.json → paste under mcpServers → reload Cursor.', 'acrossai-mcp-manager' );
-	}
-
-	/**
-	 * {@inheritDoc}
-	 *
-	 * F078 (2026-08-24) — override the abstract default. Cursor does not
-	 * hot-reload `mcp.json`; the lightest documented action is a Reload
-	 * Window or the Settings → MCP toggle. Source: https://cursor.com/docs/mcp
-	 */
-	public function get_restart_step_text(): string {
-		return __( 'Reload Cursor (Cmd/Ctrl + Shift + P → Reload Window) or toggle the server in Settings → MCP to load the new MCP server.', 'acrossai-mcp-manager' );
+		return __( 'Generate a password → copy the JSON → open ~/.cursor/mcp.json → paste under mcpServers → restart Cursor.', 'acrossai-mcp-manager' );
 	}
 
 	/**
