@@ -2488,3 +2488,31 @@ The empty-name fallback is the belt-and-braces branch — if a subclass legitima
 - D35 / DEC-F034-SELF-CONTAINED-SUBSYSTEM-CONTRACT (parent) — established WHERE per-subclass metadata lives (method-with-default on the abstract base, not a const on a Renderer). This DEC tightens WHAT the default should be.
 - D43 / DEC-CROSS-SURFACE-PARITY-UNIFY-AT-DATA-LAYER (companion) — the composed default reaches every rendering surface identically because the same DTO producer (or direct base-class call) feeds them all. F075 renders `restartStep` on both the wizard's Step 11 and the per-server admin tab from the same `get_restart_step_text()` call.
 - D45 / DEC-MCPCLIENT-BUILD-ENV-SHARED (sibling in the same subsystem) — same pattern applied to env-block plumbing on the same feature.
+
+---
+
+### DEC-RETIRE-UI-USAGE-KEEP-EXTENSION-SURFACE — When removing a per-subclass display property from a UI renderer, keep the abstract method + DTO field intact
+
+**Status**
+Active (Feature 076)
+
+**Context**
+Feature 076 removed the per-client emoji rendering from two picker surfaces (per-server MCP Clients tab pill sub-nav + Quick Setup Step 11 client-picker buttons). The temptation is to "clean up the trail" by also deleting `AbstractMCPClient::get_icon()`, the 16 concrete overrides, AND the `'icon' => $client->get_icon()` line on `ConnectionMethodRegistry::get_clients()`'s DTO. Doing so is a subtle backward-incompatibility for companion plugins that either (a) register their own `MCPClient` subclass via `acrossai_mcp_client_classes` and set an emoji, or (b) render a picker of their own from the DTO. Silent breakage — no error is raised, the icon just vanishes from third-party pickers post-refactor.
+
+**Decision**
+When retiring a per-subclass display property from the plugin's own UI renderers, the abstract-base method AND the DTO field (if one exists) MUST stay in place. Only the DIRECT usage in the specific renderers being retired is subtracted. Companion plugins keep receiving the same DTO shape and the same abstract-method contract; only the plugin's own visible pickers stop rendering the property.
+
+**How to apply**
+- Reviewers: any PR that removes UI rendering of a per-subclass property (icon, description, tooltip, etc.) MUST NOT also delete the source-of-truth method on the abstract base or the corresponding field on any shared DTO. Grep-gate at review: for the touched property name, `grep -RnE 'public function get_<prop>\(\)' includes/**/*.php` must still return the pre-refactor count; and the DTO producer's `'<prop>' => $client->get_<prop>()` line must still be present.
+- If the FUTURE intent is to deprecate the extension surface entirely (not just retire one internal renderer), the deprecation ships as a separate feature with a proper deprecation cycle (docblock `@deprecated` tag, WORKLOG entry, README callout, one-release-cycle removal at earliest).
+- Cite this DEC in the plan.md § Constitution Check row for §V (Extensibility) when the refactor is subtractive but the extension surface stays intact.
+
+**Trade-offs**
+- Gained: zero silent breakage for downstream consumers. Extension contracts are honored as long-lived commitments even when the plugin's own UI evolves. Constitution §V (Extensibility Without Core Modification) reinforced.
+- Made harder: a subsequent maintainer reading the codebase may see an "unused" method/DTO field and be tempted to delete it. The docblock on the abstract method should include a `@see` reference to this DEC so the intent is discoverable.
+- Reconsider: when a full deprecation of the extension surface IS the goal (rare — usually happens only when a companion plugin ecosystem is retired), follow the standard deprecation cycle instead of piggy-backing on a UI-refactor PR.
+
+**Related**
+- Constitution §V (Extensibility Without Core Modification) — the underlying principle this DEC applies to the specific "retire UI usage" refactor pattern.
+- `DEC-CROSS-SURFACE-PARITY-UNIFY-AT-DATA-LAYER` (D43) — companion. D43 unifies the DTO producer across surfaces; this DEC ensures the DTO field itself survives even when the surfaces that consume it change.
+- `DEC-F034-SELF-CONTAINED-SUBSYSTEM-CONTRACT` (D35) — parent. D35 established WHERE the per-subclass metadata lives (method-with-default on abstract base + DTO field). This DEC governs HOW to change UI usage of that metadata without breaking the contract.

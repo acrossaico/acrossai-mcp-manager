@@ -142,16 +142,19 @@ final class MCPClientsBlock extends AbstractClientRenderer {
 		echo '<div class="acrossai-client-tabs-nav">';
 		foreach ( $clients as $client ) {
 			$slug      = $client->get_client_slug();
-			$emoji     = $client->get_icon();
 			$is_active = ( $client === $active_client );
 			$url       = add_query_arg( 'client', $slug, (string) $context['submit_target_url'] );
 			$css_class = $is_active ? 'acrossai-client-tab acrossai-client-tab-active' : 'acrossai-client-tab';
 
+			// F076 — pill body renders the client name only. The abstract
+			// client method that returns the per-client emoji stays
+			// defined (companion plugins may still consume its return
+			// value via ConnectionMethodRegistry's DTO), but the picker
+			// no longer surfaces the emoji.
 			printf(
-				'<a href="%1$s" class="%2$s"><span class="acrossai-client-tab-icon">%3$s</span><span>%4$s</span></a>',
+				'<a href="%1$s" class="%2$s"><span>%3$s</span></a>',
 				esc_url( $url ),
 				esc_attr( $css_class ),
-				esc_html( $emoji ),
 				esc_html( $client->get_client_name() )
 			);
 		}
@@ -171,16 +174,14 @@ final class MCPClientsBlock extends AbstractClientRenderer {
 	 */
 	private function render_client_details( array $server, array $context, AbstractMCPClient $client ): void {
 		$slug          = $client->get_client_slug();
-		$emoji         = $client->get_icon();
 		$description   = $client->get_description();
 		$config_file   = $client->get_config_file();
 		$top_level_key = $client->get_top_level_key();
 		$instructions  = $client->get_instructions();
 
-		// Heading + subtitle.
+		// Heading + subtitle. F076 — no emoji prefix on the client name.
 		printf(
-			'<h2>%1$s %2$s</h2>',
-			esc_html( $emoji ),
+			'<h2>%s</h2>',
 			esc_html( $client->get_client_name() )
 		);
 		if ( '' !== $description ) {
