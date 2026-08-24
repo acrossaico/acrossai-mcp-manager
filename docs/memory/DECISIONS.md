@@ -2375,6 +2375,40 @@ Reference impl: `includes/Activator.php` — `add_option( 'acrossai_mcp_npm_logi
 
 ---
 
+### DEC-UPSTREAM-DOC-VERIFICATION-CADENCE — Verify client config paths / keys / restart actions against upstream docs periodically
+
+**Status**
+Active (Feature 078)
+
+**Context**
+Per-client `get_config_file()`, `get_top_level_key()`, `get_config_snippet()`, and `get_restart_step_text()` return values are effectively a **contract with each upstream MCP client vendor**. Those vendors evolve their docs on their own timelines — sometimes silently (Cursor renaming a menu path), sometimes breakingly (Kilo Code v7.0.33 changing top-level key from `mcpServers` to `mcp` and moving the config file). Without a verification cycle, the plugin ships instructions that no longer work — and there's no CI signal because unit tests only assert on our own shipped values, not on the upstream docs.
+
+F078 was the first formal audit: 4 parallel research agents verified all 16 clients against their official docs on 2026-08-24 and found 9 clients that needed fixes (3 breaking, 6 misleading UX, 2 optional cleanups). Without this cycle the "MCP Manager tells me the wrong path" bug would have accumulated silently across future PRs.
+
+**Decision**
+Every time one of the following triggers occurs, a formal upstream-doc verification cycle is required for the affected clients:
+
+1. A new `MCPClient` subclass is added (verify all 4 methods for the new client).
+2. A plugin major version bump is planned (verify all 16 shipped clients — periodic cadence).
+3. An operator report of "the path you told me doesn't exist / the extension can't parse the config" is received (verify the reported client).
+
+The verification uses spawn-parallel-research-agents (`general-purpose` subagent, 3–4 clients per agent, WebSearch + WebFetch tools). Every finding cites a first-party URL. Fixes ship in a single audit-and-fix PR modeled on F078; the research is preserved in `specs/NNN-*/research.md` for future drift detection.
+
+**How to apply**
+- Reviewers of any PR that adds/modifies an `MCPClient` subclass: require the PR body to cite an official upstream doc URL for each of the 4 methods (`get_config_file`, `get_top_level_key`, `get_config_snippet`, `get_restart_step_text`).
+- Before each plugin major-version release, run the F078 pattern: 4 parallel research agents, 4 clients each.
+- When receiving operator bug reports of the "wrong path / config not parsed" shape, jump straight to the responsible client's upstream docs; do not debug from our side first.
+
+**Trade-offs**
+- Gained: shipped instructions actually work; operator's first-impression success rate on "the plugin told me what to do" increases; drift is caught in-house before it becomes support burden.
+- Made harder: audit cycles take real time (F078 took ~90 minutes for 4 parallel agents + implementation + gates). Not appropriate for every PR — this is a periodic cycle, not a per-PR gate.
+- Reconsider: when the upstream MCP ecosystem stabilizes (config formats no longer drifting month-to-month), the cadence can be relaxed from "per major version" to "annually" or "on drift report."
+
+**Related**
+- F078 (reference implementation): `docs/planings-tasks/078-client-config-upstream-fixes.md`, `specs/078-client-config-upstream-fixes/research.md` (15+ cited URLs).
+
+---
+
 ### DEC-MCPCLIENT-BUILD-ENV-SHARED — Every MCP client must route env through AbstractMCPClient::build_env()
 
 **Status**

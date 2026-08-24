@@ -70,9 +70,13 @@ final class VSCodeClient extends AbstractMCPClient {
 
 	/**
 	 * {@inheritDoc}
+	 *
+	 * F078 (2026-08-24) — corrected macOS user-level path from the incorrect
+	 * `~/.vscode/mcp.json` (Cursor-style) to the documented VS Code path.
+	 * Source: https://code.visualstudio.com/docs/agents/reference/mcp-configuration
 	 */
 	public function get_config_file(): string {
-		return '~/.vscode/mcp.json';
+		return '~/Library/Application Support/Code/User/mcp.json';
 	}
 
 	/**
@@ -86,14 +90,17 @@ final class VSCodeClient extends AbstractMCPClient {
 	 * {@inheritDoc}
 	 */
 	public function get_instructions(): string {
-		return __( 'Generate a password → copy the JSON → open .vscode/mcp.json in your workspace (or user-level ~/.vscode/mcp.json) → paste under servers → reload VS Code.', 'acrossai-mcp-manager' );
+		return __( 'Generate a password → copy the JSON → open the user-level ~/Library/Application Support/Code/User/mcp.json (or run Cmd/Ctrl + Shift + P → "MCP: Open User Configuration"). Workspace-scope: paste under servers in .vscode/mcp.json at the repo root.', 'acrossai-mcp-manager' );
 	}
 
 	/**
 	 * {@inheritDoc}
+	 *
+	 * F078 — VS Code auto-starts new MCP servers when the config is saved;
+	 * a Reload Window is only needed as a fallback.
 	 */
 	public function get_restart_step_text(): string {
-		return __( 'Reload VS Code (Cmd/Ctrl + Shift + P → Developer: Reload Window) to load the new MCP server.', 'acrossai-mcp-manager' );
+		return __( 'VS Code auto-starts the new MCP server when the config file is saved. If it does not appear, run Cmd/Ctrl + Shift + P → "MCP: List Servers" and start it, or reload the window (Cmd/Ctrl + Shift + P → Developer: Reload Window).', 'acrossai-mcp-manager' );
 	}
 
 	/**
