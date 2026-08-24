@@ -2107,3 +2107,72 @@ For every match, PR review MUST ask "would this need updating if the source regi
 - **B44** (BerlinDB Table added but uninstall.php DROP list not updated) — same class of "two artifacts must stay in sync" bug, applied to BerlinDB tables + uninstall.php.
 - **PATTERN-COMPILE-TIME-COUPLING-MISSING** — when two artifacts must stay in sync, enforce it via a shared registry OR a test gate that reads the registry at run time. The `count(SOURCE_ARRAY)` fix IS the coupling.
 - **D35** (F034 self-contained subsystem contract) — F034 established that consumers of `get_all_registered_clients()` should not hardcode knowledge of specific clients. B48 generalizes: consumers should not hardcode knowledge of the CARDINALITY either.
+
+---
+
+### 2026-08-24 — MCP client "connected" but tool list empty on local dev
+
+**Status**
+Retired (Feature 075 shipped the affordance + fix)
+
+**Symptoms**
+Operator on Local by Flywheel / MAMP / DDEV / `wp-env` pastes the generated MCP JSON into Claude Desktop / Cursor / VS Code. The client's MCP indicator turns green ("connected"), but `tools/list` returns zero results. No error surface anywhere the operator would look. First impression of the plugin: "it doesn't work."
+
+**Root Cause**
+`@automattic/mcp-wordpress-remote` Node proxy establishes a TCP connection to the WP site (proxy-side happy) then Node's TLS layer rejects the site's self-signed HTTPS certificate during the first HTTP call, silently dropping the JSON-RPC bootstrap. The MCP client interprets the live TCP socket as "connected" but never receives a `tools/list` response.
+
+**Future mistake prevented**
+Any future "connected but no data" symptom on local dev is likely a self-signed-cert TLS rejection, not an auth / protocol / capability problem. First check: what does `home_url()` scheme return, and does the site have a valid cert? Only after that rule-out should protocol traces or Application Password checks kick in.
+
+**Evidence**
+- User report (raftaar1191, 2026-08-24) hitting the symptom on `http://wordpress-7-0.local` and expecting the plugin to surface a fix.
+- Automattic's own troubleshooting doc (`https://github.com/Automattic/mcp-wordpress-remote/blob/trunk/Docs/troubleshooting.md`) documents `NODE_TLS_REJECT_UNAUTHORIZED=0` as the last-resort workaround.
+- Fix verified: F075 auto-injects the flag on local sites; operator restarts client → tools appear.
+
+**Prevention / Detection**
+- Auto-inject `NODE_TLS_REJECT_UNAUTHORIZED: "0"` into every generated MCP client JSON when the site looks local (any scheme). Injection routes through `AbstractMCPClient::build_env()` so every new client subclass inherits it for free — see `DEC-MCPCLIENT-BUILD-ENV-SHARED`.
+- Static warning notice above the JSON on both surfaces (per-server MCP Clients tab + Quick Setup Step 11) with a link to Automattic's troubleshooting doc — helps operators whose case is NOT TLS-shaped (stale Application Password, disabled pretty permalinks, npm proxy version drift) find the right fix.
+- Detection helper is a pure static function at `Utilities\LocalEnvironment::needs_tls_bypass()` — testable in the WP-free `mcpclients` PHPUnit suite. 100/100 assertions green on merge.
+
+**Where to look next**
+- `includes/Utilities/LocalEnvironment.php` — the detection rule.
+- `includes/MCPClients/AbstractMCPClient::build_env()` — the injection point.
+- `public/Renderers/MCPClientsBlock.php` — admin-side warning.
+- `src/js/quick-setup/steps/Step11_ClientDetail.jsx` — wizard-side warning.
+- `docs/planings-tasks/075-local-dev-tls-bypass-notice.md` + `specs/075-local-dev-tls-bypass-notice/` — full design trace.
+
+---
+
+### 2026-08-24 — Wizard REST fetch drops admin-URL query params → Step 11 shows DTO metadata instead of config JSON
+
+**Status**
+Retired (fixed on the same PR that introduced the surface)
+
+**Symptoms**
+Operator deep-links straight to a late wizard step via `?page=…&quick-setup=1&step=11&server=1` in the admin URL. Step 11's Step 4 code block renders the CLIENT METADATA DTO (a JSON object with `category`, `slug`, `icon`, `instructions`, `meta`) instead of the mcpServers configuration JSON with `WP_API_URL` / `WP_API_PASSWORD` / `NODE_TLS_REJECT_UNAUTHORIZED` that the operator is supposed to copy into their MCP client.
+
+**Root Cause** (dual — both ends broken simultaneously)
+
+1. **Backend side**: `QuickSetupController::handle_state()` only attaches the `config` field to each client DTO when the wizard's server-side scratchpad has `server_id > 0`. On a fresh session that hasn't gone through the earlier server-picker step yet, the scratchpad is empty — even though the admin URL carries `?server=1`. `ConnectionMethodRegistry::get_clients()` is then called with no server row, and the DTOs come out without a `config` field entirely.
+
+2. **Frontend side**: The wizard's XHR fetch to `/wp-json/…/quick-setup/state` is a completely SEPARATE URL from the admin URL that hosts the React app. The React state hook (`useWizardState::refetch`) doesn't inherit admin-URL query params into the XHR — it fires a bare `GET /state`. So the backend sees no `server_id` from the browser URL either, even if it wanted to fall back on it. On the client side, `Step11_ClientDetail.jsx` then falls back to `JSON.stringify( activeClient || {}, null, 2 )` when `activeClient.config` is missing — which is what leaks the DTO shape into the UI.
+
+**Future mistake prevented**
+Any new wizard step (or any other admin-hosted React surface) that reads a value from the browser URL MUST also explicitly forward that value to its REST state endpoint. The admin URL and the REST endpoint URL are completely independent, and the REST controller cannot see admin-URL params by default. Second-order rule: any React component that renders a value from a DTO field should NOT fall back to `JSON.stringify(dto)` on missing — a backend regression that drops the field should surface as a UX gap ("Not available") not a leak of the DTO's internal shape.
+
+**Evidence**
+In-browser verification on `http://wordpress-7-0.local` after F075 shipped — user report showed the DTO in the code block instead of the mcpServers JSON. Fixed both ends in commit `9f98420`:
+
+- Frontend (`src/js/quick-setup/hooks/useWizardState.js::refetch`) now reads `new URLSearchParams(window.location.search).get('server')` and forwards it as `?server_id=N` on the XHR to `/state`.
+- Backend (`includes/REST/QuickSetupController.php::handle_state`) accepts `?server_id=N` as an optional `WP_REST_Request` param and uses it as a fallback only when the scratchpad's `server_id === 0`. The scratchpad still wins when populated — it's the authoritative wizard state.
+
+**Prevention / Detection**
+- **Wizard-adjacent REST endpoint grep**: for every new wizard step, review its state hook to confirm it forwards required URL params. `grep -RnE 'apiFetch.*state' src/js/quick-setup/hooks/` — every hit MUST either (a) use a URL with no query params (scratchpad-authoritative endpoint) or (b) explicitly forward the required params via `URLSearchParams`.
+- **JSX raw-dump antipattern grep**: `grep -RnE 'JSON\\.stringify\\(\\s*active|state[a-zA-Z]+\\s*\\|\\|' src/js/quick-setup/steps/` — every hit MUST have an inline comment explaining why the dump is safe (usually because it's a debug view, never for production UI).
+- **New handle_state-like endpoint checklist**: any REST endpoint that reads from the wizard scratchpad AND could reasonably receive the same info via URL param MUST accept the URL param as a fallback when the scratchpad field is empty. Scratchpad wins on collision.
+
+**Where to look next**
+- `includes/REST/QuickSetupController::handle_state` — reference implementation of scratchpad-first + request-param-fallback.
+- `src/js/quick-setup/hooks/useWizardState.js::refetch` — reference implementation of URL-param forwarding.
+- `src/js/quick-setup/steps/Step11_ClientDetail.jsx:141` — the `JSON.stringify` fallback that made the bug visible (arguably the reason the bug was caught quickly rather than staying silent).
+- Any future wizard step JSX with a `useMemo(() => activeThing.foo || JSON.stringify(activeThing))` — review for the same class of leak.

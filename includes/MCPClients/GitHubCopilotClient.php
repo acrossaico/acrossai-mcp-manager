@@ -47,11 +47,7 @@ final class GitHubCopilotClient extends AbstractMCPClient {
 					$this->derive_server_key( $server_url ) => array(
 						'command' => 'npx',
 						'args'    => array( '-y', '@automattic/mcp-wordpress-remote@latest' ),
-						'env'     => array(
-							'WP_API_URL'      => $server_url,
-							'WP_API_USERNAME' => $this->current_username(),
-							'WP_API_PASSWORD' => $this->safe_token( $auth_token ),
-						),
+						'env'     => $this->build_env( $server_url, $auth_token ),
 					),
 				),
 			),
@@ -91,6 +87,13 @@ final class GitHubCopilotClient extends AbstractMCPClient {
 	 */
 	public function get_instructions(): string {
 		return __( 'Generate a password → copy the JSON → open the user-level ~/.vscode/mcp.json → paste under servers → restart VS Code + GitHub Copilot extension.', 'acrossai-mcp-manager' );
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	public function get_restart_step_text(): string {
+		return __( 'Restart VS Code and reactivate the GitHub Copilot extension to load the new MCP server.', 'acrossai-mcp-manager' );
 	}
 
 	/**

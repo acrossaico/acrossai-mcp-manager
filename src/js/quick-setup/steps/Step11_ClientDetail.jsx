@@ -316,11 +316,56 @@ const Step11_ClientDetail = () => {
 					{ __( 'Copy this config and paste it under the top-level key', 'acrossai-mcp-manager' ) }
 				</h3>
 				<div className="qs-step-body">
+					{ /* F075 — Local-dev TLS bypass callout. When the server-
+					     side detection fires, the JSON below already contains
+					     NODE_TLS_REJECT_UNAUTHORIZED (baked in by
+					     ConnectionMethodRegistry → AbstractMCPClient::build_env).
+					     This callout tells the operator what we did and why.
+					     Copy sourced from window.acrossaiMcpQuickSetup.tlsBypass
+					     so admin PHP (MCPClientsBlock.php) and this JSX never
+					     drift on translation edits. */ }
+					{ window.acrossaiMcpQuickSetup?.tlsBypass?.enabled && (
+						<div style={ { marginBottom: 12 } }>
+							<Notice status="warning">
+								{ window.acrossaiMcpQuickSetup.tlsBypass.message }
+								{ ' ' }
+								<a
+									href={ window.acrossaiMcpQuickSetup.tlsBypass.docUrl }
+									target="_blank"
+									rel="noopener noreferrer"
+								>
+									{ window.acrossaiMcpQuickSetup.tlsBypass.linkText }
+								</a>
+							</Notice>
+						</div>
+					) }
 					<CodeBlock variant="pane" title={ configTitle }>
 						{ configText }
 					</CodeBlock>
 				</div>
 			</div>
+
+			{ /* Step 5 — Restart / reload the MCP client. Copy is client-specific
+			     (Restart Claude Desktop; Reload VS Code; Cline hot-reloads …)
+			     sourced from AbstractMCPClient::get_restart_step_text() via the
+			     DTO's `restartStep` field. Only rendered when the DTO carries a
+			     non-empty value — companion plugins that inherit the abstract
+			     default always will; strictly-typed bare subclasses may not. */ }
+			{ activeClient?.restartStep && (
+				<div className="qs-step">
+					<h3 className="qs-step-heading">
+						<span className="qs-step-heading__num">
+							{ __( 'Step 5', 'acrossai-mcp-manager' ) }
+						</span>
+						{ __( 'Restart the MCP client', 'acrossai-mcp-manager' ) }
+					</h3>
+					<div className="qs-step-body">
+						<p style={ { margin: 0 } }>
+							{ activeClient.restartStep }
+						</p>
+					</div>
+				</div>
+			) }
 
 			{ /* Shared Access Control caveat — verbatim to MCPClientsBlock.php:256
 			     so translators only key it once. */ }

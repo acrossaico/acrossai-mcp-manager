@@ -217,7 +217,17 @@ export const WizardStateProvider = ( { children } ) => {
 	const refetch = useCallback( async () => {
 		dispatch( { type: ACTION.HYDRATE_START } );
 		try {
-			const payload = await apiFetch( { url: `${ restRoot.current }/state`, method: 'GET' } );
+			// Deep-link support (F075 follow-up): if the operator landed on a
+			// late step with `?server=N` in the URL (no earlier server-picker
+			// step, so the scratchpad's `server_id` is still 0), pass it
+			// through to the state endpoint. The backend prefers the
+			// scratchpad when both are present.
+			const urlParams = new URLSearchParams( window.location.search );
+			const serverParam = urlParams.get( 'server' );
+			const url = serverParam
+				? `${ restRoot.current }/state?server_id=${ encodeURIComponent( serverParam ) }`
+				: `${ restRoot.current }/state`;
+			const payload = await apiFetch( { url, method: 'GET' } );
 			dispatch( { type: ACTION.HYDRATE_SUCCESS, payload } );
 			return payload;
 		} catch ( err ) {

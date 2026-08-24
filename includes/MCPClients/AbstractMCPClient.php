@@ -8,6 +8,7 @@
 
 namespace AcrossAI_MCP_Manager\Includes\MCPClients;
 
+use AcrossAI_MCP_Manager\Includes\Utilities\LocalEnvironment;
 use AcrossAI_MCP_Manager\Includes\Utilities\SiteSlug;
 
 defined( 'ABSPATH' ) || exit;
@@ -136,6 +137,30 @@ abstract class AbstractMCPClient {
 	 */
 	public function get_instructions(): string {
 		return '';
+	}
+
+	/**
+	 * Short, client-specific action the operator has to perform AFTER
+	 * pasting the config so the client picks up the new MCP server —
+	 * rendered as Step 5 in the Quick Setup wizard's per-client detail.
+	 *
+	 * Most clients need a full restart. Some (VS Code, Cline, Kilo Code,
+	 * Roo Code) hot-reload from a sidebar or command palette. Each concrete
+	 * client should return the exact phrasing that matches its own docs.
+	 * Default is a generic "restart <name>" so a bare subclass still gets
+	 * a sensible instruction without needing to override.
+	 *
+	 * @return string
+	 */
+	public function get_restart_step_text(): string {
+		$name = $this->get_client_name();
+		return '' === $name
+			? __( 'Restart your MCP client to load the new server.', 'acrossai-mcp-manager' )
+			: sprintf(
+				/* translators: %s: MCP client display name (e.g. "Claude Desktop"). */
+				__( 'Restart %s to load the new MCP server.', 'acrossai-mcp-manager' ),
+				$name
+			);
 	}
 
 	/**
@@ -356,6 +381,45 @@ abstract class AbstractMCPClient {
 	 */
 	protected function safe_token( string $token ): string {
 		return '' === $token ? self::EMPTY_TOKEN_PLACEHOLDER : $token;
+	}
+
+	/**
+	 * Build the standard env block for a client's `command`/`args`/`env` shape.
+	 *
+	 * Includes `WP_API_URL` / `WP_API_USERNAME` / `WP_API_PASSWORD` and,
+	 * when the current site meets Feature 075's local-HTTPS gate (see
+	 * `LocalEnvironment::needs_tls_bypass()`), also `NODE_TLS_REJECT_UNAUTHORIZED = "0"`
+	 * — the workaround for Node.js rejecting the self-signed certs Local by
+	 * Flywheel, MAMP, DDEV, and wp-env produce. String literal `"0"` (Node
+	 * convention), not integer 0.
+	 *
+	 * `$extra` is merged FIRST so subclass keys (e.g. Claude Code's
+	 * `OAUTH_ENABLED => 'false'`) keep their historical position at the
+	 * FRONT of the env block — spec FR-006 shape-preservation contract.
+	 * The base keys always win on collision (defensive: a subclass cannot
+	 * accidentally break `WP_API_URL` / `WP_API_USERNAME` / `WP_API_PASSWORD`).
+	 * `NODE_TLS_REJECT_UNAUTHORIZED` is appended last so a diff-viewer sees
+	 * it clearly as the new key introduced by Feature 075.
+	 *
+	 * @param string               $server_url Server URL.
+	 * @param string               $auth_token Application Password (may be empty).
+	 * @param array<string,string> $extra      Additional env keys to merge in.
+	 *
+	 * @return array<string,string>
+	 */
+	protected function build_env( string $server_url, string $auth_token, array $extra = array() ): array {
+		$base = array(
+			'WP_API_URL'      => $server_url,
+			'WP_API_USERNAME' => $this->current_username(),
+			'WP_API_PASSWORD' => $this->safe_token( $auth_token ),
+		);
+		$env  = array_merge( $extra, $base );
+
+		if ( LocalEnvironment::needs_tls_bypass() ) {
+			$env['NODE_TLS_REJECT_UNAUTHORIZED'] = '0';
+		}
+
+		return $env;
 	}
 
 	/**

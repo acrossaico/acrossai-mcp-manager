@@ -47,11 +47,7 @@ final class RooCodeClient extends AbstractMCPClient {
 				$this->derive_server_key( $server_url ) => array(
 					'command' => 'npx',
 					'args'    => array( '-y', '@automattic/mcp-wordpress-remote@latest' ),
-					'env'     => array(
-						'WP_API_URL'      => $server_url,
-						'WP_API_USERNAME' => $this->current_username(),
-						'WP_API_PASSWORD' => $this->safe_token( $auth_token ),
-					),
+					'env'     => $this->build_env( $server_url, $auth_token ),
 				),
 			),
 		);
@@ -90,6 +86,13 @@ final class RooCodeClient extends AbstractMCPClient {
 	 */
 	public function get_instructions(): string {
 		return __( 'Generate a password → copy the JSON → open .roo/mcp.json (or use the Roo Code sidebar → MCP Servers → Configure MCP Servers) → paste under mcpServers.', 'acrossai-mcp-manager' );
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	public function get_restart_step_text(): string {
+		return __( 'Roo Code hot-reloads MCP servers — reopen the MCP Servers panel in the Roo Code sidebar to confirm the new server is listed.', 'acrossai-mcp-manager' );
 	}
 
 	/**

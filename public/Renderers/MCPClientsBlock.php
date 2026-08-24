@@ -26,6 +26,7 @@
 namespace AcrossAI_MCP_Manager\Public\Renderers;
 
 use AcrossAI_MCP_Manager\Includes\MCPClients\AbstractMCPClient;
+use AcrossAI_MCP_Manager\Includes\Utilities\LocalEnvironment;
 
 // Exit if accessed directly.
 defined( 'ABSPATH' ) || exit;
@@ -236,6 +237,19 @@ final class MCPClientsBlock extends AbstractClientRenderer {
 			esc_attr( $textarea_id ),
 			esc_html__( 'Configuration JSON', 'acrossai-mcp-manager' )
 		);
+		// Feature 075 — small local-dev note above the copied JSON.
+		if ( LocalEnvironment::needs_tls_bypass() ) {
+			printf(
+				'<div class="notice notice-warning inline" style="margin: 8px 0;"><p>%1$s <a href="%2$s" target="_blank" rel="noopener noreferrer">%3$s</a></p></div>',
+				sprintf(
+					/* translators: %s: the injected env var wrapped in <code>. */
+					esc_html__( 'Local dev — added %s for local testing (never use on a live site).', 'acrossai-mcp-manager' ),
+					'<code>NODE_TLS_REJECT_UNAUTHORIZED: "0"</code>'
+				),
+				esc_url( LocalEnvironment::troubleshooting_doc_url() ),
+				esc_html__( 'More info', 'acrossai-mcp-manager' )
+			);
+		}
 		printf(
 			'<textarea id="%1$s" class="widefat code" readonly rows="12">%2$s</textarea>',
 			esc_attr( $textarea_id ),
@@ -247,6 +261,19 @@ final class MCPClientsBlock extends AbstractClientRenderer {
 			esc_html__( 'Copy Configuration', 'acrossai-mcp-manager' )
 		);
 		echo '</div>';
+
+		// Restart / reload step — client-specific action needed after pasting
+		// the config. Matches the wizard's Step 11 § Step 5 block so both
+		// surfaces surface the same instruction. Source of truth is
+		// AbstractMCPClient::get_restart_step_text() — see F075 follow-up.
+		$restart_step = $client->get_restart_step_text();
+		if ( '' !== $restart_step ) {
+			printf(
+				'<div class="notice notice-info inline" style="border-left-color: #72aee6;"><p><strong>%1$s</strong> %2$s</p></div>',
+				esc_html__( 'Restart:', 'acrossai-mcp-manager' ),
+				esc_html( $restart_step )
+			);
+		}
 
 		// Instructions callout — reuse WP core notice styles.
 		if ( '' !== $instructions ) {

@@ -2372,3 +2372,119 @@ Reference impl: `includes/Activator.php` — `add_option( 'acrossai_mcp_npm_logi
 **Related**
 - D21 (F016 fresh-install-only retirement) — shares the "no migration code" spirit but for teardown.
 - Distinct from `DEC-BERLINDB-*` — this is wp_options (WP core), not BerlinDB tables. Same Activator, different storage layer.
+
+---
+
+### DEC-MCPCLIENT-BUILD-ENV-SHARED — Every MCP client must route env through AbstractMCPClient::build_env()
+
+**Status**
+Active (Feature 075)
+
+**Context**
+Pre-F075, all 16 concrete `MCPClient` subclasses inlined the same `env` array literal in their `get_config_snippet()` return:
+
+```php
+'env' => array(
+    'WP_API_URL'      => $server_url,
+    'WP_API_USERNAME' => $this->current_username(),
+    'WP_API_PASSWORD' => $this->safe_token( $auth_token ),
+),
+```
+
+16-way duplication. Adding a new env key (Feature 075's `NODE_TLS_REJECT_UNAUTHORIZED`) required either 16 file edits or a post-processing JSON walker — both bad. Constitution §VI DRY violation grandfathered in from the client-family's original hand-authoring.
+
+**Decision**
+Every new or existing `MCPClient` subclass MUST route its `env` block through the shared helper:
+
+```php
+'env' => $this->build_env( $server_url, $auth_token ),
+// or, when the subclass needs an extra key (e.g. Claude Code's OAUTH_ENABLED):
+'env' => $this->build_env( $server_url, $auth_token, array( 'OAUTH_ENABLED' => 'false' ) ),
+```
+
+`build_env()` lives on `AbstractMCPClient` and merges `$extra` FIRST + base env SECOND (base wins on collision — defensive against a subclass accidentally overriding `WP_API_URL`). New cross-cutting env keys (F075's TLS bypass now; future additions later) go in `build_env()`, not in each subclass.
+
+**How to apply**
+- Reviewers: reject any PR that adds an inline `'WP_API_URL' => $server_url` array literal in `includes/MCPClients/*Client.php` — must use `build_env()`.
+- Canary grep: `grep -RnE "'WP_API_URL'\s*=>" includes/MCPClients/*Client.php` MUST return zero matches (AbstractMCPClient is the sole exception — that's the definition site).
+- For clients that use a non-standard key name for the env block (e.g. OpenCode's `'environment' =>`), still delegate: `'environment' => $this->build_env(...)`.
+
+**Trade-offs**
+- Gained: single injection point for cross-cutting env additions. F075 shipped `NODE_TLS_REJECT_UNAUTHORIZED` with one method edit instead of 16. Any future env-block extension is one-liner.
+- Made harder: a client class that legitimately needs to REMOVE a base env key must override `build_env()` — no clean per-client subtraction. No current client needs this, so acceptable.
+- Reconsider: if a future MCP transport uses a semantically-different `env` block (e.g. HTTP transport with connection headers instead of subprocess env vars), `build_env()` may need to be renamed or split — but that's a larger refactor of the client contract, not a return to inlining.
+
+**Related**
+- Constitution §VI (DRY, Utilities extraction) — F075 is the reference implementation of "16-way duplication caught and retired via a shared base-class helper."
+- F031 (Gemini client) shipped the last inline literal that F075 then retired.
+
+---
+
+### DEC-LOCAL-DEV-AFFORDANCE-SCHEME-AGNOSTIC — Dev-only affordances fire on any local-looking site, HTTP or HTTPS
+
+**Status**
+Active (Feature 075)
+
+**Context**
+F075's first design gated `NODE_TLS_REJECT_UNAUTHORIZED` injection + warning notice on `home_url()` returning `https://` — the reasoning being that the flag is technically a no-op on HTTP (Node's HTTP client never runs TLS validation), so injecting it would be a misleading "we fixed something" affordance where nothing was broken. On the plugin's own local install (plain HTTP `.local`) the operator hit the "MCP tools stay empty" symptom and didn't see the warning — the HTTPS gate hid the affordance from the exact user it was designed to help.
+
+**Decision**
+Local-dev-only affordances (warnings about insecure convenience flags, self-signed-cert bypasses, dev-mode toggles) fire whenever the site LOOKS local, regardless of whether it's served over HTTP or HTTPS. Even when the injected value is technically a no-op for one scheme (e.g. `NODE_TLS_REJECT_UNAUTHORIZED` on HTTP), the accompanying warning + troubleshooting-doc link is still useful — the doc typically covers non-TLS local-dev issues too.
+
+**How to apply**
+- Detection: use / extend `Utilities\LocalEnvironment::needs_tls_bypass()` (or a sibling helper following the same shape) — single-condition local-look test, no scheme sub-branch.
+- Copy: warning text must be scheme-agnostic — acknowledge both cases explicitly ("on HTTPS with self-signed cert the flag is the real fix; on plain HTTP the flag does nothing but is harmless").
+- Never introduce an admin toggle for the underlying insecure flag — the detection helper is the sole gate (spec F075 FR-007).
+
+**Trade-offs**
+- Gained: single mental model, single code path, single JSON shape. Operator sees the warning on any dev-tool config (Local by Flywheel HTTP + HTTPS, MAMP, DDEV, wp-env). Matches user's plain-English framing of "show it when the site is local without proper SSL."
+- Made harder: the injected env var is decorative on HTTP — a developer opening `~/.claude.json` will see `NODE_TLS_REJECT_UNAUTHORIZED` on their HTTP `.local` site and may wonder why it's there. Warning copy is the mitigation.
+- Reconsider: if a future dev-only convenience flag has different semantic risk on HTTP vs HTTPS (e.g. an actively-harmful key that shouldn't be shipped on HTTP), split the detection helper into two predicates — but that's per-affordance, not a return to gating THIS one.
+
+**Related**
+- DEC-MCPCLIENT-BUILD-ENV-SHARED — the shared helper is the injection point this decision relies on.
+- Spec F075 § Clarifications Q4 (2026-08-24) — the on-the-record decision trace that overrode the earlier HTTPS-only gate.
+
+---
+
+### DEC-ABSTRACT-BASE-DEFAULT-COMPOSES-FROM-SIBLING-METHODS — New per-subclass display-string methods must have composed defaults, not hardcoded generic strings
+
+**Status**
+Active (Feature 075 follow-up)
+
+**Context**
+F075 follow-up added a new per-subclass display method, `AbstractMCPClient::get_restart_step_text()`, that surfaces "Step 5 — Restart the MCP client" copy on two admin surfaces (Quick Setup Step 11 + per-server MCP Clients tab). Third-party MCP client subclasses contributed via the `acrossai_mcp_client_classes` filter needed a working default — otherwise every companion plugin would ship broken/empty Step 5 UI until they explicitly overrode the method.
+
+**Decision**
+When adding a new per-subclass display-string method to an abstract base — labels, restart hints, help text, tooltips, anything a UI renders one-per-subclass — the base's default implementation MUST compose from another already-abstract method (typically the display-name method) rather than returning a hardcoded generic string. Bare / third-party subclasses ship working UI copy the moment they extend the base; no override required.
+
+**Reference implementation** (`includes/MCPClients/AbstractMCPClient.php`):
+
+```php
+public function get_restart_step_text(): string {
+    $name = $this->get_client_name();
+    return '' === $name
+        ? __( 'Restart your MCP client to load the new server.', 'acrossai-mcp-manager' )
+        : sprintf(
+            __( 'Restart %s to load the new MCP server.', 'acrossai-mcp-manager' ),
+            $name
+        );
+}
+```
+
+The empty-name fallback is the belt-and-braces branch — if a subclass legitimately overrides `get_client_name()` to `''` (unlikely but not prohibited), the default still degrades to a readable sentence.
+
+**How to apply**
+- Reviewers: reject any new abstract-base per-subclass display method whose default is a hardcoded generic string like `return __( 'Configure this integration', 'text-domain' )`. Ask "what does this default look like for a third-party subclass named `FooBarClient`?" — if the answer is "generic mystery text with no reference to the concrete client", the default must compose from `get_client_name()` (or the equivalent abstract-name method).
+- Only override the composed default when the concrete subclass has a genuinely different action shape (F075: VS Code overrides because "reload" ≠ "restart"; GitHub Copilot because two targets need restarting; Cline/Roo Code/Kilo Code because they hot-reload).
+- Grep-gate at review time: for every new `public function get_*(): string` on an abstract base under `includes/*Client*/` or `includes/*Profile*/` or `includes/*Provider*/`, verify the default body either (a) composes from `sprintf(__(…), $this->…())` or (b) returns `''` (deferred to subclass; no default UI at all — acceptable when subclasses that omit the override should render nothing rather than a wrong default).
+
+**Trade-offs**
+- Gained: third-party contributors get working UI copy on the first ship — the abstract base's contract carries semantic weight, not just syntactic. Reduces surface for the "generic UI text landing on wrong client" class of bug.
+- Made harder: the default's readability depends on the sibling method returning a well-formed name. The empty-name fallback is mandatory.
+- Reconsider: when the display method's shape isn't a template (e.g. a full multi-sentence paragraph), a hardcoded default may be more readable than a multi-line sprintf. In that case, cite this DEC in the docblock and explain why hardcoded is safer.
+
+**Related**
+- D35 / DEC-F034-SELF-CONTAINED-SUBSYSTEM-CONTRACT (parent) — established WHERE per-subclass metadata lives (method-with-default on the abstract base, not a const on a Renderer). This DEC tightens WHAT the default should be.
+- D43 / DEC-CROSS-SURFACE-PARITY-UNIFY-AT-DATA-LAYER (companion) — the composed default reaches every rendering surface identically because the same DTO producer (or direct base-class call) feeds them all. F075 renders `restartStep` on both the wizard's Step 11 and the per-server admin tab from the same `get_restart_step_text()` call.
+- D45 / DEC-MCPCLIENT-BUILD-ENV-SHARED (sibling in the same subsystem) — same pattern applied to env-block plumbing on the same feature.
