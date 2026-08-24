@@ -291,3 +291,15 @@ This is a changelog entry, not a durable lesson. It records what happened, not w
     - `specs/078-client-config-upstream-fixes/research.md` — 15+ upstream URLs cited per-client (baseline for future drift detection AND the source-of-truth for the deferred 7-client fixes).
     - `docs/planings-tasks/078-client-config-upstream-fixes.md` — plain-English planning doc.
     - `includes/MCPClients/{VSCode,GitHubCopilot}Client.php` — the 2 files F078 actually modified.
+
+### 2026-08-24 — Per-server MCP Clients tab now uses the wizard's numbered STEP 1..5 walkthrough (F077)
+
+- **Why durable**: Establishes `DEC-CROSS-SURFACE-VISUAL-PARITY-VIA-SHARED-MARKUP-CONTRACT` as the corollary to D43 — D43 unifies the DATA producer across surfaces; F077's decision extends the same principle to the MARKUP SCAFFOLD (class names + CSS). Future admin surfaces rendering content that also appears in the wizard MUST use the same class names and matching stylesheet rules rather than invent new ones.
+- **Future mistake prevented**: A new admin tab or React screen rendering the same MCP client walkthrough won't invent a divergent visual scaffolding. Reviewers cite this DEC to reject renderer designs that would drift the two surfaces apart.
+- **Evidence**: F077 refactored `MCPClientsBlock::render_client_details()` from a flat "label + value" layout to five `<div class="qs-step">` blocks matching the wizard's JSX. Four CSS rules (`.qs-step`, `.qs-step-heading`, `.qs-step-heading__num`, `.qs-step-body`) ported from `src/scss/quick-setup.scss:681–714` into `src/scss/backend.scss` with color literals resolved from the wizard's `$qs-text` and `$qs-primary` variables — see `specs/077-admin-tab-step-layout/research.md` Decision 1 for the "duplicate over shared partial" tradeoff. Zero PHPUnit / PHPStan L8 / PHPCS regressions; `npm run build` clean; all six SC canary greps (SC-001..006) pass.
+- **Where future contributors should look**:
+    - `docs/memory/DECISIONS.md` — `DEC-CROSS-SURFACE-VISUAL-PARITY-VIA-SHARED-MARKUP-CONTRACT` (D50).
+    - `specs/077-admin-tab-step-layout/` — full design + verification trace.
+    - `docs/planings-tasks/077-admin-tab-step-layout.md` — plain-English planning doc.
+    - `src/scss/backend.scss` (bottom section, F077 banner) — the ported CSS rules to keep in sync with `src/scss/quick-setup.scss:681–714`.
+    - `public/Renderers/MCPClientsBlock.php::render_client_details()` — reference implementation of the numbered STEP scaffold in PHP; mirror for future admin surfaces.
