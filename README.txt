@@ -1,25 +1,27 @@
 === AcrossAI MCP Manager ===
 Contributors: raftaar1191
-Tags: mcp, ai, claude, chatgpt, cursor
+Tags: ai assistant, chatgpt, claude, mcp, mcp-server
 Requires at least: 7.0
 Requires PHP: 8.1
 Tested up to: 7.0
-Stable tag: 0.3.0
+Stable tag: 0.3.1
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-Connect WordPress to Claude, ChatGPT, Cursor, VS Code, Copilot, Gemini and any MCP-compatible AI client — with per-server access control.
+Connect ChatGPT, Claude, Grok, Cursor, Gemini to WordPress in under a minute — 16 built-in AI clients + per-server access control.
 
 == Description ==
 
-MCP Manager connects your WordPress site to any MCP-compatible AI client — Claude, ChatGPT, Cursor, VS Code, GitHub Copilot, Gemini, and more — so those clients can safely read, edit, and act on your site.
+**Connect ChatGPT to WordPress. Connect Claude to WordPress. Connect Grok to WordPress. Connect any MCP-compatible AI assistant to WordPress.** MCP Manager is the open-source Model Context Protocol (MCP) server for WordPress — so ChatGPT, Claude, Grok, Cursor, Gemini CLI, GitHub Copilot, VS Code, Windsurf, Zed, Cline, Codex, and 5+ other AI clients can safely read, edit, and act on your site through WordPress-native Application Passwords. No copy-pasting configs between tabs; no proxy service in the middle; no vendor lock-in.
+
+**Setup takes under a minute end-to-end via the [Quick Setup wizard](https://acrossai.co/mcp-manager-quick-setup/)** — install the plugin, click through the guided flow, paste the ready-made JSON into your AI client, done. Your first prompt to Claude / ChatGPT / Cursor lands on the same WordPress site you just configured.
 
 Every headline section below links to the full documentation at [acrossai.co/doc-category/mcp-manager](https://acrossai.co/doc-category/mcp-manager/) — the docs are the source of truth and get updated first. Source and issues live at [github.com/acrossai-co/acrossai-mcp-manager](https://github.com/acrossai-co/acrossai-mcp-manager).
 
 = Key Features =
 
 * **Multiple MCP servers per site** — create, enable, disable, and configure independently. → [Docs](https://acrossai.co/docs/mcp-servers/)
-* **Multi-client connection guides** — copy-paste-ready configs for Claude Desktop, VS Code + Copilot, GitHub Copilot, ChatGPT, Cursor, Gemini CLI, and custom clients. → [Docs](https://acrossai.co/docs/mcp-connect-a-client/)
+* **16 built-in AI-client connection guides** — copy-paste-ready configs for Claude Desktop, Claude Code, VS Code, GitHub Copilot, Codex, Cursor, Gemini CLI, Windsurf, Zed, Cline, Roo Code, Kilo Code, Amazon Q Developer, OpenCode, Antigravity, and a Custom Client template. New clients register via a filter callback. → [Docs](https://acrossai.co/docs/mcp-connect-a-client/)
 * **CLI browser-approval flow** — let terminal users connect with one command; approval happens in a browser tab. → [Docs](https://acrossai.co/docs/mcp-cli-connections/)
 * **WP-CLI (STDIO) transport** — local clients can connect through a WP-CLI subprocess with no network credential transmission. → [Docs](https://acrossai.co/docs/mcp-wp-cli-stdio/)
 * **Application Passwords under the hood** — WordPress-native credentials, one-click generation, and revocation from the user profile page. → [Docs](https://acrossai.co/docs/mcp-application-passwords/)
@@ -28,6 +30,8 @@ Every headline section below links to the full documentation at [acrossai.co/doc
 * **Frontend embeds** — shortcode + block to show your users how to connect their AI clients from your own site. → [Docs](https://acrossai.co/docs/mcp-embeds-shortcode-block/)
 
 = How It Works =
+
+The **[Quick Setup wizard](https://acrossai.co/mcp-manager-quick-setup/)** walks you through activation, password generation, and pasting the config — the whole path takes under a minute end-to-end and is the recommended way for a first-time install. Prefer to do it by hand? The six-step manual flow below is exactly the same underneath:
 
 1. Install and activate the plugin ([step-by-step](https://acrossai.co/docs/mcp-install-and-activate/))
 2. Open **AcrossAI → MCP** in your WordPress admin
@@ -79,7 +83,26 @@ Yes — generate a separate password (or CLI approval) per client. You can also 
 
 = Which AI clients are supported? =
 
-Claude Desktop, ChatGPT, Cursor, VS Code (with Copilot), GitHub Copilot, Gemini CLI, and any custom MCP-compatible client. Adding a new client is a filter callback. See [Connecting an AI client](https://acrossai.co/docs/mcp-connect-a-client/).
+Sixteen built-in clients ship with the free plugin — every one gets a ready-to-paste JSON snippet and its own tab in the setup wizard:
+
+* Claude Desktop
+* Claude Code
+* VS Code
+* GitHub Copilot
+* Codex
+* Cursor
+* Gemini CLI
+* Windsurf
+* Zed
+* Cline
+* Roo Code
+* Kilo Code
+* Amazon Q Developer
+* OpenCode
+* Antigravity
+* Custom Client (template for any other MCP-compatible tool)
+
+The paid **AcrossAI Pro** add-on layers a one-click hosted-OAuth flow on top for **ChatGPT, Claude, Grok, Gemini, and Cursor** — no config file to touch. Adding a brand-new client is a filter callback. See [Connecting an AI client](https://acrossai.co/docs/mcp-connect-a-client/).
 
 = Does it work on multisite? =
 
@@ -104,11 +127,13 @@ Only if you want the one-click hosted-OAuth flow for Claude, ChatGPT, Grok, Gemi
 
 == Changelog ==
 
-= Unreleased =
+= 0.3.1 =
+* **Docs — WordPress.org listing refresh: tags, short description, "under a minute" positioning, and supported-client roster updated.** `Tags:` header replaced (`mcp, ai, claude, chatgpt, cursor` → `ai assistant, chatgpt, claude, mcp, mcp-server`). Short description reframed to lead with the "Connect ChatGPT / Claude / Grok to WordPress in under a minute" hook and cite the 16-client roster. Description opening paragraph gains a second lede sentence linking the [Quick Setup wizard docs](https://acrossai.co/mcp-manager-quick-setup/) and stating the under-a-minute end-to-end setup claim; the same link + claim also lead the "How It Works" section above the six-step manual flow (kept as an alternative for operators who prefer to do it by hand). Key Features connection-guides bullet and "Which AI clients are supported?" FAQ answer now enumerate all 16 built-in clients (Claude Desktop, Claude Code, VS Code, GitHub Copilot, Codex, Cursor, Gemini CLI, Windsurf, Zed, Cline, Roo Code, Kilo Code, Amazon Q Developer, OpenCode, Antigravity, Custom Client). Paid AcrossAI Pro OAuth Connectors (ChatGPT / Claude / Grok / Gemini / Cursor) are called out as a separate optional add-on. No behavioural change; readme-only refresh.
 * **Fix — VS Code + GitHub Copilot user-level MCP config path corrected (F078).** Previously shipped `~/.vscode/mcp.json` (Cursor's convention, not VS Code's). Now ships the documented macOS user-level path `~/Library/Application Support/Code/User/mcp.json` for both clients. Instructions also mention the `Cmd/Ctrl + Shift + P → "MCP: Open User Configuration"` menu entry. GitHub Copilot restart phrasing now correctly explains that Copilot Chat needs to be in Agent mode and VS Code auto-starts the server. Fix cites [VS Code MCP docs](https://code.visualstudio.com/docs/agents/reference/mcp-configuration) and [Copilot MCP docs](https://code.visualstudio.com/docs/copilot/customization/mcp-servers) — see `specs/078-client-config-upstream-fixes/research.md`. The audit that surfaced this fix (4 parallel research agents across all 16 clients) also verified 7 other clients had drift; those fixes are deferred to a follow-up PR pending review.
 * **Fix — Local dev sites now auto-inject `NODE_TLS_REJECT_UNAUTHORIZED: "0"` into the copied MCP client JSON and surface an Automattic troubleshooting link (F075).** When the environment looks local (`wp_get_environment_type()` returns `local` or `development`, or the host is `localhost` / `127.0.0.1` / `::1`, or ends with `.local` / `.test` / `.localhost`) — regardless of whether the site is served over HTTPS or plain HTTP — every generated client snippet (all 16 clients: Claude Desktop, Claude Code, Cursor, VS Code, GitHub Copilot, Codex, Gemini, Windsurf, Zed, Cline, Roo Code, Kilo Code, Amazon Q, OpenCode, Antigravity, Custom) now carries the flag in its `env` block, and a static warning notice above the JSON on both surfaces (per-server **MCP Clients** tab and Quick Setup wizard **Step 11**) explains what was added and why, with a link to Automattic's mcp-wordpress-remote troubleshooting doc. Fixes the "MCP client connects but the tool list stays empty" symptom on Local by Flywheel / MAMP / DDEV / wp-env style installs — the flag is the real fix when the local site uses HTTPS with a self-signed certificate, and a harmless no-op on plain HTTP (Node's HTTP client never runs TLS validation) — but the warning + doc link is useful in both cases. Live sites are unaffected: on a real production install (`wp_get_environment_type() = production`, non-local hostname), the injection does not occur and no notice renders. Ops teams that self-host on custom suffixes (`.docker`, `.internal`, `.dev`) can extend the host-suffix list via the new `acrossai_mcp_local_hostname_suffixes` filter. Internal refactor: all 16 clients' `env` arrays are now built via a shared `AbstractMCPClient::build_env()` helper — the previous 16-way duplication of the standard env-key list is retired in the same pass.
 * **UI — Client picker emojis removed on both admin surfaces (F076).** The per-server MCP Clients tab pill sub-nav and Quick Setup wizard Step 11 client-picker buttons now render each client's name only — no leading emoji glyph. The `get_icon()` methods on all 16 client classes stay defined (so companion plugins reading the ConnectionMethodRegistry DTO's `icon` field still see the value); only the two visible pickers stop rendering it.
 * **UI — Per-server MCP Clients tab now uses the same numbered STEP 1..5 walkthrough as the Quick Setup wizard's Step 11 (F077).** The admin tab's client-detail area is reorganized under STEP 1 (Generate the password) → STEP 2 (Open the config file) → STEP 3 (Locate the top-level key) → STEP 4 (Copy this config and paste it under the top-level key — includes the local-dev warning + JSON + Copy button) → STEP 5 (Restart the MCP client — client-specific action). Same content as before; consistent visual scaffolding between the two surfaces.
+* **Internal: `ACROSSAI_MCP_MANAGER_VERSION` constant + `Stable tag` bumped to `0.3.1` matching the plugin header.**
 
 = 0.3.0 =
 * **Admin — MCP Quick Setup Wizard (F069, F072, F073, F074).** New guided React admin wizard that condenses the plugin's 11-tab per-server-edit surface into a single linear configuration flow — a dynamic 5-to-10-step flow across 13 total steps driven by 10 skip predicates. Auto-redirects on activation to Step 1 with the seeded default server preselected; always reachable from a persistent top-admin-bar chip and four everyday entry points (plugins.php row action next to Settings, submenu under the AcrossAI menu, `page-title-action` on the MCP Servers list header, and a per-row quicklink pill in the Actions cell). Step index + optional `?server=<id>` live in the URL, so browser Back/Forward and shareable deep-links work. Every step's answers persist to a per-user 30-min transient scratchpad; all authoritative writes delegate to existing plugin APIs — no existing tab, REST route, or DB schema is changed. Step 11 reaches feature parity with the per-server-edit **MCP Clients** tab (all 16 client sub-nav entries), and an in-wizard app-password generation step removes the round-trip to the WP user profile page. F074 adds a Pro setup step for the Connectors branch (steps 8–9) gated by a new `acrossaiProLicensed` field on `GET /quick-setup/state`, which delegates to acrossai-pro's own Freemius `can_use_premium_code()` predicate — the wizard and the plugin can never disagree about what "licensed" means. Opting into the free version returns false and blocks the branch, which is the point: Connectors is unusable without a licence. Fully additive — every existing route/tab still works exactly as before for operators who prefer the traditional flow.
