@@ -81,22 +81,22 @@ Yes — generate a separate password (or CLI approval) per client. You can also 
 
 Sixteen built-in clients ship with the free plugin — every one gets a ready-to-paste JSON snippet and its own tab in the setup wizard:
 
-* 🍰 Claude Desktop
-* 📄 Claude Code
-* ▤ VS Code
-* 🐱 GitHub Copilot
-* 🐙 Codex
-* ⚡ Cursor
-* 💎 Gemini CLI
-* 🏄 Windsurf
-* ⚡ Zed
-* 🤖 Cline
-* 🦘 Roo Code
-* ⚙️ Kilo Code
-* ☁️ Amazon Q Developer
-* 📟 OpenCode
-* 🛰️ Antigravity
-* ⚙ Custom Client (template for any other MCP-compatible tool)
+* Claude Desktop
+* Claude Code
+* VS Code
+* GitHub Copilot
+* Codex
+* Cursor
+* Gemini CLI
+* Windsurf
+* Zed
+* Cline
+* Roo Code
+* Kilo Code
+* Amazon Q Developer
+* OpenCode
+* Antigravity
+* Custom Client (template for any other MCP-compatible tool)
 
 The paid **AcrossAI Pro** add-on layers a one-click hosted-OAuth flow on top for **ChatGPT, Claude, Grok, Gemini, and Cursor** — no config file to touch. Adding a brand-new client is a filter callback. See [Connecting an AI client](https://acrossai.co/docs/mcp-connect-a-client/).
 
@@ -124,7 +124,7 @@ Only if you want the one-click hosted-OAuth flow for Claude, ChatGPT, Grok, Gemi
 == Changelog ==
 
 = 0.3.1 =
-* **Docs — WordPress.org listing refresh: tags, short description, and supported-client roster updated.** `Tags:` header replaced (`mcp, ai, claude, chatgpt, cursor` → `ai assistant, chatgpt, claude, mcp, mcp-server`). Short description reframed to lead with the "Connect ChatGPT / Claude / Grok to WordPress" hook and cite the 16-client roster. Description opening paragraph, Key Features connection-guides bullet, and "Which AI clients are supported?" FAQ answer now enumerate all 16 built-in clients (Claude Desktop, Claude Code, VS Code, GitHub Copilot, Codex, Cursor, Gemini CLI, Windsurf, Zed, Cline, Roo Code, Kilo Code, Amazon Q Developer, OpenCode, Antigravity, Custom Client) with their picker glyphs. Paid AcrossAI Pro OAuth Connectors (ChatGPT / Claude / Grok / Gemini / Cursor) are called out as a separate optional add-on. No behavioural change; readme-only refresh.
+* **Docs — WordPress.org listing refresh: tags, short description, and supported-client roster updated.** `Tags:` header replaced (`mcp, ai, claude, chatgpt, cursor` → `ai assistant, chatgpt, claude, mcp, mcp-server`). Short description reframed to lead with the "Connect ChatGPT / Claude / Grok to WordPress" hook and cite the 16-client roster. Description opening paragraph, Key Features connection-guides bullet, and "Which AI clients are supported?" FAQ answer now enumerate all 16 built-in clients (Claude Desktop, Claude Code, VS Code, GitHub Copilot, Codex, Cursor, Gemini CLI, Windsurf, Zed, Cline, Roo Code, Kilo Code, Amazon Q Developer, OpenCode, Antigravity, Custom Client). Paid AcrossAI Pro OAuth Connectors (ChatGPT / Claude / Grok / Gemini / Cursor) are called out as a separate optional add-on. No behavioural change; readme-only refresh.
 * **Fix — VS Code + GitHub Copilot user-level MCP config path corrected (F078).** Previously shipped `~/.vscode/mcp.json` (Cursor's convention, not VS Code's). Now ships the documented macOS user-level path `~/Library/Application Support/Code/User/mcp.json` for both clients. Instructions also mention the `Cmd/Ctrl + Shift + P → "MCP: Open User Configuration"` menu entry. GitHub Copilot restart phrasing now correctly explains that Copilot Chat needs to be in Agent mode and VS Code auto-starts the server. Fix cites [VS Code MCP docs](https://code.visualstudio.com/docs/agents/reference/mcp-configuration) and [Copilot MCP docs](https://code.visualstudio.com/docs/copilot/customization/mcp-servers) — see `specs/078-client-config-upstream-fixes/research.md`. The audit that surfaced this fix (4 parallel research agents across all 16 clients) also verified 7 other clients had drift; those fixes are deferred to a follow-up PR pending review.
 * **Fix — Local dev sites now auto-inject `NODE_TLS_REJECT_UNAUTHORIZED: "0"` into the copied MCP client JSON and surface an Automattic troubleshooting link (F075).** When the environment looks local (`wp_get_environment_type()` returns `local` or `development`, or the host is `localhost` / `127.0.0.1` / `::1`, or ends with `.local` / `.test` / `.localhost`) — regardless of whether the site is served over HTTPS or plain HTTP — every generated client snippet (all 16 clients: Claude Desktop, Claude Code, Cursor, VS Code, GitHub Copilot, Codex, Gemini, Windsurf, Zed, Cline, Roo Code, Kilo Code, Amazon Q, OpenCode, Antigravity, Custom) now carries the flag in its `env` block, and a static warning notice above the JSON on both surfaces (per-server **MCP Clients** tab and Quick Setup wizard **Step 11**) explains what was added and why, with a link to Automattic's mcp-wordpress-remote troubleshooting doc. Fixes the "MCP client connects but the tool list stays empty" symptom on Local by Flywheel / MAMP / DDEV / wp-env style installs — the flag is the real fix when the local site uses HTTPS with a self-signed certificate, and a harmless no-op on plain HTTP (Node's HTTP client never runs TLS validation) — but the warning + doc link is useful in both cases. Live sites are unaffected: on a real production install (`wp_get_environment_type() = production`, non-local hostname), the injection does not occur and no notice renders. Ops teams that self-host on custom suffixes (`.docker`, `.internal`, `.dev`) can extend the host-suffix list via the new `acrossai_mcp_local_hostname_suffixes` filter. Internal refactor: all 16 clients' `env` arrays are now built via a shared `AbstractMCPClient::build_env()` helper — the previous 16-way duplication of the standard env-key list is retired in the same pass.
 * **UI — Client picker emojis removed on both admin surfaces (F076).** The per-server MCP Clients tab pill sub-nav and Quick Setup wizard Step 11 client-picker buttons now render each client's name only — no leading emoji glyph. The `get_icon()` methods on all 16 client classes stay defined (so companion plugins reading the ConnectionMethodRegistry DTO's `icon` field still see the value); only the two visible pickers stop rendering it.
