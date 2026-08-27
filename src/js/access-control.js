@@ -2,7 +2,7 @@
  * Feature 015 — Access Control tab React entry.
  *
  * Mounts the shared <AccessControlEditor> (extracted in F069 T032 so the
- * Quick Setup wizard's Step 2 uses the same component) into the per-server
+ * Quick Connect via AcrossAI wizard's Step 2 uses the same component) into the per-server
  * AccessControlTab. All UI (provider dropdown, role checkboxes, user
  * autocomplete search) is owned by the vendor component wrapped in
  * <AccessControlEditor>; this entry file just reads the mount-div's
@@ -38,7 +38,7 @@ import '../../vendor/wpboilerplate/wpb-access-control/js/AccessControl.scss';
 	// carry it. F069 continuity: this stays in the bootstrap file (not in
 	// AccessControlEditor) because apiFetch.use is a global side-effect and
 	// the wizard mounts the same component in a context that has already
-	// wired createNonceMiddleware at src/js/quick-setup.js — double-wiring
+	// wired createNonceMiddleware at src/js/quick-connect.js — double-wiring
 	// would send two identical nonces on every request.
 	if ( config.nonce ) {
 		apiFetch.use( apiFetch.createNonceMiddleware( config.nonce ) );

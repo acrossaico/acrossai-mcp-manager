@@ -335,7 +335,7 @@ final class Main {
 		// body class the SCSS keys off to hide WP admin chrome, and suppresses
 		// core / plugin admin notices for the wizard render.
 		$this->loader->add_filter( 'admin_body_class', $plugin_admin, 'full_page_body_class' );
-		$this->loader->add_action( 'in_admin_header', $plugin_admin, 'suppress_admin_notices_on_quick_setup', 1000 );
+		$this->loader->add_action( 'in_admin_header', $plugin_admin, 'suppress_admin_notices_on_quick_connect', 1000 );
 
 		/**
 		 * Add the Plugin Submenus under the shared `acrossai` parent (Feature 010 — FR-021).
@@ -386,19 +386,19 @@ final class Main {
 		$this->loader->add_action( 'admin_init', $settings, 'maybe_seed_default_server', 4 );
 		$this->loader->add_action( 'admin_init', $settings, 'handle_actions', 5 );
 
-		// F069 T015/T024 — Quick Setup Wizard activation redirect. Fires at
+		// F069 T015/T024 — Quick Connect via AcrossAI wizard activation redirect. Fires at
 		// admin_init @ 5 (same slot as handle_actions but different handler);
 		// on the very next admin page load after plugin activation, the
 		// transient set inside acrossai_mcp_manager_activate() (T014) is
 		// consumed here and the activating admin is redirected to step 1.
-		$quick_setup_redirect = \AcrossAI_MCP_Manager\Admin\Partials\QuickSetup\ActivationRedirect::instance();
-		$this->loader->add_action( 'admin_init', $quick_setup_redirect, 'maybe_redirect', 5 );
+		$quick_connect_redirect = \AcrossAI_MCP_Manager\Admin\Partials\QuickConnect\ActivationRedirect::instance();
+		$this->loader->add_action( 'admin_init', $quick_connect_redirect, 'maybe_redirect', 5 );
 
-		// F069 T044/T045 — Quick Setup admin-bar chip (US2). Persistent
+		// F069 T044/T045 — Quick Connect via AcrossAI admin-bar chip (US2). Persistent
 		// re-launch affordance from any admin page. Priority 100 lands it
 		// past most core / plugin nodes so it renders at the right side.
-		$quick_setup_admin_bar = \AcrossAI_MCP_Manager\Admin\Partials\QuickSetup\AdminBarEntry::instance();
-		$this->loader->add_action( 'admin_bar_menu', $quick_setup_admin_bar, 'register_node', 100 );
+		$quick_connect_admin_bar = \AcrossAI_MCP_Manager\Admin\Partials\QuickConnect\AdminBarEntry::instance();
+		$this->loader->add_action( 'admin_bar_menu', $quick_connect_admin_bar, 'register_node', 100 );
 
 		/**
 		 * Shared AcrossAI Settings page — MCP tab (Feature 012).
@@ -570,9 +570,9 @@ final class Main {
 		$this->loader->add_action( 'rest_api_init', $tools_rest, 'register_routes' );
 
 		/**
-		 * F069 T019/T024 — Quick Setup Wizard REST controller.
+		 * F069 T019/T024 — Quick Connect via AcrossAI wizard REST controller.
 		 *
-		 * Registers 3 routes under `/acrossai-mcp-manager/v1/quick-setup/*`:
+		 * Registers 3 routes under `/acrossai-mcp-manager/v1/quick-connect/*`:
 		 *   GET  /state    — snapshot for the React app (servers, abilities,
 		 *                    plugin states, connection methods, scratchpad)
 		 *   POST /step     — persist per-step scratchpad + delegate authoritative
@@ -580,10 +580,10 @@ final class Main {
 		 *   POST /complete — clear scratchpad, 204 No Content
 		 *
 		 * All routes gated on manage_options (S2). POSTs additionally require
-		 * X-WP-Nonce for wp_rest (S1). See contracts/quick-setup-rest.md.
+		 * X-WP-Nonce for wp_rest (S1). See contracts/quick-connect-rest.md.
 		 */
-		$quick_setup_rest = \AcrossAI_MCP_Manager\Includes\REST\QuickSetupController::instance();
-		$this->loader->add_action( 'rest_api_init', $quick_setup_rest, 'register_routes' );
+		$quick_connect_rest = \AcrossAI_MCP_Manager\Includes\REST\QuickConnectController::instance();
+		$this->loader->add_action( 'rest_api_init', $quick_connect_rest, 'register_routes' );
 
 		/**
 		 * Feature 037 — Embeds tab self-registration is SKIPPED in 0.2.10+.

@@ -261,7 +261,7 @@ class Settings {
 	 * Create-form handler. FR-007a. Caller already verified the nonce + cap.
 	 *
 	 * Sanitization delegated to the shared MCPServerFieldSanitizer helper
-	 * (F069 / TASK-SEC-001) so this admin form + the Quick Setup wizard's
+	 * (F069 / TASK-SEC-001) so this admin form + the Quick Connect via AcrossAI wizard's
 	 * REST controller apply identical validation with a hard-coded 6-key
 	 * whitelist defence against B7 mass-assignment via forged POST keys.
 	 */
@@ -519,11 +519,11 @@ class Settings {
 	// ─────────────────────────────────────────────────────────────────────────
 
 	/**
-	 * Dispatcher: route to list / create / edit / quick-setup based on
-	 * the `action` + `quick-setup` query vars.
+	 * Dispatcher: route to list / create / edit / quick-connect based on
+	 * the `action` + `quick-connect` query vars.
 	 *
-	 * F069 T017 — When `?quick-setup=1` is present, hijack the render BEFORE
-	 * any list-table or edit-page logic runs and hand off to QuickSetupPage.
+	 * F069 T017 — When `?quick-connect=1` is present, hijack the render BEFORE
+	 * any list-table or edit-page logic runs and hand off to QuickConnectPage.
 	 * The check lives here (not in a filter) because the parent-menu render
 	 * callback is registered via `add_menu_page`; intercepting at any later
 	 * point risks partial-render bleed-through.
@@ -534,8 +534,8 @@ class Settings {
 		}
 
 		// phpcs:disable WordPress.Security.NonceVerification.Recommended
-		if ( ! empty( $_GET['quick-setup'] ) && '1' === (string) $_GET['quick-setup'] ) {
-			QuickSetup\QuickSetupPage::instance()->render();
+		if ( ! empty( $_GET['quick-connect'] ) && '1' === (string) $_GET['quick-connect'] ) {
+			QuickConnect\QuickConnectPage::instance()->render();
 			return;
 		}
 
@@ -568,11 +568,11 @@ class Settings {
 			)
 		);
 
-		$quick_setup_url = esc_url(
+		$quick_connect_url = esc_url(
 			add_query_arg(
 				array(
 					'page'        => AdminPageSlugs::PARENT,
-					'quick-setup' => '1',
+					'quick-connect' => '1',
 					'step'        => '1',
 				),
 				admin_url( 'admin.php' )
@@ -585,8 +585,8 @@ class Settings {
 			esc_html__( 'MCP Servers', 'acrossai-mcp-manager' ),
 			esc_url( $create_url ), // SEC-S2: defense in depth — esc_url is idempotent.
 			esc_html__( 'Add New', 'acrossai-mcp-manager' ),
-			esc_url( $quick_setup_url ),
-			esc_html__( 'Quick Setup', 'acrossai-mcp-manager' )
+			esc_url( $quick_connect_url ),
+			esc_html__( 'Quick Connect via AcrossAI', 'acrossai-mcp-manager' )
 		);
 
 		echo '<form method="post">';

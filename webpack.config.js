@@ -102,13 +102,13 @@ module.exports = {
 		// `@wordpress/api-fetch`. `src/js/embeds.js` imports
 		// `../scss/embeds.scss`; mini-css-extract emits `build/js/embeds.css`.
 		'js/embeds': path.resolve( process.cwd(), 'src/js', 'embeds.js' ),
-		// F069 — MCP Quick Setup Wizard React entry (mounts the 5-step
-		// wizard app at #acrossai-mcp-quick-setup-root on the plugin
-		// page when ?quick-setup=1 is present). `src/js/quick-setup.js`
-		// imports `../scss/quick-setup.scss`; mini-css-extract emits
-		// `build/js/quick-setup.css`; admin/Main.php enqueue is gated on
+		// F069 — MCP Quick Connect via AcrossAI wizard React entry (mounts the 5-step
+		// wizard app at #acrossai-mcp-quick-connect-root on the plugin
+		// page when ?quick-connect=1 is present). `src/js/quick-connect.js`
+		// imports `../scss/quick-connect.scss`; mini-css-extract emits
+		// `build/js/quick-connect.css`; admin/Main.php enqueue is gated on
 		// the wizard URL so the bundle never loads on the list-table view.
-		'js/quick-setup': path.resolve( process.cwd(), 'src/js', 'quick-setup.js' ),
+		'js/quick-connect': path.resolve( process.cwd(), 'src/js', 'quick-connect.js' ),
 		'css/frontend': path.resolve(
 			process.cwd(),
 			'src/scss',

@@ -142,7 +142,7 @@ abstract class AbstractMCPClient {
 	/**
 	 * Short, client-specific action the operator has to perform AFTER
 	 * pasting the config so the client picks up the new MCP server —
-	 * rendered as Step 5 in the Quick Setup wizard's per-client detail.
+	 * rendered as Step 5 in the Quick Connect via AcrossAI wizard's per-client detail.
 	 *
 	 * Most clients need a full restart. Some (VS Code, Cline, Kilo Code,
 	 * Roo Code) hot-reload from a sidebar or command palette. Each concrete

@@ -139,16 +139,16 @@ class Main {
 		// (EmbedsTab::register() wires it on admin_enqueue_scripts). Nothing
 		// to do here. See AbstractReactMountServerTab for the pattern.
 
-		// F069 Quick Setup Wizard — enqueue only on ?quick-setup=1.
+		// F069 Quick Connect via AcrossAI wizard — enqueue only on ?quick-connect=1.
 		// SC-007: the ~200KB React bundle MUST NOT load on the list-table
 		// view or any per-server-edit tab.
-		$this->maybe_enqueue_quick_setup_app();
+		$this->maybe_enqueue_quick_connect_app();
 	}
 
 	/**
-	 * F069 T018 — Enqueue the Quick Setup wizard React app.
+	 * F069 T018 — Enqueue the Quick Connect via AcrossAI wizard React app.
 	 *
-	 * Gated on `?quick-setup=1` — bundle never loads on any other admin
+	 * Gated on `?quick-connect=1` — bundle never loads on any other admin
 	 * page (SC-007). Mirrors the F017 / F020 enqueue shape (asset.php
 	 * manifest → wp_enqueue_script → wp_localize_script for bootstrap
 	 * payload → optional CSS enqueue via file_exists guard).
@@ -156,42 +156,42 @@ class Main {
 	 * @since 0.2.11
 	 * @return void
 	 */
-	private function maybe_enqueue_quick_setup_app(): void {
+	private function maybe_enqueue_quick_connect_app(): void {
 		// phpcs:disable WordPress.Security.NonceVerification.Recommended -- Read-only routing check.
-		if ( empty( $_GET['quick-setup'] ) || '1' !== (string) $_GET['quick-setup'] ) {
+		if ( empty( $_GET['quick-connect'] ) || '1' !== (string) $_GET['quick-connect'] ) {
 			return;
 		}
 		// phpcs:enable WordPress.Security.NonceVerification.Recommended
 
-		$asset = $this->read_asset_manifest( 'build/js/quick-setup.asset.php' );
+		$asset = $this->read_asset_manifest( 'build/js/quick-connect.asset.php' );
 		if ( null === $asset ) {
 			return;
 		}
 
 		wp_enqueue_script(
-			'acrossai-mcp-manager-quick-setup',
-			esc_url( \ACROSSAI_MCP_MANAGER_PLUGIN_URL . 'build/js/quick-setup.js' ),
+			'acrossai-mcp-manager-quick-connect',
+			esc_url( \ACROSSAI_MCP_MANAGER_PLUGIN_URL . 'build/js/quick-connect.js' ),
 			$asset['dependencies'],
 			$asset['version'],
 			true // load in footer.
 		);
-		wp_set_script_translations( 'acrossai-mcp-manager-quick-setup', 'acrossai-mcp-manager' );
+		wp_set_script_translations( 'acrossai-mcp-manager-quick-connect', 'acrossai-mcp-manager' );
 
-		$css_path = \ACROSSAI_MCP_MANAGER_PLUGIN_PATH . 'build/js/quick-setup.css';
+		$css_path = \ACROSSAI_MCP_MANAGER_PLUGIN_PATH . 'build/js/quick-connect.css';
 		if ( file_exists( $css_path ) ) {
 			wp_enqueue_style(
-				'acrossai-mcp-manager-quick-setup',
-				esc_url( \ACROSSAI_MCP_MANAGER_PLUGIN_URL . 'build/js/quick-setup.css' ),
+				'acrossai-mcp-manager-quick-connect',
+				esc_url( \ACROSSAI_MCP_MANAGER_PLUGIN_URL . 'build/js/quick-connect.css' ),
 				array(),
 				$asset['version']
 			);
 		}
 
 		wp_localize_script(
-			'acrossai-mcp-manager-quick-setup',
-			'acrossaiMcpQuickSetup',
+			'acrossai-mcp-manager-quick-connect',
+			'acrossaiMcpQuickConnect',
 			array(
-				'restUrl'          => esc_url_raw( rest_url( 'acrossai-mcp-manager/v1/quick-setup' ) ),
+				'restUrl'          => esc_url_raw( rest_url( 'acrossai-mcp-manager/v1/quick-connect' ) ),
 				'restNonce'        => wp_create_nonce( 'wp_rest' ),
 				'adminUrl'         => esc_url_raw( admin_url( 'admin.php?page=acrossai_mcp_manager' ) ),
 				// F069 Step 9 — landing page for activating AcrossAI Pro.
@@ -207,15 +207,15 @@ class Main {
 				// installs and custom admin URLs resolve correctly.
 				'pluginInstallUrl' => esc_url_raw( admin_url( 'plugin-install.php' ) ),
 				'siteUrl'          => esc_url_raw( untrailingslashit( home_url() ) ),
-				'logoUrl'          => esc_url_raw( \ACROSSAI_MCP_MANAGER_PLUGIN_URL . 'assets/quick-setup/acrossai-logo.svg' ),
+				'logoUrl'          => esc_url_raw( \ACROSSAI_MCP_MANAGER_PLUGIN_URL . 'assets/quick-connect/acrossai-logo.svg' ),
 				// F069 — square brand icon shown on the initial-hydrate
-				// loading screen. Kept at assets/quick-setup/icon.svg (a
+				// loading screen. Kept at assets/quick-connect/icon.svg (a
 				// direct copy of .wordpress-org/icon.svg — that dotfile
 				// directory is routinely blocked at the host / Apache level,
 				// so pointing the browser there 404s on real installs).
 				// When updating the icon, replace BOTH files so the WP.org
 				// plugin listing and the wizard stay in sync.
-				'iconUrl'          => esc_url_raw( \ACROSSAI_MCP_MANAGER_PLUGIN_URL . 'assets/quick-setup/icon.svg' ),
+				'iconUrl'          => esc_url_raw( \ACROSSAI_MCP_MANAGER_PLUGIN_URL . 'assets/quick-connect/icon.svg' ),
 				// Access Control wiring — MUST mirror the values passed to
 				// the per-server-edit tab bootstrap (see the AC-tab enqueue
 				// block above) so the wizard's Step 2 uses the same slug +
@@ -227,7 +227,7 @@ class Main {
 				// CTA. All three values are PUBLIC identifiers per Freemius
 				// conventions (safe to ship in a WP.org plugin — analogous
 				// to Stripe pk_live_* keys). Consumed by
-				// src/js/quick-setup/steps/Step8_ProPromo.jsx which calls
+				// src/js/quick-connect/steps/Step8_ProPromo.jsx which calls
 				// `new FS.Checkout({product_id, public_key}).open({plan_id, trial: 'free', …})`.
 				'freemiusPro'      => array(
 					'product_id' => '34763',
@@ -253,7 +253,7 @@ class Main {
 		// F074 — Freemius Checkout script for Step 8's Pro trial modal.
 		// Same enqueue pattern as the Freemius plugin's own Buy Button block
 		// (wp-content/plugins/freemius/includes/class-freemius-button.php:78).
-		// Gated on the same `?quick-setup=1` check as the wizard bundle
+		// Gated on the same `?quick-connect=1` check as the wizard bundle
 		// enqueue above, so it never loads on any other admin surface.
 		// window.FS.Checkout becomes available before the wizard mounts
 		// Step 8 — no dep chain needed on the wizard bundle.
@@ -269,8 +269,8 @@ class Main {
 	/**
 	 * F069 — Full-page mode body class.
 	 *
-	 * Appends `acrossai-mcp-quick-setup-fullpage` to `<body>` when the wizard
-	 * URL is active (`?quick-setup=1`). The CSS scoped under that class hides
+	 * Appends `acrossai-mcp-quick-connect-fullpage` to `<body>` when the wizard
+	 * URL is active (`?quick-connect=1`). The CSS scoped under that class hides
 	 * the WP admin sidebar + admin bar + footer so the wizard fills the entire
 	 * viewport (WooCommerce setup-wizard pattern).
 	 *
@@ -280,10 +280,10 @@ class Main {
 	 */
 	public function full_page_body_class( $classes ): string {
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only routing check.
-		if ( empty( $_GET['quick-setup'] ) || '1' !== (string) $_GET['quick-setup'] ) {
+		if ( empty( $_GET['quick-connect'] ) || '1' !== (string) $_GET['quick-connect'] ) {
 			return (string) $classes;
 		}
-		return trim( $classes . ' acrossai-mcp-quick-setup-fullpage' );
+		return trim( $classes . ' acrossai-mcp-quick-connect-fullpage' );
 	}
 
 	/**
@@ -296,9 +296,9 @@ class Main {
 	 * @since 0.2.11
 	 * @return void
 	 */
-	public function suppress_admin_notices_on_quick_setup(): void {
+	public function suppress_admin_notices_on_quick_connect(): void {
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only routing check.
-		if ( empty( $_GET['quick-setup'] ) || '1' !== (string) $_GET['quick-setup'] ) {
+		if ( empty( $_GET['quick-connect'] ) || '1' !== (string) $_GET['quick-connect'] ) {
 			return;
 		}
 		remove_all_actions( 'admin_notices' );

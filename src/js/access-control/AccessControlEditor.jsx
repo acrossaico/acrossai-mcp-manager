@@ -3,7 +3,7 @@
  *
  * Extracted from src/js/access-control.js in F069 T032 so BOTH the existing
  * per-server-edit tab (mounted at #acrossai-mcp-ac-root by access-control.js)
- * AND the Quick Setup wizard's Step 2 mount the SAME component with the
+ * AND the Quick Connect via AcrossAI wizard's Step 2 mount the SAME component with the
  * SAME security invariants — no copy/paste, no drift.
  *
  * REF-002 continuity contract — the pre-refactor tab bootstrap had:

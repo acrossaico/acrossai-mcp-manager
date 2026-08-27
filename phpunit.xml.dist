@@ -20,6 +20,20 @@
         </testsuite>
 
         <!--
+            Rename gate (F080): pure-PHP canary + reflection contract that
+            locks in the "Quick Setup → Quick Connect via AcrossAI" rename.
+            RenameCanaryTest asserts zero code-file mentions of the retired
+            "quick-setup" / "QuickSetup" identifiers. QuickConnectContractTest
+            asserts the new FQNs exist, the old FQNs do NOT (no back-compat
+            shim was authorised), and the load-bearing private constants
+            (ROUTE_PREFIX, SCRATCHPAD_KEY_PREFIX, NODE_ID, REDIRECT_TRANSIENT)
+            hold the renamed values. No WP bootstrap required.
+        -->
+        <testsuite name="rename-gate">
+            <directory>tests/phpunit/RenameGate</directory>
+        </testsuite>
+
+        <!--
             CLI REST (Phase 6): tests need WP for transients, nonces,
             wp_set_current_user, register_rest_route, WP_Application_Passwords.
             Reuses Phase 5.0 bootstrap-wp.php (no new harness work). Covers

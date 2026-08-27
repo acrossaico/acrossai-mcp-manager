@@ -83,17 +83,17 @@ class Menu {
 			2
 		);
 
-		// 2) Quick Setup — position 3, right after MCP (F072 FR-003).
+		// 2) Quick Connect via AcrossAI — position 3, right after MCP (F072 FR-003).
 		// URL-literal menu_slug + empty render callback = WP renders this
 		// submenu item as a direct link to the wizard URL; no dedicated
-		// page is created because ?quick-setup=1 is handled by the MCP
+		// page is created because ?quick-connect=1 is handled by the MCP
 		// page's own dispatcher (Settings::render_list_page).
 		add_submenu_page(
 			SettingsPage::PARENT_SLUG,
-			__( 'Quick Setup', 'acrossai-mcp-manager' ),
-			__( 'Quick Setup', 'acrossai-mcp-manager' ),
+			__( 'Quick Connect via AcrossAI', 'acrossai-mcp-manager' ),
+			__( 'Quick Connect via AcrossAI', 'acrossai-mcp-manager' ),
 			'manage_options',
-			'admin.php?page=' . AdminPageSlugs::PARENT . '&quick-setup=1&step=1',
+			'admin.php?page=' . AdminPageSlugs::PARENT . '&quick-connect=1&step=1',
 			'',
 			3
 		);
@@ -112,7 +112,7 @@ class Menu {
 	public function plugin_action_links( $links ): array {
 		// Settings link now targets the shared AcrossAI Settings page with the
 		// MCP tab preselected. The tab body's sub-nav (Servers / Settings /
-		// Quick Setup) lives in SettingsMenu::render_subnav.
+		// Quick Connect via AcrossAI) lives in SettingsMenu::render_subnav.
 		$settings_url  = esc_url(
 			admin_url(
 				'admin.php?page=' . SettingsPage::SETTINGS_SLUG
@@ -125,18 +125,18 @@ class Menu {
 			esc_html__( 'Settings', 'acrossai-mcp-manager' )
 		);
 
-		$quick_setup_url  = esc_url(
-			admin_url( 'admin.php?page=' . AdminPageSlugs::PARENT . '&quick-setup=1&step=1&server=1' )
+		$quick_connect_url  = esc_url(
+			admin_url( 'admin.php?page=' . AdminPageSlugs::PARENT . '&quick-connect=1&step=1&server=1' )
 		);
-		$quick_setup_link = sprintf(
+		$quick_connect_link = sprintf(
 			'<a href="%s">%s</a>',
-			$quick_setup_url,
-			esc_html__( 'Quick Setup', 'acrossai-mcp-manager' )
+			$quick_connect_url,
+			esc_html__( 'Quick Connect via AcrossAI', 'acrossai-mcp-manager' )
 		);
 
-		// Prepend Quick Setup first, then Settings, so the final row order
-		// reads Settings | Quick Setup | Deactivate | Download (F072 FR-002).
-		array_unshift( $links, $quick_setup_link );
+		// Prepend Quick Connect via AcrossAI first, then Settings, so the final row order
+		// reads Settings | Quick Connect via AcrossAI | Deactivate | Download (F072 FR-002).
+		array_unshift( $links, $quick_connect_link );
 		array_unshift( $links, $settings_link );
 
 		return $links;
