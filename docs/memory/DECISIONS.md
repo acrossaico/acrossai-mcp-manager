@@ -2578,3 +2578,72 @@ When two surfaces render the same domain object walkthrough, both surfaces MUST 
 - D43 / DEC-CROSS-SURFACE-PARITY-UNIFY-AT-DATA-LAYER (parent) — D43 covers the DATA producer; this DEC extends the same principle to the MARKUP scaffold.
 - D47 / DEC-ABSTRACT-BASE-DEFAULT-COMPOSES-FROM-SIBLING-METHODS — companion. D47 ensures the abstract-base defaults compose so third-party contributions render correctly on any surface; this DEC ensures those renderings share visual shape.
 - D48 / DEC-RETIRE-UI-USAGE-KEEP-EXTENSION-SURFACE — companion. D48 preserves the extension surface when UI changes; this DEC ensures cross-surface UI stays aligned when it does change.
+
+---
+
+### DEC-CROSS-PLUGIN-VISUAL-CONTRACT-DUPLICATE-OVER-SHARED-PARTIAL — When two plugins render the same visual, duplicate the CSS in the consumer with a source-of-truth comment cite; never extract a shared partial that would create a cross-plugin file-tree dependency
+
+**Status**
+Active (Feature 081)
+
+**Context**
+D50 (F077) codified cross-surface visual parity within a single plugin — when two admin surfaces render the same walkthrough, use identical class names + duplicated CSS rules (4-10 rules) or a shared SCSS partial (10+). F081 extended the same principle across the plugin boundary — Step 10 of `acrossai-mcp-manager`'s Quick Connect wizard now renders the same per-connector walkthrough HTML the paid `acrossai-pro` plugin renders on its per-server AI Connectors tab. The DTO producer lives in acrossai-pro; the CSS lives in acrossai-pro's `AbstractConnectorProfile::print_setup_styles()` inline `<style>` tag. The wizard's rendering needs matching CSS for byte-for-byte visual parity.
+
+D50's rule of thumb says 10+ rules → shared partial. F081 ports ~20 rules. Naively that mandates a shared SCSS partial imported from both bundles. But that partial would have to live in ONE of the two plugin file trees. Which one? Either direction creates a hard cross-plugin file-tree dependency — the free plugin cannot depend on the paid plugin's source (breaks the free/paid separation and the "free plugin standalone-activatable" invariant); the paid plugin cannot depend on the free plugin's SCSS partial without silently coupling its build to the free plugin's presence at exact tree paths.
+
+**Decision**
+When two plugins must render the same visual, duplicate the CSS in the consuming plugin's stylesheet with a source-of-truth comment banner citing the producer plugin's file path. Do NOT extract a shared SCSS partial across plugin trees. Class names stay identical on both surfaces so `grep '.<class-family>' src/scss/` in either plugin discovers the mirror. Any future visual refresh on the producer side MUST be mirrored to the consumer side in a matching follow-up PR; reviewers on either side cite this DEC when a visual refresh lands on one plugin but not the other.
+
+D50's rule of thumb (4-10 rules → duplicate; 10+ → shared partial) applies **within a plugin only**. Once the boundary is crossed, duplication is always correct regardless of rule count — the alternative is a fragile file-tree coupling that silently breaks either plugin's standalone build.
+
+**How to apply**
+- Reviewers on a producer-plugin CSS refresh: check whether the same visual is consumed by another plugin (grep `.<class-family>` across the other plugin's tree). If so, require the mirror PR in the review comment, cite this DEC. Ideal: the two PRs land as a stacked pair.
+- Reviewers on a consumer-plugin CSS import: reject any `@import '../../<other-plugin>/src/scss/…'` line — that's the anti-pattern this DEC forbids.
+- Source-of-truth comment banner in the consumer plugin's SCSS is MANDATORY: cite the producer plugin's file path + line range so future refactorers see the mirror requirement in code. F081's banner cites `acrossai-pro/includes/Connectors/AbstractConnectorProfile.php:print_setup_styles()` at lines 510-637.
+- Cite this DEC in plan.md § Constitution Check for §VI (DRY) when a UI refactor unifies markup across plugin boundaries — the naive "extract shared partial" reflex must be justified against this DEC first.
+
+**Trade-offs**
+- Gained: both plugins stay standalone-buildable and standalone-activatable. Free plugin has no build-time dependency on paid plugin's source tree; paid plugin has no runtime knowledge of free plugin's SCSS internals. Cross-plugin file-tree coupling avoided entirely.
+- Made harder: two source files carry the same ~20 CSS rules — a change to one requires a paired change to the other. Mitigated by (a) source-of-truth comment banner naming the producer file inline, (b) identical class-name convention on both surfaces making the mirror discoverable via grep, (c) review-gate on future refreshes.
+- Reconsider: only when the two plugins are being merged into one, OR when a WordPress core / vendor-package layer emerges that could legitimately host the shared partial (e.g. `wpb-*` vendor). Never extract to a shared partial in either plugin's own tree.
+
+**Related**
+- D50 / DEC-CROSS-SURFACE-VISUAL-PARITY-VIA-SHARED-MARKUP-CONTRACT (parent) — D50 covers cross-surface parity within a single plugin; this DEC extends the same principle across plugin boundaries where a shared partial is architecturally impossible.
+- D43 / DEC-CROSS-SURFACE-PARITY-UNIFY-AT-DATA-LAYER (grandparent) — the DATA producer stays in one place (acrossai-pro's `DiscoveryConnectorAdapter`) even when the RENDERER splits across plugins; F081 preserves the D43 discipline.
+- Constitution §VI (DRY) — the underlying principle this DEC clarifies for the cross-plugin case where extracting the shared code is architecturally impossible.
+
+---
+
+### DEC-DEFENSIVE-DTO-FIELD-UNION-READ — Consumer plugins read cross-plugin DTO fields via `top-level || meta.field` union to insulate against the producer's field-placement choice
+
+**Status**
+Active (Feature 081)
+
+**Context**
+When one plugin (consumer) reads a DTO contributed by another plugin (producer) through a WordPress filter, the producer picks the shape of the DTO. Historical conventions in this codebase vary — some DTOs stash extension fields at the top level (`icon`, `description`); some use a `meta` bag (`meta.class`, `meta.has_redirect_whitelist`). F081's `walkthrough_html` field could reasonably live in either position on acrossai-pro's `DiscoveryConnectorAdapter::provide_ai_connectors()` output. Locking the consumer to one shape risks a silent break if the producer picks the other or later refactors between them.
+
+**Decision**
+Consumer plugins reading extension fields from a cross-plugin DTO MUST use a defensive union read: `dto.field || (dto.meta && dto.meta.field) || fallback`. The consumer accepts either field placement transparently. The producer is free to pick — top-level for hot-path fields, meta bag for infrequent extension surface — without coordinating with every consumer. Codified in F081's `Step10_ConnectorsDetail.jsx`:
+
+```js
+const walkthroughHtml = activeConnector
+    ? ( activeConnector.walkthrough_html
+        || ( activeConnector.meta && activeConnector.meta.walkthrough_html )
+        || '' )
+    : '';
+```
+
+**How to apply**
+- Applies to WordPress filter DTOs consumed across the plugin boundary — the producer plugin is authored by a different (or same-team-but-different-lifecycle) codebase.
+- Does NOT apply within a single plugin's own producer/consumer pair — there the DTO shape is a compile-time contract; enforce a single placement.
+- Applies both directions: the producer plugin's own render surface consuming the same DTO SHOULD also use the union read, so a refactor swapping placement doesn't break the producer's own UI in the moment before consumers migrate.
+- Reviewers: any React `const x = dto.field || fallback` reading a cross-plugin DTO field MUST be flagged unless the union `|| (dto.meta && dto.meta.field)` branch is also present.
+
+**Trade-offs**
+- Gained: producer-side flexibility (can refactor field placement without breaking consumers), consumer-side defensiveness (no runtime null-deref if producer picks the other shape), zero coordination overhead across plugins.
+- Made harder: 2x the read-site verbosity (three-clause union vs one-clause read). Small cost — one line of JS/PHP per field.
+- Reconsider: when both plugins are authored by the same team with strict co-versioning and a single-commit atomic upgrade path (rare). Never reconsider "just for cleanliness" — the union is the correct shape at the cross-plugin boundary.
+
+**Related**
+- D43 / DEC-CROSS-SURFACE-PARITY-UNIFY-AT-DATA-LAYER — D43 governs the DTO producer's discipline within a single plugin; this DEC governs the CONSUMER's discipline across a plugin boundary.
+- D48 / DEC-RETIRE-UI-USAGE-KEEP-EXTENSION-SURFACE — D48 keeps the DTO field alive when the plugin's own UI changes; this DEC ensures external consumers survive when the DTO SHAPE changes within the same field's placement.
