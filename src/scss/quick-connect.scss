@@ -1105,3 +1105,153 @@ html.wp-toolbar:has(body.acrossai-mcp-quick-connect-fullpage) {
 		padding: 12px 16px;
 	}
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// F081 — Connector walkthrough panels (Step 10).
+//
+// Source of truth: acrossai-pro/includes/Connectors/AbstractConnectorProfile.php
+// print_setup_styles() at lines 510-637. The paid plugin emits these rules
+// as an inline <style> tag on the per-server AI Connectors tab. This bundle
+// ports them into the wizard's own stylesheet so Step 10 renders the same
+// walkthrough HTML with byte-for-byte visual parity when acrossai-pro's
+// DiscoveryConnectorAdapter emits the walkthrough_html DTO field.
+//
+// If a future acrossai-pro release changes any of these visuals, the change
+// MUST be mirrored here — cross-plugin visual contract per D50 (cross-surface
+// visual parity via shared markup contract, F077). Duplicated over a shared
+// SCSS partial because the free plugin cannot depend on the paid plugin's
+// source tree.
+// ─────────────────────────────────────────────────────────────────────────────
+
+.acrossai-mcp-connector-panel__setup {
+	margin: 24px 0 0;
+	padding: 24px 28px;
+	background: #ffffff;
+	border: 1px solid #dcdcde;
+	border-radius: 8px;
+	box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+	color: #1e1e1e;
+	font-size: 14px;
+	line-height: 1.55;
+}
+
+.acrossai-mcp-connector-panel__setup-title {
+	margin: 0 0 6px;
+	font-size: 18px;
+	font-weight: 600;
+	color: #1e3a8a;
+	letter-spacing: -0.01em;
+}
+
+.acrossai-mcp-connector-panel__setup-lead {
+	margin: 0 0 20px;
+	color: #4b5563;
+	font-size: 14px;
+}
+
+.acrossai-mcp-connector-panel__setup-section {
+	margin: 0 0 18px;
+	padding: 16px 18px;
+	background: #f8f9fc;
+	border: 1px solid #e5e7eb;
+	border-left: 3px solid #3858e9;
+	border-radius: 6px;
+}
+
+.acrossai-mcp-connector-panel__setup-section:last-of-type {
+	margin-bottom: 16px;
+}
+
+.acrossai-mcp-connector-panel__setup-section h5 {
+	margin: 0 0 12px;
+	font-size: 12px;
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: 0.06em;
+	color: #3858e9;
+}
+
+.acrossai-mcp-connector-panel__setup-steps {
+	margin: 0;
+	padding: 0 0 0 22px;
+	list-style: decimal;
+}
+
+.acrossai-mcp-connector-panel__setup-steps > li {
+	margin: 0 0 8px;
+	padding-left: 4px;
+	line-height: 1.6;
+}
+
+.acrossai-mcp-connector-panel__setup-steps > li:last-child {
+	margin-bottom: 0;
+}
+
+.acrossai-mcp-connector-panel__setup code {
+	display: inline-block;
+	padding: 1px 6px;
+	background: #eef2ff;
+	color: #1e3a8a;
+	border: 1px solid #e0e7ff;
+	border-radius: 3px;
+	font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+	font-size: 12.5px;
+	line-height: 1.5;
+	word-break: break-all;
+}
+
+.acrossai-mcp-connector-panel__setup a {
+	color: #3858e9;
+	text-decoration: underline;
+	text-underline-offset: 2px;
+}
+
+.acrossai-mcp-connector-panel__setup a:hover,
+.acrossai-mcp-connector-panel__setup a:focus-visible {
+	color: #2f4dc7;
+}
+
+.acrossai-mcp-connector-panel__setup-cmd {
+	display: block;
+	margin: 10px 0 0;
+	padding: 12px 14px;
+	background: #1f2937;
+	border: 0;
+	border-radius: 5px;
+	overflow-x: auto;
+	line-height: 1.5;
+	box-shadow: none;
+}
+
+.acrossai-mcp-connector-panel__setup-cmd code {
+	display: block;
+	background: transparent;
+	border: 0;
+	padding: 0;
+	color: #e5e7eb;
+	font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+	font-size: 12.5px;
+	white-space: pre;
+	word-break: normal;
+}
+
+.acrossai-mcp-connector-panel__setup-footnote {
+	margin: 20px 0 0;
+	padding: 12px 16px;
+	background: #f5f3ff;
+	border-left: 3px solid #7c3aed;
+	border-radius: 4px;
+	font-size: 13.5px;
+	color: #1e1e1e;
+}
+
+.acrossai-mcp-connector-panel__setup-footnote a {
+	font-weight: 600;
+}
+
+.acrossai-mcp-connector-panel__setup-embed {
+	// Wrapper the wizard emits around the acrossai-pro-generated HTML.
+	// Semantic pass-through — the ported .acrossai-mcp-connector-panel__setup
+	// rule above supplies the actual card styling.
+	margin: 0;
+}
