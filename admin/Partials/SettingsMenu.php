@@ -134,7 +134,7 @@ class SettingsMenu {
 		// list".
 		$option_group = $page_slug;
 
-		// Sub-nav — three-item tab strip (Servers / Settings / Quick Setup)
+		// Sub-nav — three-item tab strip (Servers / Settings / Quick Connect via AcrossAI)
 		// rendered at the top of the MCP tab body. Registered as a section so
 		// it lives inside do_settings_sections's output and inherits the same
 		// tab-scoped page-slug lifecycle as the real settings sections below.
@@ -200,7 +200,7 @@ class SettingsMenu {
 	}
 
 	/**
-	 * Renders the three-item sub-nav (Servers / Settings / Quick Setup) at
+	 * Renders the three-item sub-nav (Servers / Settings / Quick Connect via AcrossAI) at
 	 * the top of the MCP tab body on the shared AcrossAI Settings page.
 	 *
 	 * Uses WP admin's native `.nav-tab-wrapper` / `.nav-tab` markup so the
@@ -209,7 +209,7 @@ class SettingsMenu {
 	 * emits for a field-less section — cheaper than a stylesheet enqueue
 	 * for a two-line rule.
 	 *
-	 * Servers + Quick Setup are outbound links to the plugin's own admin
+	 * Servers + Quick Connect via AcrossAI are outbound links to the plugin's own admin
 	 * pages; Settings is the current page (rendered as nav-tab-active).
 	 *
 	 * @since 0.2.13
@@ -221,8 +221,8 @@ class SettingsMenu {
 			'admin.php?page=' . \AcrossAI_Main_Menu\SettingsPage::SETTINGS_SLUG
 			. '&tab=' . self::TAB_SLUG
 		);
-		$quick_setup_url = admin_url(
-			'admin.php?page=' . AdminPageSlugs::PARENT . '&quick-setup=1&step=1'
+		$quick_connect_url = admin_url(
+			'admin.php?page=' . AdminPageSlugs::PARENT . '&quick-connect=1&step=1'
 		);
 
 		printf(
@@ -236,8 +236,8 @@ class SettingsMenu {
 			esc_html__( 'Servers', 'acrossai-mcp-manager' ),
 			esc_url( $settings_url ),
 			esc_html__( 'Settings', 'acrossai-mcp-manager' ),
-			esc_url( $quick_setup_url ),
-			esc_html__( 'Quick Setup', 'acrossai-mcp-manager' )
+			esc_url( $quick_connect_url ),
+			esc_html__( 'Quick Connect via AcrossAI', 'acrossai-mcp-manager' )
 		);
 	}
 
