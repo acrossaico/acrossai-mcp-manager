@@ -292,6 +292,19 @@ This is a changelog entry, not a durable lesson. It records what happened, not w
     - `docs/planings-tasks/078-client-config-upstream-fixes.md` — plain-English planning doc.
     - `includes/MCPClients/{VSCode,GitHubCopilot}Client.php` — the 2 files F078 actually modified.
 
+### 2026-08-28 — Quick Connect Step 10 embeds AcrossAI Pro connector walkthrough panels (F081) + retroactive memory capture
+
+- **Why durable**: Establishes two new DECs. `DEC-CROSS-PLUGIN-VISUAL-CONTRACT-DUPLICATE-OVER-SHARED-PARTIAL` (D51) extends D50 from within-plugin cross-surface parity to the cross-plugin case where a shared partial is architecturally impossible — the free plugin cannot depend on the paid plugin's source tree and vice versa. `DEC-DEFENSIVE-DTO-FIELD-UNION-READ` (D52) codifies the union-read pattern (`dto.field || (dto.meta && dto.meta.field)`) as the correct shape for consumers reading extension fields from cross-plugin DTOs — insulates the consumer from the producer's field-placement choice.
+- **Also captured under this session**: backfill of the missing INDEX row for D50 (F077's `DEC-CROSS-SURFACE-VISUAL-PARITY-VIA-SHARED-MARKUP-CONTRACT` — spec-shipped 2026-08-24 with the DECISIONS.md body but no INDEX row; discovered while numbering D51/D52).
+- **Process observation retired same push**: F081's original PR (#98) skipped `/speckit.memory-md.capture-from-diff` and merged without the DEC entries. Reintroduced pattern: the spec-kit chain isn't optional — running `/speckit.implement` + `/speckit.git.commit` without the intervening `/speckit.memory-md.capture-from-diff` step drops the memory-capture leg on the floor. This follow-up PR runs the capture retroactively.
+- **Future mistake prevented**: A reviewer proposing "just extract a shared SCSS partial across acrossai-mcp-manager and acrossai-pro" — this DEC gives a concrete "no, use duplicate-with-cite" reject with rationale. A consumer plugin reading a producer's DTO field with a single-clause read (`dto.walkthrough_html || ''`) — D52 gives reviewers a rule to require the union branch.
+- **Evidence**: F081 ported ~20 CSS rules from `acrossai-pro/includes/Connectors/AbstractConnectorProfile.php:510-637` into `src/scss/quick-connect.scss` with source-of-truth comment banner. Step 10's `walkthroughHtml` union read at `src/js/quick-connect/steps/Step10_ConnectorsDetail.jsx:73-77`. Trust boundary: `dangerouslySetInnerHTML` trusts acrossai-pro's `wp_kses_post` guarantee at write time (docblock on `get_mcp_url_setup_html`).
+- **Where future contributors should look**:
+    - `docs/memory/DECISIONS.md` — `DEC-CROSS-PLUGIN-VISUAL-CONTRACT-DUPLICATE-OVER-SHARED-PARTIAL` (D51) + `DEC-DEFENSIVE-DTO-FIELD-UNION-READ` (D52).
+    - `docs/planings-tasks/081-connector-walkthrough-panels.md` — plain-English planning doc for the F081 render change.
+    - `src/scss/quick-connect.scss` (bottom section, F081 banner) — the ported CSS rules to keep in sync with `acrossai-pro/includes/Connectors/AbstractConnectorProfile::print_setup_styles()`.
+    - `src/js/quick-connect/steps/Step10_ConnectorsDetail.jsx` — reference implementation of the defensive union DTO read.
+
 ### 2026-08-24 — Per-server MCP Clients tab now uses the wizard's numbered STEP 1..5 walkthrough (F077)
 
 - **Why durable**: Establishes `DEC-CROSS-SURFACE-VISUAL-PARITY-VIA-SHARED-MARKUP-CONTRACT` as the corollary to D43 — D43 unifies the DATA producer across surfaces; F077's decision extends the same principle to the MARKUP SCAFFOLD (class names + CSS). Future admin surfaces rendering content that also appears in the wizard MUST use the same class names and matching stylesheet rules rather than invent new ones.
