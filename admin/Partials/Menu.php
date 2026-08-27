@@ -90,8 +90,14 @@ class Menu {
 		// page's own dispatcher (Settings::render_list_page).
 		add_submenu_page(
 			SettingsPage::PARENT_SLUG,
-			__( 'Quick Connect via AcrossAI', 'acrossai-mcp-manager' ),
-			__( 'Quick Connect via AcrossAI', 'acrossai-mcp-manager' ),
+			// Submenu label is deliberately the short form — the sidebar
+			// entry lives under the AcrossAI parent, so the "via AcrossAI"
+			// tail is redundant. Every other surface (plugins.php action
+			// link, servers-list button, per-row pill, Settings sub-nav,
+			// admin-bar chip) keeps the full "Quick Connect via AcrossAI"
+			// so the wizard is discoverable outside the sidebar too.
+			__( 'Quick Connect', 'acrossai-mcp-manager' ),
+			__( 'Quick Connect', 'acrossai-mcp-manager' ),
 			'manage_options',
 			'admin.php?page=' . AdminPageSlugs::PARENT . '&quick-connect=1&step=1',
 			'',

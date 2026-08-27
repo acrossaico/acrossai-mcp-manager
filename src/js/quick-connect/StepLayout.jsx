@@ -171,7 +171,11 @@ const StepLayout = ( {
 					/>
 				) }
 				<span className="qs__header-title">
-					{ __( 'Quick Connect via AcrossAI', 'acrossai-mcp-manager' ) }
+					{ /* Header sits next to the AcrossAI logo, so the "via AcrossAI" */ }
+					{ /* tail is redundant. Every OFF-wizard surface (submenu, admin  */ }
+					{ /* bar, per-row pill, settings tab, plugins.php link) keeps    */ }
+					{ /* the full "Quick Connect via AcrossAI" for discoverability.  */ }
+					{ __( 'Quick Connect', 'acrossai-mcp-manager' ) }
 				</span>
 				<a
 					className="qs__header-consult"
