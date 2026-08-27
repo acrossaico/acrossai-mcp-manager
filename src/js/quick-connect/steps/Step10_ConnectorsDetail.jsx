@@ -58,6 +58,22 @@ const Step10_ConnectorsDetail = () => {
 	const activeConnector = connectors.find( ( c ) => c.slug === activeSlug );
 	const mcpUrl = `${ bootstrap.siteUrl || '' }/wp-json/${ server.route_full }`;
 
+	// F081 — walkthrough HTML defensively read from both potential DTO field
+	// placements. acrossai-pro's DiscoveryConnectorAdapter is the source of
+	// truth; when the paid plugin ships the companion PR that adds this
+	// field, Step 10 lights up automatically. Until then (or when the paid
+	// plugin isn't installed at all), walkthroughHtml stays empty and we
+	// fall through to the existing "DCR-only" notice — zero regression.
+	//
+	// Trust boundary: acrossai-pro guarantees the string has passed through
+	// wp_kses_post at write time (docblock note on get_mcp_url_setup_html).
+	// See docs/planings-tasks/081-connector-walkthrough-panels.md.
+	const walkthroughHtml = activeConnector
+		? ( activeConnector.walkthrough_html
+			|| ( activeConnector.meta && activeConnector.meta.walkthrough_html )
+			|| '' )
+		: '';
+
 	return (
 		<div>
 			<div
@@ -94,12 +110,21 @@ const Step10_ConnectorsDetail = () => {
 						) }
 					</p>
 					<CodeBlock variant="inline">{ mcpUrl }</CodeBlock>
-					<Notice status="info">
-						{ __(
-							'This connector supports Dynamic Client Registration only — paste the MCP URL above into your AI client and it will register itself. No manual credentials to generate.',
-							'acrossai-mcp-manager'
-						) }
-					</Notice>
+
+					{ walkthroughHtml ? (
+						<div
+							className="acrossai-mcp-connector-panel__setup-embed"
+							/* eslint-disable-next-line react/no-danger */
+							dangerouslySetInnerHTML={ { __html: walkthroughHtml } }
+						/>
+					) : (
+						<Notice status="info">
+							{ __(
+								'This connector supports Dynamic Client Registration only — paste the MCP URL above into your AI client and it will register itself. No manual credentials to generate.',
+								'acrossai-mcp-manager'
+							) }
+						</Notice>
+					) }
 				</div>
 			) }
 		</div>
