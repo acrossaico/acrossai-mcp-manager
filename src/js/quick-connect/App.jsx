@@ -77,6 +77,7 @@ const App = () => {
 	const [ beforeAdvance, setBeforeAdvance ] = useState( null );
 	const [ footerAction, setFooterAction ] = useState( null );
 	const [ hideContinue, setHideContinue ] = useState( false );
+	const [ belowFooter, setBelowFooter ] = useState( null );
 
 	// Hydrate on mount.
 	useEffect( () => {
@@ -316,6 +317,7 @@ const App = () => {
 			setBeforeAdvance,
 			setFooterAction,
 			setHideContinue,
+			setBelowFooter,
 			advance: advanceFromContext,
 		} ),
 		[
@@ -323,6 +325,7 @@ const App = () => {
 			setBeforeAdvance,
 			setFooterAction,
 			setHideContinue,
+			setBelowFooter,
 			advanceFromContext,
 		]
 	);
@@ -402,6 +405,7 @@ const App = () => {
 				canAdvance={ canAdvance }
 				footerAction={ footerAction }
 				hideContinue={ hideContinue }
+				belowFooter={ belowFooter }
 				onBack={ () => router.back( { skips } ) }
 				onAdvance={ handleContinue }
 				onExit={ router.exit }

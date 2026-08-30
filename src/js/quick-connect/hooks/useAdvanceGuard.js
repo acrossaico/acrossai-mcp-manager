@@ -22,6 +22,7 @@ export const WizardGuardContext = createContext( {
 	setBeforeAdvance: () => {},
 	setFooterAction: () => {},
 	setHideContinue: () => {},
+	setBelowFooter: () => {},
 	advance: () => {},
 } );
 
@@ -86,6 +87,30 @@ export const useFooterAction = ( action ) => {
 export const useWizardAdvance = () => {
 	const { advance } = useContext( WizardGuardContext );
 	return advance;
+};
+
+/**
+ * Register React content to render BELOW the wizard footer (Back / Continue)
+ * on this step. Use for optional supplemental panels (long walkthroughs,
+ * reference material) that would otherwise push the primary Back / Finish
+ * actions below the fold. The step's main return still renders ABOVE the
+ * footer as usual; this hook is purely for content that belongs to the step
+ * conceptually but should not sit between the operator's eyes and the
+ * primary CTA.
+ *
+ *   useBelowFooter( <div className="walkthrough">…</div> );
+ *   useBelowFooter( null );  // clear
+ *
+ * Auto-clears on unmount so the next step doesn't inherit stale content.
+ *
+ * @param {import('react').ReactNode|null} node React node to render below the footer, or null to clear.
+ */
+export const useBelowFooter = ( node ) => {
+	const { setBelowFooter } = useContext( WizardGuardContext );
+	useEffect( () => {
+		setBelowFooter( node || null );
+		return () => setBelowFooter( null );
+	}, [ node, setBelowFooter ] );
 };
 
 /**

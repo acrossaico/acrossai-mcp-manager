@@ -43,6 +43,7 @@ const StepLayout = ( {
 	canAdvance,
 	footerAction,
 	hideContinue,
+	belowFooter,
 	onBack,
 	onAdvance,
 	onExit,
@@ -312,6 +313,14 @@ const StepLayout = ( {
 						</footer>
 					);
 				} )() }
+
+				{ /* Optional supplemental content the step wants to render AFTER
+				     the footer — long walkthroughs, reference material. Kept
+				     inside qs__content so it scrolls with the pane and picks up
+				     the standard content padding, but rendered below Back /
+				     Finish so the primary CTA is not pushed below the fold.
+				     Used by Step 10's per-connector "How to connect" panel. */ }
+				{ ! isDone && belowFooter }
 			</div>
 
 			{ /* ARIA live region — visually hidden, screen-reader announces on update */ }
