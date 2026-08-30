@@ -266,6 +266,13 @@ final class QuickConnectController {
 			}
 		}
 
+		// F082 — merge in the per-connector walkthrough HTML lane. Kept
+		// outside get_all()'s three-category shape (whose contract is
+		// locked to npm/clients/ai_connectors) so the discovery API stays
+		// stable while Quick Connect Step 10 still gets the payload from
+		// the same REST call.
+		$methods['ai_connector_instructions'] = ConnectionMethodRegistry::instance()->get_ai_connector_instructions();
+
 		return rest_ensure_response(
 			array(
 				'servers'     => $servers,

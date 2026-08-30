@@ -284,6 +284,48 @@ final class ConnectionMethodRegistry {
 	}
 
 	/**
+	 * Return the AI-connector step-by-step instruction HTML, keyed by connector slug.
+	 *
+	 * F082 — sibling of {@see self::get_ai_connectors()}. Different discovery
+	 * lane for a different shape: this returns `array<slug, html>` rather than
+	 * a list of DTOs. A companion plugin (acrossai-pro since the F082 companion
+	 * release) hooks this filter and returns the per-profile walkthrough HTML
+	 * produced by `*ConnectorProfile::get_mcp_url_setup_html()`. When no
+	 * companion hooks in, the default empty array causes Quick Connect Step 10
+	 * to fall back to today's "DCR-only" notice — zero regression.
+	 *
+	 * ## URL sentinel token
+	 *
+	 * The discovery filter fires once per pageload with no server context, but
+	 * the actual MCP URL depends on which server the operator has selected in
+	 * the wizard. Producers therefore emit the sentinel `__ACROSSAI_MCP_URL__`
+	 * wherever the MCP URL should appear in the walkthrough; Step 10 substitutes
+	 * the sentinel with the currently-selected server's URL client-side just
+	 * before `dangerouslySetInnerHTML`.
+	 *
+	 * ## Trust boundary
+	 *
+	 * Producers guarantee the returned HTML has been through `wp_kses_post` so
+	 * consumers can treat it as render-safe. The acrossai-pro adapter enforces
+	 * this at write time; downstream consumers escape only the substituted URL.
+	 *
+	 * @since 0.3.2
+	 *
+	 * @return array<string, string> Map of connector slug → walkthrough HTML.
+	 */
+	public function get_ai_connector_instructions(): array {
+		/**
+		 * Filter the per-connector walkthrough HTML surfaced in Quick Connect
+		 * Step 10.
+		 *
+		 * @since 0.3.2
+		 *
+		 * @param array<string, string> $map Default empty map.
+		 */
+		return apply_filters( 'acrossai_mcp_manager_discovery_ai_connector_instructions', array() );
+	}
+
+	/**
 	 * Look up a single DTO by `(category, slug)` exact match.
 	 *
 	 * Zero validation on inputs — unknown category or unknown slug both

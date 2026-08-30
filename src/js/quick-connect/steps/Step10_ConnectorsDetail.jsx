@@ -13,6 +13,13 @@
  * Each tab shows the plugin's canonical MCP URL for the current server
  * with a Copy button.
  *
+ * F082 — under each tab's URL row, renders the pro plugin's rich
+ * per-provider walkthrough panel ("How to connect Claude" etc.) read from
+ * state.methods.ai_connector_instructions, a sibling discovery lane
+ * populated by acrossai-pro. Falls back to the "DCR-only" notice when the
+ * map is empty (pro not installed OR on a pre-F082 version) — zero
+ * regression on the fallback path.
+ *
  * @package AcrossAI_MCP_Manager
  */
 
@@ -58,21 +65,40 @@ const Step10_ConnectorsDetail = () => {
 	const activeConnector = connectors.find( ( c ) => c.slug === activeSlug );
 	const mcpUrl = `${ bootstrap.siteUrl || '' }/wp-json/${ server.route_full }`;
 
-	// F081 — walkthrough HTML defensively read from both potential DTO field
-	// placements. acrossai-pro's DiscoveryConnectorAdapter is the source of
-	// truth; when the paid plugin ships the companion PR that adds this
-	// field, Step 10 lights up automatically. Until then (or when the paid
-	// plugin isn't installed at all), walkthroughHtml stays empty and we
-	// fall through to the existing "DCR-only" notice — zero regression.
+	// F082 — walkthrough HTML now flows through its own discovery lane
+	// (`state.methods.ai_connector_instructions`), a `{slug => html}` map
+	// populated by acrossai-pro's DiscoveryConnectorAdapter::provide_ai_connector_instructions().
+	// Mirrors the pattern used for the connector list itself — different
+	// filter, same producer/consumer contract. Falls back to the DCR-only
+	// notice when the map is empty (pro plugin not installed OR on a
+	// pre-F082 version) — zero regression.
+	//
+	// The pro plugin emits the HTML with the sentinel token
+	// `__ACROSSAI_MCP_URL__` wherever the MCP URL should appear (its
+	// discovery pass has no per-server context). We substitute the token
+	// with the currently-selected server's real URL just below, HTML-escaped
+	// so a pathological server URL cannot inject markup.
 	//
 	// Trust boundary: acrossai-pro guarantees the string has passed through
-	// wp_kses_post at write time (docblock note on get_mcp_url_setup_html).
-	// See docs/planings-tasks/081-connector-walkthrough-panels.md.
-	const walkthroughHtml = activeConnector
-		? ( activeConnector.walkthrough_html
-			|| ( activeConnector.meta && activeConnector.meta.walkthrough_html )
-			|| '' )
+	// wp_kses_post at write time (docblock note on get_mcp_url_setup_html +
+	// enforced in provide_ai_connector_instructions).
+	const instructionsMap = state.methods.ai_connector_instructions || {};
+	const rawInstructions = activeConnector
+		? ( instructionsMap[ activeConnector.slug ] || '' )
 		: '';
+
+	const escapeHtml = ( s ) =>
+		String( s )
+			.replace( /&/g, '&amp;' )
+			.replace( /</g, '&lt;' )
+			.replace( />/g, '&gt;' )
+			.replace( /"/g, '&quot;' )
+			.replace( /'/g, '&#39;' );
+
+	const walkthroughHtml = rawInstructions.replaceAll(
+		'__ACROSSAI_MCP_URL__',
+		escapeHtml( mcpUrl )
+	);
 
 	return (
 		<div>
