@@ -25,6 +25,26 @@ jobs:
         run: |
           test -f vendor/autoload_packages.php || { echo "::error::vendor/autoload_packages.php missing"; exit 1; }
 
+      - name: Guard against tests/ leaking into the shipped autoloader
+        # The Jetpack Autoloader merges the root package's autoload-dev into
+        # jetpack_autoload_classmap.php even under --no-dev (its
+        # AutoloadGenerator::parseAutoloadsType merges getDevAutoload()
+        # unconditionally). tests/ is excluded from the zip, so any classmap
+        # entry pointing into tests/ is a dangling require that can fatal
+        # customer sites when a test class name collides with a real plugin's
+        # (acrossai-pro 0.9.8 shipped a MeprUser stub entry that fataled every
+        # MemberPress site — see acrossai-pro PR #74). Keep composer.json free
+        # of autoload-dev; this step fails the build if a tests/ path ever
+        # reappears in any generated autoloader file.
+        run: |
+          LEAKS="$(grep -rl "tests/" vendor/composer/*.php || true)"
+          if [ -n "$LEAKS" ]; then
+            echo "::error::Generated autoloader references tests/ paths, which are excluded from the release zip and would break on customer sites:" >&2
+            grep -rn "tests/" vendor/composer/*.php >&2 || true
+            exit 1
+          fi
+          echo "Autoloader clean: no tests/ references."
+
       - name: Create release zip
         run: |
           zip -r acrossai-mcp-manager.zip . \
