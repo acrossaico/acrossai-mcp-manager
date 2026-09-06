@@ -11,8 +11,11 @@
  *     explicitly opts in). This is a BEHAVIOR CHANGE from pre-Feature-012, where
  *     `acrossai_mcp_oauth_tokens` + `acrossai_mcp_oauth_audit` were dropped
  *     unconditionally.
- *   - 1 (destructive): drops all four wp_acrossai_mcp_* tables, deletes every
- *     `acrossai_mcp_*` option via LIKE-sweep, and clears the OAuth cleanup cron.
+ *   - 1 (destructive): drops every plugin-owned wp_acrossai_mcp_* table
+ *     (including the orphaned pre-F040 OAuth tables — see F083 note below),
+ *     deletes every `acrossai_mcp_*` option via LIKE-sweep (excluding the
+ *     companion-owned `acrossai_mcp_connector_%` namespace), and clears the
+ *     OAuth cleanup cron.
  *     Operators opt in via the "Delete all data on uninstall" checkbox on the
  *     MCP tab of the shared AcrossAI Settings page (see
  *     admin/Partials/SettingsMenu.php).
@@ -51,13 +54,18 @@ if ( class_exists( '\WPBoilerplate\AccessControl\Database\Rule\RuleQuery' ) ) {
 	}
 }
 
-// Feature 040 — the four OAuth tables (wp_acrossai_mcp_oauth_clients,
-// _tokens, _auth_codes, wp_acrossai_mcp_connector_approved_users) are
-// now owned by the acrossai-ai-connectors companion plugin. mcp-manager
-// MUST NOT drop them here — that would destroy data the companion depends
-// on. The companion's own uninstall.php drops them (dual-gated by its own
-// operator opt-in + Feature 040 ownership check). Similarly, the daily
-// OAuth cleanup cron is registered + cleared by the companion.
+// Feature 040 moved OAuth ownership to the companion plugin, and the
+// companion (acrossai-pro) has since RENAMED its tables to the
+// `acrossai_pro_mcp_oauth_*` / `acrossai_pro_mcp_connector_approved_users`
+// namespace — its uninstall.php drops only those new names. That leaves the
+// four OLD-name tables (`wp_acrossai_mcp_oauth_clients`, `_oauth_tokens`,
+// `_oauth_auth_codes`, `wp_acrossai_mcp_connector_approved_users`) created
+// by pre-F040 builds of THIS plugin orphaned with no owner. F083 restores
+// them to this drop list as an idempotent safety net: `DROP TABLE IF
+// EXISTS` no-ops on installs that never had them, and cannot collide with
+// the companion's live data because the companion's table names differ.
+// (The companion still OWNS the `acrossai_mcp_connector_%` *option*
+// namespace — the LIKE-sweep exclusion below stays per A20.)
 $tables = array(
 	$wpdb->prefix . 'acrossai_mcp_servers',
 	$wpdb->prefix . 'acrossai_mcp_cli_auth_logs',
@@ -65,6 +73,12 @@ $tables = array(
 	$wpdb->prefix . 'acrossai_mcp_server_abilities', // F017 per-server ability overrides.
 	$wpdb->prefix . 'acrossai_mcp_server_tools',     // F020 per-server tool selection.
 	$wpdb->prefix . 'acrossai_mcp_servers_meta',     // F037 MCPServerMeta — per-server key/value settings (Embeds tab, etc).
+	// F083 — orphans from pre-F040 builds (OAuth subsystem now lives in
+	// acrossai-pro under different table names). See comment above.
+	$wpdb->prefix . 'acrossai_mcp_oauth_clients',
+	$wpdb->prefix . 'acrossai_mcp_oauth_tokens',
+	$wpdb->prefix . 'acrossai_mcp_oauth_auth_codes',
+	$wpdb->prefix . 'acrossai_mcp_connector_approved_users',
 );
 foreach ( $tables as $table ) {
 	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange
