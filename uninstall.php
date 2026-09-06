@@ -54,18 +54,20 @@ if ( class_exists( '\WPBoilerplate\AccessControl\Database\Rule\RuleQuery' ) ) {
 	}
 }
 
-// Feature 040 moved OAuth ownership to the companion plugin, and the
-// companion (acrossai-pro) has since RENAMED its tables to the
+// Feature 040 moved OAuth ownership to the companion plugin. The companion
+// (acrossai-pro) CREATES ITS OWN fresh tables under the
 // `acrossai_pro_mcp_oauth_*` / `acrossai_pro_mcp_connector_approved_users`
-// namespace — its uninstall.php drops only those new names. That leaves the
+// namespace — it never reads, migrates, renames, or drops the old names
+// (verified: zero old-table-name references in its codebase; its
+// uninstall.php drops only the `acrossai_pro_mcp_*` names). That leaves the
 // four OLD-name tables (`wp_acrossai_mcp_oauth_clients`, `_oauth_tokens`,
 // `_oauth_auth_codes`, `wp_acrossai_mcp_connector_approved_users`) created
-// by pre-F040 builds of THIS plugin orphaned with no owner. F083 restores
-// them to this drop list as an idempotent safety net: `DROP TABLE IF
-// EXISTS` no-ops on installs that never had them, and cannot collide with
-// the companion's live data because the companion's table names differ.
-// (The companion still OWNS the `acrossai_mcp_connector_%` *option*
-// namespace — the LIKE-sweep exclusion below stays per A20.)
+// by pre-F040 builds of THIS plugin abandoned in place with no owner. F083
+// restores them to this drop list as an idempotent safety net: `DROP TABLE
+// IF EXISTS` no-ops on installs that never had them, and cannot collide
+// with the companion's live data because the companion's table names
+// differ. (The companion still OWNS the `acrossai_mcp_connector_%`
+// *option* namespace — the LIKE-sweep exclusion below stays per A20.)
 $tables = array(
 	$wpdb->prefix . 'acrossai_mcp_servers',
 	$wpdb->prefix . 'acrossai_mcp_cli_auth_logs',
