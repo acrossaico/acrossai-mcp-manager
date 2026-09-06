@@ -245,7 +245,7 @@ final class FrontendAuth {
 		// Password gates so unauthorized users see a clear denial page instead of
 		// completing consent, receiving a token, and then silently 403-ing on every
 		// tool call. `$bound_server` is a slug; resolve to server_id for AC check.
-		$server_rows = \AcrossAI_MCP_Manager\Includes\Database\MCPServer\Query::instance()->query(
+		$server_rows     = \AcrossAI_MCP_Manager\Includes\Database\MCPServer\Query::instance()->query(
 			array(
 				'server_slug' => (string) $bound_server,
 				'number'      => 1,
@@ -263,7 +263,7 @@ final class FrontendAuth {
 					null,
 					'cli_device_grant'
 				);
-				$body = '<p class="acrossai-mcp-frontend__lede">'
+				$body  = '<p class="acrossai-mcp-frontend__lede">'
 					. esc_html__( 'Your account does not have permission to connect a CLI tool to this MCP server.', 'acrossai-mcp-manager' )
 					. '</p>';
 				$body .= '<p class="acrossai-mcp-frontend__hint">'

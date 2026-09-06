@@ -1,0 +1,4 @@
+includes/Database/MCPServerTool/Query.php:260:	 * Fired by BerlinDB's `MCPServer\Query::delete_item()` after a successful
+includes/Main.php:566:		 *    by `MCPServer\Query::delete_item()` and covers both single-row and
+includes/Main.php:801:		\AcrossAI_MCP_Manager\Includes\Database\MCPServerMeta\Query::delete_by_server_id( $server_id );
+admin/Partials/Settings.php:133:				Query::instance()->delete_item( $server_id );

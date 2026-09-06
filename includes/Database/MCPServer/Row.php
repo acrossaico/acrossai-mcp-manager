@@ -32,6 +32,7 @@ class Row extends \BerlinDB\Database\Kern\Row {
 	/** @var int */    public $tool_get_ability_info         = 1;
 	/** @var int */    public $tool_execute_ability          = 1;
 	/** @var int */    public $override_abilities_permission = 0;
+	/** @var string */ public $abilities_default_policy      = 'per-ability';
 	/** @var string */ public $created_at                    = '';
 
 	/**
@@ -73,6 +74,7 @@ class Row extends \BerlinDB\Database\Kern\Row {
 			'tool_get_ability_info'         => $this->tool_get_ability_info,
 			'tool_execute_ability'          => $this->tool_execute_ability,
 			'override_abilities_permission' => $this->override_abilities_permission,
+			'abilities_default_policy'      => $this->abilities_default_policy,
 			'created_at'                    => $this->created_at,
 		);
 	}

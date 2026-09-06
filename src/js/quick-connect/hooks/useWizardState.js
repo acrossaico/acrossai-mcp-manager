@@ -18,7 +18,7 @@
  * middleware transparently. 403 responses surface the "session expired"
  * message per the same task's user-friendly error contract.
  *
- * @package AcrossAI_MCP_Manager
+ * @package
  */
 
 import { createContext, useContext, useReducer, useCallback, useEffect, useRef } from '@wordpress/element';
@@ -175,7 +175,7 @@ const normalizeError = ( raw ) => {
 				code: 'session_expired',
 				message: __(
 					'Your session has expired. Please reload the page to continue.',
-					'acrossai-mcp-manager'
+					'acrossai-mcp-manager',
 				),
 			};
 		}
@@ -184,7 +184,7 @@ const normalizeError = ( raw ) => {
 				code: 'not_authorized',
 				message: __(
 					'You are no longer signed in. Please reload the page.',
-					'acrossai-mcp-manager'
+					'acrossai-mcp-manager',
 				),
 			};
 		}

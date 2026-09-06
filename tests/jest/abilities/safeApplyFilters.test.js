@@ -24,7 +24,7 @@ function safeApplyFilters( name, value, ctx ) {
 		// eslint-disable-next-line no-console
 		console.error(
 			`[acrossai-mcp-manager] filter "${ name }" threw:`,
-			err
+			err,
 		);
 		return value;
 	}
@@ -50,7 +50,7 @@ describe( 'safeApplyFilters (F017 FR-029)', () => {
 			'test/throws',
 			() => {
 				throw new Error( 'boom' );
-			}
+			},
 		);
 		const input = [ { id: 'slug' } ];
 		const out = safeApplyFilters( 'acrossaiMcpManager.abilities.fields', input, {} );
@@ -62,7 +62,7 @@ describe( 'safeApplyFilters (F017 FR-029)', () => {
 		addFilter(
 			'acrossaiMcpManager.abilities.fields',
 			'test/nonarray',
-			() => 'not-an-array'
+			() => 'not-an-array',
 		);
 		const input = [ { id: 'slug' } ];
 		const out = safeApplyFilters( 'acrossaiMcpManager.abilities.fields', input, {} );
@@ -73,7 +73,7 @@ describe( 'safeApplyFilters (F017 FR-029)', () => {
 		addFilter(
 			'acrossaiMcpManager.abilities.actions',
 			'test/nonarray',
-			() => 42
+			() => 42,
 		);
 		const input = [ { id: 'expose' } ];
 		const out = safeApplyFilters( 'acrossaiMcpManager.abilities.actions', input, {} );
@@ -84,7 +84,7 @@ describe( 'safeApplyFilters (F017 FR-029)', () => {
 		addFilter(
 			'acrossaiMcpManager.abilities.row',
 			'test/nonobject',
-			() => 'string'
+			() => 'string',
 		);
 		const input = { slug: 'core/get-user-info' };
 		const out = safeApplyFilters( 'acrossaiMcpManager.abilities.row', input, {} );
@@ -96,7 +96,7 @@ describe( 'safeApplyFilters (F017 FR-029)', () => {
 		addFilter(
 			'acrossaiMcpManager.abilities.fields',
 			'test/valid',
-			() => extended
+			() => extended,
 		);
 		const out = safeApplyFilters( 'acrossaiMcpManager.abilities.fields', [ { id: 'slug' } ], {} );
 		expect( out ).toBe( extended );

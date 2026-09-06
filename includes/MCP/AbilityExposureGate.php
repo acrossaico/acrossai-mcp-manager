@@ -128,7 +128,7 @@ final class AbilityExposureGate {
 		}
 		$meta = $ability->get_meta();
 
-		if ( ExposureResolver::resolve( $server_id, $tool_name, $meta ) ) {
+		if ( ExposureResolver::resolve_effective( $server_id, $tool_name, $meta ) ) {
 			return $args;
 		}
 

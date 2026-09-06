@@ -267,14 +267,16 @@ final class CliController {
 		);
 
 		// Per-request auth code — MUST NOT cache. See DEC-OAUTH-DONOTCACHEPAGE-PATTERN.
-		return CacheHeaders::apply_to_rest_response( new WP_REST_Response(
-			array(
-				'auth_code'  => $auth_code,
-				'auth_url'   => $auth_url,
-				'expires_in' => self::AUTH_CODE_TTL,
-			),
-			200
-		) );
+		return CacheHeaders::apply_to_rest_response(
+			new WP_REST_Response(
+				array(
+					'auth_code'  => $auth_code,
+					'auth_url'   => $auth_url,
+					'expires_in' => self::AUTH_CODE_TTL,
+				),
+				200
+			)
+		);
 	}
 
 	/**
@@ -299,13 +301,15 @@ final class CliController {
 			&& hash_equals( (string) ( $payload['server_id'] ?? '' ), $server )
 		) {
 			// Per-code session token — MUST NOT cache.
-			return CacheHeaders::apply_to_rest_response( new WP_REST_Response(
-				array(
-					'approved' => true,
-					'token'    => (string) ( $payload['session_token'] ?? '' ),
-				),
-				200
-			) );
+			return CacheHeaders::apply_to_rest_response(
+				new WP_REST_Response(
+					array(
+						'approved' => true,
+						'token'    => (string) ( $payload['session_token'] ?? '' ),
+					),
+					200
+				)
+			);
 		}
 
 		// Even the "still pending" response varies per-code and per-poll — MUST NOT cache
@@ -366,24 +370,26 @@ final class CliController {
 		 * identifier surface single-string (slug) instead of dual (int+slug).
 		 */
 		// Per-session inventory (bound to the session token) — MUST NOT cache.
-		return CacheHeaders::apply_to_rest_response( new WP_REST_Response(
-			array(
-				'servers' => array(
-					array(
-						'id'          => (string) $row->server_slug,
-						'slug'        => (string) $row->server_slug,
-						'name'        => (string) $row->server_name,
-						'description' => (string) $row->description,
-						'enabled'     => (bool) $row->is_enabled,
-						'version'     => (string) $row->server_version,
-						'namespace'   => $ns,
-						'route'       => $route,
-						'mcp_url'     => rest_url( $ns . '/' . $route ),
+		return CacheHeaders::apply_to_rest_response(
+			new WP_REST_Response(
+				array(
+					'servers' => array(
+						array(
+							'id'          => (string) $row->server_slug,
+							'slug'        => (string) $row->server_slug,
+							'name'        => (string) $row->server_name,
+							'description' => (string) $row->description,
+							'enabled'     => (bool) $row->is_enabled,
+							'version'     => (string) $row->server_version,
+							'namespace'   => $ns,
+							'route'       => $route,
+							'mcp_url'     => rest_url( $ns . '/' . $route ),
+						),
 					),
 				),
-			),
-			200
-		) );
+				200
+			)
+		);
 	}
 
 	/**
@@ -494,16 +500,18 @@ final class CliController {
 
 		// Application Password in response body — MUST NOT cache. Full defense
 		// via CacheHeaders (DONOTCACHEPAGE + no-store + Pragma).
-		$resp = CacheHeaders::apply_to_rest_response( new WP_REST_Response(
-			array(
-				'app_password' => $raw_password,
-				'username'     => (string) $user->user_login,
-				'user_id'      => (int) $stored_user_id,
-				'expires_in'   => self::APP_PASSWORD_TTL_INFO,
-				'server_id'    => $request_server_id,
-			),
-			200
-		) );
+		$resp = CacheHeaders::apply_to_rest_response(
+			new WP_REST_Response(
+				array(
+					'app_password' => $raw_password,
+					'username'     => (string) $user->user_login,
+					'user_id'      => (int) $stored_user_id,
+					'expires_in'   => self::APP_PASSWORD_TTL_INFO,
+					'server_id'    => $request_server_id,
+				),
+				200
+			)
+		);
 		$resp->header( 'Pragma', 'no-cache' );
 		return $resp;
 	}

@@ -204,13 +204,13 @@ final class ToolsController {
 
 		$include_abilities = (bool) $request->get_param( 'include_abilities' );
 		if ( $include_abilities ) {
-			$abilities   = array();
-			$seen_names  = array();
+			$abilities  = array();
+			$seen_names = array();
 			if ( function_exists( 'wp_get_abilities' ) ) {
 				foreach ( \wp_get_abilities() as $ability ) {
-					$name              = (string) $ability->get_name();
-					$meta              = $ability->get_meta();
-					$abilities[]       = array(
+					$name                = (string) $ability->get_name();
+					$meta                = $ability->get_meta();
+					$abilities[]         = array(
 						'name'        => $name,
 						'label'       => (string) $ability->get_label(),
 						'description' => (string) $ability->get_description(),
@@ -385,13 +385,15 @@ final class ToolsController {
 			return $refreshed;
 		}
 
-		return CacheHeaders::apply_to_rest_response( new WP_REST_Response(
-			array(
-				'tools'   => ToolPolicy::compose_for_row( $refreshed ),
-				'added'   => array_values( array_merge( $columns_added, $curated_applied['added'] ) ),
-				'removed' => array_values( array_merge( $columns_removed, $curated_applied['removed'] ) ),
+		return CacheHeaders::apply_to_rest_response(
+			new WP_REST_Response(
+				array(
+					'tools'   => ToolPolicy::compose_for_row( $refreshed ),
+					'added'   => array_values( array_merge( $columns_added, $curated_applied['added'] ) ),
+					'removed' => array_values( array_merge( $columns_removed, $curated_applied['removed'] ) ),
+				)
 			)
-		) );
+		);
 	}
 
 	/**

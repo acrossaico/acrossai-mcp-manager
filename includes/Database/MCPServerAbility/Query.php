@@ -133,4 +133,51 @@ class Query extends BerlinDB_Query {
 			)
 		);
 	}
+
+	/**
+	 * F082 SEC-002 — Bulk-delete every override row for a given server.
+	 *
+	 * Called by the `mcp_server_deleted` cascade cleanup listener wired in
+	 * `Main.php::define_public_hooks()`. Mirrors F020's
+	 * `MCPServerTool\Query::delete_items_for_server()` shape verbatim.
+	 *
+	 * @since 0.1.0 (F082)
+	 *
+	 * @param int $server_id The MCP server id whose override rows to delete.
+	 * @return int Number of rows deleted.
+	 */
+	public function delete_items_for_server( int $server_id ): int {
+		global $wpdb;
+		$table = $wpdb->prefix . 'acrossai_mcp_server_abilities';
+		$count = $wpdb->delete( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.NoCaching,WordPress.DB.DirectDatabaseQuery.DirectQuery -- Bulk cascade cleanup; BerlinDB per-row delete would be N round-trips (matches F020 SEC-020-011 rationale).
+			$table,
+			array( 'server_id' => $server_id ),
+			array( '%d' )
+		);
+		// Flush the per-item BerlinDB cache group so stale reads don't survive.
+		wp_cache_flush_group( 'acrossai_mcp_server_ability' );
+		return (int) ( false === $count ? 0 : $count );
+	}
+
+	/**
+	 * F082 SEC-002 — static callback for `mcp_server_deleted` cascade cleanup.
+	 *
+	 * Fired by BerlinDB's `MCPServer\Query::delete_item()` after a successful
+	 * server-row delete. Payload: `int $server_id, bool $result`. Both the
+	 * single-row delete path and the bulk-delete path route through
+	 * `delete_item()`, so this single hook covers both. No-ops when `$result`
+	 * is false — a failed server delete MUST NOT trigger cascade cleanup.
+	 *
+	 * @since 0.1.0 (F082)
+	 *
+	 * @param int  $server_id The deleted server's id.
+	 * @param bool $result    Whether the DB delete succeeded.
+	 * @return void
+	 */
+	public static function on_mcp_server_deleted( int $server_id, bool $result ): void {
+		if ( ! $result || $server_id <= 0 ) {
+			return;
+		}
+		self::instance()->delete_items_for_server( $server_id );
+	}
 }

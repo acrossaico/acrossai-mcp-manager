@@ -42,6 +42,73 @@ $acmcp-accent:        #2271b1;
 		line-height: 1.4;
 	}
 
+	// ------------------------------------------------------------------------
+	// F082 — Default-policy panel: pill + counter + policy-level actions
+	// (Enable All / Disable All / Reset to Ability Defaults). Server-wide
+	// policy controls, visually separated from the selection-scoped bulk bar.
+	// ------------------------------------------------------------------------
+
+	.acrossai-mcp-abilities-policy {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		justify-content: space-between;
+		gap: 8px 16px;
+		margin: 0 4px 16px;
+		padding: 12px 16px;
+		background: #f6f7f7;
+		border: 1px solid $acmcp-border;
+		border-radius: 4px;
+
+		&__status {
+			display: flex;
+			flex-direction: column;
+			gap: 4px;
+			min-width: 240px;
+		}
+
+		// The policy badge. Neutral gray for 'per-ability'; the modifier
+		// classes recolor it per policy (WP admin notice palette family).
+		&__pill {
+			display: inline-block;
+			align-self: flex-start;
+			padding: 2px 10px;
+			border: 1px solid $acmcp-border;
+			border-radius: 999px;
+			background: #f0f0f1;
+			color: $acmcp-text-secondary;
+			font-size: 12px;
+			font-weight: 600;
+			line-height: 1.6;
+
+			&.is-policy-expose {
+				background: #edfaef;
+				border-color: #68de7c;
+				color: #007017;
+			}
+
+			&.is-policy-hide {
+				background: #fcf0f1;
+				border-color: #ffabaf;
+				color: #8a2424;
+			}
+		}
+
+		&__counter {
+			margin: 0;
+			color: $acmcp-text-secondary;
+			font-size: 13px;
+			line-height: 1.4;
+		}
+
+		&__actions {
+			display: flex;
+			flex-wrap: wrap;
+			align-items: center;
+			gap: 8px;
+		}
+	}
+
 	// Custom unified toolbar — search + category + type on one row.
 	// Sits between the counter and the DataViews. Replaces DataViews' own
 	// search+filter strip (hidden below).
@@ -308,5 +375,74 @@ $acmcp-accent:        #2271b1;
 	.components-spinner {
 		display: block;
 		margin: 40px auto;
+	}
+}
+
+// ============================================================================
+// F082 — full-screen branded loading overlay. Centered pulsing AcrossAI icon
+// over a translucent backdrop, mirroring the Quick Connect wizard's
+// `qs__initial-loading--overlay`. Shown on initial load and during policy
+// transitions (Enable All / Disable All / Reset). Fixed + full-viewport, so
+// it lives outside `.acrossai-mcp-abilities-root`.
+// ============================================================================
+
+.acrossai-mcp-abilities-loading {
+	position: fixed;
+	inset: 0;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	background: rgba(255, 255, 255, 0.92);
+	backdrop-filter: blur(2px);
+	z-index: 999999; // above the WP admin bar (99999) — truly full-screen.
+	// Fade in so it doesn't flash for sub-100ms requests.
+	animation: acrossai-mcp-abilities-loading-fade-in 150ms ease-out;
+}
+
+@keyframes acrossai-mcp-abilities-loading-fade-in {
+	from { opacity: 0; }
+	to   { opacity: 1; }
+}
+
+.acrossai-mcp-abilities-loading__icon {
+	width: 96px;
+	height: 96px;
+	max-width: 25vw; // shrink on narrow viewports without a media query.
+	max-height: 25vh;
+	animation: acrossai-mcp-abilities-loading-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes acrossai-mcp-abilities-loading-pulse {
+	0%, 100% {
+		opacity: 0.65;
+		transform: scale(0.96);
+	}
+	50% {
+		opacity: 1;
+		transform: scale(1);
+	}
+}
+
+// ============================================================================
+// F082 — policy confirm modal (Enable All / Disable All / Reset to Ability
+// Defaults). Rendered by wp.components Modal in a document-level portal, so
+// this rule MUST live outside `.acrossai-mcp-abilities-root`.
+// ============================================================================
+
+.acrossai-mcp-abilities-policy-modal {
+	max-width: 480px;
+
+	p {
+		margin: 0 0 24px;
+		color: $acmcp-text-secondary;
+		font-size: 13px;
+		line-height: 1.6;
+	}
+
+	&__actions {
+		display: flex;
+		align-items: center;
+		justify-content: flex-end;
+		gap: 12px;
 	}
 }
