@@ -43,7 +43,7 @@ class Menu {
 	private $version;
 
 	/**
-	 * Returns the singleton instance of this class.
+	 * Return the singleton instance.
 	 *
 	 * @return self
 	 */
@@ -55,7 +55,7 @@ class Menu {
 	}
 
 	/**
-	 * Private constructor — singleton.
+	 * Private constructor — use instance().
 	 */
 	private function __construct() {
 		$this->plugin_name = ACROSSAI_MCP_MANAGER_PLUGIN_NAME_SLUG;

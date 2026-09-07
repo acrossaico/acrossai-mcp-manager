@@ -3,7 +3,7 @@
 Binding constraints for implementation and review. Derived from two plan-level security reviews —
 `docs/security-reviews/2026-09-07-084-connect-tab-merge-plan.md` (MODERATE, C:0 H:0 M:2 L:3 I:1) and
 `…-plan-v2.md` (LOW, C:0 H:0 M:0 L:2, re-review of the amended plan) — plus plan-stage architecture
-violation detection, constitution §III, and durable memory (S1, S5, S6, B6, B8, D53, B54).
+violation detection, constitution §III, and durable memory (S1, S5, S6, B6, B8, D55, B57).
 
 A reviewer blocks merge on any of these.
 

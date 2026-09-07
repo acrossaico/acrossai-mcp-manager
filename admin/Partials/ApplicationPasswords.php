@@ -36,7 +36,7 @@ class ApplicationPasswords {
 	protected static $_instance = null;
 
 	/**
-	 * Returns the singleton instance of this class.
+	 * Return the singleton instance.
 	 *
 	 * @return self
 	 */
@@ -48,20 +48,14 @@ class ApplicationPasswords {
 	}
 
 	/**
-	 * Private constructor — singleton.
+	 * Private constructor — use instance().
 	 */
 	private function __construct() {
 		// NO add_action / add_filter — wired by Includes\Main::define_admin_hooks().
 	}
 
-	// ─────────────────────────────────────────────────────────────────────────
-	// REST routes (wired on `rest_api_init`).
-	// ─────────────────────────────────────────────────────────────────────────
-
 	/**
-	 * Registers this feature's REST routes.
-	 *
-	 * @return void
+	 * Register the REST routes (wired on `rest_api_init`).
 	 */
 	public function register_rest_routes(): void {
 		$admin_only_perm = static function () {
@@ -110,8 +104,7 @@ class ApplicationPasswords {
 	 *
 	 * Body: { server_id?: int }
 	 *
-	 * @param \WP_REST_Request $request Incoming REST request.
-	 *
+	 * @param \WP_REST_Request $request Incoming REST request with `server_id` and optional `name` params.
 	 * @return \WP_REST_Response|\WP_Error
 	 */
 	public function generate_app_password( \WP_REST_Request $request ) {
@@ -198,10 +191,10 @@ class ApplicationPasswords {
 	/**
 	 * Render the Tokens tab body for one server. Called from Settings.
 	 *
-	 * @param int $server_id Server row ID whose tokens are listed.
-	 *
 	 * Lists existing AcrossAI Application Passwords (filtered by name prefix)
 	 * + a button that POSTs to /generate-app-password via fetch().
+	 *
+	 * @param int $server_id Server row ID being edited.
 	 */
 	public function render_for_server( int $server_id ): void {
 		$user_id  = get_current_user_id();
@@ -269,9 +262,11 @@ class ApplicationPasswords {
 	// ─────────────────────────────────────────────────────────────────────────
 
 	/**
-	 * Builds the Application Password label for a server.
+	 * Build the Application Password display name for a server.
 	 *
-	 * @param int $server_id Server row ID; <= 0 yields the bare prefix.
+	 * Falls back to the bare prefix when no server row matches.
+	 *
+	 * @param int $server_id Server row ID; 0 yields the generic prefix.
 	 * @return string
 	 */
 	private function build_app_name( int $server_id ): string {

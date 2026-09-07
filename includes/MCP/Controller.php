@@ -179,7 +179,7 @@ final class Controller {
 			 * Filter the resources list a plugin-registered (database) MCP server exposes.
 			 *
 			 * Pre-filter list is the F017-effective, resource-typed ability set for this
-			 * server — every ability where ExposureResolver::resolve() === true AND
+			 * server — every ability where ExposureResolver::resolve_effective() === true AND
 			 * mcp.type === 'resource'. Companion plugins may add or remove any slug freely.
 			 *
 			 * NOT fired for the default server. Hook `mcp_adapter_default_server_config`
@@ -196,7 +196,7 @@ final class Controller {
 			 * Filter the prompts list a plugin-registered (database) MCP server exposes.
 			 *
 			 * Pre-filter list is the F017-effective, prompt-typed ability set for this
-			 * server — every ability where ExposureResolver::resolve() === true AND
+			 * server — every ability where ExposureResolver::resolve_effective() === true AND
 			 * mcp.type === 'prompt'. Companion plugins may add or remove any slug freely.
 			 *
 			 * NOT fired for the default server. Hook `mcp_adapter_default_server_config`

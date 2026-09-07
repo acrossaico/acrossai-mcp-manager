@@ -60,7 +60,7 @@ final class AdminPageSlugs {
 	}
 
 	/**
-	 * Private constructor — singleton.
+	 * Private constructor — constants-only utility, never instantiated.
 	 */
 	private function __construct() {
 		// Never instantiated — constants-only utility.

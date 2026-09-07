@@ -81,8 +81,8 @@ structural check — and a check that fails for the wrong reason gets disabled r
 
 | ID | Severity | Status | Evidence |
 |----|----------|--------|----------|
-| SEC-084-001 | MEDIUM | **CLOSED** | Contract §2 now carries a seven-row output-site inventory naming each site and its escaper, including the two companion-repo sites; `quickstart.md` gained a `grep -rn "method_url("` review gate; constraint C1 requires the docblock to name `MCPClientsBlock:146` as the reason for the raw contract. Generalised into durable memory as **B54**. |
-| SEC-084-002 | MEDIUM | **CLOSED, and hardened beyond the recommendation** | The fix went further than "state where the filter runs". Violation detection found that the originally-proposed name (`for_server()`) means *unfiltered* in the sibling registry, so the design now exposes `visible_methods()` as the **sole** public read path with collection kept `private` and **no unfiltered accessor at all** — the misuse is unrepresentable rather than merely discouraged. Contract §1 and §4, constraint C2, plan D-4. Generalised into durable memory as **D53**. |
+| SEC-084-001 | MEDIUM | **CLOSED** | Contract §2 now carries a seven-row output-site inventory naming each site and its escaper, including the two companion-repo sites; `quickstart.md` gained a `grep -rn "method_url("` review gate; constraint C1 requires the docblock to name `MCPClientsBlock:146` as the reason for the raw contract. Generalised into durable memory as **B57**. |
+| SEC-084-002 | MEDIUM | **CLOSED, and hardened beyond the recommendation** | The fix went further than "state where the filter runs". Violation detection found that the originally-proposed name (`for_server()`) means *unfiltered* in the sibling registry, so the design now exposes `visible_methods()` as the **sole** public read path with collection kept `private` and **no unfiltered accessor at all** — the misuse is unrepresentable rather than merely discouraged. Contract §1 and §4, constraint C2, plan D-4. Generalised into durable memory as **D55**. |
 | SEC-084-003 | LOW | **CLOSED** | Contract §4 states the fallback is silent and that the requested value is never rendered, logged to a user-visible surface, or reflected; constraint C3; `quickstart.md` grep for `unknown method` / `invalid method` expecting zero matches. |
 | SEC-084-004 | LOW | **CLOSED** | Contract §1 mandates `\Throwable` (with the `TypeError` rationale), a fixed translated escaped string naming only the slug, and `error_log()` behind `WP_DEBUG`; plan D-10; constraint C4; two `quickstart.md` greps. |
 | SEC-084-005 | LOW | **CLOSED** | "raw" now refers exclusively to the escaping contract in all four artifacts; both reads specified as `sanitize_key( wp_unslash( $_GET[…] ?? '' ) )` with a scoped nonce suppression; constraint C5; `quickstart.md` `$_GET[` grep. Verified no `raw $_GET` phrasing survives anywhere in `specs/084-connect-tab-merge/`. |
@@ -228,7 +228,7 @@ Re-verified after the amendments, plus what the amendments added.
    `security-constraints.md` now spans C1–C8.
 3. **No `/speckit.security-review.followup`** — no critical or high findings across either pass.
 4. **Durable memory**: no new generalizable lesson beyond the two already captured this session
-   (**D53**, **B54**). SEC-084-007 is an instance of the existing
+   (**D55**, **B57**). SEC-084-007 is an instance of the existing
    `DEC-F025-TASKS-REVIEW-PRESERVATION-INVARIANT-AND-COVERAGE-MATRIX`; SEC-084-008 is an instance of
    the existing **B48** family (an assertion drifting from its source of truth) — both already
    captured, neither needs a new entry.

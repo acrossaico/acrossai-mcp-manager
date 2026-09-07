@@ -2210,132 +2210,52 @@ Option 1 is simpler and matches the F076 fix.
 **Where to look next**
 - Recent PRs' SC canary grep results — if any show a stray match after the change lands, apply the same rephrase-or-anchor fix.
 - Future spec-kit specs on subtractive changes — favor `->methodName(` over `methodName` in SC grep patterns.
+
 ---
 
-### 2026-09-07 — DDL in a test implicitly COMMITs and escapes WP_UnitTestCase's rollback
+### 2026-09-06 — Checked-off WP-dependent test suites were never executable (harness never provisioned)
 
 **Status**
-Retired (fixed within F082, on branch `082-ability-policy-defaults` / PR #106)
+Active (repo-wide debt; tracked as F082 tasks.md T069 follow-up)
 
-**Symptoms**
-`PolicyReconcilerTest` exercises the F082 schema-drift reconciler by dropping the
-`abilities_default_policy` column and rewinding `acrossai_mcp_servers_db_version` to a prior value,
-then asserting the reconciler restores both. The test passed. Every *subsequent* run of the wider
-suite then failed with "Unknown column 'abilities_default_policy'" in tests that had nothing to do
-with policy reconciliation — and kept failing until the column was restored by hand.
+**What happened**
+WP-dependent PHPUnit suites authored across F011-F080 were marked complete but could never have run in this environment: no WP test harness was ever provisioned; the repo pins `phpunit/phpunit: ^13.2@dev` while WordPress' test library requires PHPUnit ≤9-era APIs (`PHPUnit\Util\Test::parseTestMethodAnnotations` at `abstract-testcase.php:592`); `tests/bootstrap-wp.php` never created the plugin's tables (activation hooks don't fire for test-loaded plugins; `admin_init@3` never fires under the bootstrap) even though three test files' docblocks assert "the bootstrap runs Activator::activate()"; and `yoast/phpunit-polyfills` cannot be installed into the project (every release conflicts with the ^13 pin). First real run (F082 review phase, 2026-09-06): ~100+ failures/fatals of pure API drift — BerlinDB `Kern\Column` objects used as arrays, `get_wp_die_handler()` signature fatals, wrong option keys.
 
-**Root Cause**
-`WP_UnitTestCase` isolates tests by wrapping each one in a transaction and rolling back in
-`tear_down()`. MySQL/MariaDB perform an **implicit COMMIT** before and after every DDL statement, so
-`ALTER TABLE ... DROP COLUMN` ends the surrounding transaction. The drop was therefore permanent, and
-the rollback that was supposed to undo it had nothing left to undo. The `update_option()` call that
-rewound the version stamp *was* inside a transaction — but a later implicit COMMIT from the next DDL
-statement made it permanent too. Net effect: one test permanently mutated the shared test database
-schema, and the damage presented as unrelated failures in other files.
+**Prevention rule**
+A test gate is green only when the RUN is recorded with output (extends D12's re-audit rule to first-audits). Reviewer question for any checked test task: "paste the run output." Working harness recipe (recorded in F082 tasks.md T017/T050 amendments): scratch composer project with PHPUnit 9.6 + polyfills ^4; plugin vendor installed `--no-dev` during WP-suite runs (the plugin's own composer autoloader otherwise PREPENDS PHPUnit 13 classes into the 9.6 process — class-collision fatals); `WP_TESTS_PHPUNIT_POLYFILLS_PATH` resolved in `tests/bootstrap-wp.php` with a composer-global default; `Activator::activate()` called after the WP bootstrap so BerlinDB tables actually exist.
 
-**Future mistake prevented**
-Any test that issues DDL (`ALTER TABLE`, `CREATE TABLE`, `DROP TABLE`, `TRUNCATE`) against the shared
-test database cannot rely on `WP_UnitTestCase`'s transactional isolation. Such a test MUST restore the
-schema itself, in a `tear_down()` that is safe to run even when the test failed part-way through.
-
-The F082 fix does exactly that — an idempotent, self-healing `tear_down()` that re-adds the column
-only if it is missing and re-stamps the version option:
-
-```php
-public function tear_down(): void {
-    global $wpdb;
-    // ... if the column is absent, put it back:
-    $wpdb->query( "ALTER TABLE `{$table}` ADD COLUMN `abilities_default_policy` varchar(16) NOT NULL DEFAULT 'per-ability'" );
-    update_option( 'acrossai_mcp_servers_db_version', '1.1.5' );
-    parent::tear_down();
-}
-```
-
-The same test also switched its fixture slugs to `'f082-upgrade-test-' . uniqid()`, so a row leaked by
-a mid-test failure cannot collide with the next run.
-
-**Evidence**
-- `tests/phpunit/Database/MCPServer/PolicyReconcilerTest.php` on branch
-  `082-ability-policy-defaults` (commit `c0ea4d5`): `tear_down()` at line 38, restorative
-  `ALTER TABLE ... ADD COLUMN` at line 46, version re-stamp at line 48, `uniqid()` fixture slug at
-  line 69, the destructive `DROP COLUMN` under test at line 123.
-- Symptom chain: cascading "Unknown column" failures across unrelated suites, persisting between
-  runs — the signature of escaped isolation rather than a flaky test.
-
-**Prevention / Detection**
-- Grep gate: `grep -rniE "ALTER TABLE|CREATE TABLE|DROP TABLE|TRUNCATE" tests/phpunit/` — every hit
-  MUST have a matching self-healing `tear_down()` in the same file, or a comment justifying why not.
-- Author checklist: a schema-drift or migration test is the one place transactional isolation does
-  **not** protect you. Write `tear_down()` before writing the assertion.
-- Make `tear_down()` idempotent and guard-conditioned (restore only if missing) so it also heals a
-  database left dirty by an earlier aborted run — it must fix the past, not just the present.
-- Detection: if a suite starts failing on "Unknown column" / "Table doesn't exist" in files you did
-  not touch, suspect DDL escape before suspecting your change.
-
-**Where to look next**
-- Any future test for a `D28` 3-part schema-drift contract — the whole point of those tests is to
-  mutate schema, so they all inherit this hazard.
-- `tests/bootstrap-wp.php` — the bootstrap now runs `Activator::activate()`, which creates the tables
-  a poisoned run would otherwise leave broken. It masks damage on a fresh database but does not repair
-  a column dropped mid-suite.
+**Related**
+- D12 (bulk task-status re-audit), B48 (tests drifting from source of truth — sibling class: here the whole SUITE drifted because it never ran).
 ---
 
-### 2026-09-07 — A literal NUL byte in a generated file makes git treat it as binary
+### 2026-09-06 — DDL in WP_UnitTestCase escapes transaction rollback and poisons the shared test DB across runs
 
 **Status**
-Retired (fixed within F082, on branch `082-ability-policy-defaults` / PR #106)
+Retired (F082 — self-healing tear_down shipped)
 
-**Symptoms**
-A 481-line CI release script written during F082 (`.github/scripts/publish-release.mjs`) showed up in
-`git diff` and `git status` as a **binary file**: no diff shown, no line-level review possible, and no
-secret-scanning or code-review pass over its contents — on a file that handles release credentials.
-The file opened and read normally in an editor.
+**What happened**
+`PolicyReconcilerTest::test_upgrade_to_1_1_5_recreates_dropped_column()` drops the `abilities_default_policy` column to prove the D28 drift-reconciliation path. MySQL DDL implicitly COMMITs, so the drop escapes `WP_UnitTestCase`'s per-test transaction rollback. When the restore path failed mid-flight, the column stayed dropped and the version option stayed stamped at current — persistently: the test DB survives between runs, and `maybe_upgrade()` no-ops forever after (option says current). Every subsequent test touching the table — in OTHER files and OTHER runs — failed with `Unknown column 'abilities_default_policy'`, pointing nowhere near the root cause. Bonus effect: rows inserted before a DDL statement in the same test are committed too, so fixed slugs collide on the next run.
 
-**Root Cause**
-The script needed a NUL character as a delimiter constant. It was written with a **literal** NUL byte
-(`0x00`) embedded in the source rather than the escape sequence. Git classifies a file as binary when
-it finds a NUL byte in the first few kilobytes, and binary files are excluded from textual diffs. The
-one-character mistake silently removed the entire file from human and automated review.
+**Prevention rule**
+Any test that issues DDL MUST self-heal in `tear_down()`: unconditionally verify/recreate the schema it may have degraded AND restore the version option, regardless of how the test exited (reference impl: `tests/phpunit/Database/MCPServer/PolicyReconcilerTest::tear_down()`). Rows inserted in DDL-adjacent tests use `uniqid()` slugs. Diagnostic heuristic: "unknown column" failures scattered across unrelated suites on a column a migration owns → suspect an earlier drop-and-restore test, check the test DB's actual schema before reading any test code.
 
-The fix is one character wide — use the escape sequence so the source stays pure ASCII:
+**Related**
+- D28 (the 3-part contract these tests exercise), B34 (silent write-loss on schema drift — the production twin of this test-side failure).
+---
 
-```js
-const DOUBLE = '\u0000';
-```
+### 2026-09-06 — A literal NUL byte makes a source file "binary" to git — un-reviewable diffs on a secret-bearing CI script
 
-**Future mistake prevented**
-Never emit a literal control character (NUL especially, but any `0x00`-`0x08` / `0x0B` / `0x0C` /
-`0x0E`-`0x1F`) into a source file. Always write the language's escape sequence: `\u0000` / `\0` /
-`\x00`. This matters most in **generated** files, where nobody types the character deliberately — it
-arrives via a heredoc, a template, or a tool that passes bytes through unchanged.
+**Status**
+Retired (2026-09-06 staged security review SEC-008)
 
-This mistake self-replicated twice during the F082 remediation: a Python heredoc written to *fix* the
-file carried the raw byte through, and so did the first draft of the report describing the problem.
-Any pipeline that moves the character around will keep moving it unless the escape is introduced at
-the point of authorship.
+**What happened**
+`.github/scripts/publish-release.mjs` — the CI script that receives the production WordPress Application Password — contained one literal 0x00 byte: a glob sentinel written as a real NUL character instead of the `'\u0000'` escape. git classifies any blob with a NUL in the first 8KB as binary, so the 467-line script rendered as `Bin 0 -> 14661 bytes` in every diff — a permanent review blind spot on exactly the file where supply-chain review matters most. The mistake then self-replicated twice during remediation: any tool that round-trips the literal byte (a Python heredoc, a markdown report quoting the "fix") propagates it, and one propagation was rejected by the agent-harness's own control-character guard while another produced `SyntaxError: source code cannot contain null bytes`.
 
-**Evidence**
-- `.github/scripts/publish-release.mjs:167` on branch `082-ability-policy-defaults` (commit
-  `c0ea4d5`) — now reads `const DOUBLE = '\u0000';`, and the 481-line file diffs as text.
-- Before the fix: `git diff` reported "Binary files differ" for a file that is entirely JavaScript.
+**Prevention rule**
+Sentinel/control characters in source code ALWAYS via escape sequences (`'\u0000'`, `"\x00"`), never as literal bytes. Review gate: `git diff --stat` showing `Bin` for any extension that should be text (`.js .mjs .php .md .yml`) is a defect to fix before merge, not a curiosity. When writing ABOUT such a byte (docs, reports, fix scripts), type the escape's characters — never paste the byte.
 
-**Prevention / Detection**
-- Grep gate before committing any generated or scripted file:
-  `git diff --cached --numstat | awk '$1 == "-" && $2 == "-" { print $3 }'` — a `-`/`-` numstat pair
-  means git treated the path as binary. Any source-code path in that output is a defect.
-- Equivalent direct check: `grep -rlIP '\x00' --include='*.mjs' --include='*.js' --include='*.php' .`
-  (the `-I` / `-P` combination finds files git would call binary).
-- Author rule: when a script needs a control character as a value, write the escape sequence. Reserve
-  raw control bytes for data files that genuinely are binary.
-- Reviewer rule: a source file that renders as "Binary files differ" in a PR is never acceptable —
-  treat it as an unreviewed file, not a formatting quirk. Weight this higher when the file touches
-  credentials, releases, or CI.
-
-**Where to look next**
-- Any file this repo generates rather than hand-writes: CI scripts, release automation, build
-  manifests, generated fixtures.
-- The `.github/` tree generally — it is the most common home for scripted-into-existence files and the
-  least likely to be opened by a human after creation.
+**Related**
+- docs/security-reviews/2026-09-06-082-staged.md SEC-008 (finding + fix), B51 (canary-grep comment false positives — sibling "the tooling can't see what you think it sees" class).
 ---
 
 ### 2026-09-07 — A cross-plugin raw-return URL builder multiplies escaping exposure across consumers

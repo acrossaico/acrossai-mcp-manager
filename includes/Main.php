@@ -258,6 +258,13 @@ final class Main {
 		\AcrossAI_MCP_Manager\Includes\Database\MCPServerTool\Table::instance()->maybe_upgrade();
 		// F037 — reconcile MCPServerMeta schema on admin_init per D28.
 		\AcrossAI_MCP_Manager\Includes\Database\MCPServerMeta\Table::instance()->maybe_upgrade();
+		// F083 — one-shot drop of the orphaned pre-F040 OAuth tables (only
+		// when present AND empty; non-empty tables are surfaced via the
+		// `acrossai_mcp_legacy_oauth_cleanup_skipped` action and left to the
+		// operator). Rides this same post-update code path because the
+		// orphans have no BerlinDB Table class left to own an $upgrades
+		// entry. Gated on one option read after first run.
+		\AcrossAI_MCP_Manager\Includes\Database\LegacyOAuthCleanup::maybe_cleanup();
 	}
 
 	/**
@@ -666,6 +673,22 @@ final class Main {
 		$this->loader->add_action(
 			'mcp_server_deleted',
 			\AcrossAI_MCP_Manager\Includes\Database\MCPServerTool\Query::class,
+			'on_mcp_server_deleted',
+			10,
+			2
+		);
+
+		/**
+		 * F082 SEC-002 — Cascade cleanup of per-ability override rows on
+		 * server deletion. Subscribes to the same BerlinDB-level
+		 * `mcp_server_deleted` action as F020's cleanup above; both fire on
+		 * every server-row delete regardless of path (single-row or bulk
+		 * admin, REST, WP-CLI — all route through
+		 * `MCPServer\Query::delete_item()`). Mirrors F020's wiring shape.
+		 */
+		$this->loader->add_action(
+			'mcp_server_deleted',
+			\AcrossAI_MCP_Manager\Includes\Database\MCPServerAbility\Query::class,
 			'on_mcp_server_deleted',
 			10,
 			2

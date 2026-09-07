@@ -37,7 +37,7 @@ class Main {
 	private $version;
 
 	/**
-	 * Returns the singleton instance of this class.
+	 * Return the singleton instance.
 	 *
 	 * @return self
 	 */
@@ -49,7 +49,7 @@ class Main {
 	}
 
 	/**
-	 * Private constructor — singleton.
+	 * Private constructor — use instance().
 	 */
 	private function __construct() {
 		$this->plugin_name = ACROSSAI_MCP_MANAGER_PLUGIN_NAME_SLUG;
@@ -59,7 +59,7 @@ class Main {
 	}
 
 	/**
-	 * True when the current admin screen belongs to this plugin.
+	 * Whether the current admin screen is one of the plugin's own pages (FR-017).
 	 *
 	 * @return bool
 	 */
@@ -79,7 +79,6 @@ class Main {
 	 * so callers can silently skip enqueue (FR-019).
 	 *
 	 * @param string $relative_path Manifest path relative to the plugin root.
-	 *
 	 * @return array{dependencies: string[], version: string}|null
 	 */
 	private function read_asset_manifest( string $relative_path ): ?array {
@@ -466,6 +465,9 @@ class Main {
 				'restApiRoot' => esc_url_raw( untrailingslashit( rest_url() ) ),
 				'nonce'       => wp_create_nonce( 'wp_rest' ),
 				'namespace'   => 'acrossai-mcp-manager/v1',
+				// Brand icon for the full-screen loading overlay — same asset
+				// the Quick Connect wizard's hydrate/busy overlay uses.
+				'iconUrl'     => esc_url_raw( \ACROSSAI_MCP_MANAGER_PLUGIN_URL . 'assets/quick-connect/icon.svg' ),
 			)
 		);
 	}

@@ -20,14 +20,14 @@
  *      (per-server, not site-wide).
  *   4. The ability slug is actually exposed to this server via the
  *      `wp_acrossai_mcp_server_abilities` junction table
- *      (`ExposureResolver::resolve()` gate).
+ *      (`ExposureResolver::resolve_row_only()` gate — renamed in F082 per SEC-001).
  *   5. The operator saw + acknowledged a warning banner + native
  *      `confirm()` prompt on the admin form before saving.
  *   6. The scope narrows to `permission_callback` only — other filter
  *      hooks (F015 access control, F017/F020 gates) still run their
  *      own logic.
  *
- * Per-request static cache mirrors the F017 `ExposureResolver::resolve()`
+ * Per-request static cache mirrors the F017 `ExposureResolver::resolve_row_only()`
  * shape — one row lookup per unique `server_id` per request. Cache is
  * cleared by the companion `rest_post_dispatch` / `shutdown` hook wired
  * in `Main::define_admin_hooks()` symmetric with `CurrentServerHolder`.
@@ -132,7 +132,7 @@ final class PermissionOverrideProcessor {
 			// scoped exception to DEC-ABILITY-OVERRIDE-RESOLUTION captured
 			// as DEC-F030-EXPLICIT-EXPOSURE-ONLY.
 			//
-			// Rationale: `ExposureResolver::resolve()`'s canonical semantic is
+			// Rationale: `ExposureResolver::resolve_row_only()`'s canonical semantic is
 			// "row exists → row wins; no row → `meta.mcp.public` fallback". By
 			// passing empty `$meta`, F030 collapses the fallback to `false` —
 			// meaning the operator-opt-in bypass ONLY applies to abilities the
@@ -147,7 +147,14 @@ final class PermissionOverrideProcessor {
 			// visibility from a plugin author's `meta.mcp.public = true`
 			// declaration. The narrower scope keeps the six-layer defensive
 			// gating meaningful.
-			if ( ! ExposureResolver::resolve( $server_id, $slug, array() ) ) {
+			// F082 review-gate: this MUST stay on ExposureResolver::resolve_row_only(),
+			// NOT resolve_effective(). F030's bypass is a row-existence probe;
+			// widening it to honour server policy would silently widen the
+			// permission-callback bypass to every ability the moment an
+			// operator clicks Enable All on a server. See
+			// docs/planings-tasks/082-per-server-ability-policy-defaults.md
+			// (CONSTRAINTS + TASK-9 F030 regression fence).
+			if ( ! ExposureResolver::resolve_row_only( $server_id, $slug, array() ) ) {
 				return self::call_original( $original, $callback_args );
 			}
 
@@ -230,7 +237,7 @@ final class PermissionOverrideProcessor {
 	 * @internal
 	 * @return void
 	 */
-	public static function _reset_cache_for_tests(): void { // phpcs:ignore PSR2.Methods.MethodDeclaration.Underscore -- Name is a pinned test contract (F017); renaming it breaks the suites that call it.
+	public static function _reset_cache_for_tests(): void { // phpcs:ignore PSR2.Methods.MethodDeclaration.Underscore -- Deliberate test-only marker; mirrors ExposureResolver::_reset_cache_for_tests() (F017/F030 naming contract).
 		self::$server_row_cache = array();
 	}
 }

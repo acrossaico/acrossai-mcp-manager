@@ -21,7 +21,7 @@ import AccessControlEditor from './access-control/AccessControlEditor.jsx';
 // delivery via their own webpack.
 import '../../vendor/wpboilerplate/wpb-access-control/js/AccessControl.scss';
 
-( function () {
+( function() {
 	const mount = document.getElementById( 'acrossai-mcp-ac-root' );
 	if ( ! mount ) {
 		return;
@@ -55,6 +55,6 @@ import '../../vendor/wpboilerplate/wpb-access-control/js/AccessControl.scss';
 			description={ config.description }
 			saveLabel={ config.saveLabel }
 		/>,
-		mount
+		mount,
 	);
-} )();
+}() );

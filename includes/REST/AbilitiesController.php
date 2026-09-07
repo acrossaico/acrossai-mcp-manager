@@ -34,6 +34,7 @@ declare( strict_types = 1 );
 
 namespace AcrossAI_MCP_Manager\Includes\REST;
 
+use AcrossAI_MCP_Manager\Includes\Database\MCPServer\PolicyTransition;
 use AcrossAI_MCP_Manager\Includes\Database\MCPServer\Query as MCPServerQuery;
 use AcrossAI_MCP_Manager\Includes\Database\MCPServerAbility\ExposureResolver;
 use AcrossAI_MCP_Manager\Includes\Database\MCPServerAbility\Query as MCPServerAbilityQuery;
@@ -137,6 +138,27 @@ final class AbilitiesController {
 				),
 			)
 		);
+
+		// F082 — per-server default ability policy.
+		register_rest_route(
+			self::NS,
+			'/servers/(?P<server_id>\d+)/abilities/policy',
+			array(
+				'methods'             => WP_REST_Server::CREATABLE,
+				'callback'            => array( $this, 'post_policy' ),
+				'permission_callback' => array( $this, 'permission_check' ),
+				'args'                => array_merge(
+					$server_id_arg,
+					array(
+						'policy' => array(
+							'type'     => 'string',
+							'required' => true,
+							'enum'     => array( 'per-ability', 'expose', 'hide' ),
+						),
+					)
+				),
+			)
+		);
 	}
 
 	/**
@@ -173,8 +195,25 @@ final class AbilitiesController {
 			return $server_check;
 		}
 
+		$overrides = $this->fetch_overrides( $server_id );
+
+		// F082 — fetch the server row for `abilities_default_policy`. Batch-lookup
+		// the override-slug set once for O(1) `has_override` per ability below (no N+1).
+		$server_rows        = MCPServerQuery::instance()->query(
+			array(
+				'id'     => $server_id,
+				'number' => 1,
+			)
+		);
+		$server_row         = ! empty( $server_rows ) ? $server_rows[0] : null;
+		$policy             = ( $server_row && ! empty( $server_row->abilities_default_policy ) )
+			? (string) $server_row->abilities_default_policy
+			: 'per-ability';
+		$override_slugs_set = array_flip( array_column( $overrides, 'slug' ) );
+
 		$response = array(
-			'overrides' => $this->fetch_overrides( $server_id ),
+			'overrides'                => $overrides,
+			'abilities_default_policy' => $policy,
 		);
 
 		// Fallback path — client asks us to include the ability list too.
@@ -183,13 +222,19 @@ final class AbilitiesController {
 			$abilities = array();
 			foreach ( \wp_get_abilities() as $ability ) {
 				$meta        = $ability->get_meta();
+				$slug        = (string) $ability->get_name();
 				$abilities[] = array(
 					// Field name matches the WP `@wordpress/abilities` store shape.
-					'name'        => $ability->get_name(),
-					'label'       => $ability->get_label(),
-					'category'    => $ability->get_category(),
-					'description' => $ability->get_description(),
-					'meta'        => $meta,
+					'name'         => $slug,
+					'label'        => $ability->get_label(),
+					'category'     => $ability->get_category(),
+					'description'  => $ability->get_description(),
+					'meta'         => $meta,
+					// F082 — server-computed effective exposure (three-tier). Client
+					// MUST trust this value; the pre-F082 client-side merge is retired.
+					'is_exposed'   => ExposureResolver::resolve_effective( $server_id, $slug, is_array( $meta ) ? $meta : array() ),
+					// F082 — true iff an explicit row exists in acrossai_mcp_server_abilities.
+					'has_override' => isset( $override_slugs_set[ $slug ] ),
 				);
 			}
 			$response['abilities'] = $abilities;
@@ -277,13 +322,13 @@ final class AbilitiesController {
 			$meta    = $ability->get_meta();
 
 			// Read effective value BEFORE the upsert.
-			$was = ExposureResolver::resolve( $server_id, $pair['slug'], $meta );
+			$was = ExposureResolver::resolve_effective( $server_id, $pair['slug'], $meta );
 
 			MCPServerAbilityQuery::instance()->upsert( $server_id, $pair['slug'], $pair['is_exposed'] );
 
 			// Bust the resolver cache for this key so the AFTER read is fresh.
-			ExposureResolver::_reset_cache_for_tests();
-			$now = ExposureResolver::resolve( $server_id, $pair['slug'], $meta );
+			ExposureResolver::reset_request_cache();
+			$now = ExposureResolver::resolve_effective( $server_id, $pair['slug'], $meta );
 
 			if ( $was !== $now ) {
 				/**
@@ -310,11 +355,53 @@ final class AbilitiesController {
 		}
 
 		// Return the refreshed override rows (FR-010 — never require a follow-up GET).
-		ExposureResolver::_reset_cache_for_tests();
+		ExposureResolver::reset_request_cache();
 		return CacheHeaders::apply_to_rest_response(
 			new WP_REST_Response(
 				array(
 					'overrides' => $this->fetch_overrides( $server_id ),
+				)
+			)
+		);
+	}
+
+	/**
+	 * F082 POST handler — set the per-server default ability policy.
+	 *
+	 * Body: `{ "policy": "per-ability" | "expose" | "hide" }` (enum-validated
+	 * at route registration). The transition itself (FR-015 no-op suppression,
+	 * override clearing, cache reset, `acrossai_mcp_server_policy_changed`
+	 * fire with the FR-011 was/now diff) lives in the shared
+	 * `PolicyTransition::apply()` service — this handler only authorises,
+	 * delegates, and shapes the REST response.
+	 *
+	 * @since 0.1.0 (F082; delegated to PolicyTransition 2026-09-06 per
+	 *               architecture-review R1)
+	 * @param WP_REST_Request $request Request.
+	 * @return WP_REST_Response|WP_Error
+	 */
+	public function post_policy( WP_REST_Request $request ) {
+		$server_id = (int) $request['server_id'];
+		$policy    = (string) $request['policy'];
+
+		$server_check = $this->require_server( $server_id );
+		if ( is_wp_error( $server_check ) ) {
+			return $server_check;
+		}
+
+		$result = PolicyTransition::apply( $server_id, $policy );
+
+		return CacheHeaders::apply_to_rest_response(
+			new WP_REST_Response(
+				array(
+					// After a non-no-op transition the overrides are freshly
+					// cleared — always an empty array. On an FR-015 no-op the
+					// existing rows are returned unchanged.
+					'overrides'                => $result['changed'] ? array() : $this->fetch_overrides( $server_id ),
+					'abilities_default_policy' => $policy,
+					// JSON `{}` (empty object) so JS consumers can treat an
+					// empty diff as an empty map.
+					'affected_slugs'           => empty( $result['affected_slugs'] ) ? (object) array() : $result['affected_slugs'],
 				)
 			)
 		);

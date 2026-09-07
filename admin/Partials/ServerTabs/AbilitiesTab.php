@@ -5,7 +5,7 @@
  * Feature 017 rewrites this tab from read-only PHP tables to a
  * `@wordpress/dataviews`-driven React app. Effective exposure is stored in
  * the new `MCPServerAbility` BerlinDB module and computed via
- * `ExposureResolver::resolve()`.
+ * `ExposureResolver::resolve_effective()` (F082) — was `resolve()` pre-F082.
  *
  * Feature 013's private tab-body helpers are retired here — the REST
  * controller + React app own that logic now.

@@ -61,7 +61,7 @@ are task-ordering or task-coverage fixes; none requires a design change.
 `specs/084-connect-tab-merge/tasks.md` — 54 tasks across 8 phases, reviewed against `plan.md`,
 `spec.md`, `contracts/connect-method-registration.md`, `security-constraints.md`, `quickstart.md`,
 the refreshed `memory-synthesis.md`, and `docs/memory/INDEX.md` (targeted retrieval: S1, S5, S6, B6,
-B8, B48, B51, B54, D41, D46, D48, D53).
+B8, B48, B51, B57, D41, D46, D48, D55).
 
 ---
 
@@ -197,7 +197,7 @@ sites in Phase 4 and T035 (companion `panel_url()`) adds two more in Phase 5. Be
 Phase 8, a new unescaped output site can exist unnoticed.
 
 This is not a defect: T049 is a pre-merge gate, so nothing unescaped can actually ship. It is recorded
-because B54 — captured from this very feature — says the inventory must grow *in the change that adds
+because B57 — captured from this very feature — says the inventory must grow *in the change that adds
 the consumer*, not in a later sweep. The task list satisfies the letter (a gate exists) but not quite
 the spirit (the inventory row lands with the consumer).
 

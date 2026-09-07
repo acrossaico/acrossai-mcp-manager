@@ -40,8 +40,9 @@ class Settings {
 	private $version;
 
 	/**
-	 * Returns the singleton instance of this class.
+	 * Return the singleton instance.
 	 *
+	 * @since 0.1.0
 	 * @return self
 	 */
 	public static function instance(): self {
@@ -52,7 +53,9 @@ class Settings {
 	}
 
 	/**
-	 * Private constructor — singleton.
+	 * Private constructor — use instance().
+	 *
+	 * @since 0.1.0
 	 */
 	private function __construct() {
 		$this->plugin_name = ACROSSAI_MCP_MANAGER_PLUGIN_NAME_SLUG;
@@ -201,8 +204,7 @@ class Settings {
 	 * Toggle a server row's enabled state. Two-step per research.md R1:
 	 * read current value, flip, update.
 	 *
-	 * @param int $server_id Server row ID to toggle.
-	 * @return void
+	 * @param int $server_id Server row id to toggle.
 	 */
 	private function toggle_server_status( int $server_id ): void {
 		$query = Query::instance();
@@ -236,8 +238,9 @@ class Settings {
 	}
 
 	/**
-	 * True when the current request is a POST.
+	 * Whether the current request is an HTTP POST.
 	 *
+	 * @since 0.1.0
 	 * @return bool
 	 */
 	private function is_post_request(): bool {
@@ -283,7 +286,7 @@ class Settings {
 	 * whitelist defence against B7 mass-assignment via forged POST keys.
 	 */
 	private function handle_create_server(): void {
-		// phpcs:disable WordPress.Security.NonceVerification.Recommended, WordPress.Security.NonceVerification.Missing -- Nonce verified by the caller: handle_actions() runs check_admin_referer( 'acrossai_mcp_create_server' ) immediately before dispatching here, behind a current_user_can( 'manage_options' ) gate. Every key is sanitized by MCPServerFieldSanitizer's hard-coded whitelist (B7 mass-assignment defence).
+		// phpcs:disable WordPress.Security.NonceVerification.Recommended, WordPress.Security.NonceVerification.Missing -- check_admin_referer( 'acrossai_mcp_create_server' ) ran in handle_actions() before dispatch.
 		$sanitized = MCPServerFieldSanitizer::sanitize_from_post( $_POST );
 		// phpcs:enable WordPress.Security.NonceVerification.Recommended, WordPress.Security.NonceVerification.Missing
 
@@ -352,10 +355,10 @@ class Settings {
 	}
 
 	/**
-	 * Redirect to the server list, optionally carrying a notice code.
+	 * Redirect back to the server list with a notice code, then exit.
 	 *
-	 * @param string $notice Optional notice slug appended as a query arg.
-	 * @return void
+	 * @since 0.1.0
+	 * @param string $notice Notice code appended as a query arg.
 	 */
 	private function redirect_to_list( string $notice ): void {
 		wp_safe_redirect(
@@ -373,10 +376,10 @@ class Settings {
 	}
 
 	/**
-	 * Redirect to the create-server screen, optionally carrying a notice code.
+	 * Redirect back to the create-server form with a notice code, then exit.
 	 *
-	 * @param string $notice Optional notice slug appended as a query arg.
-	 * @return void
+	 * @since 0.1.0
+	 * @param string $notice Notice code appended as a query arg.
 	 */
 	private function redirect_to_create( string $notice ): void {
 		wp_safe_redirect(
@@ -395,12 +398,12 @@ class Settings {
 	}
 
 	/**
-	 * Redirect back to a server's edit screen, optionally carrying a notice code.
+	 * Redirect back to a server's edit screen with a notice code, then exit.
 	 *
-	 * @param int    $server_id Server row ID to return to.
-	 * @param string $tab       Tab slug to reopen on arrival.
-	 * @param string $notice    Optional notice slug appended as a query arg.
-	 * @return void
+	 * @since 0.1.0
+	 * @param int    $server_id Server row id.
+	 * @param string $tab       Edit-screen tab slug to land on.
+	 * @param string $notice    Notice code appended as a query arg.
 	 */
 	private function redirect_to_edit( int $server_id, string $tab, string $notice ): void {
 		wp_safe_redirect(
@@ -423,8 +426,7 @@ class Settings {
 	/**
 	 * General-tab save handler. FR-009 / FR-013. Caller verified nonce + cap.
 	 *
-	 * @param int $server_id Server row ID being updated.
-	 * @return void
+	 * @param int $server_id Server row id being updated.
 	 */
 	private function handle_update_server( int $server_id ): void {
 		$query = Query::instance();
@@ -438,7 +440,7 @@ class Settings {
 			$this->redirect_to_list( 'server_not_found' );
 		}
 
-		// phpcs:disable WordPress.Security.NonceVerification.Recommended, WordPress.Security.NonceVerification.Missing -- Nonce verified by the caller: handle_actions() runs check_admin_referer( 'acrossai_mcp_update_' . $server_id ) immediately before dispatching here, behind a current_user_can( 'manage_options' ) gate. Every value below is sanitized on read.
+		// phpcs:disable WordPress.Security.NonceVerification.Recommended, WordPress.Security.NonceVerification.Missing -- check_admin_referer( 'acrossai_mcp_update_' . $server_id ) ran in handle_actions() before dispatch.
 		$data = array(
 			'server_name'            => isset( $_POST['server_name'] ) ? sanitize_text_field( wp_unslash( $_POST['server_name'] ) ) : '',
 			'description'            => isset( $_POST['description'] ) ? sanitize_textarea_field( wp_unslash( $_POST['description'] ) ) : '',
@@ -595,9 +597,9 @@ class Settings {
 	}
 
 	/**
-	 * Renders the WP_List_Table of MCP server rows.
+	 * Render the MCP servers WP_List_Table (pre-approved constitution exception).
 	 *
-	 * @return void
+	 * @since 0.1.0
 	 */
 	private function render_servers_table(): void {
 		$table = new MCPServerListTable();

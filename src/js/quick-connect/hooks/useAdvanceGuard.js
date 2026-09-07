@@ -12,7 +12,7 @@
  * cancels the transition. This keeps step-specific submit logic in the step
  * component while the Continue button lives in <StepLayout>.
  *
- * @package AcrossAI_MCP_Manager
+ * @package
  */
 
 import { createContext, useContext, useEffect } from '@wordpress/element';
@@ -31,9 +31,9 @@ export const WizardGuardContext = createContext( {
  *   useAdvanceGuard( wizardState.server_id !== null );
  *   useAdvanceGuard( form.isValid, async () => { ...submit; return ok; } );
  *
- * @param {boolean} canAdvance     Whether Continue should be enabled.
+ * @param {boolean}       canAdvance    Whether Continue should be enabled.
  * @param {Function|null} beforeAdvance Optional async fn to run on Continue click.
- *   Return truthy to proceed with navigation, falsy to cancel.
+ *                                      Return truthy to proceed with navigation, falsy to cancel.
  */
 const useAdvanceGuard = ( canAdvance, beforeAdvance = null ) => {
 	const { setCanAdvance, setBeforeAdvance } = useContext( WizardGuardContext );
@@ -121,6 +121,7 @@ export const useBelowFooter = ( node ) => {
  * render normally.
  *
  * Pass true to hide, false / omitted to restore. Auto-restores on unmount.
+ * @param {boolean} hide
  */
 export const useHideContinue = ( hide = true ) => {
 	const { setHideContinue } = useContext( WizardGuardContext );

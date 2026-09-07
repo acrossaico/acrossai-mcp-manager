@@ -158,7 +158,7 @@ Each verified against the diff, not assumed from the plan:
 2. **No `/speckit.security-review.followup`** — that path is for critical/high findings; there are
    none across all three reviews of this feature (plan MODERATE → plan-v2 LOW → tasks MODERATE →
    staged INFORMATIONAL).
-3. **Durable memory**: no new capture. Nothing here generalizes beyond D53, B54 and B55, already
+3. **Durable memory**: no new capture. Nothing here generalizes beyond D55, B57 and B55, already
    registered this session.
 4. **Outstanding security work is entirely in the companion PR**: C6 (T041) and its assertion (T042)
    live in `acrossai-pro` and are the only unverified constraint in the matrix.

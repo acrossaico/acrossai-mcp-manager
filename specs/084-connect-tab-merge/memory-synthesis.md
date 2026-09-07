@@ -1,7 +1,7 @@
 # Memory Synthesis
 
 *Refreshed 2026-09-07 for the **Tasks/Implement** phase — selection shifted from boundary/ownership
-entries toward implementation risks and security constraints, and now includes D53 + B54, captured
+entries toward implementation risks and security constraints, and now includes D55 + B57, captured
 from this feature's own plan-stage reviews.*
 
 ## Current Scope
@@ -14,7 +14,7 @@ matched companion PR in `acrossai-pro`. No REST, no storage, no schema, no hooks
 
 ## Relevant Decisions
 
-- **D53 / DEC-SIBLING-REGISTRY-NAME-SEMANTICS** — mirror a sibling registry's *shape*, never an
+- **D55 / DEC-SIBLING-REGISTRY-NAME-SEMANTICS** — mirror a sibling registry's *shape*, never an
   accessor *name* whose semantics differ; prefer removing the unsafe option to documenting it.
   (Reason: captured **from this feature** — `Registry::for_server()` is unfiltered, so the method
   registry exposes `visible_methods()` as its sole public read path. Governs T010/T012. Status:
@@ -31,7 +31,7 @@ matched companion PR in `acrossai-pro`. No REST, no storage, no schema, no hooks
   extension surface. (Reason: T019/T020 keep all four tab classes on disk and instantiable, changing
   only their membership and priority. Status: Active. Source: DECISIONS.md.)
 - **DEC-SERVER-TAB-CLASS-HIERARCHY** — template-method base + Registry singleton dispatch + final
-  concrete tabs. (Reason: the shape F084 replicates one level down, bounded by D53. Status: Active.
+  concrete tabs. (Reason: the shape F084 replicates one level down, bounded by D55. Status: Active.
   Source: DECISIONS.md.)
 
 ## Active Architecture Constraints
@@ -76,7 +76,7 @@ matched companion PR in `acrossai-pro`. No REST, no storage, no schema, no hooks
 
 ## Related Historical Lessons
 
-- **B54 / cross-plugin raw URL builder needs an output-site inventory** — a raw-return builder consumed
+- **B57 / cross-plugin raw URL builder needs an output-site inventory** — a raw-return builder consumed
   cross-plugin multiplies B6/B8 exposure across consumers the local greps cannot see. (Reason: captured
   from this feature; drives the seven-row inventory in the contract and the T049 review gate. Never
   resolve a missing `esc_url()` inside the builder.)
@@ -92,10 +92,10 @@ matched companion PR in `acrossai-pro`. No REST, no storage, no schema, no hooks
 
 ## Conflict Warnings
 
-- **Soft — D35 enumeration shape**, now resolved and superseded in practice by **D53**: D35 prescribes
+- **Soft — D35 enumeration shape**, now resolved and superseded in practice by **D55**: D35 prescribes
   a canonical static on the abstract base; F084 uses a sibling `MethodRegistry`. Consistency with
   `ServerTabs\Registry` outweighs D35's letter; its intent — one path that fires, validates, dedups
-  and sorts — is honoured, and D53 governs the naming half of the deviation.
+  and sorts — is honoured, and D55 governs the naming half of the deviation.
 - **Soft — §IV DataViews vs. the level-2 nav.** Five sibling links, no filter/sort/pagination:
   navigation chrome, not a data grid. Proceed on the reading that already permits the tab strip.
 - **No hard conflicts.** §VI is satisfied *because of* T004's extraction — copying validation into the

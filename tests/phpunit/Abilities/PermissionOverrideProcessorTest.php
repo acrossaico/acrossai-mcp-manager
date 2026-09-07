@@ -107,7 +107,7 @@ class PermissionOverrideProcessorTest extends WP_UnitTestCase {
 
 	public function test_override_on_but_ability_not_exposed_falls_through(): void {
 		// Turn override ON, but do NOT register the ability in the junction
-		// table. ExposureResolver::resolve() returns false → closure must
+		// table. ExposureResolver::resolve_row_only() returns false → closure must
 		// fall through to the original callback.
 		MCPServerQuery::instance()->update_item( $this->server_id, array( 'override_abilities_permission' => 1 ) );
 		CurrentServerHolder::instance()->set( $this->fake_server( 'f030-test' ) );

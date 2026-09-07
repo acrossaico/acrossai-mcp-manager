@@ -30,7 +30,7 @@ if ( ! class_exists( 'WP_List_Table' ) ) {
 class MCPServerListTable extends \WP_List_Table {
 
 	/**
-	 * Configures the list table's singular/plural labels.
+	 * Wire the WP_List_Table base config (singular/plural labels, no AJAX).
 	 */
 	public function __construct() {
 		parent::__construct(
@@ -125,9 +125,8 @@ class MCPServerListTable extends \WP_List_Table {
 	 * Fallback column renderer for the merged `route` column
 	 * (`<namespace>/<route>`, with duplicate slashes at the join collapsed).
 	 *
-	 * @param array<string, mixed> $item        Server row data.
-	 * @param string               $column_name Column being rendered.
-	 * @return string
+	 * @param array<string, mixed> $item        Row data.
+	 * @param string               $column_name Column key being rendered.
 	 */
 	public function column_default( $item, $column_name ): string {
 		switch ( $column_name ) {

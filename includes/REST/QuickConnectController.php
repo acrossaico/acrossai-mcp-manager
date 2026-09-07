@@ -17,13 +17,15 @@
  * file paths MUST NEVER appear in the response `message` field. Internal
  * diagnostics MAY be logged via `error_log()` — never surfaced to the client.
  *
- * F017 abilities integration (TASK-SEC-002 / T022): Step 3 "Enable all
- * abilities" DOES NOT round-trip through F017's REST route. Instead we call
- * the underlying service class `MCPServerAbilityQuery::instance()->upsert()`
- * directly for each ability from `wp_get_abilities()`. Single auth check
- * (this controller's outer permission_callback), no internal REST-to-REST
- * nonce lifecycle question, no cross-controller REST-wire coupling. Matches
- * `DEC-ABILITY-OVERRIDE-RESOLUTION` service-call intent.
+ * F017/F082 abilities integration (TASK-SEC-002 / T022): Step 5 "Enable all
+ * abilities" DOES NOT round-trip through the abilities REST routes. It calls
+ * the shared `MCPServer\PolicyTransition::apply()` service — since F082 that
+ * means flipping the server-level `abilities_default_policy` to `'expose'`
+ * and clearing the override rows (see `apply_step_5()`), not one upsert per
+ * ability. Single auth check (this controller's outer permission_callback),
+ * no internal REST-to-REST nonce lifecycle question, no cross-controller
+ * REST-wire coupling. Matches `DEC-ABILITY-OVERRIDE-RESOLUTION` service-call
+ * intent.
  *
  * @package    AcrossAI_MCP_Manager
  * @subpackage Includes/REST
@@ -34,9 +36,9 @@ declare( strict_types = 1 );
 
 namespace AcrossAI_MCP_Manager\Includes\REST;
 
+use AcrossAI_MCP_Manager\Includes\Database\MCPServer\PolicyTransition;
 use AcrossAI_MCP_Manager\Includes\Database\MCPServer\Query as MCPServerQuery;
 use AcrossAI_MCP_Manager\Includes\Database\MCPServerAbility\ExposureResolver as MCPServerAbilityExposureResolver;
-use AcrossAI_MCP_Manager\Includes\Database\MCPServerAbility\Query as MCPServerAbilityQuery;
 use AcrossAI_MCP_Manager\Includes\Utilities\MCPServerFieldSanitizer;
 use AcrossAI_MCP_Manager\Public\Discovery\ConnectionMethodRegistry;
 use WP_Error;
@@ -291,7 +293,7 @@ final class QuickConnectController {
 	/**
 	 * Persist per-step scratchpad state + delegate authoritative writes to
 	 * existing plugin APIs (MCPServerQuery::add_item/update_item,
-	 * MCPServerAbilityQuery::upsert per SEC-002 direct service call).
+	 * PolicyTransition::apply per SEC-002 direct service call).
 	 *
 	 * Inherits TASK-SEC-003 error-hygiene constraint from the class docblock —
 	 * every WP_Error uses a hand-authored user-facing message.
@@ -485,8 +487,7 @@ final class QuickConnectController {
 				)
 			);
 			if ( is_wp_error( $api ) ) {
-				// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- Intentional: install/activate failures MUST reach the site administrator's debug.log; the WP_Error returned below carries no vendor detail.
-				error_log( sprintf( '[acrossai-mcp-manager] plugins_api failed for %s: %s', $slug, $api->get_error_message() ) );
+				error_log( sprintf( '[acrossai-mcp-manager] plugins_api failed for %s: %s', $slug, $api->get_error_message() ) ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- Deliberate diagnostics per file-header error-hygiene policy (internal log only, never surfaced to the client).
 				return new WP_Error(
 					'acrossai_mcp_quick_connect_install_failed',
 					esc_html__( 'Could not find that plugin on WordPress.org. Try installing it manually from Plugins → Add New.', 'acrossai-mcp-manager' ),
@@ -497,8 +498,7 @@ final class QuickConnectController {
 			$upgrader = new \Plugin_Upgrader( new \WP_Ajax_Upgrader_Skin() );
 			$result   = $upgrader->install( $api->download_link );
 			if ( is_wp_error( $result ) ) {
-				// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- Intentional: install/activate failures MUST reach the site administrator's debug.log; the WP_Error returned below carries no vendor detail.
-				error_log( sprintf( '[acrossai-mcp-manager] Plugin_Upgrader::install failed for %s: %s', $slug, $result->get_error_message() ) );
+				error_log( sprintf( '[acrossai-mcp-manager] Plugin_Upgrader::install failed for %s: %s', $slug, $result->get_error_message() ) ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- Deliberate diagnostics per file-header error-hygiene policy (internal log only, never surfaced to the client).
 				return new WP_Error(
 					'acrossai_mcp_quick_connect_install_failed',
 					esc_html__( 'Installation failed. Try installing manually from Plugins → Add New.', 'acrossai-mcp-manager' ),
@@ -517,8 +517,7 @@ final class QuickConnectController {
 		if ( ! is_plugin_active( $plugin_file ) ) {
 			$activate = activate_plugin( $plugin_file );
 			if ( is_wp_error( $activate ) ) {
-				// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- Intentional: install/activate failures MUST reach the site administrator's debug.log; the WP_Error returned below carries no vendor detail.
-				error_log( sprintf( '[acrossai-mcp-manager] activate_plugin failed for %s: %s', $plugin_file, $activate->get_error_message() ) );
+				error_log( sprintf( '[acrossai-mcp-manager] activate_plugin failed for %s: %s', $plugin_file, $activate->get_error_message() ) ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- Deliberate diagnostics per file-header error-hygiene policy (internal log only, never surfaced to the client).
 				return new WP_Error(
 					'acrossai_mcp_quick_connect_activate_failed',
 					esc_html__( 'Activation failed. Try activating from Plugins.', 'acrossai-mcp-manager' ),
@@ -657,8 +656,20 @@ final class QuickConnectController {
 	/**
 	 * Step 5 — optionally bulk-enable all abilities for the wizard's server.
 	 *
-	 * TASK-SEC-002 remediation: calls MCPServerAbilityQuery::upsert() directly
-	 * — no internal REST-to-REST call to the F017 abilities controller.
+	 * F082 — "Enable all" now flips the SERVER-LEVEL default policy to
+	 * `'expose'`, exactly like the Abilities tab's Enable All button:
+	 * override rows are cleared (last-write-wins, spec F082 Q5) and future
+	 * ability registrations auto-inherit exposure with no admin action.
+	 * Replaces the pre-F082 one-upsert-per-ability loop, which wrote ~N
+	 * override rows and silently excluded any ability registered later.
+	 *
+	 * TASK-SEC-002 remediation still holds: the shared `PolicyTransition`
+	 * service calls the query layer directly — no internal REST-to-REST call
+	 * to the F017/F082 abilities controller.
+	 *
+	 * FR-015 parity: when the server is already on `'expose'`, this is a
+	 * no-op — overrides are NOT cleared and the policy-changed action does
+	 * NOT fire (same suppression as `AbilitiesController::post_policy()`).
 	 *
 	 * @param array $data       Step payload.
 	 * @param array $scratchpad Current scratchpad.
@@ -685,14 +696,13 @@ final class QuickConnectController {
 			return $scratchpad;
 		}
 
-		$ability_query = MCPServerAbilityQuery::instance();
-		foreach ( \wp_get_abilities() as $ability ) {
-			$slug = $ability->get_name();
-			if ( ! is_string( $slug ) || '' === $slug ) {
-				continue;
-			}
-			$ability_query->upsert( $server_id, $slug, true );
-		}
+		// Shared F082 transition service (architecture-review R1): FR-015
+		// no-op suppression, override clearing, resolver-cache reset (this
+		// SAME request pipes a fresh abilities summary into the save-step
+		// response via collect_abilities_summary(), which must see the new
+		// policy), and the `acrossai_mcp_server_policy_changed` fire with
+		// the FR-011 was/now diff all live inside PolicyTransition::apply().
+		PolicyTransition::apply( $server_id, 'expose' );
 
 		$scratchpad['abilities_saved'] = true;
 		return $scratchpad;
@@ -788,7 +798,7 @@ final class QuickConnectController {
 					continue;
 				}
 				$meta = $ability->get_meta();
-				if ( MCPServerAbilityExposureResolver::resolve(
+				if ( MCPServerAbilityExposureResolver::resolve_effective(
 					$server_id,
 					$slug,
 					is_array( $meta ) ? $meta : array()

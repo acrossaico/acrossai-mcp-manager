@@ -28,7 +28,7 @@ AbstractServerTab::server_edit_url()          ConnectTab::method_url()          
   reasonable-sounding inference that `server_edit_url()`'s contract is weaker or optional.
 - `server_edit_url()` is the older and more widely-inherited of the two — every third-party tab
   extending `AbstractServerTab` can call it — yet it is the one with no inventory and no gate.
-- B54, captured from this feature, names this gap explicitly: *"Existing unenforced instance to
+- B57, captured from this feature, names this gap explicitly: *"Existing unenforced instance to
   backfill: `AbstractServerTab::server_edit_url()` (`:499`, three call sites)."*
 - After F084, T025 removes two of `server_edit_url()`'s three call sites. A reviewer glancing at the
   remaining single call site may conclude the builder is nearly dead and skip enforcing it — exactly
@@ -48,7 +48,7 @@ Both raw-return builders carry the same three enforcement artifacts:
 - The escaping obligation is enforced identically wherever it applies, so no reader can infer a
   hierarchy of strictness between two builders that have none.
 - New consumers of either builder hit the same review gate.
-- B54's named gap closes, so the durable lesson matches the tree it describes.
+- B57's named gap closes, so the durable lesson matches the tree it describes.
 
 ## Migration Phases
 
@@ -116,4 +116,4 @@ docs-and-comments commit, with zero runtime impact and no data or API implicatio
 - [ ] One canary grep pattern covers both builders.
 - [ ] `docs/extending-per-server-tabs.md` tells third-party extenders that they own escaping at their
       own output sites for both builders.
-- [ ] B54's "existing unenforced instance to backfill" note is updated to reflect the closure.
+- [ ] B57's "existing unenforced instance to backfill" note is updated to reflect the closure.

@@ -23,7 +23,7 @@ class SettingsRenderer {
 	protected static $_instance = null;
 
 	/**
-	 * Returns the singleton instance of this class.
+	 * Return the singleton instance.
 	 *
 	 * @return self
 	 */
@@ -35,17 +35,16 @@ class SettingsRenderer {
 	}
 
 	/**
-	 * Private constructor — singleton.
+	 * Private constructor — use instance().
 	 */
 	private function __construct() {}
 
 	/**
 	 * Render the standard tab navigation row at the top of the edit page.
 	 *
-	 * @param array<string, string> $tabs      Slug => label map.
-	 * @param string                $current   Currently active tab slug.
+	 * @param array<string, string> $tabs    [slug => label].
+	 * @param string                $current Currently active tab slug.
 	 * @param int                   $server_id Row ID; appended to the tab href.
-	 * @return void
 	 */
 	public function render_tab_nav( array $tabs, string $current, int $server_id ): void {
 		echo '<h2 class="nav-tab-wrapper">';

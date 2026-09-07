@@ -16,7 +16,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 const PLUGIN_ROOT = process.cwd();
-const SKILLPACK_DIR = path.join(PLUGIN_ROOT, '.agents', 'skills');
+const SKILLPACK_DIR = path.join( PLUGIN_ROOT, '.agents', 'skills' );
 
 const TARGETS = [
 	'.claude/skills',
@@ -27,69 +27,71 @@ const TARGETS = [
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
-const HR = '━'.repeat(67);
-function banner(text) { console.log(`\n${HR}\n${text}\n${HR}\n`); }
+const HR = '━'.repeat( 67 );
+function banner( text ) {
+	console.log( `\n${ HR }\n${ text }\n${ HR }\n` );
+}
 
-function copyDir(src, dest) {
-	fs.mkdirSync(dest, { recursive: true });
-	for (const entry of fs.readdirSync(src, { withFileTypes: true })) {
-		const srcPath = path.join(src, entry.name);
-		const destPath = path.join(dest, entry.name);
-		if (entry.isDirectory()) {
-			copyDir(srcPath, destPath);
+function copyDir( src, dest ) {
+	fs.mkdirSync( dest, { recursive: true } );
+	for ( const entry of fs.readdirSync( src, { withFileTypes: true } ) ) {
+		const srcPath = path.join( src, entry.name );
+		const destPath = path.join( dest, entry.name );
+		if ( entry.isDirectory() ) {
+			copyDir( srcPath, destPath );
 		} else {
-			fs.copyFileSync(srcPath, destPath);
+			fs.copyFileSync( srcPath, destPath );
 		}
 	}
 }
 
-function isSkillDir(entry) {
+function isSkillDir( entry ) {
 	return (
 		entry.isDirectory() &&
-		!['plans', 'tasks', 'memory'].includes(entry.name) &&
-		fs.existsSync(path.join(SKILLPACK_DIR, entry.name, 'SKILL.md'))
+		! [ 'plans', 'tasks', 'memory' ].includes( entry.name ) &&
+		fs.existsSync( path.join( SKILLPACK_DIR, entry.name, 'SKILL.md' ) )
 	);
 }
 
 // ── main ─────────────────────────────────────────────────────────────────────
 
 function main() {
-	banner('📤  Skillpack Push');
+	banner( '📤  Skillpack Push' );
 
-	if (!fs.existsSync(SKILLPACK_DIR)) {
-		console.error(`❌  Skillpack not found at .agents/skills/`);
-		console.error('   Run  npm run skillpack  first to install upstream skills.');
-		process.exit(1);
+	if ( ! fs.existsSync( SKILLPACK_DIR ) ) {
+		console.error( `❌  Skillpack not found at .agents/skills/` );
+		console.error( '   Run  npm run skillpack  first to install upstream skills.' );
+		process.exit( 1 );
 	}
 
-	const skills = fs.readdirSync(SKILLPACK_DIR, { withFileTypes: true })
-		.filter(isSkillDir)
-		.map(d => d.name);
+	const skills = fs.readdirSync( SKILLPACK_DIR, { withFileTypes: true } )
+		.filter( isSkillDir )
+		.map( ( d ) => d.name );
 
-	if (skills.length === 0) {
-		console.warn('⚠️   No skills found in .agents/skills/ — nothing to push.');
-		process.exit(0);
+	if ( skills.length === 0 ) {
+		console.warn( '⚠️   No skills found in .agents/skills/ — nothing to push.' );
+		process.exit( 0 );
 	}
 
-	console.log(`Pushing ${skills.length} skill(s): ${skills.join(', ')}\n`);
+	console.log( `Pushing ${ skills.length } skill(s): ${ skills.join( ', ' ) }\n` );
 
-	for (const target of TARGETS) {
-		const targetDir = path.join(PLUGIN_ROOT, target);
-		console.log(`→  ${target}/`);
+	for ( const target of TARGETS ) {
+		const targetDir = path.join( PLUGIN_ROOT, target );
+		console.log( `→  ${ target }/` );
 
-		for (const skill of skills) {
-			const src = path.join(SKILLPACK_DIR, skill);
-			const dest = path.join(targetDir, skill);
+		for ( const skill of skills ) {
+			const src = path.join( SKILLPACK_DIR, skill );
+			const dest = path.join( targetDir, skill );
 
-			if (fs.existsSync(dest)) {
-				fs.rmSync(dest, { recursive: true, force: true });
+			if ( fs.existsSync( dest ) ) {
+				fs.rmSync( dest, { recursive: true, force: true } );
 			}
-			copyDir(src, dest);
-			console.log(`   ✓  ${skill}`);
+			copyDir( src, dest );
+			console.log( `   ✓  ${ skill }` );
 		}
 	}
 
-	console.log('\n✅  Done.\n');
+	console.log( '\n✅  Done.\n' );
 }
 
 main();
