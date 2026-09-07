@@ -258,6 +258,13 @@ final class Main {
 		\AcrossAI_MCP_Manager\Includes\Database\MCPServerTool\Table::instance()->maybe_upgrade();
 		// F037 — reconcile MCPServerMeta schema on admin_init per D28.
 		\AcrossAI_MCP_Manager\Includes\Database\MCPServerMeta\Table::instance()->maybe_upgrade();
+		// F083 — one-shot drop of the orphaned pre-F040 OAuth tables (only
+		// when present AND empty; non-empty tables are surfaced via the
+		// `acrossai_mcp_legacy_oauth_cleanup_skipped` action and left to the
+		// operator). Rides this same post-update code path because the
+		// orphans have no BerlinDB Table class left to own an $upgrades
+		// entry. Gated on one option read after first run.
+		\AcrossAI_MCP_Manager\Includes\Database\LegacyOAuthCleanup::maybe_cleanup();
 	}
 
 	/**
