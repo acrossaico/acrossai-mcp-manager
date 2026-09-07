@@ -43,7 +43,7 @@ final class ClientsTab extends AbstractServerTab {
 	 * @return string
 	 */
 	public function label(): string {
-		return __( 'MCP Clients', 'acrossai-mcp-manager' );
+		return __( 'MCP Client via config file', 'acrossai-mcp-manager' );
 	}
 
 	/**
