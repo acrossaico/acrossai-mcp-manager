@@ -2210,3 +2210,344 @@ Option 1 is simpler and matches the F076 fix.
 **Where to look next**
 - Recent PRs' SC canary grep results — if any show a stray match after the change lands, apply the same rephrase-or-anchor fix.
 - Future spec-kit specs on subtractive changes — favor `->methodName(` over `methodName` in SC grep patterns.
+---
+
+### 2026-09-07 — DDL in a test implicitly COMMITs and escapes WP_UnitTestCase's rollback
+
+**Status**
+Retired (fixed within F082, on branch `082-ability-policy-defaults` / PR #106)
+
+**Symptoms**
+`PolicyReconcilerTest` exercises the F082 schema-drift reconciler by dropping the
+`abilities_default_policy` column and rewinding `acrossai_mcp_servers_db_version` to a prior value,
+then asserting the reconciler restores both. The test passed. Every *subsequent* run of the wider
+suite then failed with "Unknown column 'abilities_default_policy'" in tests that had nothing to do
+with policy reconciliation — and kept failing until the column was restored by hand.
+
+**Root Cause**
+`WP_UnitTestCase` isolates tests by wrapping each one in a transaction and rolling back in
+`tear_down()`. MySQL/MariaDB perform an **implicit COMMIT** before and after every DDL statement, so
+`ALTER TABLE ... DROP COLUMN` ends the surrounding transaction. The drop was therefore permanent, and
+the rollback that was supposed to undo it had nothing left to undo. The `update_option()` call that
+rewound the version stamp *was* inside a transaction — but a later implicit COMMIT from the next DDL
+statement made it permanent too. Net effect: one test permanently mutated the shared test database
+schema, and the damage presented as unrelated failures in other files.
+
+**Future mistake prevented**
+Any test that issues DDL (`ALTER TABLE`, `CREATE TABLE`, `DROP TABLE`, `TRUNCATE`) against the shared
+test database cannot rely on `WP_UnitTestCase`'s transactional isolation. Such a test MUST restore the
+schema itself, in a `tear_down()` that is safe to run even when the test failed part-way through.
+
+The F082 fix does exactly that — an idempotent, self-healing `tear_down()` that re-adds the column
+only if it is missing and re-stamps the version option:
+
+```php
+public function tear_down(): void {
+    global $wpdb;
+    // ... if the column is absent, put it back:
+    $wpdb->query( "ALTER TABLE `{$table}` ADD COLUMN `abilities_default_policy` varchar(16) NOT NULL DEFAULT 'per-ability'" );
+    update_option( 'acrossai_mcp_servers_db_version', '1.1.5' );
+    parent::tear_down();
+}
+```
+
+The same test also switched its fixture slugs to `'f082-upgrade-test-' . uniqid()`, so a row leaked by
+a mid-test failure cannot collide with the next run.
+
+**Evidence**
+- `tests/phpunit/Database/MCPServer/PolicyReconcilerTest.php` on branch
+  `082-ability-policy-defaults` (commit `c0ea4d5`): `tear_down()` at line 38, restorative
+  `ALTER TABLE ... ADD COLUMN` at line 46, version re-stamp at line 48, `uniqid()` fixture slug at
+  line 69, the destructive `DROP COLUMN` under test at line 123.
+- Symptom chain: cascading "Unknown column" failures across unrelated suites, persisting between
+  runs — the signature of escaped isolation rather than a flaky test.
+
+**Prevention / Detection**
+- Grep gate: `grep -rniE "ALTER TABLE|CREATE TABLE|DROP TABLE|TRUNCATE" tests/phpunit/` — every hit
+  MUST have a matching self-healing `tear_down()` in the same file, or a comment justifying why not.
+- Author checklist: a schema-drift or migration test is the one place transactional isolation does
+  **not** protect you. Write `tear_down()` before writing the assertion.
+- Make `tear_down()` idempotent and guard-conditioned (restore only if missing) so it also heals a
+  database left dirty by an earlier aborted run — it must fix the past, not just the present.
+- Detection: if a suite starts failing on "Unknown column" / "Table doesn't exist" in files you did
+  not touch, suspect DDL escape before suspecting your change.
+
+**Where to look next**
+- Any future test for a `D28` 3-part schema-drift contract — the whole point of those tests is to
+  mutate schema, so they all inherit this hazard.
+- `tests/bootstrap-wp.php` — the bootstrap now runs `Activator::activate()`, which creates the tables
+  a poisoned run would otherwise leave broken. It masks damage on a fresh database but does not repair
+  a column dropped mid-suite.
+---
+
+### 2026-09-07 — A literal NUL byte in a generated file makes git treat it as binary
+
+**Status**
+Retired (fixed within F082, on branch `082-ability-policy-defaults` / PR #106)
+
+**Symptoms**
+A 481-line CI release script written during F082 (`.github/scripts/publish-release.mjs`) showed up in
+`git diff` and `git status` as a **binary file**: no diff shown, no line-level review possible, and no
+secret-scanning or code-review pass over its contents — on a file that handles release credentials.
+The file opened and read normally in an editor.
+
+**Root Cause**
+The script needed a NUL character as a delimiter constant. It was written with a **literal** NUL byte
+(`0x00`) embedded in the source rather than the escape sequence. Git classifies a file as binary when
+it finds a NUL byte in the first few kilobytes, and binary files are excluded from textual diffs. The
+one-character mistake silently removed the entire file from human and automated review.
+
+The fix is one character wide — use the escape sequence so the source stays pure ASCII:
+
+```js
+const DOUBLE = '\u0000';
+```
+
+**Future mistake prevented**
+Never emit a literal control character (NUL especially, but any `0x00`-`0x08` / `0x0B` / `0x0C` /
+`0x0E`-`0x1F`) into a source file. Always write the language's escape sequence: `\u0000` / `\0` /
+`\x00`. This matters most in **generated** files, where nobody types the character deliberately — it
+arrives via a heredoc, a template, or a tool that passes bytes through unchanged.
+
+This mistake self-replicated twice during the F082 remediation: a Python heredoc written to *fix* the
+file carried the raw byte through, and so did the first draft of the report describing the problem.
+Any pipeline that moves the character around will keep moving it unless the escape is introduced at
+the point of authorship.
+
+**Evidence**
+- `.github/scripts/publish-release.mjs:167` on branch `082-ability-policy-defaults` (commit
+  `c0ea4d5`) — now reads `const DOUBLE = '\u0000';`, and the 481-line file diffs as text.
+- Before the fix: `git diff` reported "Binary files differ" for a file that is entirely JavaScript.
+
+**Prevention / Detection**
+- Grep gate before committing any generated or scripted file:
+  `git diff --cached --numstat | awk '$1 == "-" && $2 == "-" { print $3 }'` — a `-`/`-` numstat pair
+  means git treated the path as binary. Any source-code path in that output is a defect.
+- Equivalent direct check: `grep -rlIP '\x00' --include='*.mjs' --include='*.js' --include='*.php' .`
+  (the `-I` / `-P` combination finds files git would call binary).
+- Author rule: when a script needs a control character as a value, write the escape sequence. Reserve
+  raw control bytes for data files that genuinely are binary.
+- Reviewer rule: a source file that renders as "Binary files differ" in a PR is never acceptable —
+  treat it as an unreviewed file, not a formatting quirk. Weight this higher when the file touches
+  credentials, releases, or CI.
+
+**Where to look next**
+- Any file this repo generates rather than hand-writes: CI scripts, release automation, build
+  manifests, generated fixtures.
+- The `.github/` tree generally — it is the most common home for scripted-into-existence files and the
+  least likely to be opened by a human after creation.
+---
+
+### 2026-09-07 — A cross-plugin raw-return URL builder multiplies escaping exposure across consumers
+
+**Status**
+Active (Feature 084 — constraint C1; enforcement lands with the F084 implementation)
+
+**Symptoms**
+Anticipated rather than observed, and recorded at plan stage because the codebase already carries both
+halves of the failure. `B6` records `admin_url()` reaching an HTML `href` without `esc_url()` — it is
+a filterable value, so the result is XSS. `B8` records the follow-on: "escaped above" comments do not
+enforce escaping, and the fix is to re-escape at the output point even when it looks redundant,
+because `esc_*` is idempotent.
+
+**Root Cause**
+Some URL builders must return a **raw**, unescaped string by contract, because callers chain
+`add_query_arg()` onto the result — pre-escaping turns the `&` separator into `&#038;` and breaks every
+downstream link. That is a correct design (F084's `ConnectTab::method_url()` and the existing
+`AbstractServerTab::server_edit_url()` both do it, and `public/Renderers/MCPClientsBlock.php:146` is
+the chaining consumer that requires it).
+
+The hazard is what the contract does to the *review surface*. The obligation to escape moves from one
+place (inside the builder) to N places (every consumer), and the count of N grows silently. It grows
+fastest when the builder is `public static` and consumed **cross-plugin**: a companion plugin adds
+output sites that this repository's own greps and reviewers never see.
+
+**Future mistake prevented**
+A raw-return URL builder must not be enforced by prose in a docblock. When introducing one — and
+especially when making one `public static` for cross-plugin use — ship three things alongside it:
+
+1. **An enumerated output-site inventory** in the contract document: every place the value reaches
+   HTML, and the escaper required there, including sites in companion repositories. New consumers join
+   the table as part of the change that adds them.
+2. **A canary grep** in the verification recipe that lists every call site for review, so an
+   unescaped one is a merge blocker rather than a discovery.
+3. **A docblock that states the raw contract AND names the chaining consumer as the reason.** Without
+   the reason, the next person to "tidy up" the missing `esc_url()` fixes it in the builder and breaks
+   every chained link — a change that looks like a security improvement and is a regression.
+
+**Evidence**
+- `public/Renderers/MCPClientsBlock.php:146` — `add_query_arg( 'client', $slug, (string) $context['submit_target_url'] )`
+  chains onto a raw builder result; `:153` escapes with `esc_url( $url )` at the `printf`. This is the
+  correct pattern already in production, and the reason the raw contract exists.
+- `admin/Partials/ServerTabs/AbstractServerTab.php:499` — the pre-existing `server_edit_url()` raw
+  builder, with three call sites, all in this repository.
+- F084 makes the surface materially wider: `ConnectTab::method_url()` is `public static` so
+  `acrossai-pro` can call it, and adds output sites in the level-2 nav, two `MCPServerListTable` row
+  shortcuts, two migrated tabs' form targets, and two companion `panel_url()` builders.
+- Recorded as SEC-084-001 (MEDIUM) in
+  `docs/security-reviews/2026-09-07-084-connect-tab-merge-plan.md`; enforced as constraint C1 in
+  `specs/084-connect-tab-merge/security-constraints.md`; inventory table in
+  `specs/084-connect-tab-merge/contracts/connect-method-registration.md` §2.
+
+**Prevention / Detection**
+- Grep gate: `grep -rn "method_url(\|server_edit_url(" admin/ includes/ public/` — every hit that
+  emits into HTML must carry `esc_url` / `esc_attr` on the same line. Review each against the contract's
+  inventory table.
+- Reviewer rule for **any** new `public static` returning a URL: ask "who escapes, and is that list
+  written down?" before approving. A raw contract without an inventory is incomplete, not merely
+  undocumented.
+- Cross-plugin rule: when the builder crosses a plugin boundary, the inventory must name the companion's
+  output sites too, and the companion's PR reviewer is responsible for adding its rows.
+- Never resolve a missing `esc_url()` by adding escaping inside a raw-contract builder. Fix it at the
+  output site.
+
+**Where to look next**
+- `admin/Partials/ServerTabs/AbstractServerTab.php:499` and its three call sites — the same contract,
+  currently without an inventory.
+- The `acrossai-pro` companion's `panel_url()` builders, which chain onto `method_url()` and are outside
+  this repository's grep reach.
+- `B6` and `B8` — the two observed bugs this pattern generalizes.
+---
+
+### 2026-09-07 — A security test filed under a user story inherits that story's priority
+
+**Status**
+Active (caught at tasks-review stage in F084; prevention rule, no code defect shipped)
+
+**Symptoms**
+The F084 task list's security coverage matrix read as complete — every constraint C1–C8 had both an
+implementing task and a verifying task. It was still possible to reach the feature's own stated
+release gate with three of the four access-control and information-disclosure assertions never having
+run.
+
+**Root Cause**
+Spec Kit organises tasks by user story, and a test naturally gets filed under the story whose
+acceptance criteria describe it. But a *cross-cutting* security mechanism is implemented once, in the
+foundational phase, and protects every story. Filing its test under one story silently transfers that
+story's priority onto the test.
+
+In F084 the C2 fallback-safety assertion landed in US3 because the scenario involves the
+local/non-local distinction — but what it actually verifies is capability-filtered fallback,
+implemented three phases earlier. US3 is P2. The C3 no-reflection and C4 containment assertions landed
+in US5 (P3) because US5's acceptance criteria are where "a deliberately failing method" is described.
+The release gate was the end of US4. All three assertions sat behind it.
+
+The coverage matrix concealed this precisely because it was full: it recorded *whether* each
+constraint had a verifying task, not *when* that task would run relative to the gate.
+
+**Future mistake prevented**
+File a security test with **the constraint it verifies**, not with the user story whose acceptance
+criteria mention it. If a mechanism is implemented in a blocking foundational phase because every
+story depends on it, its assertions belong in that same phase.
+
+A second-order benefit surfaced in F084: C3 (never reflect the requested value) and C4 (contain
+failures without leaking exception detail) *interact* — an exception message embedding the requested
+identifier breaches C3 through C4's failure. Two tests in different phases can each pass while the
+composition fails. Co-locating them made the combined case obvious and it was written as one test.
+
+**Evidence**
+- `docs/security-reviews/2026-09-07-084-connect-tab-merge-tasks.md` — SEC-084-T01 (MEDIUM, C2
+  assertion in US3/P2) and SEC-084-T02 (MEDIUM, C3+C4 assertions in US5/P3).
+- Remediation: those assertions were promoted into the foundational phase as F084 T021, T022 and T023;
+  only the genuinely third-party-specific containment case stayed in US5 (T051).
+- The same review found a related gap in the same family: US2's tasks were all happy-path, with no
+  abuse case for a legacy URL reaching a capability-excluded method (SEC-084-T03). A story's task set
+  tends to inherit that story's *narrative*, and user-story narratives are written as success paths.
+
+**Prevention / Detection**
+- **Matrix column**: a coverage matrix MUST carry a "verified by end of" column naming the phase, not
+  just a verifying-task ID. A full matrix with no phase column cannot show this defect.
+- **Mechanical check**: for each constraint, compare the phase of its implementing task against the
+  phase of its verifying task. Any verifying task in a later phase than its implementing task — or in
+  any phase after the stated release gate — is the smell.
+- **Author rule**: when a mechanism is implemented in a foundational/blocking phase, its assertions go
+  in that phase. Only the story-specific *application* of the mechanism belongs in the story.
+- **Reviewer question** for any tasks list with a stated MVP or release checkpoint: "which security
+  assertions run after this checkpoint, and why is that acceptable?"
+- **Abuse-case rule**: user stories are written as success narratives, so their task sets inherit that
+  bias. Every story that resolves attacker-influenceable input needs at least one negative case,
+  written deliberately rather than derived from the acceptance scenarios.
+
+**Where to look next**
+- Any feature whose tasks list has a foundational phase plus a stated MVP or release checkpoint.
+- `DEC-F025-TASKS-REVIEW-PRESERVATION-INVARIANT-AND-COVERAGE-MATRIX` — the decision that mandates the
+  coverage matrix. This entry is the refinement: the matrix needs a phase column to be load-bearing.
+---
+
+### 2026-09-07 — The Jetpack autoloader defeats any attempt to run a different PHPUnit against this plugin
+
+**Status**
+Active (workaround established in F084; supersedes the F082 approach)
+
+**Symptoms**
+Running the WordPress test library under a scratch PHPUnit 9.6 — necessary because the repo pins
+`phpunit ^13.2@dev`, which the WP test library cannot drive (T069) — gets *further* than expected and
+then dies:
+
+```
+Installing...
+Running as single site...
+PHP Fatal error: Uncaught Error: Call to private PHPUnit\Framework\TestSuite::__construct()
+  from scope PHPUnit\TextUI\TestSuiteMapper
+```
+
+WordPress boots cleanly. The failure lands in PHPUnit's own suite mapper, which makes it look like a
+broken PHPUnit install rather than a conflict.
+
+**Root Cause**
+This plugin ships `automattic/jetpack-autoloader` (`composer.json:21`), whose entire purpose is to
+take precedence and win version conflicts between plugins — `composer dump-autoload` generates
+`jetpack_autoload_psr4.php` / `jetpack_autoload_filemap.php` to that end. The scratch PHPUnit 9 runs
+first, then `tests/bootstrap-wp.php` loads the plugin during `muplugins_loaded`, which registers the
+Jetpack autoloader; from that point `PHPUnit\*` resolves to the repo's pinned **v13** classes.
+`TestSuiteMapper` (v9) then calls a `TestSuite::__construct()` (v13) that is private in v13.
+
+The autoloader is behaving exactly as designed. Nothing is misconfigured — which is why the error
+message points nowhere useful.
+
+**Future mistake prevented**
+Do not reach for `composer install --no-dev` to dodge this (the F082 approach). It works, but it
+strips phpcs and phpstan out of `vendor/` for the duration and has to be undone afterwards — easy to
+forget, and it makes the quality gates unrunnable while tests are running.
+
+Force-load the scratch runner's PHPUnit classes BEFORE the WP bootstrap registers the competing
+autoloader. Once the classes are declared, no autoloader is consulted for them:
+
+```php
+require_once __DIR__ . '/vendor/yoast/phpunit-polyfills/phpunitpolyfills-autoload.php';
+
+$classmap = require __DIR__ . '/vendor/composer/autoload_classmap.php';
+foreach ( array_keys( $classmap ) as $fqcn ) {
+    if ( 0 === strpos( $fqcn, 'PHPUnit\\' ) || 0 === strpos( $fqcn, 'SebastianBergmann\\' ) ) {
+        class_exists( $fqcn, true );
+    }
+}
+
+require_once getenv( 'PLUGIN_DIR' ) . '/tests/bootstrap-wp.php';
+```
+
+Second gotcha in the same recipe: this WP test library requires `tear_down()` to be **public**. A
+`protected function tear_down()` — the form several existing suites use — fatals with
+"Access level to …::tear_down() must be public (as in class WP_UnitTestCase_Base)". Same for
+`set_up()`.
+
+**Evidence**
+- F084 (2026-09-07): this recipe took the feature's suites from a hard fatal to **68 tests / 161
+  assertions green**, with phpcs and phpstan still runnable throughout.
+- `composer.json:21` — `"automattic/jetpack-autoloader": "^5.0"`.
+- Working runner preserved under the session scratchpad as `phpunit9/bootstrap-f084.php`.
+
+**Prevention / Detection**
+- Any future attempt to run WP-dependent suites in this repo needs this bootstrap. It is currently the
+  only non-destructive way, and stays so until T069 resolves the pinned-PHPUnit conflict.
+- Symptom-to-cause shortcut: a PHPUnit internal error that appears AFTER WordPress prints
+  "Running as single site..." is an autoloader conflict, not a PHPUnit install problem.
+- Generalises beyond PHPUnit: any tool whose classes share a namespace with something in this
+  plugin's `vendor/` will lose to the Jetpack autoloader once the plugin loads. Preload, or run the
+  tool in a process that never boots the plugin.
+- When adding a new test class, write `public function set_up()` / `public function tear_down()`.
+
+**Where to look next**
+- T069 — the repo-wide WP-dependent suite breakage this recipe works around rather than fixes.
+- `A12` / `A18` — the WP-free bootstrap and its stub carve-out; those suites are unaffected because
+  they never boot the plugin.

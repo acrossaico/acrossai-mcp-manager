@@ -668,3 +668,55 @@ Verified by direct source read of `wordpress/mcp-adapter` trunk (`includes/Core/
 **Related**
 - Companion request-time enforcement patterns: D18 (`mcp_adapter_pre_tool_call` for ability-level gating), F015 access control.
 - The framework does its own request-handling; this plugin's `is_enabled` gate sits BEFORE that (at the plugin's own MCP endpoint layer).
+---
+
+### 2026-09-07 — Public renderers must not depend on admin-only CSS classes or stylesheets
+
+**Status**
+Active (Feature 084)
+
+**Constraint**
+Classes under `public/Renderers/` MUST NOT depend on wp-admin-only CSS classes (`.nav-tab`,
+`.nav-tab-wrapper`, `.wp-list-table`, `.notice`, …) or on admin-only stylesheets such as
+`src/scss/backend.scss`. Where an admin-side design needs to appear in a public renderer, restate the
+visual under plugin-owned class names instead of inheriting the admin one.
+
+**Why this is durable**
+The Public Renderer layer exists precisely so the same UI can render in more than one context, and
+several of its classes are registered as front-end shortcodes — `[acrossai_mcp_clients_block]` and
+`[acrossai_mcp_npm_block]` at `includes/REST/ClientRendererController.php:178-183`. wp-admin's
+stylesheet does not load on the front end, so an admin class name in a public renderer produces a
+silently unstyled front-end surface. Nothing in an admin-side test suite can catch it: the admin path
+looks perfect.
+
+This is a boundary that disguises itself as a styling choice, which is why it needs to be written
+down rather than left to judgement at the moment of writing CSS.
+
+**How to apply**
+- Deciding markup for a `public/Renderers/` class: ask "does this class name exist outside wp-admin?"
+  before using it. If the answer is no, restate the idiom.
+- The same restatement rule applies to admin-only JS globals and admin-only asset handles.
+- Duplicating a handful of CSS rules to honour this boundary is correct, not a DRY violation — the
+  same reasoning as `D51` for the cross-plugin case, applied to the admin/front-end boundary.
+- Reviewers: for any diff touching `public/Renderers/`, grep the added markup for core admin class
+  names.
+
+**Reference implementation**
+F084 gave its level-2 navigation (`Admin\Partials\ServerTabs\ConnectTab`, admin-only) WordPress
+core's `.nav-tab-wrapper` / `.nav-tab` classes directly, and deliberately did NOT give them to the
+level-3 client picker emitted by `Public\Renderers\MCPClientsBlock`, which restates the identical
+visual under `.acrossai-client-tab*`. The asymmetry is documented at both sites so it is not
+"tidied up" later.
+
+**Known pre-existing gap**
+`MCPClientsBlock` is already unstyled on the front end today — `backend.scss` has never loaded there.
+F084 neither introduced nor closed that gap. Closing it means shipping a front-end stylesheet for the
+Public Renderer layer; this constraint is what keeps that future fix from being blocked by admin-class
+coupling.
+
+**Related**
+- `DEC-CLIENT-RENDERER-PUBLIC-API` — defines the layer and its sanctioned entry points.
+- `D40` — the existing sibling boundary rule ("no `public/` → `includes/` back-import"), enforced by
+  grep gate. Same boundary, PHP-import dimension; this entry covers the asset/styling dimension.
+- `D54` — the graded navigation family whose level-3 tier this constraint shapes.
+- `D51` — duplicate-over-shared-partial across a boundary, same trade-off at the plugin boundary.
