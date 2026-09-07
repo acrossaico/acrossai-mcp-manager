@@ -19,6 +19,18 @@ jobs:
               run: composer install --no-dev --prefer-dist --optimize-autoloader --no-interaction
             - name: Verify Composer autoloader was generated
               run: test -f vendor/autoload_packages.php || { echo "::error::vendor/autoload_packages.php missing after composer install"; exit 1; }
+            - name: Guard against tests/ leaking into the shipped autoloader
+              # Jetpack Autoloader merges root autoload-dev even under --no-dev;
+              # dangling tests/ classmap entries can fatal customer sites (see
+              # acrossai-pro PR #74 / issue #104). Fails the deploy on any leak.
+              run: |
+                  LEAKS="$(grep -rl "tests/" vendor/composer/*.php || true)"
+                  if [ -n "$LEAKS" ]; then
+                    echo "::error::Generated autoloader references tests/ paths, which are excluded from the release and would break on customer sites:" >&2
+                    grep -rn "tests/" vendor/composer/*.php >&2 || true
+                    exit 1
+                  fi
+                  echo "Autoloader clean: no tests/ references."
             - name: Fix git safe directory
               run: git config --global --add safe.directory /github/workspace
             - name: WordPress Plugin Deploy

@@ -216,8 +216,8 @@ class SettingsMenu {
 	 * @return void
 	 */
 	public function render_subnav(): void {
-		$servers_url     = admin_url( 'admin.php?page=' . AdminPageSlugs::PARENT );
-		$settings_url    = admin_url(
+		$servers_url       = admin_url( 'admin.php?page=' . AdminPageSlugs::PARENT );
+		$settings_url      = admin_url(
 			'admin.php?page=' . \AcrossAI_Main_Menu\SettingsPage::SETTINGS_SLUG
 			. '&tab=' . self::TAB_SLUG
 		);

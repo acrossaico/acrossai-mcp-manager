@@ -678,6 +678,22 @@ final class Main {
 			2
 		);
 
+		/**
+		 * F082 SEC-002 — Cascade cleanup of per-ability override rows on
+		 * server deletion. Subscribes to the same BerlinDB-level
+		 * `mcp_server_deleted` action as F020's cleanup above; both fire on
+		 * every server-row delete regardless of path (single-row or bulk
+		 * admin, REST, WP-CLI — all route through
+		 * `MCPServer\Query::delete_item()`). Mirrors F020's wiring shape.
+		 */
+		$this->loader->add_action(
+			'mcp_server_deleted',
+			\AcrossAI_MCP_Manager\Includes\Database\MCPServerAbility\Query::class,
+			'on_mcp_server_deleted',
+			10,
+			2
+		);
+
 		// TODO (phase 5): wire REST\CliController.
 		// $cli_controller = \AcrossAI_MCP_Manager\Includes\REST\CliController::instance();
 		// $this->loader->add_action( 'rest_api_init', $cli_controller, 'register_routes' );

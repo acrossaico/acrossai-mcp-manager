@@ -21,7 +21,7 @@
  * on the Abilities tab by `admin/Main.php::maybe_enqueue_abilities_app()`.
  *
  * @since 0.1.0
- * @package AcrossAI_MCP_Manager
+ * @package
  */
 
 import {
@@ -42,6 +42,7 @@ import {
 	SearchControl,
 	CheckboxControl,
 	Button,
+	Modal,
 } from '@wordpress/components';
 import { applyFilters } from '@wordpress/hooks';
 import { useSelect } from '@wordpress/data';
@@ -51,7 +52,7 @@ import { useSelect } from '@wordpress/data';
 // enqueues alongside the JS bundle.
 import '../scss/abilities.scss';
 
-/**
+/*
  * NB: `@wordpress/abilities` (v0.16.0 as of 2026-07) is very new and
  * @wordpress/scripts may not know how to externalize it against a
  * `wp-abilities` handle. Instead of importing `store as abilitiesStore`
@@ -76,7 +77,7 @@ const EXCLUDED_SLUGS = new Set( [
 	'mcp-adapter/execute-ability',
 ] );
 
-( function () {
+( function() {
 	const mount = document.getElementById( 'acrossai-mcp-abilities-root' );
 	if ( ! mount ) {
 		return;
@@ -86,7 +87,7 @@ const EXCLUDED_SLUGS = new Set( [
 	if ( ! config.serverId || ! config.namespace ) {
 		mount.textContent = __(
 			'Abilities app cannot boot — missing serverId or namespace.',
-			'acrossai-mcp-manager'
+			'acrossai-mcp-manager',
 		);
 		return;
 	}
@@ -116,7 +117,7 @@ const EXCLUDED_SLUGS = new Set( [
 			// eslint-disable-next-line no-console
 			console.error(
 				`[acrossai-mcp-manager] filter "${ name }" threw:`,
-				err
+				err,
 			);
 			return value;
 		}
@@ -127,8 +128,15 @@ const EXCLUDED_SLUGS = new Set( [
 	 *
 	 * Layout: [Select all checkbox] · [Prev / page-of-N / Next] · [N of M Items]
 	 *
-	 * @param {Object} props Footer props (view, setView, shownData,
-	 *                       selection, setSelection, totalItems, paginationInfo).
+	 * @param {Object}   props                Footer props (view, setView, shownData,
+	 *                                        selection, setSelection, totalItems, paginationInfo).
+	 * @param {Object}   props.view
+	 * @param {Function} props.setView
+	 * @param {Array}    props.shownData
+	 * @param {Array}    props.selection
+	 * @param {Function} props.setSelection
+	 * @param {number}   props.totalItems
+	 * @param {Object}   props.paginationInfo
 	 * @return {Object} React element.
 	 */
 	function AbilitiesFooter( {
@@ -155,12 +163,12 @@ const EXCLUDED_SLUGS = new Set( [
 			if ( checked ) {
 				// Union with existing selection so cross-page selections stick.
 				const next = Array.from(
-					new Set( [ ...fSelection, ...allSlugs ] )
+					new Set( [ ...fSelection, ...allSlugs ] ),
 				);
 				setFSelection( next );
 			} else {
 				setFSelection(
-					fSelection.filter( ( s ) => allSlugs.indexOf( s ) === -1 )
+					fSelection.filter( ( s ) => allSlugs.indexOf( s ) === -1 ),
 				);
 			}
 		}
@@ -187,7 +195,7 @@ const EXCLUDED_SLUGS = new Set( [
 					label: __( 'Select all', 'acrossai-mcp-manager' ),
 					checked: allSelected,
 					onChange: toggleAll,
-				} )
+				} ),
 			),
 			createElement(
 				'div',
@@ -201,10 +209,10 @@ const EXCLUDED_SLUGS = new Set( [
 						onClick: goPrev,
 						'aria-label': __(
 							'Previous page',
-							'acrossai-mcp-manager'
+							'acrossai-mcp-manager',
 						),
 					},
-					'‹'
+					'‹',
 				),
 				createElement(
 					'span',
@@ -213,8 +221,8 @@ const EXCLUDED_SLUGS = new Set( [
 						/* translators: 1: current page, 2: total pages */
 						__( 'Page %1$d of %2$d', 'acrossai-mcp-manager' ),
 						page,
-						totalPages
-					)
+						totalPages,
+					),
 				),
 				createElement(
 					Button,
@@ -225,11 +233,11 @@ const EXCLUDED_SLUGS = new Set( [
 						onClick: goNext,
 						'aria-label': __(
 							'Next page',
-							'acrossai-mcp-manager'
+							'acrossai-mcp-manager',
 						),
 					},
-					'›'
-				)
+					'›',
+				),
 			),
 			createElement(
 				'div',
@@ -238,21 +246,27 @@ const EXCLUDED_SLUGS = new Set( [
 					/* translators: 1: rows on current page, 2: total items */
 					__(
 						'%1$d of %2$d Items',
-						'acrossai-mcp-manager'
+						'acrossai-mcp-manager',
 					),
 					shownData.length,
-					totalItems
-				)
-			)
+					totalItems,
+				),
+			),
 		);
 	}
 
 	function App() {
-		// Per-server exposure overrides (fetched from our REST endpoint).
-		// Shape: { [ability_slug]: { is_exposed: bool, has_override: bool } }
-		const [ overrides, setOverrides ] = useState( {} );
 		const [ loading, setLoading ] = useState( true );
 		const [ error, setError ] = useState( null );
+		// F082 — server-level default policy ('per-ability' | 'expose' | 'hide').
+		const [ policy, setPolicy ] = useState( 'per-ability' );
+		// F082 — server-computed effective exposure map from the augmented GET
+		// response. Keyed by slug. Shape: { [slug]: { is_exposed: bool, has_override: bool } }.
+		// Populated on every fetch; source of truth for the client (spec FR-016).
+		const [ serverExposure, setServerExposure ] = useState( {} );
+		// F082 — confirm-modal state for Enable All / Disable All (spec Clarifications Q3).
+		// null when closed; { policy: 'expose'|'hide' } when open pending confirmation.
+		const [ confirmModal, setConfirmModal ] = useState( null );
 		// Selection state — driven by both DataViews' built-in row checkbox
 		// and by our custom footer's "Select all" checkbox.
 		const [ selection, setSelection ] = useState( [] );
@@ -288,7 +302,7 @@ const EXCLUDED_SLUGS = new Set( [
 				serverId: config.serverId,
 				serverSlug: config.serverSlug,
 			} ),
-			[]
+			[],
 		);
 
 		// Ability list from the @wordpress/abilities data store — the
@@ -306,49 +320,93 @@ const EXCLUDED_SLUGS = new Set( [
 				}
 				return store.getAbilities() || [];
 			},
-			[]
+			[],
 		);
 
 		// REST fallback list — populated only when the client store is absent.
 		const [ abilitiesFromRest, setAbilitiesFromRest ] = useState( null );
 
-		// Fetch per-server override rows on mount. If the WP abilities client
-		// store is unavailable, also fetch the full ability list from a
-		// fallback query param on our REST endpoint (`?include_abilities=1`).
-		useEffect( () => {
-			setLoading( true );
-			const needFallback = abilitiesFromStore === null;
-			const fetchPath = needFallback
-				? path + '?include_abilities=1'
-				: path;
+		// Apply one augmented GET response to component state. Single source
+		// for the response→state mapping shared by the initial fetch, the
+		// post-save reconcile, and the policy-modal flow. Deliberately reads
+		// no changing state — it is reachable from first-render closures
+		// inside `builtinFields` (empty dep array below).
+		function applyServerResponse( res ) {
+			// F082 — capture server-computed effective exposure per ability.
+			const exposureMap = {};
+			const augmented = ( res && Array.isArray( res.abilities ) ) ? res.abilities : [];
+			augmented.forEach( ( a ) => {
+				exposureMap[ a.name ] = {
+					is_exposed: !! a.is_exposed,
+					has_override: !! a.has_override,
+				};
+			} );
+			setServerExposure( exposureMap );
 
-			apiFetch( { path: fetchPath } )
+			// F082 — capture server-level policy.
+			if ( res && typeof res.abilities_default_policy === 'string' ) {
+				setPolicy( res.abilities_default_policy );
+			}
+
+			// Backfill client-side ability metadata from the REST response.
+			// Unconditional: the `abilities` derivation below prefers the data
+			// store when present, so this is inert on store-backed clients —
+			// and skipping the store check keeps this function free of
+			// changing-state reads.
+			if ( augmented.length > 0 ) {
+				setAbilitiesFromRest( augmented );
+			}
+		}
+
+		// Re-pull server truth. Initial load shows the Spinner; post-save
+		// refreshes MUST NOT — setLoading(true) unmounts the whole table,
+		// dropping selection, scroll position, and focus.
+		function refreshFromServer( { withSpinner = false } = {} ) {
+			if ( withSpinner ) {
+				setLoading( true );
+			}
+			return apiFetch( { path: path + '?include_abilities=1' } )
 				.then( ( res ) => {
-					const map = {};
-					const rows = ( res && res.overrides ) || [];
-					rows.forEach( ( r ) => {
-						map[ r.slug ] = {
-							is_exposed: !! r.is_exposed,
-							has_override: true,
-						};
-					} );
-					setOverrides( map );
-					if ( needFallback && res && Array.isArray( res.abilities ) ) {
-						setAbilitiesFromRest( res.abilities );
-					}
+					applyServerResponse( res );
 					setError( null );
 				} )
 				.catch( ( e ) => setError( e && e.message ? e.message : String( e ) ) )
-				.finally( () => setLoading( false ) );
-		}, [ path, abilitiesFromStore ] );
+				.finally( () => {
+					if ( withSpinner ) {
+						setLoading( false );
+					}
+				} );
+		}
+
+		// F082 — always request the server-augmented response (server-computed
+		// `is_exposed` per ability + `has_override` per ability + top-level
+		// `abilities_default_policy`). Even when the `@wordpress/abilities`
+		// data store is available, we still fetch the augmented response
+		// because the store doesn't know per-server policy state.
+		useEffect( () => {
+			refreshFromServer( { withSpinner: true } );
+			// eslint-disable-next-line react-hooks/exhaustive-deps
+		}, [ path ] );
 
 		// Effective ability list — store preferred, REST fallback second.
-		const abilities = abilitiesFromStore !== null
-			? abilitiesFromStore
-			: ( abilitiesFromRest || [] );
+		const abilities = useMemo(
+			() =>
+				abilitiesFromStore !== null
+					? abilitiesFromStore
+					: abilitiesFromRest || [],
+			[ abilitiesFromStore, abilitiesFromRest ],
+		);
 
-		// Merge the WP abilities list with our per-server override map.
-		// Effective is_exposed: override wins; else meta.mcp.public fallback.
+		// F082 — server-truth for is_exposed + has_override. The pre-F082
+		// client-derived exposure logic is retired per SEC-001 and spec
+		// FR-016 — the client MUST trust the server-computed value from
+		// ExposureResolver::resolve_effective() so the tab shows the correct
+		// set on `policy='expose'` and `policy='hide'` servers (where the
+		// row-only view would lie).
+		//
+		// During the initial-fetch transient the serverExposure map is empty;
+		// items default to `is_exposed=false` until the augmented GET response
+		// arrives. The surrounding `loading` state (Spinner) handles this UX.
 		// EXCLUDED_SLUGS drops the MCP adapter's protocol-plumbing tools.
 		const items = useMemo( () => {
 			return abilities
@@ -356,10 +414,10 @@ const EXCLUDED_SLUGS = new Set( [
 				.map( ( a ) => {
 					const meta = a.meta || {};
 					const mcpMeta = meta.mcp || {};
-					const override = overrides[ a.name ];
-					const isExposed = override
-						? override.is_exposed
-						: !! mcpMeta.public;
+					const serverExp = serverExposure[ a.name ];
+					// F082 — server-truth ONLY. No client-side derivation.
+					const isExposed = serverExp ? serverExp.is_exposed : false;
+					const hasOverride = serverExp ? serverExp.has_override : false;
 					return {
 						slug: a.name,
 						label: a.label || a.name,
@@ -367,42 +425,40 @@ const EXCLUDED_SLUGS = new Set( [
 						category: a.category || '',
 						description: a.description || '',
 						is_exposed: isExposed,
-						has_override: !! override,
+						has_override: hasOverride,
 					};
 				} );
-		}, [ abilities, overrides ] );
+		}, [ abilities, serverExposure ] );
 
 		function saveMany( selectedItems, isExposed ) {
-			const batch = selectedItems.map( ( it ) => ( {
-				slug: it.slug,
-				is_exposed: isExposed,
-			} ) );
-			// Optimistic local update — flip the override map immediately.
-			setOverrides( ( current ) => {
+			const slugs = selectedItems.map( ( it ) => it.slug );
+			// Optimistic flip of the server-truth map `items` renders from, so
+			// the toggle moves instantly; the silent refresh below reconciles.
+			setServerExposure( ( current ) => {
 				const next = { ...current };
-				batch.forEach( ( p ) => {
-					next[ p.slug ] = { is_exposed: p.is_exposed, has_override: true };
+				slugs.forEach( ( slug ) => {
+					next[ slug ] = { is_exposed: isExposed, has_override: true };
 				} );
 				return next;
 			} );
 			return apiFetch( {
 				path,
 				method: 'POST',
-				data: { abilities: batch },
+				data: {
+					abilities: slugs.map( ( slug ) => ( {
+						slug,
+						is_exposed: isExposed,
+					} ) ),
+				},
 			} )
-				.then( ( res ) => {
-					// Rehydrate from server truth in case there was a conflict.
-					const map = {};
-					const rows = ( res && res.overrides ) || [];
-					rows.forEach( ( r ) => {
-						map[ r.slug ] = {
-							is_exposed: !! r.is_exposed,
-							has_override: true,
-						};
-					} );
-					setOverrides( map );
-				} )
-				.catch( ( e ) => setError( e && e.message ? e.message : String( e ) ) );
+				// The POST response only carries the override rows, not the
+				// full effective state — re-pull server truth, no Spinner.
+				.then( () => refreshFromServer() )
+				.catch( ( e ) => {
+					setError( e && e.message ? e.message : String( e ) );
+					// Roll the optimistic flip back to server truth.
+					return refreshFromServer();
+				} );
 		}
 
 		function saveOne( slug, isExposed ) {
@@ -417,10 +473,10 @@ const EXCLUDED_SLUGS = new Set( [
 					safeApplyFilters(
 						'acrossaiMcpManager.abilities.row',
 						item,
-						filterCtx
-					)
+						filterCtx,
+					),
 				),
-			[ items, filterCtx ]
+			[ items, filterCtx ],
 		);
 
 		const builtinFields = useMemo(
@@ -486,7 +542,7 @@ const EXCLUDED_SLUGS = new Set( [
 									letterSpacing: '0.01em',
 								},
 							},
-							label
+							label,
 						);
 					},
 				},
@@ -498,27 +554,27 @@ const EXCLUDED_SLUGS = new Set( [
 					render: ( { item } ) =>
 						item.category
 							? createElement(
-									'span',
-									{
-										style: {
-											display: 'inline-block',
-											padding: '2px 8px',
-											border: '1px solid #dcdcde',
-											borderRadius: '3px',
-											background: '#f0f0f1',
-											color: '#50575e',
-											fontFamily:
+								'span',
+								{
+									style: {
+										display: 'inline-block',
+										padding: '2px 8px',
+										border: '1px solid #dcdcde',
+										borderRadius: '3px',
+										background: '#f0f0f1',
+										color: '#50575e',
+										fontFamily:
 												'ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace',
-											fontSize: '12px',
-											lineHeight: 1.4,
-											maxWidth: '100%',
-											overflow: 'hidden',
-											textOverflow: 'ellipsis',
-											verticalAlign: 'middle',
-										},
+										fontSize: '12px',
+										lineHeight: 1.4,
+										maxWidth: '100%',
+										overflow: 'hidden',
+										textOverflow: 'ellipsis',
+										verticalAlign: 'middle',
 									},
-									item.category
-							  )
+								},
+								item.category,
+							)
 							: null,
 				},
 				{
@@ -545,15 +601,15 @@ const EXCLUDED_SLUGS = new Set( [
 								/* translators: %s: ability slug */
 								__(
 									'Toggle exposure for %s',
-									'acrossai-mcp-manager'
+									'acrossai-mcp-manager',
 								),
-								item.slug
+								item.slug,
 							),
 						} ),
 				},
 			],
 			// eslint-disable-next-line react-hooks/exhaustive-deps
-			[]
+			[],
 		);
 
 		// Built-in bulk actions are registered so DataViews renders the row
@@ -569,17 +625,17 @@ const EXCLUDED_SLUGS = new Set( [
 					id: 'expose',
 					label: __( 'Expose selected', 'acrossai-mcp-manager' ),
 					supportsBulk: true,
-					callback: ( items ) => saveMany( items, true ),
+					callback: ( actionItems ) => saveMany( actionItems, true ),
 				},
 				{
 					id: 'hide',
 					label: __( 'Hide selected', 'acrossai-mcp-manager' ),
 					supportsBulk: true,
-					callback: ( items ) => saveMany( items, false ),
+					callback: ( actionItems ) => saveMany( actionItems, false ),
 				},
 			],
 			// eslint-disable-next-line react-hooks/exhaustive-deps
-			[]
+			[],
 		);
 
 		// Additive-only merge invariant — extensions may append, never
@@ -588,11 +644,11 @@ const EXCLUDED_SLUGS = new Set( [
 			const extra = safeApplyFilters(
 				'acrossaiMcpManager.abilities.fields',
 				builtinFields,
-				filterCtx
+				filterCtx,
 			);
 			const builtinIds = new Set( builtinFields.map( ( f ) => f.id ) );
 			const additions = ( Array.isArray( extra ) ? extra : [] ).filter(
-				( f ) => f && ! builtinIds.has( f.id )
+				( f ) => f && ! builtinIds.has( f.id ),
 			);
 			return [ ...builtinFields, ...additions ];
 		}, [ builtinFields, filterCtx ] );
@@ -619,11 +675,11 @@ const EXCLUDED_SLUGS = new Set( [
 			const extra = safeApplyFilters(
 				'acrossaiMcpManager.abilities.actions',
 				builtinActions,
-				filterCtx
+				filterCtx,
 			);
 			const builtinIds = new Set( builtinActions.map( ( a ) => a.id ) );
 			const additions = ( Array.isArray( extra ) ? extra : [] ).filter(
-				( a ) => a && ! builtinIds.has( a.id )
+				( a ) => a && ! builtinIds.has( a.id ),
 			);
 			return [ ...builtinActions, ...additions ];
 		}, [ builtinActions, filterCtx ] );
@@ -641,6 +697,13 @@ const EXCLUDED_SLUGS = new Set( [
 			if ( exposureFilter === 'hidden' ) {
 				return decoratedItems.filter( ( i ) => ! i.is_exposed );
 			}
+			if ( exposureFilter === 'overridden' ) {
+				// F082 — filter to only abilities with an explicit row in
+				// acrossai_mcp_server_abilities (has_override=true). Useful on
+				// `policy='expose'`/`policy='hide'` servers to see the operator's
+				// per-ability opt-outs at a glance.
+				return decoratedItems.filter( ( i ) => !! i.has_override );
+			}
 			return decoratedItems;
 		}, [ decoratedItems, exposureFilter ] );
 
@@ -650,7 +713,7 @@ const EXCLUDED_SLUGS = new Set( [
 		// three in one call and returns `{ data, paginationInfo }`.
 		const { data: shownData, paginationInfo: shownPagination } = useMemo(
 			() => filterSortAndPaginate( dataForView, view, finalFields ),
-			[ dataForView, view, finalFields ]
+			[ dataForView, view, finalFields ],
 		);
 
 		// Unique category list — drives the "All categories" dropdown.
@@ -677,17 +740,44 @@ const EXCLUDED_SLUGS = new Set( [
 				{ value: 'prompt', label: __( 'Prompt', 'acrossai-mcp-manager' ) },
 				{ value: 'resource', label: __( 'Resource', 'acrossai-mcp-manager' ) },
 			],
-			[]
+			[],
 		);
 
 		if ( loading ) {
-			return createElement( Spinner );
+			// Full-screen branded loading overlay — centered pulsing AcrossAI
+			// icon, mirroring the Quick Connect wizard's hydrate/busy overlay
+			// (`qs__initial-loading--overlay`). Shown on initial load and
+			// during Enable All / Disable All / Reset policy transitions.
+			// Falls back to the plain Spinner if the icon URL isn't localized.
+			if ( ! config.iconUrl ) {
+				return createElement( Spinner );
+			}
+			return createElement(
+				'div',
+				{
+					className: 'acrossai-mcp-abilities-loading',
+					role: 'alert',
+					'aria-live': 'assertive',
+					'aria-busy': 'true',
+				},
+				createElement( 'img', {
+					className: 'acrossai-mcp-abilities-loading__icon',
+					src: config.iconUrl,
+					alt: '',
+					'aria-hidden': 'true',
+				} ),
+				createElement(
+					'span',
+					{ className: 'screen-reader-text' },
+					__( 'Loading…', 'acrossai-mcp-manager' ),
+				),
+			);
 		}
 		if ( error ) {
 			return createElement(
 				Notice,
 				{ status: 'error', isDismissible: false },
-				error
+				error,
 			);
 		}
 
@@ -697,7 +787,7 @@ const EXCLUDED_SLUGS = new Set( [
 		// so they can safely live after the early returns.
 		const readFilter = ( field ) => {
 			const entry = ( view.filters || [] ).find(
-				( f ) => f.field === field
+				( f ) => f.field === field,
 			);
 			return entry ? entry.value : '';
 		};
@@ -705,35 +795,177 @@ const EXCLUDED_SLUGS = new Set( [
 		function writeFilter( field, value ) {
 			setView( ( current ) => {
 				const others = ( current.filters || [] ).filter(
-					( f ) => f.field !== field
+					( f ) => f.field !== field,
 				);
 				const next = value
 					? [
-							...others,
-							{ field, operator: 'is', value },
-					  ]
+						...others,
+						{ field, operator: 'is', value },
+					]
 					: others;
 				return { ...current, filters: next };
 			} );
 		}
 
+		// F082 — override count derived from server-computed `has_override`.
+		const overrideCount = decoratedItems.filter( ( i ) => i.has_override ).length;
+
+		// F082 — header pill copy (FR-019, spec Clarifications Q4).
+		// Rendered with role="status" + aria-live="polite" so screen readers
+		// announce policy transitions after Enable All / Disable All fire
+		// without interrupting current speech.
+		let policyPillCopy;
+		if ( policy === 'expose' ) {
+			policyPillCopy = __( 'Default policy: Expose every ability by default', 'acrossai-mcp-manager' );
+		} else if ( policy === 'hide' ) {
+			policyPillCopy = __( 'Default policy: Hide every ability by default', 'acrossai-mcp-manager' );
+		} else {
+			policyPillCopy = __( "Default policy: Use each ability's own default", 'acrossai-mcp-manager' );
+		}
+
+		// F082 — resolver-driven counter (spec FR-005 + SC-006).
+		let counterCopy;
+		if ( policy === 'expose' ) {
+			counterCopy = sprintf(
+				/* translators: 1: total ability count, 2: override count */
+				_n(
+					'All %1$d exposed — default policy: expose. %2$d override.',
+					'All %1$d exposed — default policy: expose. %2$d overrides.',
+					overrideCount,
+					'acrossai-mcp-manager',
+				),
+				decoratedItems.length,
+				overrideCount,
+			);
+		} else if ( policy === 'hide' ) {
+			counterCopy = sprintf(
+				/* translators: %d: override count */
+				_n(
+					'All hidden — default policy: hide. %d override.',
+					'All hidden — default policy: hide. %d overrides.',
+					overrideCount,
+					'acrossai-mcp-manager',
+				),
+				overrideCount,
+			);
+		} else {
+			counterCopy = sprintf(
+				/* translators: 1: exposed count, 2: total count */
+				_n(
+					'%1$d of %2$d ability exposed on this server.',
+					'%1$d of %2$d abilities exposed on this server.',
+					decoratedItems.length,
+					'acrossai-mcp-manager',
+				),
+				exposedCount,
+				decoratedItems.length,
+			);
+		}
+
+		// F082 — confirm-modal copy per target policy. The 'per-ability' branch
+		// backs the "Reset to Ability Defaults" button; the REST enum already
+		// accepts all three values.
+		const confirmTitles = {
+			expose: __( 'Expose every ability by default?', 'acrossai-mcp-manager' ),
+			hide: __( 'Hide every ability by default?', 'acrossai-mcp-manager' ),
+			'per-ability': __( "Reset to each ability's own default?", 'acrossai-mcp-manager' ),
+		};
+		const confirmBodies = {
+			expose: __(
+				'Expose every ability on this server by default? Any per-ability overrides will be cleared and future abilities will be exposed automatically.',
+				'acrossai-mcp-manager',
+			),
+			hide: __(
+				'Hide every ability on this server by default? Any per-ability overrides will be cleared and future abilities will be hidden automatically.',
+				'acrossai-mcp-manager',
+			),
+			'per-ability': __(
+				"Reset this server to per-ability defaults? Any per-ability overrides will be cleared and each ability will follow its author's default (the ability's public flag).",
+				'acrossai-mcp-manager',
+			),
+		};
+
 		return createElement(
 			'div',
 			{ className: 'acrossai-mcp-abilities-root' },
+			// F082 — "Default policy" panel: pill + counter + policy-level
+			// actions (Enable All / Disable All / Reset to Ability Defaults).
+			// Server-wide policy controls live here, visually separated from
+			// the selection-scoped bulk bar below. The whole-list actions flip
+			// the SERVER-LEVEL policy (POST /abilities/policy), so the intent
+			// survives future ability registrations: on `policy='expose'`
+			// servers, a mu-plugin's newly-registered ability is auto-exposed
+			// with no admin action. The button matching the current policy is
+			// disabled — FR-015 no-op suppression makes it a silent no-op
+			// server-side (same policy → overrides NOT cleared), so offering
+			// it would mislead. Per spec Clarifications Q3 the confirm prompt
+			// uses `<Modal>` (not `window.confirm`) so it matches the
+			// DataViews aesthetic and inherits focus-trap + Esc.
 			createElement(
-				'p',
-				{ className: 'description' },
-				sprintf(
-					/* translators: 1: exposed count, 2: total count */
-					_n(
-						'%1$d of %2$d ability exposed on this server.',
-						'%1$d of %2$d abilities exposed on this server.',
-						decoratedItems.length,
-						'acrossai-mcp-manager'
+				'div',
+				{ className: 'acrossai-mcp-abilities-policy' },
+				createElement(
+					'div',
+					{ className: 'acrossai-mcp-abilities-policy__status' },
+					// FR-019: role=status + aria-live=polite stay on the pill
+					// so screen readers announce policy transitions.
+					createElement(
+						'span',
+						{
+							className:
+								'acrossai-mcp-abilities-policy__pill is-policy-' +
+								policy,
+							role: 'status',
+							'aria-live': 'polite',
+						},
+						policyPillCopy,
 					),
-					exposedCount,
-					decoratedItems.length
-				)
+					createElement(
+						'p',
+						{
+							className:
+								'description acrossai-mcp-abilities-policy__counter',
+						},
+						counterCopy,
+					),
+				),
+				createElement(
+					'div',
+					{ className: 'acrossai-mcp-abilities-policy__actions' },
+					createElement(
+						Button,
+						{
+							variant: 'secondary',
+							size: 'compact',
+							disabled: policy === 'expose',
+							onClick: () =>
+								setConfirmModal( { policy: 'expose' } ),
+						},
+						__( 'Enable All', 'acrossai-mcp-manager' ),
+					),
+					createElement(
+						Button,
+						{
+							variant: 'secondary',
+							size: 'compact',
+							disabled: policy === 'hide',
+							onClick: () =>
+								setConfirmModal( { policy: 'hide' } ),
+						},
+						__( 'Disable All', 'acrossai-mcp-manager' ),
+					),
+					createElement(
+						Button,
+						{
+							variant: 'secondary',
+							size: 'compact',
+							disabled: policy === 'per-ability',
+							onClick: () =>
+								setConfirmModal( { policy: 'per-ability' } ),
+						},
+						__( 'Reset to Ability Defaults', 'acrossai-mcp-manager' ),
+					),
+				),
 			),
 			createElement(
 				'div',
@@ -743,11 +975,11 @@ const EXCLUDED_SLUGS = new Set( [
 					className: 'acrossai-mcp-abilities-toolbar__search',
 					label: __(
 						'Search abilities',
-						'acrossai-mcp-manager'
+						'acrossai-mcp-manager',
 					),
 					placeholder: __(
 						'Search name, label or description…',
-						'acrossai-mcp-manager'
+						'acrossai-mcp-manager',
 					),
 					value: view.search || '',
 					onChange: ( v ) =>
@@ -785,26 +1017,34 @@ const EXCLUDED_SLUGS = new Set( [
 							value: '',
 							label: __(
 								'All exposure',
-								'acrossai-mcp-manager'
+								'acrossai-mcp-manager',
 							),
 						},
 						{
 							value: 'exposed',
 							label: __(
 								'Only exposed',
-								'acrossai-mcp-manager'
+								'acrossai-mcp-manager',
 							),
 						},
 						{
 							value: 'hidden',
 							label: __(
 								'Only hidden',
-								'acrossai-mcp-manager'
+								'acrossai-mcp-manager',
+							),
+						},
+						{
+							// F082 — fourth option; requires server-truth `has_override`.
+							value: 'overridden',
+							label: __(
+								'Only overridden',
+								'acrossai-mcp-manager',
 							),
 						},
 					],
 					onChange: setExposureFilter,
-				} )
+				} ),
 			),
 			// Bulk-actions bar — always visible, buttons disabled when nothing
 			// is selected. Replaces DataViews' native bulk-action strip which
@@ -823,10 +1063,10 @@ const EXCLUDED_SLUGS = new Set( [
 							'%d selected',
 							'%d selected',
 							selection.length,
-							'acrossai-mcp-manager'
+							'acrossai-mcp-manager',
 						),
-						selection.length
-					)
+						selection.length,
+					),
 				),
 				createElement(
 					Button,
@@ -836,14 +1076,14 @@ const EXCLUDED_SLUGS = new Set( [
 						disabled: selection.length === 0,
 						onClick: () => {
 							const chosen = decoratedItems.filter( ( i ) =>
-								selection.includes( i.slug )
+								selection.includes( i.slug ),
 							);
 							saveMany( chosen, true ).then( () =>
-								setSelection( [] )
+								setSelection( [] ),
 							);
 						},
 					},
-					__( 'Expose selected', 'acrossai-mcp-manager' )
+					__( 'Expose selected', 'acrossai-mcp-manager' ),
 				),
 				createElement(
 					Button,
@@ -853,14 +1093,14 @@ const EXCLUDED_SLUGS = new Set( [
 						disabled: selection.length === 0,
 						onClick: () => {
 							const chosen = decoratedItems.filter( ( i ) =>
-								selection.includes( i.slug )
+								selection.includes( i.slug ),
 							);
 							saveMany( chosen, false ).then( () =>
-								setSelection( [] )
+								setSelection( [] ),
 							);
 						},
 					},
-					__( 'Hide selected', 'acrossai-mcp-manager' )
+					__( 'Hide selected', 'acrossai-mcp-manager' ),
 				),
 				createElement(
 					Button,
@@ -870,54 +1110,73 @@ const EXCLUDED_SLUGS = new Set( [
 						disabled: selection.length === 0,
 						onClick: () => setSelection( [] ),
 					},
-					__( 'Clear', 'acrossai-mcp-manager' )
+					__( 'Clear', 'acrossai-mcp-manager' ),
 				),
-				// Whole-list actions — operate on every ability regardless
-				// of selection or active filters. Confirm because it's a
-				// destructive/broad action.
-				createElement(
-					Button,
-					{
-						variant: 'secondary',
-						size: 'compact',
-						onClick: () => {
-							if (
-								! window.confirm(
-									__(
-										'Enable all abilities on this server?',
-										'acrossai-mcp-manager'
-									)
-								)
-							) {
-								return;
-							}
-							saveMany( decoratedItems, true );
-						},
-					},
-					__( 'Enable All', 'acrossai-mcp-manager' )
-				),
-				createElement(
-					Button,
-					{
-						variant: 'secondary',
-						size: 'compact',
-						onClick: () => {
-							if (
-								! window.confirm(
-									__(
-										'Disable all abilities on this server?',
-										'acrossai-mcp-manager'
-									)
-								)
-							) {
-								return;
-							}
-							saveMany( decoratedItems, false );
-						},
-					},
-					__( 'Disable All', 'acrossai-mcp-manager' )
-				)
 			),
+			// F082 — confirm modal for the three policy transitions (spec Q3, FR-019).
+			confirmModal &&
+				createElement(
+					Modal,
+					{
+						title: confirmTitles[ confirmModal.policy ],
+						onRequestClose: () => setConfirmModal( null ),
+						className: 'acrossai-mcp-abilities-policy-modal',
+					},
+					createElement(
+						'p',
+						null,
+						confirmBodies[ confirmModal.policy ],
+					),
+					createElement(
+						'div',
+						{ className: 'acrossai-mcp-abilities-policy-modal__actions' },
+						createElement(
+							Button,
+							{
+								variant: 'tertiary',
+								onClick: () => setConfirmModal( null ),
+							},
+							__( 'Cancel', 'acrossai-mcp-manager' ),
+						),
+						createElement(
+							Button,
+							{
+								variant: 'primary',
+								// Hide-everything is the destructive transition —
+								// flag it so the Confirm button renders red.
+								isDestructive: confirmModal.policy === 'hide',
+								onClick: () => {
+									const nextPolicy = confirmModal.policy;
+									setConfirmModal( null );
+									// A policy transition rewrites the whole
+									// table, so — unlike single-toggle saves —
+									// show the full-tab Spinner for the entire
+									// POST + refresh round-trip.
+									setLoading( true );
+									apiFetch( {
+										path: `/${ config.namespace }/servers/${ config.serverId }/abilities/policy`,
+										method: 'POST',
+										data: { policy: nextPolicy },
+									} )
+										.then( ( res ) => {
+											if ( res && typeof res.abilities_default_policy === 'string' ) {
+												setPolicy( res.abilities_default_policy );
+											}
+											// Policy transition clears every override
+											// server-side; the authoritative post-change
+											// state is a re-fetch.
+											return refreshFromServer();
+										} )
+										.catch( ( e ) =>
+											setError( e && e.message ? e.message : String( e ) ),
+										)
+										.finally( () => setLoading( false ) );
+								},
+							},
+							__( 'Confirm', 'acrossai-mcp-manager' ),
+						),
+					),
+				),
 			createElement( DataViews, {
 				data: shownData,
 				fields: finalFields,
@@ -939,7 +1198,7 @@ const EXCLUDED_SLUGS = new Set( [
 				setSelection,
 				totalItems: decoratedItems.length,
 				paginationInfo: shownPagination,
-			} )
+			} ),
 		);
 	}
 
@@ -948,4 +1207,4 @@ const EXCLUDED_SLUGS = new Set( [
 	// React-17-compat mode. `createRoot` is re-exported from
 	// `@wordpress/element` for exactly this migration.
 	createRoot( mount ).render( createElement( App ) );
-} )();
+}() );

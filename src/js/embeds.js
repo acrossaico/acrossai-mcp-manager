@@ -21,7 +21,7 @@
  * so DataViews' row-selection tracks stable keys across category groups.
  *
  * @since 0.1.10
- * @package AcrossAI_MCP_Manager
+ * @package
  */
 
 import { createRoot, createElement, useCallback, useMemo, useState } from '@wordpress/element';
@@ -34,7 +34,7 @@ import '../scss/embeds.scss';
 
 const el = createElement;
 
-( function () {
+( function() {
 	const mount = document.getElementById( 'acrossai-mcp-embeds-root' );
 	if ( ! mount ) {
 		return;
@@ -154,7 +154,7 @@ const el = createElement;
 						console.error( 'F037 Embeds save failed:', err );
 					} );
 			},
-			[]
+			[],
 		);
 
 		/**
@@ -164,13 +164,13 @@ const el = createElement;
 			( id, value ) => {
 				setRows( ( prev ) => {
 					const next = prev.map( ( r ) =>
-						r.id === id ? { ...r, enabled: !! value } : r
+						r.id === id ? { ...r, enabled: !! value } : r,
 					);
 					saveState( master, next );
 					return next;
 				} );
 			},
-			[ master, saveState ]
+			[ master, saveState ],
 		);
 
 		/**
@@ -181,13 +181,13 @@ const el = createElement;
 				const idSet = new Set( ids );
 				setRows( ( prev ) => {
 					const next = prev.map( ( r ) =>
-						idSet.has( r.id ) ? { ...r, enabled: !! enabled } : r
+						idSet.has( r.id ) ? { ...r, enabled: !! enabled } : r,
 					);
 					saveState( master, next );
 					return next;
 				} );
 			},
-			[ master, saveState ]
+			[ master, saveState ],
 		);
 
 		/**
@@ -199,7 +199,7 @@ const el = createElement;
 				setMaster( val );
 				saveState( val, rows );
 			},
-			[ rows, saveState ]
+			[ rows, saveState ],
 		);
 
 		// DataViews fields definition.
@@ -217,30 +217,31 @@ const el = createElement;
 							typeof item.icon === 'string' &&
 							/^https?:\/\//i.test( item.icon );
 
-						const iconNode = ! item.icon
-							? null
-							: isUrl
-							? el( 'img', {
+						let iconNode = null;
+						if ( item.icon && isUrl ) {
+							iconNode = el( 'img', {
+								key: 'icon',
+								src: item.icon,
+								alt: '',
+								className: 'acrossai-mcp-embeds-app__icon-img',
+							} );
+						} else if ( item.icon ) {
+							iconNode = el(
+								'span',
+								{
 									key: 'icon',
-									src: item.icon,
-									alt: '',
-									className: 'acrossai-mcp-embeds-app__icon-img',
-							  } )
-							: el(
-									'span',
-									{
-										key: 'icon',
-										className: 'acrossai-mcp-embeds-app__icon',
-										'aria-hidden': 'true',
-									},
-									item.icon
-							  );
+									className: 'acrossai-mcp-embeds-app__icon',
+									'aria-hidden': 'true',
+								},
+								item.icon,
+							);
+						}
 
 						return el(
 							'span',
 							{ className: 'acrossai-mcp-embeds-app__name' },
 							iconNode,
-							el( 'span', { key: 'name' }, item.name )
+							el( 'span', { key: 'name' }, item.name ),
 						);
 					},
 				},
@@ -252,11 +253,11 @@ const el = createElement;
 						el(
 							'span',
 							{ className: 'acrossai-mcp-embeds-app__category-chip' },
-							item.category
+							item.category,
 						),
 					filterBy: { operators: [ 'is', 'isNot' ] },
 					elements: Array.from(
-						new Set( rows.map( ( r ) => r.category ) )
+						new Set( rows.map( ( r ) => r.category ) ),
 					).map( ( cat ) => ( {
 						value: cat,
 						label: cat,
@@ -277,12 +278,12 @@ const el = createElement;
 								/* translators: 1: DTO name, 2: category */
 								__( 'Toggle %1$s (%2$s)', 'acrossai-mcp-manager' ),
 								item.name,
-								item.category
+								item.category,
 							),
 						} ),
 				},
 			],
-			[ rows, master, toggleRow ]
+			[ rows, master, toggleRow ],
 		);
 
 		// Bulk actions — enable/disable selected rows.
@@ -307,13 +308,13 @@ const el = createElement;
 					},
 				},
 			],
-			[ master, bulkToggle ]
+			[ master, bulkToggle ],
 		);
 
 		// filterSortAndPaginate handles all view state (search, filter, sort, paginate).
 		const { data: viewData, paginationInfo } = useMemo(
 			() => filterSortAndPaginate( rows, view, fields ),
-			[ rows, view, fields ]
+			[ rows, view, fields ],
 		);
 
 		// DataForm for the master toggle — single-field boolean form.
@@ -326,7 +327,7 @@ const el = createElement;
 					Edit: 'toggle',
 				},
 			],
-			[]
+			[],
 		);
 
 		const masterFormLayout = useMemo(
@@ -334,7 +335,7 @@ const el = createElement;
 				type: 'regular',
 				fields: [ 'master' ],
 			} ),
-			[]
+			[],
 		);
 
 		return el(
@@ -348,14 +349,14 @@ const el = createElement;
 						isDismissible: true,
 						onRemove: () => setNotice( null ),
 					},
-					notice.message
+					notice.message,
 				),
 			saving &&
 				el(
 					'div',
 					{ className: 'acrossai-mcp-embeds-app__saving-badge' },
 					el( Spinner ),
-					__( 'Saving…', 'acrossai-mcp-manager' )
+					__( 'Saving…', 'acrossai-mcp-manager' ),
 				),
 			el(
 				'div',
@@ -375,9 +376,9 @@ const el = createElement;
 					{ className: 'description' },
 					__(
 						'When OFF, no shortcode or block output is rendered for this server regardless of per-item toggles below.',
-						'acrossai-mcp-manager'
-					)
-				)
+						'acrossai-mcp-manager',
+					),
+				),
 			),
 			el(
 				'div',
@@ -394,11 +395,11 @@ const el = createElement;
 					actions,
 					paginationInfo,
 					defaultLayouts: { table: {} },
-				} )
-			)
+				} ),
+			),
 		);
 	}
 
 	const root = createRoot( mount );
 	root.render( el( EmbedsApp ) );
-} )();
+}() );

@@ -8,6 +8,8 @@
  * via SummaryNoticeEmitter's fingerprint mechanism, no per-plugin JS needed.
  */
 
+/* global Element, HTMLInputElement, HTMLTextAreaElement */
+
 /**
  * Feature 013 — Copy-to-clipboard handler.
  *
@@ -35,12 +37,12 @@
  * destructive action (revoke, rotate, etc.) can opt in by emitting the same
  * data attribute — no per-tab JS required.
  */
-( function () {
+( function() {
 	if ( typeof document === 'undefined' ) {
 		return;
 	}
 
-	document.addEventListener( 'click', function ( event ) {
+	document.addEventListener( 'click', function( event ) {
 		const target = event.target;
 		if ( ! ( target instanceof Element ) ) {
 			return;
@@ -59,7 +61,7 @@
 			event.stopPropagation();
 		}
 	}, true );
-} )();
+}() );
 
 /**
  * Feature — Generate New Application Password button.
@@ -77,7 +79,7 @@
  *      with the real password, matching the reference plugin's updateConfig().
  *   3. Update button label to "Regenerate Application Password".
  */
-( function () {
+( function() {
 	if ( typeof document === 'undefined' ) {
 		return;
 	}
@@ -113,7 +115,7 @@
 				textarea.value = JSON.stringify( config, null, 2 );
 			}
 			return mutated;
-		} catch ( e ) {
+		} catch {
 			return false;
 		}
 	}
@@ -132,7 +134,7 @@
 		statusEl.appendChild( wrap );
 	}
 
-	document.addEventListener( 'click', function ( event ) {
+	document.addEventListener( 'click', function( event ) {
 		const target = event.target;
 		if ( ! ( target instanceof Element ) ) {
 			return;
@@ -145,12 +147,13 @@
 
 		const endpoint = button.getAttribute( 'data-endpoint' );
 		const nonce = button.getAttribute( 'data-nonce' );
-		const serverId = parseInt( button.getAttribute( 'data-server-id' ) || '0', 10 );
-		const clientSlug = button.getAttribute( 'data-client-slug' ) || '';
 
 		if ( ! endpoint || ! nonce ) {
 			return;
 		}
+
+		const serverId = parseInt( button.getAttribute( 'data-server-id' ) || '0', 10 );
+		const clientSlug = button.getAttribute( 'data-client-slug' ) || '';
 
 		const statusEl = button.parentNode
 			? button.parentNode.querySelector( '.acrossai-generate-app-password-status' )
@@ -169,7 +172,7 @@
 			body: JSON.stringify( { server_id: serverId } ),
 		} )
 			.then( ( response ) =>
-				response.json().then( ( body ) => ( { ok: response.ok, body } ) )
+				response.json().then( ( body ) => ( { ok: response.ok, body } ) ),
 			)
 			.then( ( { ok, body } ) => {
 				if ( ! ok || ! body || ! body.password ) {
@@ -182,7 +185,7 @@
 				}
 				const injected = injectPasswordIntoConfig(
 					'acrossai-mcp-' + clientSlug + '-config-' + serverId,
-					body.password
+					body.password,
 				);
 				const displayMsg = injected
 					? 'Password: ' + body.password + ' (also injected into the config below — shown only once).'
@@ -199,9 +202,9 @@
 				button.disabled = false;
 			} );
 	} );
-} )();
+}() );
 
-( function () {
+( function() {
 	if ( typeof document === 'undefined' ) {
 		return;
 	}
@@ -228,7 +231,7 @@
 		let ok = false;
 		try {
 			ok = document.execCommand( 'copy' );
-		} catch ( e ) {
+		} catch {
 			ok = false;
 		}
 		document.body.removeChild( scratch );
@@ -241,7 +244,7 @@
 		}
 		button.textContent = '✓ Copied!';
 		button.disabled = true;
-		setTimeout( function () {
+		setTimeout( function() {
 			button.textContent = button.dataset.originalLabel;
 			button.disabled = false;
 		}, 2000 );
@@ -259,7 +262,7 @@
 		return null;
 	}
 
-	document.addEventListener( 'click', function ( event ) {
+	document.addEventListener( 'click', function( event ) {
 		const target = event.target;
 		if ( ! ( target instanceof Element ) ) {
 			return;
@@ -283,14 +286,14 @@
 
 		if ( navigator.clipboard && typeof navigator.clipboard.writeText === 'function' ) {
 			navigator.clipboard.writeText( text ).then(
-				function () {
+				function() {
 					flashCopied( button );
 				},
-				function () {
+				function() {
 					if ( copyViaExecCommand( text ) ) {
 						flashCopied( button );
 					}
-				}
+				},
 			);
 			return;
 		}
@@ -299,4 +302,4 @@
 			flashCopied( button );
 		}
 	} );
-} )();
+}() );

@@ -1,0 +1,61 @@
+includes/Main.php:646:		$permission_override = \AcrossAI_MCP_Manager\Includes\Abilities\PermissionOverrideProcessor::instance();
+includes/Main.php:647:		$this->loader->add_filter( 'wp_register_ability_args', $permission_override, 'inject_override', \AcrossAI_MCP_Manager\Includes\Abilities\PermissionOverrideProcessor::PRIORITY, 2 );
+includes/Database/MCPServer/Schema.php:134:		// includes/Abilities/PermissionOverrideProcessor.php).
+includes/Database/MCPServer/AbilityDiscovery.php:10: *     - Include if ExposureResolver::resolve( $server_id, $slug, $meta ) === true.
+includes/Database/MCPServer/AbilityDiscovery.php:82:			if ( ExposureResolver::resolve( $server_id, $slug, $meta_array ) ) {
+includes/Abilities/PermissionOverrideProcessor.php:23: *      (`ExposureResolver::resolve()` gate).
+includes/Abilities/PermissionOverrideProcessor.php:30: * Per-request static cache mirrors the F017 `ExposureResolver::resolve()`
+includes/Abilities/PermissionOverrideProcessor.php:55:final class PermissionOverrideProcessor {
+includes/Abilities/PermissionOverrideProcessor.php:115:		// every ability. See PermissionOverrideProcessorTest for the regression.
+includes/Abilities/PermissionOverrideProcessor.php:135:			// Rationale: `ExposureResolver::resolve()`'s canonical semantic is
+includes/Abilities/PermissionOverrideProcessor.php:150:			if ( ! ExposureResolver::resolve( $server_id, $slug, array() ) ) {
+includes/MCP/AbilityExposureGate.php:131:		if ( ExposureResolver::resolve( $server_id, $tool_name, $meta ) ) {
+includes/MCP/Controller.php:182:			 * server — every ability where ExposureResolver::resolve() === true AND
+includes/MCP/Controller.php:199:			 * server — every ability where ExposureResolver::resolve() === true AND
+includes/Abilities/AbilityHelpers.php:79:			$default = ExposureResolver::resolve(
+includes/REST/AbilitiesController.php:24: *   5. If effective value changed, fire `acrossai_mcp_ability_exposure_changed`.
+includes/REST/AbilitiesController.php:278:			$was = ExposureResolver::resolve( $server_id, $pair['slug'], $meta );
+includes/REST/AbilitiesController.php:284:			$now = ExposureResolver::resolve( $server_id, $pair['slug'], $meta );
+includes/REST/AbilitiesController.php:306:				do_action( 'acrossai_mcp_ability_exposure_changed', $server_id, $pair['slug'], $was, $now, $user_id );
+includes/REST/QuickConnectController.php:788:				if ( MCPServerAbilityExposureResolver::resolve(
+admin/Partials/ServerTabs/AccessControlTab.php:15: *      ability-call time by `PermissionOverrideProcessor`. Gated by 6
+admin/Partials/ServerTabs/AbilitiesTab.php:8: * `ExposureResolver::resolve()`.
+admin/Partials/ServerTabs/Partials/AbilitiesManagerPromoCard.php:37:use AcrossAI_MCP_Manager\Includes\Abilities\PermissionOverrideProcessor;
+admin/Partials/ServerTabs/Partials/AbilitiesManagerPromoCard.php:184:			(int) PermissionOverrideProcessor::PRIORITY
+admin/Partials/ServerTabs/Partials/AbilitiesManagerPromoCard.php:188:		$snippet_priority = (int) PermissionOverrideProcessor::PRIORITY + 1;
+tests/phpunit/Database/MCPServerAbility/ExposureResolverTest.php:36:		$this->assertTrue( ExposureResolver::resolve( 1, 'core/get-user-info', array( 'mcp' => array( 'public' => false ) ) ) );
+tests/phpunit/Database/MCPServerAbility/ExposureResolverTest.php:41:		$this->assertFalse( ExposureResolver::resolve( 1, 'core/get-user-info', array( 'mcp' => array( 'public' => true ) ) ) );
+tests/phpunit/Database/MCPServerAbility/ExposureResolverTest.php:45:		$this->assertTrue( ExposureResolver::resolve( 1, 'core/get-user-info', array( 'mcp' => array( 'public' => true ) ) ) );
+tests/phpunit/Database/MCPServerAbility/ExposureResolverTest.php:49:		$this->assertFalse( ExposureResolver::resolve( 1, 'core/get-user-info', array() ) );
+tests/phpunit/Database/MCPServerAbility/ExposureResolverTest.php:53:		$this->assertFalse( ExposureResolver::resolve( 1, 'core/get-user-info', array( 'mcp' => array( 'public' => false ) ) ) );
+tests/phpunit/Database/MCPServerAbility/ExposureResolverTest.php:58:		$first  = ExposureResolver::resolve( 1, 'core/get-user-info', array() );
+tests/phpunit/Database/MCPServerAbility/ExposureResolverTest.php:62:		$second = ExposureResolver::resolve( 1, 'core/get-user-info', array() );
+tests/phpunit/Admin/Partials/ServerTabs/Partials/AbilitiesManagerPromoCardTest.php:16:use AcrossAI_MCP_Manager\Includes\Abilities\PermissionOverrideProcessor;
+tests/phpunit/Admin/Partials/ServerTabs/Partials/AbilitiesManagerPromoCardTest.php:69:		$this->assertStringContainsString( (string) PermissionOverrideProcessor::PRIORITY, $html, 'MUST document the F030 filter priority (999999).' );
+tests/phpunit/Admin/Partials/ServerTabs/Partials/AbilitiesManagerPromoCardTest.php:82:		$this->assertStringContainsString( (string) PermissionOverrideProcessor::PRIORITY, $html );
+tests/phpunit/Abilities/PermissionOverrideProcessorTest.php:3: * Feature 030 — PermissionOverrideProcessor unit coverage.
+tests/phpunit/Abilities/PermissionOverrideProcessorTest.php:17:use AcrossAI_MCP_Manager\Includes\Abilities\PermissionOverrideProcessor;
+tests/phpunit/Abilities/PermissionOverrideProcessorTest.php:27:class PermissionOverrideProcessorTest extends WP_UnitTestCase {
+tests/phpunit/Abilities/PermissionOverrideProcessorTest.php:35:		PermissionOverrideProcessor::_reset_cache_for_tests();
+tests/phpunit/Abilities/PermissionOverrideProcessorTest.php:55:		PermissionOverrideProcessor::_reset_cache_for_tests();
+tests/phpunit/Abilities/PermissionOverrideProcessorTest.php:71:		$wrapped = PermissionOverrideProcessor::instance()->inject_override( $args, 'foo/bar' );
+tests/phpunit/Abilities/PermissionOverrideProcessorTest.php:85:		$wrapped        = PermissionOverrideProcessor::instance()->inject_override( $args, 'foo/bar' );
+tests/phpunit/Abilities/PermissionOverrideProcessorTest.php:102:		$wrapped        = PermissionOverrideProcessor::instance()->inject_override( $args, 'foo/bar' );
+tests/phpunit/Abilities/PermissionOverrideProcessorTest.php:110:		// table. ExposureResolver::resolve() returns false → closure must
+tests/phpunit/Abilities/PermissionOverrideProcessorTest.php:122:		$wrapped        = PermissionOverrideProcessor::instance()->inject_override( $args, 'not/exposed-to-this-server' );
+tests/phpunit/Abilities/PermissionOverrideProcessorTest.php:143:		$wrapped        = PermissionOverrideProcessor::instance()->inject_override( $args, 'foo/bar' );
+tests/phpunit/Abilities/PermissionOverrideProcessorTest.php:153:		$wrapped = PermissionOverrideProcessor::instance()->inject_override( $args, 'foo/bar' );
+tests/phpunit/Abilities/PermissionOverrideProcessorTest.php:174:		$wrapped = PermissionOverrideProcessor::instance()->inject_override( $args, 'foo/bar' );
+tests/phpunit/Abilities/PermissionOverrideProcessorTest.php:201:		$wrapped = PermissionOverrideProcessor::instance()->inject_override( $args, 'foo/bar' );
+tests/phpunit/Abilities/PermissionOverrideProcessorTest.php:239:		$wrapped   = PermissionOverrideProcessor::instance()->inject_override( $args, 'foo/bar' );
+tests/phpunit/Abilities/PermissionOverrideProcessorTest.php:274:		$this->assertSame( 'payload', PermissionOverrideProcessor::instance()->clear_request_cache( 'payload' ) );
+tests/phpunit/Abilities/PermissionOverrideProcessorTest.php:276:		$this->assertNull( PermissionOverrideProcessor::instance()->clear_request_cache() );
+tests/phpunit/Abilities/PermissionOverrideIsolationTest.php:24:use AcrossAI_MCP_Manager\Includes\Abilities\PermissionOverrideProcessor;
+tests/phpunit/Abilities/PermissionOverrideIsolationTest.php:42:		PermissionOverrideProcessor::_reset_cache_for_tests();
+tests/phpunit/Abilities/PermissionOverrideIsolationTest.php:80:		PermissionOverrideProcessor::_reset_cache_for_tests();
+tests/phpunit/Abilities/PermissionOverrideIsolationTest.php:94:		$wrapped = PermissionOverrideProcessor::instance()->inject_override( $args, 'foo/bar' );
+tests/phpunit/Abilities/PermissionOverrideIsolationTest.php:98:		PermissionOverrideProcessor::_reset_cache_for_tests();
+tests/phpunit/Abilities/PermissionOverrideIsolationTest.php:104:		PermissionOverrideProcessor::_reset_cache_for_tests();
+tests/phpunit/Abilities/PermissionOverrideIsolationTest.php:121:			$wrapped = PermissionOverrideProcessor::instance()->inject_override( $args, 'foo/bar' );
+tests/phpunit/Abilities/PermissionOverrideIsolationTest.php:147:		add_filter( 'wp_register_ability_args', array( PermissionOverrideProcessor::instance(), 'inject_override' ), PermissionOverrideProcessor::PRIORITY, 2 );
+tests/phpunit/Abilities/PermissionOverrideIsolationTest.php:153:		remove_filter( 'wp_register_ability_args', array( PermissionOverrideProcessor::instance(), 'inject_override' ), PermissionOverrideProcessor::PRIORITY );

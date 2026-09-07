@@ -860,6 +860,20 @@ current MCPServer schema."
 >   every caller of the F013 partition helpers must be routed
 >   through it.
 >
+>   **F082 forward-pointer (2026-09-05)**: F082 extends this decision.
+>   The row-only method here (`resolve()`) is now the second tier of a
+>   three-tier resolution: row → server-level policy → `meta.mcp.public`.
+>   `ExposureResolver::resolve_effective()` (new sibling) implements
+>   the full three-tier path and is what every advertisement-time and
+>   call-time consumer uses. The row-only method is **renamed** to
+>   `resolve_row_only()` per SEC-001 Option A — the row-only semantics
+>   now live in the method name itself so the F030 permission-callback
+>   bypass invariant is grep-visible and fail-loud on any future rename.
+>   `resolve_row_only()` is the sole method F030's
+>   `PermissionOverrideProcessor::should_bypass()` uses. See D51
+>   `DEC-SERVER-DEFAULT-POLICY-OVER-SNAPSHOT-ENROLMENT` (to be captured
+>   post-implementation) + `docs/planings-tasks/082-per-server-ability-policy-defaults.md`.
+>
 > - **DEC-WP-DATAVIEWS-OVER-REACT (Active — Feature 017)**: New
 >   admin JS surfaces use `@wordpress/dataviews` +
 >   `@wordpress/components` instead of custom React table libraries

@@ -28,6 +28,9 @@ if ( ! class_exists( 'WP_List_Table' ) ) {
  */
 class MCPServerListTable extends \WP_List_Table {
 
+	/**
+	 * Wire the WP_List_Table base config (singular/plural labels, no AJAX).
+	 */
 	public function __construct() {
 		parent::__construct(
 			array(
@@ -120,6 +123,9 @@ class MCPServerListTable extends \WP_List_Table {
 	/**
 	 * Fallback column renderer for the merged `route` column
 	 * (`<namespace>/<route>`, with duplicate slashes at the join collapsed).
+	 *
+	 * @param array<string, mixed> $item        Row data.
+	 * @param string               $column_name Column key being rendered.
 	 */
 	public function column_default( $item, $column_name ): string {
 		switch ( $column_name ) {
@@ -316,14 +322,14 @@ class MCPServerListTable extends \WP_List_Table {
 		// deep-linked so Step 1 opens with this row preselected.
 		$quick_connect_url = add_query_arg(
 			array(
-				'page'        => AdminPageSlugs::PARENT,
+				'page'          => AdminPageSlugs::PARENT,
 				'quick-connect' => '1',
-				'step'        => '1',
-				'server'      => (int) $item['id'],
+				'step'          => '1',
+				'server'        => (int) $item['id'],
 			),
 			admin_url( 'admin.php' )
 		);
-		$links_html     .= sprintf(
+		$links_html       .= sprintf(
 			'<a href="%s" class="acrossai-quicklink"><span class="dashicons dashicons-admin-tools" aria-hidden="true"></span><span class="acrossai-quicklink-label">%s</span></a>',
 			esc_url( $quick_connect_url ),
 			esc_html__( 'Quick Connect via AcrossAI', 'acrossai-mcp-manager' )

@@ -14,6 +14,14 @@ This is not a changelog. Do not record routine releases, version bumps, or imple
 
 ## Example
 
+### 2026-09-06 - F082 review phase — testing-driven amendments, two resurrected toolchains, single-writer extraction, CI pipeline hardened pre-first-commit
+
+- Live testing between governed-implement and review produced five spec amendments (AMD-001..005): Reset-to-per-ability button (the REST enum accepted it but no UI posted it), disabled-state policy buttons (FR-015 no-op honesty), live-toggle fix (deleted write-only `overrides` state the UI never read — toggles froze until reload), policy panel + branded loading overlay, Quick Connect Step-5 migrated from ~435 per-ability upserts to the policy flip.
+- Architecture review R1/R2 applied same-session: `PolicyTransition` single-writer service extracted (→ D53) after the duplicated transition drifted its own grep audit within a day; `reset_request_cache()` rename with pinned test alias.
+- Two toolchains proven to have NEVER worked, then fixed: ESLint (binary was never installed — every prior "zero errors" checkbox was vacuous; first real run: ~1,450 fixes to zero errors/warnings) and the WP-PHPUnit harness (→ B52 never-executed suites, B53 DDL poisoning). PHPCS repo debt cleared 65→0. Evidence rule reinforced: a gate is green only with a recorded run.
+- Staged security review (docs/security-reviews/2026-09-06-082-staged.md): F082 plugin changes clean; all 6 findings in the new release-publishing CI pipeline, all remediated before its first commit — Actions env-indirection for event data, literal-NUL removal (→ B54), link scheme allowlist, https enforcement, action SHA-pinning, log truncation.
+- F082 test set 56/56 green incl. the F030 merge-blocker fence; behaviors browser-verified end-to-end (wizard policy flip confirmed at the DB level: policy='expose', zero override rows). Branch `082-ability-policy-defaults`.
+
 ### 2026-03-15 - Pagination cursor must be opaque to clients
 
 - **Why durable**: three features so far have tried to expose raw database offsets as pagination cursors, each time creating breaking changes when the underlying query changes

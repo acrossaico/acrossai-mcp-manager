@@ -1,0 +1,98 @@
+name: Publish release to WordPress site
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing release tag to (re)publish (e.g. v0.3.0). Leave blank to fail — this trigger is for backfills / retries.
+        required: true
+        type: string
+      dry_run:
+        description: Print the payload and exit without calling the site.
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    env:
+      # ---- per-repo configuration (change these when copying the workflow into another plugin repo) ----
+      README_PATH: README.txt
+      CPT_REST_BASE: changelogs
+      TAXONOMY_REST_BASE: products
+      TAXONOMY_TERM_SLUG: acrossai-mcp-manager
+      PRODUCT_NAME: AcrossAI MCP Manager
+      PRODUCT_TERM: acrossai-mcp-manager
+      POST_STATUS: publish
+      IGNORE_GLOBS: .github/**,tests/**,.gitignore,composer.lock,package-lock.json,yarn.lock,build/**,vendor/**,*.min.js,*.min.css
+      FILE_LIST_CAP: '150'
+      # ---- end per-repo configuration ----
+
+      WP_URL: ${{ secrets.WP_URL }}
+      WP_USER: ${{ secrets.WP_USER }}
+      WP_APP_PASSWORD: ${{ secrets.WP_APP_PASSWORD }}
+      GH_TOKEN: ${{ github.token }}
+
+    steps:
+      # SEC-011 (2026-09-06 staged review): actions in this secret-bearing job
+      # are pinned to full commit SHAs, not mutable tags.
+      - name: Checkout with full tag history
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node 20
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '20'
+
+      - name: Resolve release tag + published timestamp
+        id: release
+        # SEC-007 (2026-09-06 staged review): event data reaches the shell ONLY
+        # via env assignment — never template-expanded inside `run:`, where a
+        # crafted tag name would be parsed as shell.
+        env:
+          EVENT_TAG: ${{ github.event.release.tag_name }}
+          EVENT_PUBLISHED_AT: ${{ github.event.release.published_at }}
+          INPUT_TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+          if [ "$GITHUB_EVENT_NAME" = "release" ]; then
+            TAG="$EVENT_TAG"
+            PUBLISHED_AT="$EVENT_PUBLISHED_AT"
+          else
+            TAG="$INPUT_TAG"
+            if [ -z "$TAG" ]; then
+              echo "::error::workflow_dispatch requires the 'tag' input."
+              exit 1
+            fi
+            # Fetch published_at for the specified tag from the GitHub Releases API.
+            PUBLISHED_AT="$(gh release view "$TAG" --json publishedAt --jq .publishedAt)"
+            if [ -z "$PUBLISHED_AT" ] || [ "$PUBLISHED_AT" = "null" ]; then
+              echo "::error::Could not find a published release for tag '$TAG'."
+              exit 1
+            fi
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "published_at=$PUBLISHED_AT" >> "$GITHUB_OUTPUT"
+          echo "Release: $TAG  |  published: $PUBLISHED_AT"
+
+      - name: Preflight — parse changelog + diff
+        env:
+          PARSE_ONLY: 'true'
+          RELEASE_TAG: ${{ steps.release.outputs.tag }}
+          RELEASE_PUBLISHED_AT: ${{ steps.release.outputs.published_at }}
+        run: node .github/scripts/publish-release.mjs
+
+      - name: Publish to WordPress
+        env:
+          RELEASE_TAG: ${{ steps.release.outputs.tag }}
+          RELEASE_PUBLISHED_AT: ${{ steps.release.outputs.published_at }}
+          DRY_RUN: ${{ inputs.dry_run == true && 'true' || 'false' }}
+        run: node .github/scripts/publish-release.mjs

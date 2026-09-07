@@ -390,8 +390,8 @@ final class AIConnectorsPromoTab extends AbstractServerTab {
 }
 .acai-aic-promo__card-glow { display: none; }
 /* Launch-offer banner — full-bleed across the card's top edge. The negative
-   margins cancel the card's 32px/36px padding; the radius is the card's 14px
-   minus its 1px border so the corners sit flush inside it. */
+	margins cancel the card's 32px/36px padding; the radius is the card's 14px
+	minus its 1px border so the corners sit flush inside it. */
 .acai-aic-promo__banner {
 	display: flex;
 	align-items: center;
