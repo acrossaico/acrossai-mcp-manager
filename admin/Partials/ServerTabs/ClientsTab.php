@@ -53,7 +53,7 @@ final class ClientsTab extends AbstractServerTab {
 	 * @return int
 	 */
 	public function priority(): int {
-		return 30;
+		return 20;
 	}
 
 	/**
@@ -72,7 +72,7 @@ final class ClientsTab extends AbstractServerTab {
 			array(
 				'context'           => 'admin',
 				'cap'               => 'manage_options',
-				'submit_target_url' => $this->server_edit_url( $server, 'clients' ),
+				'submit_target_url' => ConnectTab::method_url( $server, 'clients' ),
 				'nonce_action'      => 'acrossai_mcp_manager_server_' . (int) $server['id'],
 				'sub_client'        => $sub_client,
 			)

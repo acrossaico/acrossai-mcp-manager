@@ -54,7 +54,7 @@ final class NpmTab extends AbstractServerTab {
 	 * @return int
 	 */
 	public function priority(): int {
-		return 20;
+		return 30;
 	}
 
 	/**
@@ -70,7 +70,7 @@ final class NpmTab extends AbstractServerTab {
 			array(
 				'context'           => 'admin',
 				'cap'               => 'manage_options',
-				'submit_target_url' => $this->server_edit_url( $server, 'npm' ),
+				'submit_target_url' => ConnectTab::method_url( $server, 'npm' ),
 				'nonce_action'      => 'acrossai_mcp_manager_server_' . (int) $server['id'],
 			)
 		);

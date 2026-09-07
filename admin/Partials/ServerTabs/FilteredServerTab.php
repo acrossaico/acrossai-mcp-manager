@@ -60,6 +60,40 @@ final class FilteredServerTab extends AbstractServerTab {
 	}
 
 	/**
+	 * Hydrates normalized entries into `AbstractServerTab[]`.
+	 *
+	 * Feature 084 — shared by `ServerTabs\Registry` (level-1 tabs) and
+	 * `ServerTabs\Connect\MethodRegistry` (level-2 Connect methods), which
+	 * differ only in where their built-in map comes from.
+	 *
+	 * Built-in entries (`_builtin === true`) map to the concrete class instance
+	 * supplied in `$builtin_map` by slug. Everything else is wrapped in this
+	 * adapter.
+	 *
+	 * This lives here rather than in `Includes\Utilities\RegistryEntryNormalizer`
+	 * alongside the normalization it pairs with: it instantiates this class and
+	 * maps `AbstractServerTab` instances, both admin-layer types, and A3 forbids
+	 * admin-specific logic in `includes/`.
+	 *
+	 * @since 0.4.0
+	 * @param array<int, array<string, mixed>> $entries     Entries already normalized by `RegistryEntryNormalizer::normalize()`.
+	 * @param array<string, AbstractServerTab> $builtin_map Slug → concrete built-in instance.
+	 * @return AbstractServerTab[]
+	 */
+	public static function hydrate_entries( array $entries, array $builtin_map ): array {
+		$out = array();
+		foreach ( $entries as $entry ) {
+			$slug = (string) ( $entry['slug'] ?? '' );
+			if ( ! empty( $entry['_builtin'] ) && isset( $builtin_map[ $slug ] ) ) {
+				$out[] = $builtin_map[ $slug ];
+				continue;
+			}
+			$out[] = new self( $entry );
+		}
+		return $out;
+	}
+
+	/**
 	 * The tab's URL slug.
 	 *
 	 * @since 0.0.7

@@ -8,6 +8,7 @@
 
 namespace AcrossAI_MCP_Manager\Admin\Partials;
 
+use AcrossAI_MCP_Manager\Admin\Partials\ServerTabs\ConnectTab;
 use AcrossAI_MCP_Manager\Includes\Database\MCPServer\Query;
 use AcrossAI_MCP_Manager\Includes\Utilities\AdminPageSlugs;
 
@@ -279,10 +280,15 @@ class MCPServerListTable extends \WP_List_Table {
 			);
 		}
 
+		// F084 — 'Connectors' and 'MCP Clients' are no longer top-level tabs;
+		// they are level-2 methods inside the Connect tab. `is_method` selects
+		// the level-2 URL builder below. The other three shortcuts are
+		// unchanged: same five pills, same labels, same icons, same order.
 		$quick_links = array(
 			'ai-connectors'  => array(
-				'label' => __( 'Connectors', 'acrossai-mcp-manager' ),
-				'icon'  => 'admin-plugins',
+				'label'     => __( 'Connectors', 'acrossai-mcp-manager' ),
+				'icon'      => 'admin-plugins',
+				'is_method' => true,
 			),
 			'access-control' => array(
 				'label' => __( 'Access Control', 'acrossai-mcp-manager' ),
@@ -293,22 +299,29 @@ class MCPServerListTable extends \WP_List_Table {
 				'icon'  => 'superhero-alt',
 			),
 			'clients'        => array(
-				'label' => __( 'MCP Clients', 'acrossai-mcp-manager' ),
-				'icon'  => 'admin-users',
+				'label'     => __( 'MCP Clients', 'acrossai-mcp-manager' ),
+				'icon'      => 'admin-users',
+				'is_method' => true,
 			),
 		);
 
 		$links_html = '';
 		foreach ( $quick_links as $tab_slug => $meta ) {
-			$tab_url     = add_query_arg(
-				array(
-					'page'   => AdminPageSlugs::PARENT,
-					'action' => 'edit',
-					'server' => (int) $item['id'],
-					'tab'    => $tab_slug,
-				),
-				admin_url( 'admin.php' )
-			);
+			// F084 — `method_url()` returns a RAW url by contract; it is
+			// esc_url()'d at the output site immediately below, same as the
+			// top-level branch. See the output-site inventory in
+			// specs/084-connect-tab-merge/contracts/connect-method-registration.md.
+			$tab_url     = empty( $meta['is_method'] )
+				? add_query_arg(
+					array(
+						'page'   => AdminPageSlugs::PARENT,
+						'action' => 'edit',
+						'server' => (int) $item['id'],
+						'tab'    => $tab_slug,
+					),
+					admin_url( 'admin.php' )
+				)
+				: ConnectTab::method_url( $item, $tab_slug );
 			$links_html .= sprintf(
 				'<a href="%s" class="acrossai-quicklink"><span class="dashicons dashicons-%s" aria-hidden="true"></span><span class="acrossai-quicklink-label">%s</span></a>',
 				esc_url( $tab_url ),

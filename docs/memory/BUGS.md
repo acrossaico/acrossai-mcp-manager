@@ -2256,3 +2256,218 @@ Sentinel/control characters in source code ALWAYS via escape sequences (`'\u0000
 
 **Related**
 - docs/security-reviews/2026-09-06-082-staged.md SEC-008 (finding + fix), B51 (canary-grep comment false positives — sibling "the tooling can't see what you think it sees" class).
+---
+
+### 2026-09-07 — A cross-plugin raw-return URL builder multiplies escaping exposure across consumers
+
+**Status**
+Active (Feature 084 — constraint C1; enforcement lands with the F084 implementation)
+
+**Symptoms**
+Anticipated rather than observed, and recorded at plan stage because the codebase already carries both
+halves of the failure. `B6` records `admin_url()` reaching an HTML `href` without `esc_url()` — it is
+a filterable value, so the result is XSS. `B8` records the follow-on: "escaped above" comments do not
+enforce escaping, and the fix is to re-escape at the output point even when it looks redundant,
+because `esc_*` is idempotent.
+
+**Root Cause**
+Some URL builders must return a **raw**, unescaped string by contract, because callers chain
+`add_query_arg()` onto the result — pre-escaping turns the `&` separator into `&#038;` and breaks every
+downstream link. That is a correct design (F084's `ConnectTab::method_url()` and the existing
+`AbstractServerTab::server_edit_url()` both do it, and `public/Renderers/MCPClientsBlock.php:146` is
+the chaining consumer that requires it).
+
+The hazard is what the contract does to the *review surface*. The obligation to escape moves from one
+place (inside the builder) to N places (every consumer), and the count of N grows silently. It grows
+fastest when the builder is `public static` and consumed **cross-plugin**: a companion plugin adds
+output sites that this repository's own greps and reviewers never see.
+
+**Future mistake prevented**
+A raw-return URL builder must not be enforced by prose in a docblock. When introducing one — and
+especially when making one `public static` for cross-plugin use — ship three things alongside it:
+
+1. **An enumerated output-site inventory** in the contract document: every place the value reaches
+   HTML, and the escaper required there, including sites in companion repositories. New consumers join
+   the table as part of the change that adds them.
+2. **A canary grep** in the verification recipe that lists every call site for review, so an
+   unescaped one is a merge blocker rather than a discovery.
+3. **A docblock that states the raw contract AND names the chaining consumer as the reason.** Without
+   the reason, the next person to "tidy up" the missing `esc_url()` fixes it in the builder and breaks
+   every chained link — a change that looks like a security improvement and is a regression.
+
+**Evidence**
+- `public/Renderers/MCPClientsBlock.php:146` — `add_query_arg( 'client', $slug, (string) $context['submit_target_url'] )`
+  chains onto a raw builder result; `:153` escapes with `esc_url( $url )` at the `printf`. This is the
+  correct pattern already in production, and the reason the raw contract exists.
+- `admin/Partials/ServerTabs/AbstractServerTab.php:499` — the pre-existing `server_edit_url()` raw
+  builder, with three call sites, all in this repository.
+- F084 makes the surface materially wider: `ConnectTab::method_url()` is `public static` so
+  `acrossai-pro` can call it, and adds output sites in the level-2 nav, two `MCPServerListTable` row
+  shortcuts, two migrated tabs' form targets, and two companion `panel_url()` builders.
+- Recorded as SEC-084-001 (MEDIUM) in
+  `docs/security-reviews/2026-09-07-084-connect-tab-merge-plan.md`; enforced as constraint C1 in
+  `specs/084-connect-tab-merge/security-constraints.md`; inventory table in
+  `specs/084-connect-tab-merge/contracts/connect-method-registration.md` §2.
+
+**Prevention / Detection**
+- Grep gate: `grep -rn "method_url(\|server_edit_url(" admin/ includes/ public/` — every hit that
+  emits into HTML must carry `esc_url` / `esc_attr` on the same line. Review each against the contract's
+  inventory table.
+- Reviewer rule for **any** new `public static` returning a URL: ask "who escapes, and is that list
+  written down?" before approving. A raw contract without an inventory is incomplete, not merely
+  undocumented.
+- Cross-plugin rule: when the builder crosses a plugin boundary, the inventory must name the companion's
+  output sites too, and the companion's PR reviewer is responsible for adding its rows.
+- Never resolve a missing `esc_url()` by adding escaping inside a raw-contract builder. Fix it at the
+  output site.
+
+**Where to look next**
+- `admin/Partials/ServerTabs/AbstractServerTab.php:499` and its three call sites — the same contract,
+  currently without an inventory.
+- The `acrossai-pro` companion's `panel_url()` builders, which chain onto `method_url()` and are outside
+  this repository's grep reach.
+- `B6` and `B8` — the two observed bugs this pattern generalizes.
+---
+
+### 2026-09-07 — A security test filed under a user story inherits that story's priority
+
+**Status**
+Active (caught at tasks-review stage in F084; prevention rule, no code defect shipped)
+
+**Symptoms**
+The F084 task list's security coverage matrix read as complete — every constraint C1–C8 had both an
+implementing task and a verifying task. It was still possible to reach the feature's own stated
+release gate with three of the four access-control and information-disclosure assertions never having
+run.
+
+**Root Cause**
+Spec Kit organises tasks by user story, and a test naturally gets filed under the story whose
+acceptance criteria describe it. But a *cross-cutting* security mechanism is implemented once, in the
+foundational phase, and protects every story. Filing its test under one story silently transfers that
+story's priority onto the test.
+
+In F084 the C2 fallback-safety assertion landed in US3 because the scenario involves the
+local/non-local distinction — but what it actually verifies is capability-filtered fallback,
+implemented three phases earlier. US3 is P2. The C3 no-reflection and C4 containment assertions landed
+in US5 (P3) because US5's acceptance criteria are where "a deliberately failing method" is described.
+The release gate was the end of US4. All three assertions sat behind it.
+
+The coverage matrix concealed this precisely because it was full: it recorded *whether* each
+constraint had a verifying task, not *when* that task would run relative to the gate.
+
+**Future mistake prevented**
+File a security test with **the constraint it verifies**, not with the user story whose acceptance
+criteria mention it. If a mechanism is implemented in a blocking foundational phase because every
+story depends on it, its assertions belong in that same phase.
+
+A second-order benefit surfaced in F084: C3 (never reflect the requested value) and C4 (contain
+failures without leaking exception detail) *interact* — an exception message embedding the requested
+identifier breaches C3 through C4's failure. Two tests in different phases can each pass while the
+composition fails. Co-locating them made the combined case obvious and it was written as one test.
+
+**Evidence**
+- `docs/security-reviews/2026-09-07-084-connect-tab-merge-tasks.md` — SEC-084-T01 (MEDIUM, C2
+  assertion in US3/P2) and SEC-084-T02 (MEDIUM, C3+C4 assertions in US5/P3).
+- Remediation: those assertions were promoted into the foundational phase as F084 T021, T022 and T023;
+  only the genuinely third-party-specific containment case stayed in US5 (T051).
+- The same review found a related gap in the same family: US2's tasks were all happy-path, with no
+  abuse case for a legacy URL reaching a capability-excluded method (SEC-084-T03). A story's task set
+  tends to inherit that story's *narrative*, and user-story narratives are written as success paths.
+
+**Prevention / Detection**
+- **Matrix column**: a coverage matrix MUST carry a "verified by end of" column naming the phase, not
+  just a verifying-task ID. A full matrix with no phase column cannot show this defect.
+- **Mechanical check**: for each constraint, compare the phase of its implementing task against the
+  phase of its verifying task. Any verifying task in a later phase than its implementing task — or in
+  any phase after the stated release gate — is the smell.
+- **Author rule**: when a mechanism is implemented in a foundational/blocking phase, its assertions go
+  in that phase. Only the story-specific *application* of the mechanism belongs in the story.
+- **Reviewer question** for any tasks list with a stated MVP or release checkpoint: "which security
+  assertions run after this checkpoint, and why is that acceptable?"
+- **Abuse-case rule**: user stories are written as success narratives, so their task sets inherit that
+  bias. Every story that resolves attacker-influenceable input needs at least one negative case,
+  written deliberately rather than derived from the acceptance scenarios.
+
+**Where to look next**
+- Any feature whose tasks list has a foundational phase plus a stated MVP or release checkpoint.
+- `DEC-F025-TASKS-REVIEW-PRESERVATION-INVARIANT-AND-COVERAGE-MATRIX` — the decision that mandates the
+  coverage matrix. This entry is the refinement: the matrix needs a phase column to be load-bearing.
+---
+
+### 2026-09-07 — The Jetpack autoloader defeats any attempt to run a different PHPUnit against this plugin
+
+**Status**
+Active (workaround established in F084; supersedes the F082 approach)
+
+**Symptoms**
+Running the WordPress test library under a scratch PHPUnit 9.6 — necessary because the repo pins
+`phpunit ^13.2@dev`, which the WP test library cannot drive (T069) — gets *further* than expected and
+then dies:
+
+```
+Installing...
+Running as single site...
+PHP Fatal error: Uncaught Error: Call to private PHPUnit\Framework\TestSuite::__construct()
+  from scope PHPUnit\TextUI\TestSuiteMapper
+```
+
+WordPress boots cleanly. The failure lands in PHPUnit's own suite mapper, which makes it look like a
+broken PHPUnit install rather than a conflict.
+
+**Root Cause**
+This plugin ships `automattic/jetpack-autoloader` (`composer.json:21`), whose entire purpose is to
+take precedence and win version conflicts between plugins — `composer dump-autoload` generates
+`jetpack_autoload_psr4.php` / `jetpack_autoload_filemap.php` to that end. The scratch PHPUnit 9 runs
+first, then `tests/bootstrap-wp.php` loads the plugin during `muplugins_loaded`, which registers the
+Jetpack autoloader; from that point `PHPUnit\*` resolves to the repo's pinned **v13** classes.
+`TestSuiteMapper` (v9) then calls a `TestSuite::__construct()` (v13) that is private in v13.
+
+The autoloader is behaving exactly as designed. Nothing is misconfigured — which is why the error
+message points nowhere useful.
+
+**Future mistake prevented**
+Do not reach for `composer install --no-dev` to dodge this (the F082 approach). It works, but it
+strips phpcs and phpstan out of `vendor/` for the duration and has to be undone afterwards — easy to
+forget, and it makes the quality gates unrunnable while tests are running.
+
+Force-load the scratch runner's PHPUnit classes BEFORE the WP bootstrap registers the competing
+autoloader. Once the classes are declared, no autoloader is consulted for them:
+
+```php
+require_once __DIR__ . '/vendor/yoast/phpunit-polyfills/phpunitpolyfills-autoload.php';
+
+$classmap = require __DIR__ . '/vendor/composer/autoload_classmap.php';
+foreach ( array_keys( $classmap ) as $fqcn ) {
+    if ( 0 === strpos( $fqcn, 'PHPUnit\\' ) || 0 === strpos( $fqcn, 'SebastianBergmann\\' ) ) {
+        class_exists( $fqcn, true );
+    }
+}
+
+require_once getenv( 'PLUGIN_DIR' ) . '/tests/bootstrap-wp.php';
+```
+
+Second gotcha in the same recipe: this WP test library requires `tear_down()` to be **public**. A
+`protected function tear_down()` — the form several existing suites use — fatals with
+"Access level to …::tear_down() must be public (as in class WP_UnitTestCase_Base)". Same for
+`set_up()`.
+
+**Evidence**
+- F084 (2026-09-07): this recipe took the feature's suites from a hard fatal to **68 tests / 161
+  assertions green**, with phpcs and phpstan still runnable throughout.
+- `composer.json:21` — `"automattic/jetpack-autoloader": "^5.0"`.
+- Working runner preserved under the session scratchpad as `phpunit9/bootstrap-f084.php`.
+
+**Prevention / Detection**
+- Any future attempt to run WP-dependent suites in this repo needs this bootstrap. It is currently the
+  only non-destructive way, and stays so until T069 resolves the pinned-PHPUnit conflict.
+- Symptom-to-cause shortcut: a PHPUnit internal error that appears AFTER WordPress prints
+  "Running as single site..." is an autoloader conflict, not a PHPUnit install problem.
+- Generalises beyond PHPUnit: any tool whose classes share a namespace with something in this
+  plugin's `vendor/` will lose to the Jetpack autoloader once the plugin loads. Preload, or run the
+  tool in a process that never boots the plugin.
+- When adding a new test class, write `public function set_up()` / `public function tear_down()`.
+
+**Where to look next**
+- T069 — the repo-wide WP-dependent suite breakage this recipe works around rather than fixes.
+- `A12` / `A18` — the WP-free bootstrap and its stub carve-out; those suites are unaffected because
+  they never boot the plugin.

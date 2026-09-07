@@ -8,6 +8,7 @@
 
 namespace AcrossAI_MCP_Manager\Admin\Partials;
 
+use AcrossAI_MCP_Manager\Admin\Partials\ServerTabs\ConnectTab;
 use AcrossAI_MCP_Manager\Includes\Database\MCPServer\DefaultServerSeeder;
 use AcrossAI_MCP_Manager\Includes\Database\MCPServer\Query;
 use AcrossAI_MCP_Manager\Includes\Utilities\AdminPageSlugs;
@@ -706,10 +707,24 @@ class Settings {
 		// phpcs:enable WordPress.Security.NonceVerification.Recommended
 
 		// Feature 013 — legacy tab slug back-compat (pre-F013 bookmarks/links).
+		// Feature 084 — the five connection tabs merged into ConnectTab; their
+		// old slugs now resolve to it. Which METHOD opens is decided by
+		// ConnectTab::resolve_active_method(), which reads the PRE-REWRITE
+		// ?tab= value against the same ConnectTab::LEGACY_TAB_METHODS constant.
+		// One constant, two readers, no duplication.
+		//
+		// Rewritten IN PLACE, never via a redirect: admin_enqueue_scripts has
+		// already fired by the time this runs, and the acrossai-pro companion
+		// gates its assets on the address the browser actually requested.
+		// Redirecting would rewrite the address before those gates saw it and
+		// leave its panels unstyled with inert buttons (FR-009).
 		$legacy_slug_map = array(
 			'general'        => 'overview',
 			'access_control' => 'access-control',
 		);
+		foreach ( array_keys( ConnectTab::LEGACY_TAB_METHODS ) as $legacy_connection_slug ) {
+			$legacy_slug_map[ $legacy_connection_slug ] = 'connect';
+		}
 		if ( isset( $legacy_slug_map[ $tab ] ) ) {
 			$tab = $legacy_slug_map[ $tab ];
 		}

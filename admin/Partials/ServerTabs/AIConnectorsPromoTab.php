@@ -109,7 +109,7 @@ final class AIConnectorsPromoTab extends AbstractServerTab {
 	 * @return int
 	 */
 	public function priority(): int {
-		return 35;
+		return 10;
 	}
 
 	/**

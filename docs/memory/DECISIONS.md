@@ -2677,3 +2677,134 @@ Companion naming rule from the same review: name methods for their real callers,
 - DEC-ABILITY-OVERRIDE-RESOLUTION (F017) — READ-side single resolver; this is its WRITE-side sibling.
 - D23 / sibling-composer-extension — the service is a class-level sibling, not a flag-overload.
 - D12 — gates re-audited after the extraction (56/56 F082 tests green post-refactor).
+---
+
+### 2026-09-07 — Sibling registries mirror shape, never an accessor name with inverted semantics
+
+**Status**
+Active (Feature 084)
+
+**Context**
+F084 adds `Admin\Partials\ServerTabs\Connect\MethodRegistry` as a level-2 sibling of the
+existing level-1 `Admin\Partials\ServerTabs\Registry`. The design goal was explicitly "mirror the
+sibling one level down" so the two read as one pattern at two depths — the right instinct, and the
+same instinct behind `DEC-SERVER-TAB-CLASS-HIERARCHY`.
+
+That instinct collided with a security constraint. In the sibling being mirrored, the accessor split
+is:
+
+- `Registry::for_server()` — UNFILTERED (fires the filter, normalizes, dedups, hydrates, sorts)
+- `Registry::visible_tabs()` — filtered by each tab's `visible_for()`
+- `Registry::render()` — dispatches off the **unfiltered** `for_server()` list
+
+F084's plan independently required the method registry's public read path to return a
+capability- and visibility-filtered set, because the active-method fallback resolves from it and the
+first method in priority order is a paid one (`ai-connectors`). Naming that filtered accessor
+`for_server()` — the mirroring choice — would have given the same name opposite meanings one level
+apart. Caught by plan-stage violation detection before any code was written.
+
+**Decision**
+When adding a parallel registry, enumerator, or resolver one level down (or sideways) from an
+existing one, mirror its **shape** — singleton form, entry contract, filter-then-normalize-then-sort
+pipeline, dedup semantics — but treat every accessor **name** as carrying its sibling's semantics.
+If the new class needs different filtering semantics for a name the sibling already uses, pick a
+different name that states the new semantics, and say in a comment that the divergence is
+deliberate.
+
+F084's resolution: `MethodRegistry` exposes `visible_methods()` as its **sole** public read path with
+collection kept `private`, and offers no unfiltered public accessor at all — so the ambiguity cannot
+be reintroduced by a later caller reaching for the "raw" list.
+
+**How to apply**
+- Before naming a method on a new sibling class, grep the sibling for that name and read what it
+  actually returns. A name that means "unfiltered" there cannot mean "filtered" here.
+- Prefer removing the unsafe option over documenting it: if only the filtered list is ever legitimate,
+  do not expose an unfiltered accessor for symmetry's sake.
+- Where the divergence from the mirroring rule is deliberate, state it at the point the mirroring rule
+  is stated — not only at the definition site — so the next implementer meets both facts together.
+- Reviewers: for any new `*Registry` / `*Resolver` / `*Collection` class introduced as a sibling of an
+  existing one, diff the public method names against the sibling and challenge every reused name whose
+  return-set semantics differ.
+
+**Trade-offs**
+- Gained: the failure this prevents is silent and asymmetric — an unfiltered dispatch looks correct to
+  every developer and every test run as an administrator, and only misbehaves for a user whose
+  capability excludes the first entry in priority order.
+- Made harder: the two siblings no longer read as perfect mirrors; a reader must notice
+  `visible_tabs()` vs `visible_methods()` vs `for_server()`. That asymmetry is the point — it encodes
+  a real semantic difference rather than hiding it.
+- Reconsider: if the sibling is ever refactored so `for_server()` becomes filtered too, the names can
+  converge. Converge deliberately, in one commit, with the tests that pin the filtering.
+
+**Related**
+- `DEC-SERVER-TAB-CLASS-HIERARCHY` — the pattern being mirrored; this DEC bounds how far mirroring goes.
+- `D35 / DEC-F034-SELF-CONTAINED-SUBSYSTEM-CONTRACT` — one canonical enumeration path. F084 honours
+  D35's intent while deviating from its letter (sibling class rather than a static on the base);
+  this DEC governs the naming half of that deviation.
+- `D41 / DEC-SERVER-TAB-REGISTRY-DEDUP-LAST-WINS` — the dedup semantics that ARE mirrored verbatim,
+  via a shared normalizer.
+- `docs/security-reviews/2026-09-07-084-connect-tab-merge-plan.md` (SEC-084-002) and
+  `specs/084-connect-tab-merge/security-constraints.md` C2.
+---
+
+### 2026-09-07 — Stacked navigation levels use one graded control family, not one style per level
+
+**Status**
+Active (Feature 084)
+
+**Context**
+The per-server Edit screen stacks up to three navigation rows: the top-level tab strip (`?tab=`), the
+connection-method row F084 introduced (`?method=`), and each method's own picker (`?client=` /
+`?panel=`). The spec required them to stay individually identifiable so the screen would not read as
+a rendering fault.
+
+F084's first implementation read that requirement as "make each row a different kind of control" and
+shipped square joined segments at level 2 against round solid-filled pills at level 3. Reviewed
+against the running screen, that inference was wrong. The rows were certainly distinguishable — but
+the page read as three unrelated widgets stacked on each other rather than one hierarchy, and the
+operator got no signal that level 2 was subordinate to level 1 rather than a second strip of equal
+rank.
+
+**Decision**
+When an admin screen stacks N navigation levels, express the hierarchy with **one control family
+graded by scale**, not with N different control types. Every level uses the platform's standard tab
+idiom (WordPress core's `.nav-tab`: tabs on a shared bottom rule, grey when idle, white with the
+bottom rule cut away when active), stepping down at each level so position and size carry the rank:
+
+| Level | Font | Padding | Implementation |
+|-------|------|---------|----------------|
+| 1 `?tab=` | 14px | 6px 10px | WP core `.nav-tab`, untouched |
+| 2 `?method=` | 13px | 5px 10px | core `.nav-tab` + `.acrossai-connect-method` modifier |
+| 3 `?client=` | 12px | 4px 9px | `.acrossai-client-tab`, same idiom restated |
+
+Each vertical gap gets exactly one owning rule, so the rhythm cannot drift when a level is added or
+removed.
+
+**How to apply**
+- Applies to any admin surface that nests navigation more than one level deep.
+- A level that renders only in wp-admin SHOULD opt into core's own `.nav-tab` classes and let a
+  modifier class handle the scale — core then supplies geometry, focus, hover and responsive
+  behaviour for free, and a future core change carries down automatically.
+- A level rendered by a class that is also reachable from the front end MUST NOT take those admin
+  classes; it restates the idiom under plugin-owned names. See `A22`.
+- "Distinguishable" is a requirement about *identifiability*, not about using different widgets.
+  Write it that way in specs: scale + stacking order, not "visually distinct from".
+- Reviewers: a screen where each navigation row looks like a different kind of control is the smell,
+  even when every row is individually fine.
+
+**Trade-offs**
+- Gained: one learnable affordance for the whole screen; core behaviour inherited rather than
+  reimplemented; hierarchy legible at a glance.
+- Made harder: levels are no longer distinguishable by shape alone, so the scale ladder has to be
+  maintained deliberately — collapse it and two rows become indistinguishable.
+- Constitution §IV is better served, not merely unharmed: the v1.1.0 connector-picker exception names
+  `.nav-tab-wrapper` explicitly, so adopting core's tab classes sits INSIDE that carve-out, whereas
+  the hand-rolled segmented control it replaced only sat adjacent to it.
+- Reconsider: when a level stops being navigation and becomes a data grid — then §IV's DataViews
+  mandate applies and this DEC does not.
+
+**Related**
+- `A22` — the public-renderer boundary that forces level 3 to restate rather than inherit.
+- Constitution §IV connector-picker card exception (v1.1.0) — sanctions `.nav-tab-wrapper` here.
+- F084 `spec.md` FR-017 / SC-007, amended 2026-09-07: the original wording required level 2 to look
+  UNLIKE its neighbours, which forbade this decision. `plan.md` §Design Revision records the reversal.
