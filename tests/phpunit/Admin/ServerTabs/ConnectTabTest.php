@@ -78,7 +78,7 @@ final class ConnectTabTest extends WP_UnitTestCase {
 	public function test_identity(): void {
 		$tab = new ConnectTab();
 		$this->assertSame( 'connect', $tab->slug() );
-		$this->assertSame( 'Connect', $tab->label() );
+		$this->assertSame( 'How would you like to connect?', $tab->label() );
 		$this->assertSame( 20, $tab->priority(), 'Connect sits immediately after Overview (10).' );
 	}
 

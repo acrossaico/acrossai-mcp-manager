@@ -81,7 +81,7 @@ final class ConnectTab extends AbstractServerTab {
 	 * @return string
 	 */
 	public function label(): string {
-		return __( 'Connect', 'acrossai-mcp-manager' );
+		return __( 'How would you like to connect?', 'acrossai-mcp-manager' );
 	}
 
 	/**
