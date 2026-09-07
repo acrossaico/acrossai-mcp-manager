@@ -485,6 +485,7 @@ final class QuickConnectController {
 				)
 			);
 			if ( is_wp_error( $api ) ) {
+				// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- Intentional: install/activate failures MUST reach the site administrator's debug.log; the WP_Error returned below carries no vendor detail.
 				error_log( sprintf( '[acrossai-mcp-manager] plugins_api failed for %s: %s', $slug, $api->get_error_message() ) );
 				return new WP_Error(
 					'acrossai_mcp_quick_connect_install_failed',
@@ -496,6 +497,7 @@ final class QuickConnectController {
 			$upgrader = new \Plugin_Upgrader( new \WP_Ajax_Upgrader_Skin() );
 			$result   = $upgrader->install( $api->download_link );
 			if ( is_wp_error( $result ) ) {
+				// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- Intentional: install/activate failures MUST reach the site administrator's debug.log; the WP_Error returned below carries no vendor detail.
 				error_log( sprintf( '[acrossai-mcp-manager] Plugin_Upgrader::install failed for %s: %s', $slug, $result->get_error_message() ) );
 				return new WP_Error(
 					'acrossai_mcp_quick_connect_install_failed',
@@ -515,6 +517,7 @@ final class QuickConnectController {
 		if ( ! is_plugin_active( $plugin_file ) ) {
 			$activate = activate_plugin( $plugin_file );
 			if ( is_wp_error( $activate ) ) {
+				// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- Intentional: install/activate failures MUST reach the site administrator's debug.log; the WP_Error returned below carries no vendor detail.
 				error_log( sprintf( '[acrossai-mcp-manager] activate_plugin failed for %s: %s', $plugin_file, $activate->get_error_message() ) );
 				return new WP_Error(
 					'acrossai_mcp_quick_connect_activate_failed',

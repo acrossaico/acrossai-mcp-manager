@@ -35,6 +35,11 @@ class ApplicationPasswords {
 	/** @var ApplicationPasswords|null */
 	protected static $_instance = null;
 
+	/**
+	 * Returns the singleton instance of this class.
+	 *
+	 * @return self
+	 */
 	public static function instance(): self {
 		if ( null === self::$_instance ) {
 			self::$_instance = new self();
@@ -42,6 +47,9 @@ class ApplicationPasswords {
 		return self::$_instance;
 	}
 
+	/**
+	 * Private constructor — singleton.
+	 */
 	private function __construct() {
 		// NO add_action / add_filter — wired by Includes\Main::define_admin_hooks().
 	}
@@ -50,6 +58,11 @@ class ApplicationPasswords {
 	// REST routes (wired on `rest_api_init`).
 	// ─────────────────────────────────────────────────────────────────────────
 
+	/**
+	 * Registers this feature's REST routes.
+	 *
+	 * @return void
+	 */
 	public function register_rest_routes(): void {
 		$admin_only_perm = static function () {
 			return current_user_can( 'manage_options' );
@@ -96,6 +109,8 @@ class ApplicationPasswords {
 	 * POST /acrossai-mcp-manager/v1/generate-app-password
 	 *
 	 * Body: { server_id?: int }
+	 *
+	 * @param \WP_REST_Request $request Incoming REST request.
 	 *
 	 * @return \WP_REST_Response|\WP_Error
 	 */
@@ -183,6 +198,8 @@ class ApplicationPasswords {
 	/**
 	 * Render the Tokens tab body for one server. Called from Settings.
 	 *
+	 * @param int $server_id Server row ID whose tokens are listed.
+	 *
 	 * Lists existing AcrossAI Application Passwords (filtered by name prefix)
 	 * + a button that POSTs to /generate-app-password via fetch().
 	 */
@@ -251,6 +268,12 @@ class ApplicationPasswords {
 	// Helpers
 	// ─────────────────────────────────────────────────────────────────────────
 
+	/**
+	 * Builds the Application Password label for a server.
+	 *
+	 * @param int $server_id Server row ID; <= 0 yields the bare prefix.
+	 * @return string
+	 */
 	private function build_app_name( int $server_id ): string {
 		if ( $server_id <= 0 ) {
 			return self::APP_NAME_PREFIX;

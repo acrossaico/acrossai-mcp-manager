@@ -168,7 +168,8 @@ final class AbilitiesController {
 	public function get_abilities( WP_REST_Request $request ) {
 		$server_id = (int) $request['server_id'];
 
-		if ( is_wp_error( $server_check = $this->require_server( $server_id ) ) ) {
+		$server_check = $this->require_server( $server_id );
+		if ( is_wp_error( $server_check ) ) {
 			return $server_check;
 		}
 
@@ -209,7 +210,8 @@ final class AbilitiesController {
 	public function post_abilities( WP_REST_Request $request ) {
 		$server_id = (int) $request['server_id'];
 
-		if ( is_wp_error( $server_check = $this->require_server( $server_id ) ) ) {
+		$server_check = $this->require_server( $server_id );
+		if ( is_wp_error( $server_check ) ) {
 			return $server_check;
 		}
 
@@ -309,11 +311,13 @@ final class AbilitiesController {
 
 		// Return the refreshed override rows (FR-010 — never require a follow-up GET).
 		ExposureResolver::_reset_cache_for_tests();
-		return CacheHeaders::apply_to_rest_response( new WP_REST_Response(
-			array(
-				'overrides' => $this->fetch_overrides( $server_id ),
+		return CacheHeaders::apply_to_rest_response(
+			new WP_REST_Response(
+				array(
+					'overrides' => $this->fetch_overrides( $server_id ),
+				)
 			)
-		) );
+		);
 	}
 
 	/**
@@ -358,7 +362,7 @@ final class AbilitiesController {
 				'number'    => 0, // no cap
 			)
 		);
-		$out = array();
+		$out  = array();
 		foreach ( $rows as $row ) {
 			// $wpdb returns TINYINT as string (B18) — cast at the boundary.
 			$out[] = array(

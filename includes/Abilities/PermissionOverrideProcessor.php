@@ -230,7 +230,7 @@ final class PermissionOverrideProcessor {
 	 * @internal
 	 * @return void
 	 */
-	public static function _reset_cache_for_tests(): void {
+	public static function _reset_cache_for_tests(): void { // phpcs:ignore PSR2.Methods.MethodDeclaration.Underscore -- Name is a pinned test contract (F017); renaming it breaks the suites that call it.
 		self::$server_row_cache = array();
 	}
 }

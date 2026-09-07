@@ -22,6 +22,11 @@ class SettingsRenderer {
 	/** @var SettingsRenderer|null */
 	protected static $_instance = null;
 
+	/**
+	 * Returns the singleton instance of this class.
+	 *
+	 * @return self
+	 */
 	public static function instance(): self {
 		if ( null === self::$_instance ) {
 			self::$_instance = new self();
@@ -29,14 +34,18 @@ class SettingsRenderer {
 		return self::$_instance;
 	}
 
+	/**
+	 * Private constructor — singleton.
+	 */
 	private function __construct() {}
 
 	/**
 	 * Render the standard tab navigation row at the top of the edit page.
 	 *
-	 * @param array<string, string> $tabs    [slug => label]
-	 * @param string                $current Currently active tab slug
-	 * @param int                   $server_id Row ID; appended to the tab href
+	 * @param array<string, string> $tabs      Slug => label map.
+	 * @param string                $current   Currently active tab slug.
+	 * @param int                   $server_id Row ID; appended to the tab href.
+	 * @return void
 	 */
 	public function render_tab_nav( array $tabs, string $current, int $server_id ): void {
 		echo '<h2 class="nav-tab-wrapper">';

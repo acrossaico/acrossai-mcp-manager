@@ -274,12 +274,14 @@ final class ClientRendererController {
 		}
 
 		// Raw Application Password in response body — MUST NOT cache. See DEC-OAUTH-DONOTCACHEPAGE-PATTERN.
-		return CacheHeaders::apply_to_rest_response( new WP_REST_Response(
-			array(
-				'password' => $created[0],
-				'app_id'   => $created[1]['uuid'] ?? '',
-			),
-			201
-		) );
+		return CacheHeaders::apply_to_rest_response(
+			new WP_REST_Response(
+				array(
+					'password' => $created[0],
+					'app_id'   => $created[1]['uuid'] ?? '',
+				),
+				201
+			)
+		);
 	}
 }

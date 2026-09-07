@@ -42,6 +42,11 @@ class Menu {
 	/** @var string */
 	private $version;
 
+	/**
+	 * Returns the singleton instance of this class.
+	 *
+	 * @return self
+	 */
 	public static function instance(): self {
 		if ( null === self::$_instance ) {
 			self::$_instance = new self();
@@ -49,6 +54,9 @@ class Menu {
 		return self::$_instance;
 	}
 
+	/**
+	 * Private constructor — singleton.
+	 */
 	private function __construct() {
 		$this->plugin_name = ACROSSAI_MCP_MANAGER_PLUGIN_NAME_SLUG;
 		$this->version     = ACROSSAI_MCP_MANAGER_VERSION;
