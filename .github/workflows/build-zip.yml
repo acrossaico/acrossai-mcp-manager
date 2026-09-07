@@ -16,7 +16,13 @@ jobs:
       - name: Install dependencies
         run: |
           composer install --no-dev --prefer-dist --no-progress --optimize-autoloader
-          npm ci
+          # `--legacy-peer-deps` is required — @wordpress/dataviews@17 pins
+          # @wordpress/components@^36 whose peer resolution collides under npm 10+
+          # strict mode even though the lockfile pins react@18.3.1 (satisfies ^18).
+          # Matches eslint.yml and validate-packages.yml, which were fixed earlier;
+          # this workflow was missed, so every release zip since 2026-08-27 —
+          # including the 0.3.2 release — failed to build.
+          npm ci --no-audit --no-fund --legacy-peer-deps
 
       - name: Build plugin
         run: npm run build
