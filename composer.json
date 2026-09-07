@@ -41,12 +41,10 @@
 			"AcrossAI_MCP_Manager\\Includes\\": "includes/",
 			"AcrossAI_MCP_Manager\\Admin\\": "admin/",
 			"AcrossAI_MCP_Manager\\Public\\": "public/"
-		}
-	},
-	"autoload-dev": {
-		"psr-4": {
-			"AcrossAI_MCP_Manager\\Tests\\PHPUnit\\": "tests/phpunit/"
-		}
+		},
+		"exclude-from-classmap": [
+			"/tests/"
+		]
 	},
 	"require-dev": {
 		"wp-coding-standards/wpcs": "*",
