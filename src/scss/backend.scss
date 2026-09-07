@@ -331,47 +331,128 @@
 // -------------------------------------------------------------------------
 // MCP Clients — secondary sub-tab nav (pill row above the client details).
 // -------------------------------------------------------------------------
+/*
+ * =========================================================================
+ * F084 — the three-tier navigation family (FR-017 / SC-007).
+ * =========================================================================
+ *
+ * All three stacked navigation rows on the per-server Edit screen use ONE
+ * shape language — WordPress core's `.nav-tab` idiom: tabs sitting on a shared
+ * bottom rule, grey when idle, white with the bottom rule cut away when active
+ * so the selected tab merges into the panel beneath it.
+ *
+ * They are told apart by SCALE and TINT, not by shape:
+ *
+ *   Level 1  ?tab=      WP core `.nav-tab`, untouched          14px
+ *   Level 2  ?method=   core `.nav-tab` + `.acrossai-connect-method`   13px
+ *   Level 3  ?client=   `.acrossai-client-tab`, same idiom      12px
+ *
+ * Why a graded family rather than three unrelated treatments: the earlier
+ * design used square segments at level 2 and round filled pills at level 3,
+ * which made every row look like a different kind of control. Matching the
+ * main menu keeps one learnable affordance and lets position + size carry the
+ * hierarchy — which is what SC-007 actually asks an observer to read.
+ *
+ * Level 2 opts into core's own `.nav-tab` classes (it renders only in
+ * wp-admin, from `Admin\Partials\ServerTabs\ConnectTab`), so it inherits core's
+ * focus, hover and responsive behaviour for free. Level 3 does NOT: it is
+ * emitted by `Public\Renderers\MCPClientsBlock`, which is also reachable from
+ * the frontend via `[acrossai_mcp_clients_block]`, and a public renderer must
+ * not depend on admin-only core classes. It therefore restates the same idiom
+ * under its own class names. (Frontend styling of that block is a pre-existing
+ * gap — `backend.scss` has never loaded there — and is unchanged by F084.)
+ */
+
+// ---- Level 2: connection methods inside the Connect tab -------------------
+
+// Border-bottom, padding-top and line-height all come from core's
+// `.nav-tab-wrapper` — only the outer rhythm is set here, so a future core
+// change to the tab strip carries down to this row automatically.
+.acrossai-connect-methods-nav {
+	margin: 8px 0 0;
+}
+
+// Scale core's `.nav-tab` down one step: 14px/6px-10px at level 1 becomes
+// 13px/5px-10px here. Core supplies the geometry; this only adjusts size and
+// weight so the row reads as subordinate to the strip above rather than as a
+// second strip of equal rank.
+.acrossai-mcp-manager-wrap .acrossai-connect-methods-nav .nav-tab {
+	margin-left: 0;
+	margin-right: 4px;
+	padding: 5px 10px;
+	font-size: 13px;
+	font-weight: 400;
+	line-height: 1.5;
+}
+
+.acrossai-mcp-manager-wrap .acrossai-connect-methods-nav .nav-tab-active,
+.acrossai-mcp-manager-wrap .acrossai-connect-methods-nav .nav-tab-active:hover,
+.acrossai-mcp-manager-wrap .acrossai-connect-methods-nav .nav-tab-active:focus {
+	font-weight: 600;
+	color: #1d2327;
+}
+
+// Single owner of the gap between the method row and whatever the method
+// renders — including a level-3 picker, which therefore sets no top spacing
+// of its own.
+.acrossai-connect-method-panel {
+	margin-top: 20px;
+}
+
+// ---- Level 3: client picker inside the MCP Clients method -----------------
+// Same `.nav-tab` idiom, one step smaller again. Restated rather than
+// inherited — see the note above about the public renderer boundary.
+
+// No top spacing — `.acrossai-connect-method-panel` owns the gap above.
+// 24px below so the selected client's content clears the rule.
 .acrossai-client-tabs-nav {
 	display: flex;
 	flex-wrap: wrap;
-	gap: 6px;
-	padding: 14px 0 16px;
+	align-items: flex-end;
+	padding: 0;
+	margin: 0 0 24px;
 	border-bottom: 1px solid #c3c4c7;
-	margin-bottom: 20px;
 }
 
+// One step smaller again: 12px/4px-9px.
 .acrossai-client-tab {
 	display: inline-flex;
 	align-items: center;
 	gap: 5px;
-	padding: 5px 14px;
+	position: relative;
+	bottom: -1px;
+	margin: 0 4px -1px 0;
+	padding: 4px 9px;
 	border: 1px solid #c3c4c7;
-	border-radius: 20px;
-	font-size: 13px;
-	font-weight: 500;
-	color: #50575e;
-	background: #f6f7f7;
-	text-decoration: none;
-	transition: background 0.1s, color 0.1s, border-color 0.1s;
+	border-bottom: 1px solid #c3c4c7;
+	background: #dcdcde;
+	font-size: 12px;
+	font-weight: 400;
 	line-height: 1.5;
+	color: #50575e;
+	text-decoration: none;
+	transition: background 0.1s, color 0.1s;
 }
 
-.acrossai-client-tab:hover {
+.acrossai-client-tab:hover,
+.acrossai-client-tab:focus {
 	background: #fff;
-	color: #2271b1;
-	border-color: #2271b1;
+	color: #1d2327;
 	text-decoration: none;
+	box-shadow: none;
 }
 
 .acrossai-client-tab-active,
-.acrossai-client-tab-active:hover {
-	background: #2271b1;
-	color: #fff;
-	border-color: #2271b1;
+.acrossai-client-tab-active:hover,
+.acrossai-client-tab-active:focus {
+	background: #f0f0f1;
+	border-bottom-color: #f0f0f1;
+	color: #1d2327;
+	font-weight: 600;
 }
 
 .acrossai-client-tab-icon {
-	font-size: 14px;
+	font-size: 13px;
 	line-height: 1;
 }
 

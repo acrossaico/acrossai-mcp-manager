@@ -13,7 +13,9 @@ declare(strict_types=1);
 
 namespace AcrossAI_MCP_Manager\Tests\Admin\ServerTabs;
 
+use AcrossAI_MCP_Manager\Admin\Partials\ServerTabs\ClientsTab;
 use AcrossAI_MCP_Manager\Admin\Partials\ServerTabs\FilteredServerTab;
+use AcrossAI_MCP_Manager\Admin\Partials\ServerTabs\NpmTab;
 use AcrossAI_MCP_Manager\Admin\Partials\ServerTabs\Registry;
 use WP_UnitTestCase;
 
@@ -25,7 +27,7 @@ final class RegistryTest extends WP_UnitTestCase {
 	 *
 	 * @return void
 	 */
-	protected function tear_down(): void {
+	public function tear_down(): void {
 		remove_all_filters( Registry::FILTER_NAME );
 		parent::tear_down();
 	}
@@ -40,26 +42,33 @@ final class RegistryTest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Verifies all_tabs() returns the 11 registered built-in tabs.
+	 * Verifies all_tabs() returns the registered built-in top-level tabs.
 	 *
 	 * Post-F037 added Embeds tab; post-F040 added AIConnectorsPromoTab as a
 	 * built-in placeholder (companion overrides via last-wins dedup when active).
 	 * 0.2.10 removed EmbedsTab from the built-in list (tab hidden). The class
 	 * file is retained; re-enable by re-adding to Registry::all_tabs() +
 	 * uncommenting EmbedsTab::register() in Main::define_public_hooks().
+	 *
+	 * F084 took the list 11 -> 8: `npm`, `clients`, `ai-connectors` and
+	 * `wp-cli` moved one level down into ConnectTab's `?method=` navigation.
+	 * The four classes still exist and are still instantiable — they are now
+	 * seeded by `Connect\MethodRegistry::all_methods()` instead.
+	 *
+	 * The count is DERIVED from `all_tabs()` rather than hardcoded: per bug
+	 * pattern B48, re-hardcoding a literal guarantees this test breaks again at
+	 * the next tab change, with a message that does not point at the cause.
 	 */
 	public function test_slug_ordering_final(): void {
-		$slugs = array_map(
+		$all_tabs = Registry::instance()->all_tabs();
+		$slugs    = array_map(
 			static function ( $tab ) {
 				return $tab->slug();
 			},
-			Registry::instance()->all_tabs()
+			$all_tabs
 		);
 		$this->assertContains( 'overview', $slugs );
-		$this->assertContains( 'npm', $slugs );
-		$this->assertContains( 'clients', $slugs );
-		$this->assertContains( 'ai-connectors', $slugs );
-		$this->assertContains( 'wp-cli', $slugs );
+		$this->assertContains( 'connect', $slugs );
 		$this->assertContains( 'tools', $slugs );
 		$this->assertContains( 'abilities', $slugs );
 		$this->assertContains( 'access-control', $slugs );
@@ -67,7 +76,19 @@ final class RegistryTest extends WP_UnitTestCase {
 		$this->assertContains( 'update-server', $slugs );
 		$this->assertContains( 'danger-zone', $slugs );
 		$this->assertNotContains( 'embeds', $slugs, '0.2.10 hid the Embeds tab from the built-in list.' );
-		$this->assertCount( 11, $slugs );
+
+		// F084 — the five connection slugs are level-2 methods now, never
+		// top-level tabs. This is the assertion that fails if a future change
+		// re-registers one of them at level 1.
+		foreach ( array( 'npm', 'clients', 'ai-connectors', 'n8n', 'wp-cli' ) as $method_slug ) {
+			$this->assertNotContains(
+				$method_slug,
+				$slugs,
+				sprintf( 'F084: "%s" is a Connect method, not a top-level tab.', $method_slug )
+			);
+		}
+
+		$this->assertCount( count( $all_tabs ), $slugs );
 	}
 
 	/**
@@ -130,35 +151,50 @@ final class RegistryTest extends WP_UnitTestCase {
 	 */
 	public function test_render_unknown_slug_falls_back_gracefully(): void {
 		$this->expectNotToPerformAssertions();
-		Registry::instance()->render( 'unknown-slug', array( 'id' => 1 ) );
+		// OverviewTab (the $tabs[0] fallback) reads $server['server_name'];
+		// the fixture must supply it. Pre-existing gap, repaired in F084.
+		Registry::instance()->render( 'unknown-slug', array(
+				'id'                    => 1,
+				'registered_from'       => 'database',
+				'server_name'           => 'Fixture Server',
+				'server_slug'           => 'fixture-server',
+				'server_version'        => 'v1.0.0',
+				'server_route_namespace' => 'acrossai/v1',
+				'server_route'          => 'mcp',
+				'description'           => 'Fixture',
+				'is_enabled'            => 1,
+			) );
 	}
 
 	/**
-	 * Plugin-source servers see 9 tabs (11 total minus UpdateServer + DangerZone).
-	 * Was 10 before 0.2.10 hid the Embeds tab.
+	 * Plugin-source servers see every built-in EXCEPT UpdateServer and
+	 * DangerZone, which are database-source only.
+	 *
+	 * Counts derived from `all_tabs()` rather than hardcoded (B48) — F084 took
+	 * the built-in list 11 -> 8 and this assertion should not need editing
+	 * again at the next tab change.
 	 */
-	public function test_visible_tabs_returns_9_when_plugin_source(): void {
+	public function test_visible_tabs_excludes_db_only_tabs_when_plugin_source(): void {
 		$visible = Registry::instance()->visible_tabs(
 			array(
 				'id'              => 1,
 				'registered_from' => 'plugin',
 			)
 		);
-		$this->assertCount( 9, $visible );
+		$this->assertCount( count( Registry::instance()->all_tabs() ) - 2, $visible );
 	}
 
 	/**
-	 * Database-source servers see 11 tabs (full canonical set).
-	 * Was 12 before 0.2.10 hid the Embeds tab.
+	 * Database-source servers see the full canonical set.
 	 */
-	public function test_visible_tabs_returns_11_when_database_source(): void {
+	public function test_visible_tabs_returns_full_set_when_database_source(): void {
 		$visible = Registry::instance()->visible_tabs(
 			array(
 				'id'              => 2,
 				'registered_from' => 'database',
 			)
 		);
-		$this->assertCount( 11, $visible );
+		$this->assertCount( count( Registry::instance()->all_tabs() ), $visible );
 	}
 
 	// =========================================================================
@@ -192,12 +228,16 @@ final class RegistryTest extends WP_UnitTestCase {
 		Registry::instance()->for_server( $server );
 
 		$this->assertSame( $server, $captured_server, 'Filter must receive the exact $server argument.' );
-		$this->assertSame( 11, $captured_count, 'Filter must be seeded with the 11 built-in entries (Embeds tab hidden as of 0.2.10).' );
+		$this->assertSame(
+			count( Registry::instance()->all_tabs() ),
+			$captured_count,
+			'Filter must be seeded with exactly the built-in entries.'
+		);
 	}
 
 	/**
-	 * With no callback registered, `for_server()` returns the 11 built-ins
-	 * in canonical priority order (priority ASC, insertion-order tiebreak).
+	 * With no callback registered, `for_server()` returns the built-ins in
+	 * canonical priority order (priority ASC, insertion-order tiebreak).
 	 */
 	public function test_for_server_returns_builtins_when_no_callback(): void {
 		$tabs = Registry::instance()->for_server(
@@ -212,10 +252,7 @@ final class RegistryTest extends WP_UnitTestCase {
 		$this->assertSame(
 			array(
 				'overview',       // 10
-				'npm',            // 20
-				'clients',        // 30
-				'ai-connectors',  // 35 — F040 promo placeholder
-				'wp-cli',         // 40
+				'connect',        // 20 — F084 container for the five connection methods
 				'tools',          // 50
 				'abilities',      // 60
 				'access-control', // 70
@@ -324,11 +361,13 @@ final class RegistryTest extends WP_UnitTestCase {
 
 		$this->assertContains( 'notes', $slugs, 'Third-party slug MUST appear in for_server() output.' );
 
-		// Priority 45 slots between WpCliTab (40) and ToolsTab (50).
-		$notes_index = array_search( 'notes', $slugs, true );
-		$wpcli_index = array_search( 'wp-cli', $slugs, true );
-		$tools_index = array_search( 'tools', $slugs, true );
-		$this->assertGreaterThan( $wpcli_index, $notes_index );
+		// Priority 45 slots between ConnectTab (20) and ToolsTab (50).
+		// Pre-F084 the lower neighbour was WpCliTab (40), which is now a
+		// level-2 Connect method rather than a top-level tab.
+		$notes_index   = array_search( 'notes', $slugs, true );
+		$connect_index = array_search( 'connect', $slugs, true );
+		$tools_index   = array_search( 'tools', $slugs, true );
+		$this->assertGreaterThan( $connect_index, $notes_index );
 		$this->assertLessThan( $tools_index, $notes_index );
 
 		ob_start();
@@ -359,14 +398,24 @@ final class RegistryTest extends WP_UnitTestCase {
 			2
 		);
 
+		// OverviewTab is the $tabs[0] fallback rendered below; it reads the full
+		// server row. Pre-existing fixture gap, repaired in F084.
 		$server = array(
-			'id'              => 1,
-			'registered_from' => 'database',
-		);
+				'id'                    => 1,
+				'registered_from'       => 'database',
+				'server_name'           => 'Fixture Server',
+				'server_slug'           => 'fixture-server',
+				'server_version'        => 'v1.0.0',
+				'server_route_namespace' => 'acrossai/v1',
+				'server_route'          => 'mcp',
+				'description'           => 'Fixture',
+				'is_enabled'            => 1,
+			);
 		$slugs  = array_map( static fn ( $t ) => $t->slug(), Registry::instance()->for_server( $server ) );
 
 		$this->assertNotContains( 'mcp-log', $slugs );
-		$this->assertCount( 9, $slugs );
+		// Derived, not hardcoded (B48): one built-in was removed by the filter.
+		$this->assertCount( count( Registry::instance()->all_tabs() ) - 1, $slugs );
 
 		// Unknown-slug render() falls back to the first surviving tab.
 		ob_start();
@@ -410,6 +459,8 @@ final class RegistryTest extends WP_UnitTestCase {
 	 * continues.
 	 */
 	public function test_malformed_entry_dropped_without_fatal(): void {
+		$this->setExpectedIncorrectUsage( Registry::FILTER_NAME );
+
 		add_filter(
 			Registry::FILTER_NAME,
 			static function ( array $tabs ): array {
@@ -433,18 +484,27 @@ final class RegistryTest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * A third-party entry cannot clobber a built-in slug — first-registration
-	 * wins.
+	 * Duplicate slug → the LATER registration wins (D41 / F040 follow-up).
+	 *
+	 * Renamed and inverted in F084. This test previously asserted
+	 * first-registration-wins and had been failing since F040 changed the
+	 * semantics: the built-in placeholder → companion override pattern
+	 * DEPENDS on last-wins, and `Registry`'s own class docblock documents it.
+	 * The code was right; the assertion was stale.
+	 *
+	 * This is the exact mechanism by which acrossai-pro replaces the free
+	 * `AIConnectorsPromoTab` — now one level down, on the Connect method
+	 * registry, through the same shared normalizer.
 	 */
-	public function test_duplicate_slug_first_registration_wins(): void {
+	public function test_duplicate_slug_last_registration_wins(): void {
 		add_filter(
 			Registry::FILTER_NAME,
 			static function ( array $tabs ): array {
 				$tabs[] = array(
 					'slug'            => 'overview',
-					'label'           => 'HIJACKED',
+					'label'           => 'OVERRIDDEN',
 					'render_callback' => static function (): void {
-						echo 'hijacked';
+						echo 'overridden body';
 					},
 				);
 				return $tabs;
@@ -453,7 +513,12 @@ final class RegistryTest extends WP_UnitTestCase {
 			2
 		);
 
-		$tabs = Registry::instance()->for_server( array( 'id' => 1, 'registered_from' => 'database' ) );
+		$tabs = Registry::instance()->for_server(
+			array(
+				'id'              => 1,
+				'registered_from' => 'database',
+			)
+		);
 
 		$overview = null;
 		foreach ( $tabs as $t ) {
@@ -464,8 +529,15 @@ final class RegistryTest extends WP_UnitTestCase {
 		}
 
 		$this->assertNotNull( $overview );
-		$this->assertNotInstanceOf( FilteredServerTab::class, $overview, 'Built-in Overview instance MUST be preserved.' );
-		$this->assertSame( 'Overview', $overview->label(), 'Third-party label MUST NOT clobber built-in label.' );
+		$this->assertInstanceOf(
+			FilteredServerTab::class,
+			$overview,
+			'D41: the later registration REPLACES the built-in instance.'
+		);
+		$this->assertSame( 'OVERRIDDEN', $overview->label() );
+
+		$slugs = array_map( static fn ( $t ) => $t->slug(), $tabs );
+		$this->assertSame( 1, array_count_values( $slugs )['overview'], 'Slug MUST appear exactly once.' );
 	}
 
 	/**
@@ -510,4 +582,89 @@ final class RegistryTest extends WP_UnitTestCase {
 		$this->assertFalse( $fataled, 'A throwing render_callback MUST NOT propagate to Registry::render().' );
 		$this->assertStringContainsString( 'notice-error', $body, 'Inline error notice MUST be rendered.' );
 	}
+
+	/**
+	 * FR-016 / T052 — a third-party tab with a NON-connection slug is unaffected
+	 * by the F084 merge and still appears at the top level.
+	 */
+	public function test_non_connection_third_party_tab_still_renders_top_level(): void {
+		add_filter(
+			Registry::FILTER_NAME,
+			static function ( array $tabs ): array {
+				$tabs[] = array(
+					'slug'            => 'billing',
+					'label'           => 'Billing',
+					'priority'        => 45,
+					'render_callback' => static fn () => print( 'billing body' ),
+				);
+				return $tabs;
+			},
+			10,
+			2
+		);
+
+		$slugs = array_map(
+			static fn ( $t ) => $t->slug(),
+			Registry::instance()->for_server(
+				array(
+					'id'              => 1,
+					'registered_from' => 'database',
+				)
+			)
+		);
+
+		$this->assertContains( 'billing', $slugs, 'FR-016: the tab extension point still serves non-connection slugs.' );
+	}
+
+	/**
+	 * S1 / T030 — the npm and MCP Clients renderers keep their nonce action
+	 * after F084 repointed their `submit_target_url` to the level-2 builder.
+	 *
+	 * Asserted on the renderer CONTEXT rather than on rendered markup: the
+	 * nonce field is emitted further downstream and only on some paths, whereas
+	 * `nonce_action` is the actual binding this feature could have broken. The
+	 * test also pins the positive half — that `submit_target_url` really did
+	 * move to the Connect method URL — so it cannot pass vacuously.
+	 */
+	public function test_moved_forms_keep_nonce_action_while_target_url_moves(): void {
+		$server = array(
+			'id'              => 7,
+			'registered_from' => 'database',
+		);
+
+		$expected_action = 'acrossai_mcp_manager_server_' . (int) $server['id'];
+		$captured        = array();
+
+		add_filter(
+			'acrossai_mcp_client_block_context',
+			static function ( $context ) use ( &$captured ) {
+				$captured[] = (array) $context;
+				return $context;
+			}
+		);
+
+		foreach ( array( ClientsTab::class, NpmTab::class ) as $tab_class ) {
+			ob_start();
+			( new $tab_class() )->render( $server );
+			ob_get_clean();
+		}
+
+		remove_all_filters( 'acrossai_mcp_client_block_context' );
+
+		$this->assertNotEmpty( $captured, 'The renderer context filter MUST fire for both migrated tabs.' );
+
+		foreach ( $captured as $context ) {
+			$this->assertSame(
+				$expected_action,
+				$context['nonce_action'] ?? null,
+				'S1: the nonce action MUST be unchanged by the F084 target-URL repoint.'
+			);
+			$this->assertStringContainsString(
+				'tab=connect',
+				(string) ( $context['submit_target_url'] ?? '' ),
+				'The target URL MUST have moved to the Connect method builder — otherwise this test passes vacuously.'
+			);
+		}
+	}
+
 }

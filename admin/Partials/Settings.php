@@ -8,6 +8,7 @@
 
 namespace AcrossAI_MCP_Manager\Admin\Partials;
 
+use AcrossAI_MCP_Manager\Admin\Partials\ServerTabs\ConnectTab;
 use AcrossAI_MCP_Manager\Includes\Database\MCPServer\DefaultServerSeeder;
 use AcrossAI_MCP_Manager\Includes\Database\MCPServer\Query;
 use AcrossAI_MCP_Manager\Includes\Utilities\AdminPageSlugs;
@@ -38,6 +39,11 @@ class Settings {
 	/** @var string */
 	private $version;
 
+	/**
+	 * Returns the singleton instance of this class.
+	 *
+	 * @return self
+	 */
 	public static function instance(): self {
 		if ( null === self::$_instance ) {
 			self::$_instance = new self();
@@ -45,6 +51,9 @@ class Settings {
 		return self::$_instance;
 	}
 
+	/**
+	 * Private constructor — singleton.
+	 */
 	private function __construct() {
 		$this->plugin_name = ACROSSAI_MCP_MANAGER_PLUGIN_NAME_SLUG;
 		$this->version     = ACROSSAI_MCP_MANAGER_VERSION;
@@ -191,6 +200,9 @@ class Settings {
 	/**
 	 * Toggle a server row's enabled state. Two-step per research.md R1:
 	 * read current value, flip, update.
+	 *
+	 * @param int $server_id Server row ID to toggle.
+	 * @return void
 	 */
 	private function toggle_server_status( int $server_id ): void {
 		$query = Query::instance();
@@ -223,6 +235,11 @@ class Settings {
 		return $bulk && $has_ids;
 	}
 
+	/**
+	 * True when the current request is a POST.
+	 *
+	 * @return bool
+	 */
 	private function is_post_request(): bool {
 		return isset( $_SERVER['REQUEST_METHOD'] )
 			&& 'POST' === strtoupper( sanitize_text_field( wp_unslash( $_SERVER['REQUEST_METHOD'] ) ) );
@@ -266,9 +283,9 @@ class Settings {
 	 * whitelist defence against B7 mass-assignment via forged POST keys.
 	 */
 	private function handle_create_server(): void {
-		// phpcs:disable WordPress.Security.NonceVerification.Recommended
+		// phpcs:disable WordPress.Security.NonceVerification.Recommended, WordPress.Security.NonceVerification.Missing -- Nonce verified by the caller: handle_actions() runs check_admin_referer( 'acrossai_mcp_create_server' ) immediately before dispatching here, behind a current_user_can( 'manage_options' ) gate. Every key is sanitized by MCPServerFieldSanitizer's hard-coded whitelist (B7 mass-assignment defence).
 		$sanitized = MCPServerFieldSanitizer::sanitize_from_post( $_POST );
-		// phpcs:enable WordPress.Security.NonceVerification.Recommended
+		// phpcs:enable WordPress.Security.NonceVerification.Recommended, WordPress.Security.NonceVerification.Missing
 
 		$name        = $sanitized['server_name'];
 		$description = $sanitized['description'];
@@ -334,6 +351,12 @@ class Settings {
 		exit;
 	}
 
+	/**
+	 * Redirect to the server list, optionally carrying a notice code.
+	 *
+	 * @param string $notice Optional notice slug appended as a query arg.
+	 * @return void
+	 */
 	private function redirect_to_list( string $notice ): void {
 		wp_safe_redirect(
 			esc_url_raw(
@@ -349,6 +372,12 @@ class Settings {
 		exit;
 	}
 
+	/**
+	 * Redirect to the create-server screen, optionally carrying a notice code.
+	 *
+	 * @param string $notice Optional notice slug appended as a query arg.
+	 * @return void
+	 */
 	private function redirect_to_create( string $notice ): void {
 		wp_safe_redirect(
 			esc_url_raw(
@@ -365,6 +394,14 @@ class Settings {
 		exit;
 	}
 
+	/**
+	 * Redirect back to a server's edit screen, optionally carrying a notice code.
+	 *
+	 * @param int    $server_id Server row ID to return to.
+	 * @param string $tab       Tab slug to reopen on arrival.
+	 * @param string $notice    Optional notice slug appended as a query arg.
+	 * @return void
+	 */
 	private function redirect_to_edit( int $server_id, string $tab, string $notice ): void {
 		wp_safe_redirect(
 			esc_url_raw(
@@ -385,6 +422,9 @@ class Settings {
 
 	/**
 	 * General-tab save handler. FR-009 / FR-013. Caller verified nonce + cap.
+	 *
+	 * @param int $server_id Server row ID being updated.
+	 * @return void
 	 */
 	private function handle_update_server( int $server_id ): void {
 		$query = Query::instance();
@@ -398,7 +438,7 @@ class Settings {
 			$this->redirect_to_list( 'server_not_found' );
 		}
 
-		// phpcs:disable WordPress.Security.NonceVerification.Recommended
+		// phpcs:disable WordPress.Security.NonceVerification.Recommended, WordPress.Security.NonceVerification.Missing -- Nonce verified by the caller: handle_actions() runs check_admin_referer( 'acrossai_mcp_update_' . $server_id ) immediately before dispatching here, behind a current_user_can( 'manage_options' ) gate. Every value below is sanitized on read.
 		$data = array(
 			'server_name'            => isset( $_POST['server_name'] ) ? sanitize_text_field( wp_unslash( $_POST['server_name'] ) ) : '',
 			'description'            => isset( $_POST['description'] ) ? sanitize_textarea_field( wp_unslash( $_POST['description'] ) ) : '',
@@ -406,7 +446,7 @@ class Settings {
 			'server_route'           => isset( $_POST['server_route'] ) ? sanitize_text_field( wp_unslash( $_POST['server_route'] ) ) : '',
 			'server_version'         => isset( $_POST['server_version'] ) ? sanitize_text_field( wp_unslash( $_POST['server_version'] ) ) : 'v1.0.0',
 		);
-		// phpcs:enable WordPress.Security.NonceVerification.Recommended
+		// phpcs:enable WordPress.Security.NonceVerification.Recommended, WordPress.Security.NonceVerification.Missing
 
 		if ( '' === $data['server_name'] ) {
 			$this->redirect_to_edit( $server_id, 'update-server', 'empty_name' );
@@ -554,6 +594,11 @@ class Settings {
 		$this->render_servers_table();
 	}
 
+	/**
+	 * Renders the WP_List_Table of MCP server rows.
+	 *
+	 * @return void
+	 */
 	private function render_servers_table(): void {
 		$table = new MCPServerListTable();
 		$table->prepare_items();
@@ -571,9 +616,9 @@ class Settings {
 		$quick_connect_url = esc_url(
 			add_query_arg(
 				array(
-					'page'        => AdminPageSlugs::PARENT,
+					'page'          => AdminPageSlugs::PARENT,
 					'quick-connect' => '1',
-					'step'        => '1',
+					'step'          => '1',
 				),
 				admin_url( 'admin.php' )
 			)
@@ -660,10 +705,24 @@ class Settings {
 		// phpcs:enable WordPress.Security.NonceVerification.Recommended
 
 		// Feature 013 — legacy tab slug back-compat (pre-F013 bookmarks/links).
+		// Feature 084 — the five connection tabs merged into ConnectTab; their
+		// old slugs now resolve to it. Which METHOD opens is decided by
+		// ConnectTab::resolve_active_method(), which reads the PRE-REWRITE
+		// ?tab= value against the same ConnectTab::LEGACY_TAB_METHODS constant.
+		// One constant, two readers, no duplication.
+		//
+		// Rewritten IN PLACE, never via a redirect: admin_enqueue_scripts has
+		// already fired by the time this runs, and the acrossai-pro companion
+		// gates its assets on the address the browser actually requested.
+		// Redirecting would rewrite the address before those gates saw it and
+		// leave its panels unstyled with inert buttons (FR-009).
 		$legacy_slug_map = array(
 			'general'        => 'overview',
 			'access_control' => 'access-control',
 		);
+		foreach ( array_keys( ConnectTab::LEGACY_TAB_METHODS ) as $legacy_connection_slug ) {
+			$legacy_slug_map[ $legacy_connection_slug ] = 'connect';
+		}
 		if ( isset( $legacy_slug_map[ $tab ] ) ) {
 			$tab = $legacy_slug_map[ $tab ];
 		}

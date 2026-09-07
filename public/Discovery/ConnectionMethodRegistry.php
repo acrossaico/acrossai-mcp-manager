@@ -11,6 +11,16 @@
  * and F021 (`ConnectorProfileRegistry::get_profiles`). NEVER re-fires either
  * underlying filter — the enforcement gate is spec.md SC-005 grep gate.
  *
+ * ## Not to be confused with `Admin\Partials\ServerTabs\Connect\MethodRegistry`
+ *
+ * Feature 084 added a similarly-named class one layer away:
+ * `AcrossAI_MCP_Manager\Admin\Partials\ServerTabs\Connect\MethodRegistry`
+ * enumerates the per-server Edit screen's level-2 *navigation* methods. THIS
+ * class is the public discovery DTO producer and is deliberately untouched by
+ * F084 (spec FR-020 / SC-008) — its category keys and DTO shape are a
+ * different vocabulary that merely looks similar. Neither class should be
+ * grepped in mistake for the other.
+ *
  * ## Consumer Security Responsibility
  *
  * DTO string fields (`name`, `description`, `icon`, `meta.*`) are contributed

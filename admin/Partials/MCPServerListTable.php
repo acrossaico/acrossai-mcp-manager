@@ -8,6 +8,7 @@
 
 namespace AcrossAI_MCP_Manager\Admin\Partials;
 
+use AcrossAI_MCP_Manager\Admin\Partials\ServerTabs\ConnectTab;
 use AcrossAI_MCP_Manager\Includes\Database\MCPServer\Query;
 use AcrossAI_MCP_Manager\Includes\Utilities\AdminPageSlugs;
 
@@ -28,6 +29,9 @@ if ( ! class_exists( 'WP_List_Table' ) ) {
  */
 class MCPServerListTable extends \WP_List_Table {
 
+	/**
+	 * Configures the list table's singular/plural labels.
+	 */
 	public function __construct() {
 		parent::__construct(
 			array(
@@ -120,6 +124,10 @@ class MCPServerListTable extends \WP_List_Table {
 	/**
 	 * Fallback column renderer for the merged `route` column
 	 * (`<namespace>/<route>`, with duplicate slashes at the join collapsed).
+	 *
+	 * @param array<string, mixed> $item        Server row data.
+	 * @param string               $column_name Column being rendered.
+	 * @return string
 	 */
 	public function column_default( $item, $column_name ): string {
 		switch ( $column_name ) {
@@ -273,10 +281,15 @@ class MCPServerListTable extends \WP_List_Table {
 			);
 		}
 
+		// F084 — 'Connectors' and 'MCP Clients' are no longer top-level tabs;
+		// they are level-2 methods inside the Connect tab. `is_method` selects
+		// the level-2 URL builder below. The other three shortcuts are
+		// unchanged: same five pills, same labels, same icons, same order.
 		$quick_links = array(
 			'ai-connectors'  => array(
-				'label' => __( 'Connectors', 'acrossai-mcp-manager' ),
-				'icon'  => 'admin-plugins',
+				'label'     => __( 'Connectors', 'acrossai-mcp-manager' ),
+				'icon'      => 'admin-plugins',
+				'is_method' => true,
 			),
 			'access-control' => array(
 				'label' => __( 'Access Control', 'acrossai-mcp-manager' ),
@@ -287,22 +300,29 @@ class MCPServerListTable extends \WP_List_Table {
 				'icon'  => 'superhero-alt',
 			),
 			'clients'        => array(
-				'label' => __( 'MCP Clients', 'acrossai-mcp-manager' ),
-				'icon'  => 'admin-users',
+				'label'     => __( 'MCP Clients', 'acrossai-mcp-manager' ),
+				'icon'      => 'admin-users',
+				'is_method' => true,
 			),
 		);
 
 		$links_html = '';
 		foreach ( $quick_links as $tab_slug => $meta ) {
-			$tab_url     = add_query_arg(
-				array(
-					'page'   => AdminPageSlugs::PARENT,
-					'action' => 'edit',
-					'server' => (int) $item['id'],
-					'tab'    => $tab_slug,
-				),
-				admin_url( 'admin.php' )
-			);
+			// F084 — `method_url()` returns a RAW url by contract; it is
+			// esc_url()'d at the output site immediately below, same as the
+			// top-level branch. See the output-site inventory in
+			// specs/084-connect-tab-merge/contracts/connect-method-registration.md.
+			$tab_url     = empty( $meta['is_method'] )
+				? add_query_arg(
+					array(
+						'page'   => AdminPageSlugs::PARENT,
+						'action' => 'edit',
+						'server' => (int) $item['id'],
+						'tab'    => $tab_slug,
+					),
+					admin_url( 'admin.php' )
+				)
+				: ConnectTab::method_url( $item, $tab_slug );
 			$links_html .= sprintf(
 				'<a href="%s" class="acrossai-quicklink"><span class="dashicons dashicons-%s" aria-hidden="true"></span><span class="acrossai-quicklink-label">%s</span></a>',
 				esc_url( $tab_url ),
@@ -316,14 +336,14 @@ class MCPServerListTable extends \WP_List_Table {
 		// deep-linked so Step 1 opens with this row preselected.
 		$quick_connect_url = add_query_arg(
 			array(
-				'page'        => AdminPageSlugs::PARENT,
+				'page'          => AdminPageSlugs::PARENT,
 				'quick-connect' => '1',
-				'step'        => '1',
-				'server'      => (int) $item['id'],
+				'step'          => '1',
+				'server'        => (int) $item['id'],
 			),
 			admin_url( 'admin.php' )
 		);
-		$links_html     .= sprintf(
+		$links_html       .= sprintf(
 			'<a href="%s" class="acrossai-quicklink"><span class="dashicons dashicons-admin-tools" aria-hidden="true"></span><span class="acrossai-quicklink-label">%s</span></a>',
 			esc_url( $quick_connect_url ),
 			esc_html__( 'Quick Connect via AcrossAI', 'acrossai-mcp-manager' )

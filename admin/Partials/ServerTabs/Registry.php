@@ -48,6 +48,8 @@
 
 namespace AcrossAI_MCP_Manager\Admin\Partials\ServerTabs;
 
+use AcrossAI_MCP_Manager\Includes\Utilities\RegistryEntryNormalizer;
+
 // Exit if accessed directly.
 defined( 'ABSPATH' ) || exit;
 
@@ -108,14 +110,19 @@ final class Registry {
 	 * Callers who want the effective (filter-applied) list MUST use
 	 * `for_server()` or `visible_tabs()`.
 	 *
-	 * Post-0.2.10 the built-in tab count is 11 (was 12 pre-0.2.10 before the
-	 * F037 Embeds tab was hidden). The `AIConnectorsPromoTab` entry at
-	 * priority 35 is a PLACEHOLDER — when the acrossai-pro companion
-	 * plugin is active, it registers its real `AIConnectorsTab` via the
-	 * `acrossai_mcp_manager_server_tabs` filter (also priority 35), and
-	 * Registry's last-wins dedup (F040 follow-up) replaces the placeholder
-	 * with the real tab automatically. When the companion is missing/inactive,
-	 * the placeholder renders a promo card pointing at the add-on.
+	 * Post-0.4.0 (Feature 084) the built-in tab count is 8. It was 11 from
+	 * 0.2.10, when the F037 Embeds tab was hidden; F084 then folded `npm`,
+	 * `clients`, `ai-connectors` and `wp-cli` into the single `ConnectTab`
+	 * at priority 20, where they became level-2 `?method=` choices.
+	 *
+	 * The placeholder-override pattern moved down with them: the
+	 * `AIConnectorsPromoTab` entry now seeds
+	 * `Connect\MethodRegistry::all_methods()` at method priority 10, and when
+	 * the acrossai-pro companion is active it registers its real
+	 * `AIConnectorsTab` on `acrossai_mcp_manager_connect_methods` at the same
+	 * priority, where last-wins dedup (F040 follow-up, D41) replaces the
+	 * placeholder. When the companion is missing or inactive, the placeholder
+	 * still renders its promo card pointing at the add-on.
 	 *
 	 * @since 0.0.6
 	 * @return AbstractServerTab[]
@@ -123,11 +130,12 @@ final class Registry {
 	public function all_tabs(): array {
 		return array(
 			new OverviewTab(),
-			new NpmTab(),
-			new ClientsTab(),
-			// F040 placeholder — companion overrides via last-wins dedup when active.
-			new AIConnectorsPromoTab(),
-			new WpCliTab(),
+			// F084 — NpmTab, ClientsTab, AIConnectorsPromoTab and WpCliTab moved
+			// one level down into ConnectTab's `?method=` navigation. The four
+			// classes are unchanged and still instantiable; only their
+			// membership here and their priority() slot changed (D48). They are
+			// now seeded by `Connect\MethodRegistry::all_methods()`.
+			new ConnectTab(),
 			new ToolsTab(),
 			new AbilitiesTab(),
 			new AccessControlTab(),
@@ -262,17 +270,12 @@ final class Registry {
 	/**
 	 * Normalizes + dedups the filter's raw output.
 	 *
-	 * Mirrors vendor `\AcrossAI_Main_Menu\Tabs::get_tabs()`
-	 * (`vendor/acrossai-co/main-menu/src/Tabs.php` in 0.0.14; was
-	 * `TabbedPageRenderer::resolve_tabs()` in 0.0.13):
-	 * - `sanitize_key()` on slug — dropped when empty.
-	 * - Missing `label` OR missing/non-callable `render_callback` on a
-	 *   non-built-in entry → dropped with `_doing_it_wrong` under `WP_DEBUG`.
-	 * - Duplicate slug → first-registration wins; the duplicate is dropped
-	 *   with `_doing_it_wrong` under `WP_DEBUG`.
-	 * - `priority` coerced to int (default 100).
-	 * - `capability` sanitized via `sanitize_key()`; empty → `'manage_options'`.
-	 * - `visible_callback` must be callable or null; anything else → null.
+	 * Feature 084 — the implementation moved to
+	 * `Includes\Utilities\RegistryEntryNormalizer::normalize()` so the level-2
+	 * Connect method registry validates entries with identical semantics
+	 * (constitution §VI). Behaviour is unchanged; see that class for the full
+	 * rule list. Duplicate slugs resolve LAST-wins (D41), which is what lets a
+	 * companion plugin override a built-in placeholder tab.
 	 *
 	 * @since 0.0.7
 	 * @param array<int, mixed> $raw Filter output.
@@ -282,65 +285,7 @@ final class Registry {
 	 *         so priority-tiebreak sorts remain stable.
 	 */
 	private function normalize_entries( array $raw ): array {
-		$normalized = array();
-		$index      = 0;
-
-		foreach ( $raw as $entry ) {
-			if ( ! is_array( $entry ) ) {
-				continue;
-			}
-
-			$is_builtin = ! empty( $entry['_builtin'] );
-
-			$slug = isset( $entry['slug'] ) ? sanitize_key( (string) $entry['slug'] ) : '';
-			if ( '' === $slug ) {
-				if ( ! $is_builtin ) {
-					$this->doing_it_wrong( 'entry missing slug' );
-				}
-				continue;
-			}
-
-			$label = isset( $entry['label'] ) ? (string) $entry['label'] : '';
-			if ( '' === $label && ! $is_builtin ) {
-				$this->doing_it_wrong( sprintf( 'entry "%s" missing label', $slug ) );
-				continue;
-			}
-
-			$render_callback = $entry['render_callback'] ?? null;
-			if ( ! $is_builtin && ! is_callable( $render_callback ) ) {
-				$this->doing_it_wrong( sprintf( 'entry "%s" missing callable render_callback', $slug ) );
-				continue;
-			}
-
-			$capability = isset( $entry['capability'] ) ? sanitize_key( (string) $entry['capability'] ) : 'manage_options';
-			if ( '' === $capability ) {
-				$capability = 'manage_options';
-			}
-
-			$visible_callback = $entry['visible_callback'] ?? null;
-			if ( null !== $visible_callback && ! is_callable( $visible_callback ) ) {
-				$visible_callback = null;
-			}
-
-			// F040: keyed by slug so later registrations REPLACE earlier ones
-			// with the same slug (last-wins). This enables built-in placeholder
-			// tabs to be overridden by companion-plugin filter contributions
-			// without special-cased coexistence logic. See class-level docblock.
-			$normalized[ $slug ] = array(
-				'slug'             => $slug,
-				'label'            => $label,
-				'priority'         => isset( $entry['priority'] ) ? (int) $entry['priority'] : 100,
-				'capability'       => $capability,
-				'render_callback'  => $render_callback,
-				'visible_callback' => $visible_callback,
-				'_builtin'         => $is_builtin,
-				'_index'           => $index++,
-			);
-		}
-
-		// Convert back to a numeric array — downstream sort + iteration
-		// expects zero-indexed sequential entries, not slug-keyed.
-		return array_values( $normalized );
+		return RegistryEntryNormalizer::normalize( $raw, self::FILTER_NAME, '0.0.7' );
 	}
 
 	/**
@@ -349,6 +294,11 @@ final class Registry {
 	 * Built-in entries (`_builtin === true`) map to the concrete class
 	 * instance from `all_tabs()` by slug. Third-party entries are wrapped
 	 * in a `FilteredServerTab` adapter.
+	 *
+	 * Feature 084 — the loop moved to `FilteredServerTab::hydrate_entries()`,
+	 * shared with the Connect method registry. It stays in the admin layer
+	 * rather than joining the normalizer in `includes/` because it touches
+	 * admin-layer types (A3).
 	 *
 	 * @since 0.0.7
 	 * @param array<int, array<string, mixed>> $entries Normalized entries.
@@ -360,37 +310,6 @@ final class Registry {
 			$builtin_map[ $tab->slug() ] = $tab;
 		}
 
-		$out = array();
-		foreach ( $entries as $entry ) {
-			if ( ! empty( $entry['_builtin'] ) && isset( $builtin_map[ $entry['slug'] ] ) ) {
-				$out[] = $builtin_map[ $entry['slug'] ];
-				continue;
-			}
-			$out[] = new FilteredServerTab( $entry );
-		}
-		return $out;
-	}
-
-	/**
-	 * `_doing_it_wrong()` wrapper for malformed filter entries.
-	 *
-	 * Only fires under `WP_DEBUG` to match vendor `TabbedPageRenderer`'s
-	 * signal-in-development-only pattern. In production, malformed entries
-	 * are silently dropped — the site does not surface `_doing_it_wrong`
-	 * notices to end users.
-	 *
-	 * @since 0.0.7
-	 * @param string $reason Human-readable description of the malformation.
-	 * @return void
-	 */
-	private function doing_it_wrong( string $reason ): void {
-		if ( ! ( defined( 'WP_DEBUG' ) && WP_DEBUG ) ) {
-			return;
-		}
-		_doing_it_wrong(
-			esc_html( self::FILTER_NAME ),
-			esc_html( $reason ),
-			'0.0.7'
-		);
+		return FilteredServerTab::hydrate_entries( $entries, $builtin_map );
 	}
 }

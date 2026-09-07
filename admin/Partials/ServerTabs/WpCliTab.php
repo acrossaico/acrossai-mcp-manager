@@ -53,7 +53,7 @@ final class WpCliTab extends AbstractServerTab {
 	 * @return int
 	 */
 	public function priority(): int {
-		return 40;
+		return 50;
 	}
 
 	/**
