@@ -98,7 +98,7 @@ final class AIConnectorsPromoTab extends AbstractServerTab {
 	 * @return string
 	 */
 	public function label(): string {
-		return __( 'Connectors/Integrations/plugins', 'acrossai-mcp-manager' );
+		return __( 'Connectors/Integrations/Plugins', 'acrossai-mcp-manager' );
 	}
 
 	/**
