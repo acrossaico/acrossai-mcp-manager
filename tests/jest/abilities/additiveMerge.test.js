@@ -26,7 +26,7 @@ const BUILTIN_ACTIONS = [
 function additiveReduce( builtins, extras ) {
 	const builtinIds = new Set( builtins.map( ( x ) => x.id ) );
 	const additions = ( Array.isArray( extras ) ? extras : [] ).filter(
-		( x ) => x && ! builtinIds.has( x.id )
+		( x ) => x && ! builtinIds.has( x.id ),
 	);
 	return [ ...builtins, ...additions ];
 }

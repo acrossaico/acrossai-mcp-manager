@@ -36,7 +36,9 @@ function parsePolicy( yaml ) {
 			section = 'requires_permission';
 		} else if ( section && /^\s+-\s+/.test( line ) ) {
 			const value = line.replace( /^\s+-\s+/, '' ).replace( /^["']|["']$/g, '' ).trim();
-			if ( value ) result[ section ].push( value );
+			if ( value ) {
+				result[ section ].push( value );
+			}
 		}
 	}
 	return result;
@@ -92,14 +94,14 @@ function generateIgnoreFile( title, { hard_ignore, requires_permission } ) {
 function syncAiignore( policy ) {
 	write(
 		'.aiignore',
-		generateIgnoreFile( '.aiignore — JetBrains AI Assistant access policy', policy )
+		generateIgnoreFile( '.aiignore — JetBrains AI Assistant access policy', policy ),
 	);
 }
 
 function syncClaudeignore( policy ) {
 	write(
 		'.claudeignore',
-		generateIgnoreFile( '.claudeignore — Claude Code access policy', policy )
+		generateIgnoreFile( '.claudeignore — Claude Code access policy', policy ),
 	);
 }
 
@@ -110,8 +112,12 @@ function syncClaudeSettings( { hard_ignore } ) {
 	settings.permissions = settings.permissions || {};
 	settings.permissions.deny = hard_ignore.map( ( p ) => {
 		// Paths ending with / or containing no wildcard get /** appended.
-		if ( p.endsWith( '/' ) ) return `Read(${ p }**)`;
-		if ( p.includes( '*' ) ) return `Read(${ p })`;
+		if ( p.endsWith( '/' ) ) {
+			return `Read(${ p }**)`;
+		}
+		if ( p.includes( '*' ) ) {
+			return `Read(${ p })`;
+		}
 		return `Read(${ p })`;
 	} );
 

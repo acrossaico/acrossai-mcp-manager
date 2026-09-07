@@ -2647,3 +2647,33 @@ const walkthroughHtml = activeConnector
 **Related**
 - D43 / DEC-CROSS-SURFACE-PARITY-UNIFY-AT-DATA-LAYER — D43 governs the DTO producer's discipline within a single plugin; this DEC governs the CONSUMER's discipline across a plugin boundary.
 - D48 / DEC-RETIRE-UI-USAGE-KEEP-EXTENSION-SURFACE — D48 keeps the DTO field alive when the plugin's own UI changes; this DEC ensures external consumers survive when the DTO SHAPE changes within the same field's placement.
+
+---
+
+### DEC-POLICY-TRANSITION-SINGLE-WRITER-SERVICE — State transitions that fire audit actions have exactly ONE writer; every surface delegates to it
+
+**Status**
+Active (Feature 082)
+
+**Context**
+F082's server-level ability-policy transition (FR-015 no-op guard → pre-change exposure snapshot → policy write → override-row clear → resolver-cache reset → was/now diff → `acrossai_mcp_server_policy_changed` fire) initially shipped twice: once in `AbilitiesController::post_policy()` (REST) and once in `QuickConnectController::apply_step_5()` (wizard Enable-all). Within one day the duplication drifted the artifacts — tasks.md's T059 "exactly ONE `do_action` fire site" grep audit went false, and the two copies already differed cosmetically (inline `$wpdb->delete` vs `delete_items_for_server()`).
+
+**Decision**
+Any state transition that fires an audit/observability action MUST have exactly one writer — an A11 pure-service owning the full sequence including the action fire. Callers (REST handlers, wizard steps, future WP-CLI) are thin delegators that authorise, delegate, and shape their own responses. Reference impl: `includes/Database/MCPServer/PolicyTransition.php::apply( int $server_id, string $new_policy ): array{changed, old_policy, affected_slugs}` — the plugin's single `acrossai_mcp_server_policy_changed` fire site. Extends `DEC-ABILITY-OVERRIDE-RESOLUTION`'s single-resolver rule from the READ side to the WRITE side.
+
+Companion naming rule from the same review: name methods for their real callers, not their first caller. `ExposureResolver::reset_request_cache()` is the production cache-reset API; `_reset_cache_for_tests()` survives only as a pinned delegating test alias (F017 test contract). A "test-only" name that production code depends on is a contract lie that PHPCS suppressions then have to paper over.
+
+**How to apply**
+- New transition surfaces (WP-CLI command, bulk admin action) call `PolicyTransition::apply()` — never re-implement any part of the sequence.
+- A "single fire site" grep audit is only enforceable when the transition has a single owner; write the audit against the service file, not a controller.
+- When a second caller of an audited transition appears, extract the service THEN, not later — the F082 duplication drifted within one day.
+
+**Trade-offs**
+- Gained: un-driftable audit semantics (FR-015 suppression + FR-011 payload shape identical everywhere), one test surface, true single-fire-site grep gate.
+- Made harder: the service returns a result array the caller must shape into its own response — one small mapping per caller.
+- Reconsider: never for audited transitions. Un-audited trivial writes may stay inline.
+
+**Related**
+- DEC-ABILITY-OVERRIDE-RESOLUTION (F017) — READ-side single resolver; this is its WRITE-side sibling.
+- D23 / sibling-composer-extension — the service is a class-level sibling, not a flag-overload.
+- D12 — gates re-audited after the extraction (56/56 F082 tests green post-refactor).

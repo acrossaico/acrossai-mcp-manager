@@ -8,26 +8,27 @@
  * The Save changes / Cancel bar has been retired at operator request —
  * "once I add it, it's saved."
  *
- * Uses only `@wordpress/*` Tier 1 packages — no react-query, redux, mobx,
- * @tanstack, react-table, @mui, or styled-components. Enforced by grep
- * gate T053.
+ * Uses only `@wordpress/*` Tier 1 packages — no react-query, redux,
+ * mobx, `@tanstack`, react-table, `@mui`, or styled-components. Enforced
+ * by grep gate T053.
  *
- * @package acrossai-mcp-manager
+ * @package
  */
 
 import {
 	createElement,
+	createRoot,
 	Fragment,
 	useState,
 	useEffect,
 	useMemo,
 } from '@wordpress/element';
-import { createRoot } from '@wordpress/element';
 import {
 	Button,
 	SearchControl,
 	Spinner,
 	Notice,
+	// eslint-disable-next-line @wordpress/no-unsafe-wp-apis -- ConfirmDialog has no stable equivalent yet; pre-existing F020 usage.
 	__experimentalConfirmDialog as ConfirmDialog,
 } from '@wordpress/components';
 import apiFetch from '@wordpress/api-fetch';
@@ -65,23 +66,32 @@ const PROTOCOL_TOOL_SLUGS = [
 const BUILTIN_ABILITIES = [
 	{
 		name: 'mcp-adapter/discover-abilities',
-		labelKey: 'Discover Abilities',
-		descriptionKey:
-			'Lists all publicly available WordPress abilities registered on this site. AI clients use this to discover what actions the server can perform.',
+		getLabel: () => __( 'Discover Abilities', 'acrossai-mcp-manager' ),
+		getDescription: () =>
+			__(
+				'Lists all publicly available WordPress abilities registered on this site. AI clients use this to discover what actions the server can perform.',
+				'acrossai-mcp-manager',
+			),
 		type: 'Built-in',
 	},
 	{
 		name: 'mcp-adapter/get-ability-info',
-		labelKey: 'Get Ability Info',
-		descriptionKey:
-			'Returns detailed information about a specific ability, including its input/output schema and description. Used by AI clients before executing an ability.',
+		getLabel: () => __( 'Get Ability Info', 'acrossai-mcp-manager' ),
+		getDescription: () =>
+			__(
+				'Returns detailed information about a specific ability, including its input/output schema and description. Used by AI clients before executing an ability.',
+				'acrossai-mcp-manager',
+			),
 		type: 'Built-in',
 	},
 	{
 		name: 'mcp-adapter/execute-ability',
-		labelKey: 'Execute Ability',
-		descriptionKey:
-			'Executes a WordPress ability with the provided input parameters and returns the result. This is the primary tool used by AI clients to interact with WordPress.',
+		getLabel: () => __( 'Execute Ability', 'acrossai-mcp-manager' ),
+		getDescription: () =>
+			__(
+				'Executes a WordPress ability with the provided input parameters and returns the result. This is the primary tool used by AI clients to interact with WordPress.',
+				'acrossai-mcp-manager',
+			),
 		type: 'Built-in',
 	},
 ];
@@ -115,31 +125,30 @@ export function safeApplyFilters( hookName, defaultValue, ...args ) {
 		// eslint-disable-next-line no-console
 		console.error(
 			`[acrossaiMcpTools] Filter "${ hookName }" callback threw:`,
-			e
+			e,
 		);
 		return defaultValue;
 	}
 }
 
-
 /**
  * Render a single ability row.
  *
- * @param {object}      props
- * @param {object}      props.ability     Ability metadata.
- * @param {string}      props.side        'available' | 'added' | 'builtin' — controls
- *                                        badge, background, and action-button behavior.
- * @param {?function}   props.onAction    Add/Remove handler (omit for `builtin`).
- * @param {?string}     props.actionLabel Button label (omit for `builtin`).
- * @param {?boolean}    props.busy        When true, the action button is disabled
- *                                        to prevent double-clicks during a POST.
+ * @param {Object}    props
+ * @param {Object}    props.ability     Ability metadata.
+ * @param {string}    props.side        'available' | 'added' | 'builtin' — controls
+ *                                      badge, background, and action-button behavior.
+ * @param {?Function} props.onAction    Add/Remove handler (omit for `builtin`).
+ * @param {?string}   props.actionLabel Button label (omit for `builtin`).
+ * @param {?boolean}  props.busy        When true, the action button is disabled
+ *                                      to prevent double-clicks during a POST.
  */
 function AbilityRow( { ability, side, onAction, actionLabel, busy } ) {
 	const decoration = safeApplyFilters(
 		'acrossaiMcpManager.tools.row',
 		{},
 		ability,
-		{ side }
+		{ side },
 	);
 	// F025: protocol tools are first-class entries in either pane; they no
 	// longer occupy their own "locked" side. Detect by slug so the visual
@@ -156,11 +165,12 @@ function AbilityRow( { ability, side, onAction, actionLabel, busy } ) {
 	// F025: protocol rows keep the recommended-defaults tint in both panes.
 	// Non-protocol added rows keep the F020 subtle blue; non-protocol available
 	// rows keep the neutral white.
-	const rowBg = isProtocolTool
-		? '#fef7e0'
-		: side === 'added'
-		? '#f9fcff'
-		: '';
+	let rowBg = '';
+	if ( isProtocolTool ) {
+		rowBg = '#fef7e0';
+	} else if ( side === 'added' ) {
+		rowBg = '#f9fcff';
+	}
 	const displayType = isProtocolTool ? 'Built-in' : ability.type;
 
 	return createElement(
@@ -178,25 +188,25 @@ function AbilityRow( { ability, side, onAction, actionLabel, busy } ) {
 		},
 		showCheckmark
 			? createElement(
-					'span',
-					{
-						style: {
-							flex: 'none',
-							width: '22px',
-							height: '22px',
-							borderRadius: '50%',
-							background: isProtocolTool ? '#fdefb2' : '#e6f6ec',
-							color: isProtocolTool ? '#8a6d00' : '#0a6b3d',
-							display: 'flex',
-							alignItems: 'center',
-							justifyContent: 'center',
-							fontSize: '13px',
-							fontWeight: 700,
-							marginTop: '1px',
-						},
+				'span',
+				{
+					style: {
+						flex: 'none',
+						width: '22px',
+						height: '22px',
+						borderRadius: '50%',
+						background: isProtocolTool ? '#fdefb2' : '#e6f6ec',
+						color: isProtocolTool ? '#8a6d00' : '#0a6b3d',
+						display: 'flex',
+						alignItems: 'center',
+						justifyContent: 'center',
+						fontSize: '13px',
+						fontWeight: 700,
+						marginTop: '1px',
 					},
-					'✓'
-			  )
+				},
+				'✓',
+			)
 			: null,
 		decoration.prepend || null,
 		createElement(
@@ -221,25 +231,25 @@ function AbilityRow( { ability, side, onAction, actionLabel, busy } ) {
 							color: '#1d2327',
 						},
 					},
-					ability.label || ability.name
+					ability.label || ability.name,
 				),
 				displayType
 					? createElement(
-							'span',
-							{
-								style: {
-									display: 'inline-block',
-									fontSize: '11.5px',
-									fontWeight: 600,
-									borderRadius: '3px',
-									padding: '2px 8px',
-									background: typeStyle.bg,
-									color: typeStyle.fg,
-								},
+						'span',
+						{
+							style: {
+								display: 'inline-block',
+								fontSize: '11.5px',
+								fontWeight: 600,
+								borderRadius: '3px',
+								padding: '2px 8px',
+								background: typeStyle.bg,
+								color: typeStyle.fg,
 							},
-							displayType
-					  )
-					: null
+						},
+						displayType,
+					)
+					: null,
 			),
 			createElement(
 				'div',
@@ -256,24 +266,24 @@ function AbilityRow( { ability, side, onAction, actionLabel, busy } ) {
 							wordBreak: 'break-all',
 						},
 					},
-					ability.name
-				)
+					ability.name,
+				),
 			),
 			ability.description
 				? createElement(
-						'div',
-						{
-							style: {
-								fontSize: '12.5px',
-								color: '#646970',
-								lineHeight: 1.55,
-								marginTop: '7px',
-							},
+					'div',
+					{
+						style: {
+							fontSize: '12.5px',
+							color: '#646970',
+							lineHeight: 1.55,
+							marginTop: '7px',
 						},
-						ability.description
-				  )
+					},
+					ability.description,
+				)
 				: null,
-			decoration.append || null
+			decoration.append || null,
 		),
 		createElement( Button, {
 			variant: side === 'added' ? 'secondary' : 'primary',
@@ -281,14 +291,16 @@ function AbilityRow( { ability, side, onAction, actionLabel, busy } ) {
 			disabled: !! busy,
 			onClick: () => onAction( ability.name ),
 			children: actionLabel,
-		} )
+		} ),
 	);
 }
 
 /**
  * Main React component — the shuttle picker.
+ * @param {Object} props
+ * @param {number} props.serverId
  */
-function ToolsApp( { serverId, serverSlug } ) {
+function ToolsApp( { serverId } ) {
 	const config = window.acrossaiMcpTools || {};
 	// Single source of truth — the operator-curated tool set as the server
 	// has it. Optimistic-per-toggle: each Add/Remove POSTs immediately.
@@ -345,8 +357,12 @@ function ToolsApp( { serverId, serverSlug } ) {
 	const visibleAvailable = useMemo( () => {
 		const q = search.trim().toLowerCase();
 		return abilities.filter( ( a ) => {
-			if ( added.has( a.name ) ) return false;
-			if ( ! q ) return true;
+			if ( added.has( a.name ) ) {
+				return false;
+			}
+			if ( ! q ) {
+				return true;
+			}
 			return (
 				a.name.toLowerCase().includes( q ) ||
 				( a.label || '' ).toLowerCase().includes( q ) ||
@@ -368,21 +384,21 @@ function ToolsApp( { serverId, serverSlug } ) {
 				b.name,
 				{
 					name: b.name,
-					label: __( b.labelKey, 'acrossai-mcp-manager' ),
-					description: __( b.descriptionKey, 'acrossai-mcp-manager' ),
+					label: b.getLabel(),
+					description: b.getDescription(),
 					type: b.type,
 					category: '',
 				},
-			] )
+			] ),
 		);
 		// Order: protocol slugs first (in PROTOCOL_TOOL_SLUGS order — matches
 		// PHP-side ToolPolicy::COLUMN_MAP iteration), then curated in
 		// insertion order returned by the server.
 		const protocolAdded = PROTOCOL_TOOL_SLUGS.filter( ( slug ) =>
-			added.has( slug )
+			added.has( slug ),
 		);
 		const curatedAdded = Array.from( added ).filter(
-			( slug ) => ! PROTOCOL_TOOL_SLUGS.includes( slug )
+			( slug ) => ! PROTOCOL_TOOL_SLUGS.includes( slug ),
 		);
 		return [ ...protocolAdded, ...curatedAdded ].map(
 			( name ) =>
@@ -392,11 +408,11 @@ function ToolsApp( { serverId, serverSlug } ) {
 					label: name,
 					description: __(
 						'(ability no longer registered)',
-						'acrossai-mcp-manager'
+						'acrossai-mcp-manager',
 					),
 					type: '',
 					category: '',
-				}
+				},
 		);
 	}, [ abilities, added ] );
 
@@ -405,8 +421,8 @@ function ToolsApp( { serverId, serverSlug } ) {
 	 * state before the POST; on error, rolls back to the previous state and
 	 * surfaces the error to the operator.
 	 *
-	 * @param {Set<string>} nextSet   The desired full tool set after this action.
-	 * @param {Set<string>} prevSet   The prior tool set — used for rollback on failure.
+	 * @param {Set<string>} nextSet The desired full tool set after this action.
+	 * @param {Set<string>} prevSet The prior tool set — used for rollback on failure.
 	 */
 	const persistSet = ( nextSet, prevSet ) => {
 		setAdded( nextSet ); // Optimistic — UI reflects the change immediately.
@@ -471,7 +487,7 @@ function ToolsApp( { serverId, serverSlug } ) {
 		return createElement(
 			'div',
 			{ style: { padding: '40px', textAlign: 'center' } },
-			createElement( Spinner )
+			createElement( Spinner ),
 		);
 	}
 
@@ -482,10 +498,10 @@ function ToolsApp( { serverId, serverSlug } ) {
 		null,
 		error
 			? createElement(
-					Notice,
-					{ status: 'error', onRemove: () => setError( null ) },
-					error
-			  )
+				Notice,
+				{ status: 'error', onRemove: () => setError( null ) },
+				error,
+			)
 			: null,
 		createElement(
 			'div',
@@ -506,12 +522,12 @@ function ToolsApp( { serverId, serverSlug } ) {
 					/* translators: 1: added count, 2: total available count */
 					__(
 						'%1$d of %2$d abilities added as tools',
-						'acrossai-mcp-manager'
+						'acrossai-mcp-manager',
 					),
 					added.size,
-					totalPool
-				)
-			)
+					totalPool,
+				),
+			),
 		),
 		createElement(
 			'div',
@@ -555,7 +571,7 @@ function ToolsApp( { serverId, serverSlug } ) {
 						createElement(
 							'span',
 							{ style: { fontSize: '14px', fontWeight: 700 } },
-							__( 'All abilities', 'acrossai-mcp-manager' )
+							__( 'All abilities', 'acrossai-mcp-manager' ),
 						),
 						' ',
 						createElement(
@@ -564,9 +580,9 @@ function ToolsApp( { serverId, serverSlug } ) {
 							sprintf(
 								/* translators: %d: available ability count */
 								__( '%d available', 'acrossai-mcp-manager' ),
-								visibleAvailable.length
-							)
-						)
+								visibleAvailable.length,
+							),
+						),
 					),
 				),
 				createElement(
@@ -576,30 +592,30 @@ function ToolsApp( { serverId, serverSlug } ) {
 						value: search,
 						onChange: setSearch,
 						placeholder: __( 'Search abilities…', 'acrossai-mcp-manager' ),
-					} )
+					} ),
 				),
 				createElement(
 					'div',
 					{ style: { maxHeight: '560px', overflow: 'auto' } },
 					visibleAvailable.length === 0
 						? createElement(
-								'div',
-								{ style: { padding: '40px 24px', textAlign: 'center', color: '#646970' } },
-								search.trim()
-									? __( 'No abilities match your search.', 'acrossai-mcp-manager' )
-									: __( 'Every ability has been added as a tool.', 'acrossai-mcp-manager' )
-						  )
+							'div',
+							{ style: { padding: '40px 24px', textAlign: 'center', color: '#646970' } },
+							search.trim()
+								? __( 'No abilities match your search.', 'acrossai-mcp-manager' )
+								: __( 'Every ability has been added as a tool.', 'acrossai-mcp-manager' ),
+						)
 						: visibleAvailable.map( ( a ) =>
-								createElement( AbilityRow, {
-									key: a.name,
-									ability: a,
-									side: 'available',
-									onAction: addAbility,
-									actionLabel: __( '+ Add', 'acrossai-mcp-manager' ),
-									busy: saving,
-								} )
-						  )
-				)
+							createElement( AbilityRow, {
+								key: a.name,
+								ability: a,
+								side: 'available',
+								onAction: addAbility,
+								actionLabel: __( '+ Add', 'acrossai-mcp-manager' ),
+								busy: saving,
+							} ),
+						),
+				),
 			),
 			// RIGHT column: added tools.
 			createElement(
@@ -632,7 +648,7 @@ function ToolsApp( { serverId, serverSlug } ) {
 						createElement(
 							'span',
 							{ style: { fontSize: '14px', fontWeight: 700 } },
-							__( 'Added as tools', 'acrossai-mcp-manager' )
+							__( 'Added as tools', 'acrossai-mcp-manager' ),
 						),
 						' ',
 						createElement(
@@ -653,11 +669,11 @@ function ToolsApp( { serverId, serverSlug } ) {
 								},
 								title: __(
 									'Composed union of enabled built-in defaults and curated abilities.',
-									'acrossai-mcp-manager'
+									'acrossai-mcp-manager',
 								),
 							},
-							String( added.size )
-						)
+							String( added.size ),
+						),
 					),
 					createElement( Button, {
 						variant: 'secondary',
@@ -668,7 +684,7 @@ function ToolsApp( { serverId, serverSlug } ) {
 						// and re-affirms all three protocol columns as 1.
 						disabled: saving,
 						children: __( 'Reset', 'acrossai-mcp-manager' ),
-					} )
+					} ),
 				),
 				createElement(
 					'div',
@@ -680,120 +696,120 @@ function ToolsApp( { serverId, serverSlug } ) {
 					// can now Remove protocol slugs via the confirmation dialog.
 					addedRows.length === 0
 						? createElement(
-								// FR-017 empty-state warning banner: rendered
-								// INSIDE the pane so operators immediately see
-								// why the pane is empty and how to recover.
+							// FR-017 empty-state warning banner: rendered
+							// INSIDE the pane so operators immediately see
+							// why the pane is empty and how to recover.
+							'div',
+							{
+								style: {
+									padding: '20px 24px',
+									background: '#fcf9f0',
+									borderLeft: '4px solid #dba617',
+								},
+							},
+							createElement(
 								'div',
 								{
 									style: {
-										padding: '20px 24px',
-										background: '#fcf9f0',
-										borderLeft: '4px solid #dba617',
+										fontSize: '14px',
+										fontWeight: 700,
+										color: '#3c434a',
+										marginBottom: '6px',
 									},
 								},
-								createElement(
-									'div',
-									{
-										style: {
-											fontSize: '14px',
-											fontWeight: 700,
-											color: '#3c434a',
-											marginBottom: '6px',
-										},
-									},
-									__(
-										'This server has no tools',
-										'acrossai-mcp-manager'
-									)
+								__(
+									'This server has no tools',
+									'acrossai-mcp-manager',
 								),
-								createElement(
-									'div',
-									{
-										style: {
-											fontSize: '13px',
-											color: '#3c434a',
-											lineHeight: 1.55,
-											marginBottom: '12px',
-										},
+							),
+							createElement(
+								'div',
+								{
+									style: {
+										fontSize: '13px',
+										color: '#3c434a',
+										lineHeight: 1.55,
+										marginBottom: '12px',
 									},
-									__(
-										"This server has no tools. AI clients can't discover or execute abilities. Click Reset to restore defaults.",
-										'acrossai-mcp-manager'
-									)
+								},
+								__(
+									"This server has no tools. AI clients can't discover or execute abilities. Click Reset to restore defaults.",
+									'acrossai-mcp-manager',
 								),
-								createElement( Button, {
-									variant: 'primary',
-									isSmall: true,
-									onClick: openResetDialog,
-									disabled: saving,
-									children: __( 'Reset to defaults', 'acrossai-mcp-manager' ),
-								} )
-						  )
+							),
+							createElement( Button, {
+								variant: 'primary',
+								isSmall: true,
+								onClick: openResetDialog,
+								disabled: saving,
+								children: __( 'Reset to defaults', 'acrossai-mcp-manager' ),
+							} ),
+						)
 						: addedRows.map( ( a ) =>
-								createElement( AbilityRow, {
-									key: a.name,
-									ability: a,
-									side: 'added',
-									onAction: removeAbility,
-									actionLabel: __( 'Remove', 'acrossai-mcp-manager' ),
-									busy: saving,
-								} )
-						  )
-				)
-			)
+							createElement( AbilityRow, {
+								key: a.name,
+								ability: a,
+								side: 'added',
+								onAction: removeAbility,
+								actionLabel: __( 'Remove', 'acrossai-mcp-manager' ),
+								busy: saving,
+							} ),
+						),
+				),
+			),
 		),
 		// F025 US2 — ConfirmDialog for protocol-tool removal (FR-003).
 		pendingProtocolRemove
 			? createElement(
-					ConfirmDialog,
-					{
-						isOpen: true,
-						onConfirm: () => {
-							const slug = pendingProtocolRemove;
-							setPendingProtocolRemove( null );
-							applyRemove( slug );
-						},
-						onCancel: () => setPendingProtocolRemove( null ),
-						confirmButtonText: __(
-							'Remove anyway',
-							'acrossai-mcp-manager'
-						),
-						cancelButtonText: __(
-							'Cancel',
-							'acrossai-mcp-manager'
-						),
+				ConfirmDialog,
+				{
+					isOpen: true,
+					onConfirm: () => {
+						const slug = pendingProtocolRemove;
+						setPendingProtocolRemove( null );
+						applyRemove( slug );
 					},
-					__(
-						'This tool is required by AI clients to discover and execute WordPress abilities on this server. Removing it may prevent connected AI clients from working correctly. Are you sure you want to remove it?',
-						'acrossai-mcp-manager'
-					)
-			  )
+					onCancel: () => setPendingProtocolRemove( null ),
+					confirmButtonText: __(
+						'Remove anyway',
+						'acrossai-mcp-manager',
+					),
+					cancelButtonText: __(
+						'Cancel',
+						'acrossai-mcp-manager',
+					),
+				},
+				__(
+					'This tool is required by AI clients to discover and execute WordPress abilities on this server. Removing it may prevent connected AI clients from working correctly. Are you sure you want to remove it?',
+					'acrossai-mcp-manager',
+				),
+			)
 			: null,
 		// F025 US3 — ConfirmDialog for Reset (destructive: wipes curated picks).
 		pendingReset
 			? createElement(
-					ConfirmDialog,
-					{
-						isOpen: true,
-						onConfirm: () => {
-							setPendingReset( false );
-							applyReset();
-						},
-						onCancel: () => setPendingReset( false ),
-						confirmButtonText: __(
-							'Reset to defaults',
-							'acrossai-mcp-manager'
-						),
-						cancelButtonText: __(
-							'Cancel',
-							'acrossai-mcp-manager'
-						),
+				ConfirmDialog,
+				{
+					isOpen: true,
+					onConfirm: () => {
+						setPendingReset( false );
+						applyReset();
 					},
-					__(
-						'Reset the tools for this server to only the three built-in defaults? All curated picks will be removed.',
-						'acrossai-mcp-manager'
-					)
-			  )
+					onCancel: () => setPendingReset( false ),
+					confirmButtonText: __(
+						'Reset to defaults',
+						'acrossai-mcp-manager',
+					),
+					cancelButtonText: __(
+						'Cancel',
+						'acrossai-mcp-manager',
+					),
+				},
+				__(
+					'Reset the tools for this server to only the three built-in defaults? All curated picks will be removed.',
+					'acrossai-mcp-manager',
+				),
+			)
 			: null,
 		// mcp-adapter info banner (always visible below the columns).
 		createElement(
@@ -815,32 +831,32 @@ function ToolsApp( { serverId, serverSlug } ) {
 				{ style: { fontSize: '13.5px', color: '#3c434a', lineHeight: 1.55 } },
 				__(
 					'Every ability added here is exposed as an MCP tool through the wordpress/mcp-adapter package. AI clients call these tools to run the underlying WordPress abilities registered in the Abilities tab.',
-					'acrossai-mcp-manager'
-				)
-			)
+					'acrossai-mcp-manager',
+				),
+			),
 		),
 		// Saving indicator — subtle spinner shown while a POST is in-flight,
 		// replacing the retired Save changes / Cancel bar. Each Add / Remove /
 		// Reset click now commits automatically.
 		saving
 			? createElement(
-					'div',
-					{
-						style: {
-							display: 'flex',
-							alignItems: 'center',
-							gap: '10px',
-							marginTop: '24px',
-							paddingTop: '20px',
-							borderTop: '1px solid #e0e0e2',
-							fontSize: '13px',
-							color: '#646970',
-						},
+				'div',
+				{
+					style: {
+						display: 'flex',
+						alignItems: 'center',
+						gap: '10px',
+						marginTop: '24px',
+						paddingTop: '20px',
+						borderTop: '1px solid #e0e0e2',
+						fontSize: '13px',
+						color: '#646970',
 					},
-					createElement( Spinner ),
-					__( 'Saving…', 'acrossai-mcp-manager' )
-			  )
-			: null
+				},
+				createElement( Spinner ),
+				__( 'Saving…', 'acrossai-mcp-manager' ),
+			)
+			: null,
 	);
 }
 
@@ -871,7 +887,7 @@ function mount() {
 	const serverSlug = root.getAttribute( 'data-server-slug' ) || '';
 	root.innerHTML = ''; // Clear the "Loading tools…" placeholder.
 	createRoot( root ).render(
-		createElement( ToolsApp, { serverId, serverSlug } )
+		createElement( ToolsApp, { serverId, serverSlug } ),
 	);
 }
 

@@ -7,7 +7,7 @@ try {
 	( {
 		getWebpackEntryPoints,
 	} = require( '@wordpress/scripts/utils/config' ) );
-} catch ( error ) {
+} catch {
 	// Fallback for older versions of @wordpress/scripts
 	getWebpackEntryPoints = () => ( {} );
 }
@@ -27,7 +27,7 @@ const blockStylesheets = () =>
 		files[ `css/blocks/core/${ name }` ] = path.resolve(
 			process.cwd(),
 			'src/scss/blocks/core',
-			`${ name }.scss`
+			`${ name }.scss`,
 		);
 		return files;
 	}, {} );
@@ -68,7 +68,7 @@ module.exports = {
 			// acrossai-abilities-manager plugin's setup.
 			'@wpb/access-control': path.resolve(
 				process.cwd(),
-				'vendor/wpboilerplate/wpb-access-control/js/AccessControl.js'
+				'vendor/wpboilerplate/wpb-access-control/js/AccessControl.js',
 			),
 		},
 	},
@@ -82,7 +82,7 @@ module.exports = {
 		'js/access-control': path.resolve(
 			process.cwd(),
 			'src/js',
-			'access-control.js'
+			'access-control.js',
 		),
 		// F017 — Abilities tab React entry (mounts the @wordpress/dataviews app).
 		// `src/js/abilities.js` imports `../scss/abilities.scss`; the
@@ -112,12 +112,12 @@ module.exports = {
 		'css/frontend': path.resolve(
 			process.cwd(),
 			'src/scss',
-			'frontend.scss'
+			'frontend.scss',
 		),
 		'css/backend': path.resolve(
 			process.cwd(),
 			'src/scss',
-			'backend.scss'
+			'backend.scss',
 		),
 	},
 	output: {

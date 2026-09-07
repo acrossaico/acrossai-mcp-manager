@@ -139,6 +139,23 @@ class Schema extends \BerlinDB\Database\Kern\Schema {
 			'default' => 0,
 		),
 
+		// F082 — per-server default ability exposure policy. Tri-state:
+		// 'per-ability' → each ability uses its own meta.mcp.public (matches
+		// pre-F082 behaviour; new installs land here)
+		// 'expose'      → server exposes every ability by default (future
+		// registrations inherit ON automatically)
+		// 'hide'        → server hides every ability by default (future
+		// registrations inherit OFF automatically)
+		// Per-ability rows in acrossai_mcp_server_abilities are OVERRIDES that
+		// win over this default via ExposureResolver::resolve_effective().
+		// Default 'per-ability' preserves prior behaviour on every existing row.
+		array(
+			'name'    => 'abilities_default_policy',
+			'type'    => 'varchar',
+			'length'  => '16',
+			'default' => 'per-ability',
+		),
+
 		// F037 — the `embeds_enabled` column was briefly added by
 		// upgrade_to_1_1_3 during initial development but retracted
 		// per user redesign 2026-07-27: all F037 state now lives in

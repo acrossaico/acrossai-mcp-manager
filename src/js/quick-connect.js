@@ -14,13 +14,12 @@
  *     responses to the user-friendly "Your session has expired..." message
  *     — no additional entry-file wiring needed.
  *
- * @package AcrossAI_MCP_Manager
+ * @package
  */
 
 import { createRoot } from '@wordpress/element';
 import apiFetch from '@wordpress/api-fetch';
 
-import './quick-connect/App.jsx';
 import '../scss/quick-connect.scss';
 
 // Vendor Access Control stylesheet — required by <AccessControlEditor>
@@ -61,7 +60,7 @@ const mount = () => {
 	root.render(
 		<WizardStateProvider>
 			<App />
-		</WizardStateProvider>
+		</WizardStateProvider>,
 	);
 };
 

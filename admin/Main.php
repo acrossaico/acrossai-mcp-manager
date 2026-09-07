@@ -36,6 +36,11 @@ class Main {
 	/** @var string */
 	private $version;
 
+	/**
+	 * Return the singleton instance.
+	 *
+	 * @return self
+	 */
 	public static function instance(): self {
 		if ( null === self::$_instance ) {
 			self::$_instance = new self();
@@ -43,6 +48,9 @@ class Main {
 		return self::$_instance;
 	}
 
+	/**
+	 * Private constructor — use instance().
+	 */
 	private function __construct() {
 		$this->plugin_name = ACROSSAI_MCP_MANAGER_PLUGIN_NAME_SLUG;
 		$this->version     = ACROSSAI_MCP_MANAGER_VERSION;
@@ -50,6 +58,11 @@ class Main {
 		// for the file_exists() guard (FR-019) and the screen-ID guard (FR-017).
 	}
 
+	/**
+	 * Whether the current admin screen is one of the plugin's own pages (FR-017).
+	 *
+	 * @return bool
+	 */
 	private function is_plugin_admin_screen(): bool {
 		if ( ! function_exists( 'get_current_screen' ) ) {
 			return false;
@@ -65,6 +78,7 @@ class Main {
 	 * Lazy-load an asset manifest. Returns null when the file is missing
 	 * so callers can silently skip enqueue (FR-019).
 	 *
+	 * @param string $relative_path Manifest path relative to the plugin root.
 	 * @return array{dependencies: string[], version: string}|null
 	 */
 	private function read_asset_manifest( string $relative_path ): ?array {
@@ -451,6 +465,9 @@ class Main {
 				'restApiRoot' => esc_url_raw( untrailingslashit( rest_url() ) ),
 				'nonce'       => wp_create_nonce( 'wp_rest' ),
 				'namespace'   => 'acrossai-mcp-manager/v1',
+				// Brand icon for the full-screen loading overlay — same asset
+				// the Quick Connect wizard's hydrate/busy overlay uses.
+				'iconUrl'     => esc_url_raw( \ACROSSAI_MCP_MANAGER_PLUGIN_URL . 'assets/quick-connect/icon.svg' ),
 			)
 		);
 	}

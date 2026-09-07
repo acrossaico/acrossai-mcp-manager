@@ -4,8 +4,8 @@
  * Contract from `contracts/react-router.md`:
  *   const { step, method, goTo, advance, back, exit } = useWizardRouter();
  *
- * - `step` and `method` are strings read from window.location.search via
- *   @wordpress/url `getQueryArg`. Source of truth is the URL (FR-008).
+ * - `step` and `method` are strings read from window.location.search
+ *   via `@wordpress/url` `getQueryArg`. Source of truth is the URL (FR-008).
  * - `goTo`, `advance`, `back` write via `history.pushState` + `addQueryArgs`
  *   — no full page reload. Popstate listener keeps state in sync with
  *   browser Back/Forward navigation.
@@ -15,7 +15,7 @@
  *   passed in via the second arg (delegates the decision to the caller —
  *   the hook doesn't know about wizardState, keeps concerns separate).
  *
- * @package AcrossAI_MCP_Manager
+ * @package
  */
 
 import { useState, useEffect, useCallback, useMemo } from '@wordpress/element';
@@ -45,18 +45,40 @@ const STEP_ORDER = [
  * Callers pass a `skips` object with matching boolean flags to advance/back so
  * the router can walk past unwanted steps in either direction. The hook stays
  * ignorant of wizardState — that lookup belongs in App.jsx.
+ * @param {string} step
+ * @param {Object} skips
  */
 const shouldSkip = ( step, skips ) => {
-	if ( step === '9' && skips.skipProSetup ) return true;
-	if ( step === '2' && skips.skipCreate ) return true;
-	if ( step === '4' && skips.skipAbilitiesGate ) return true;
-	if ( step === '5' && skips.skipAbilities ) return true;
-	if ( step === '6' && skips.skipEnable ) return true;
-	if ( step === '8' && skips.skipProPromo ) return true;
-	if ( step === '10' && skips.skipConnectorsDetail ) return true;
-	if ( step === '11' && skips.skipClient ) return true;
-	if ( step === '12' && skips.skipNpm ) return true;
-	if ( step === '13' && skips.skipWpcli ) return true;
+	if ( step === '9' && skips.skipProSetup ) {
+		return true;
+	}
+	if ( step === '2' && skips.skipCreate ) {
+		return true;
+	}
+	if ( step === '4' && skips.skipAbilitiesGate ) {
+		return true;
+	}
+	if ( step === '5' && skips.skipAbilities ) {
+		return true;
+	}
+	if ( step === '6' && skips.skipEnable ) {
+		return true;
+	}
+	if ( step === '8' && skips.skipProPromo ) {
+		return true;
+	}
+	if ( step === '10' && skips.skipConnectorsDetail ) {
+		return true;
+	}
+	if ( step === '11' && skips.skipClient ) {
+		return true;
+	}
+	if ( step === '12' && skips.skipNpm ) {
+		return true;
+	}
+	if ( step === '13' && skips.skipWpcli ) {
+		return true;
+	}
 	return false;
 };
 
@@ -266,7 +288,7 @@ const useWizardRouter = () => {
 			advance,
 			back,
 			exit,
-		]
+		],
 	);
 };
 

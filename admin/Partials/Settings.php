@@ -38,6 +38,12 @@ class Settings {
 	/** @var string */
 	private $version;
 
+	/**
+	 * Return the singleton instance.
+	 *
+	 * @since 0.1.0
+	 * @return self
+	 */
 	public static function instance(): self {
 		if ( null === self::$_instance ) {
 			self::$_instance = new self();
@@ -45,6 +51,11 @@ class Settings {
 		return self::$_instance;
 	}
 
+	/**
+	 * Private constructor — use instance().
+	 *
+	 * @since 0.1.0
+	 */
 	private function __construct() {
 		$this->plugin_name = ACROSSAI_MCP_MANAGER_PLUGIN_NAME_SLUG;
 		$this->version     = ACROSSAI_MCP_MANAGER_VERSION;
@@ -191,6 +202,8 @@ class Settings {
 	/**
 	 * Toggle a server row's enabled state. Two-step per research.md R1:
 	 * read current value, flip, update.
+	 *
+	 * @param int $server_id Server row id to toggle.
 	 */
 	private function toggle_server_status( int $server_id ): void {
 		$query = Query::instance();
@@ -223,6 +236,12 @@ class Settings {
 		return $bulk && $has_ids;
 	}
 
+	/**
+	 * Whether the current request is an HTTP POST.
+	 *
+	 * @since 0.1.0
+	 * @return bool
+	 */
 	private function is_post_request(): bool {
 		return isset( $_SERVER['REQUEST_METHOD'] )
 			&& 'POST' === strtoupper( sanitize_text_field( wp_unslash( $_SERVER['REQUEST_METHOD'] ) ) );
@@ -266,9 +285,9 @@ class Settings {
 	 * whitelist defence against B7 mass-assignment via forged POST keys.
 	 */
 	private function handle_create_server(): void {
-		// phpcs:disable WordPress.Security.NonceVerification.Recommended
+		// phpcs:disable WordPress.Security.NonceVerification.Recommended, WordPress.Security.NonceVerification.Missing -- check_admin_referer( 'acrossai_mcp_create_server' ) ran in handle_actions() before dispatch.
 		$sanitized = MCPServerFieldSanitizer::sanitize_from_post( $_POST );
-		// phpcs:enable WordPress.Security.NonceVerification.Recommended
+		// phpcs:enable WordPress.Security.NonceVerification.Recommended, WordPress.Security.NonceVerification.Missing
 
 		$name        = $sanitized['server_name'];
 		$description = $sanitized['description'];
@@ -334,6 +353,12 @@ class Settings {
 		exit;
 	}
 
+	/**
+	 * Redirect back to the server list with a notice code, then exit.
+	 *
+	 * @since 0.1.0
+	 * @param string $notice Notice code appended as a query arg.
+	 */
 	private function redirect_to_list( string $notice ): void {
 		wp_safe_redirect(
 			esc_url_raw(
@@ -349,6 +374,12 @@ class Settings {
 		exit;
 	}
 
+	/**
+	 * Redirect back to the create-server form with a notice code, then exit.
+	 *
+	 * @since 0.1.0
+	 * @param string $notice Notice code appended as a query arg.
+	 */
 	private function redirect_to_create( string $notice ): void {
 		wp_safe_redirect(
 			esc_url_raw(
@@ -365,6 +396,14 @@ class Settings {
 		exit;
 	}
 
+	/**
+	 * Redirect back to a server's edit screen with a notice code, then exit.
+	 *
+	 * @since 0.1.0
+	 * @param int    $server_id Server row id.
+	 * @param string $tab       Edit-screen tab slug to land on.
+	 * @param string $notice    Notice code appended as a query arg.
+	 */
 	private function redirect_to_edit( int $server_id, string $tab, string $notice ): void {
 		wp_safe_redirect(
 			esc_url_raw(
@@ -385,6 +424,8 @@ class Settings {
 
 	/**
 	 * General-tab save handler. FR-009 / FR-013. Caller verified nonce + cap.
+	 *
+	 * @param int $server_id Server row id being updated.
 	 */
 	private function handle_update_server( int $server_id ): void {
 		$query = Query::instance();
@@ -398,7 +439,7 @@ class Settings {
 			$this->redirect_to_list( 'server_not_found' );
 		}
 
-		// phpcs:disable WordPress.Security.NonceVerification.Recommended
+		// phpcs:disable WordPress.Security.NonceVerification.Recommended, WordPress.Security.NonceVerification.Missing -- check_admin_referer( 'acrossai_mcp_update_' . $server_id ) ran in handle_actions() before dispatch.
 		$data = array(
 			'server_name'            => isset( $_POST['server_name'] ) ? sanitize_text_field( wp_unslash( $_POST['server_name'] ) ) : '',
 			'description'            => isset( $_POST['description'] ) ? sanitize_textarea_field( wp_unslash( $_POST['description'] ) ) : '',
@@ -406,7 +447,7 @@ class Settings {
 			'server_route'           => isset( $_POST['server_route'] ) ? sanitize_text_field( wp_unslash( $_POST['server_route'] ) ) : '',
 			'server_version'         => isset( $_POST['server_version'] ) ? sanitize_text_field( wp_unslash( $_POST['server_version'] ) ) : 'v1.0.0',
 		);
-		// phpcs:enable WordPress.Security.NonceVerification.Recommended
+		// phpcs:enable WordPress.Security.NonceVerification.Recommended, WordPress.Security.NonceVerification.Missing
 
 		if ( '' === $data['server_name'] ) {
 			$this->redirect_to_edit( $server_id, 'update-server', 'empty_name' );
@@ -554,6 +595,11 @@ class Settings {
 		$this->render_servers_table();
 	}
 
+	/**
+	 * Render the MCP servers WP_List_Table (pre-approved constitution exception).
+	 *
+	 * @since 0.1.0
+	 */
 	private function render_servers_table(): void {
 		$table = new MCPServerListTable();
 		$table->prepare_items();
@@ -571,9 +617,9 @@ class Settings {
 		$quick_connect_url = esc_url(
 			add_query_arg(
 				array(
-					'page'        => AdminPageSlugs::PARENT,
+					'page'          => AdminPageSlugs::PARENT,
 					'quick-connect' => '1',
-					'step'        => '1',
+					'step'          => '1',
 				),
 				admin_url( 'admin.php' )
 			)

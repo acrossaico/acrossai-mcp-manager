@@ -7,9 +7,10 @@
  *
  *   For each ability returned by wp_get_abilities():
  *     - Skip if the ability's mcp.type (defaulting to 'tool' when unset) doesn't match $type.
- *     - Include if ExposureResolver::resolve( $server_id, $slug, $meta ) === true.
- *       (Row-in-wp_acrossai_mcp_server_abilities beats meta.mcp.public — see
- *       DEC-ABILITY-OVERRIDE-RESOLUTION.)
+ *     - Include if ExposureResolver::resolve_effective( $server_id, $slug, $meta ) === true.
+ *       (Three-tier priority: row-in-wp_acrossai_mcp_server_abilities → server-level
+ *       policy → meta.mcp.public — see DEC-ABILITY-OVERRIDE-RESOLUTION + F082
+ *       docs/planings-tasks/082-per-server-ability-policy-defaults.md.)
  *
  * Fail-open: returns empty array when wp_get_abilities() is unavailable.
  *
@@ -79,7 +80,7 @@ final class AbilityDiscovery {
 				continue;
 			}
 
-			if ( ExposureResolver::resolve( $server_id, $slug, $meta_array ) ) {
+			if ( ExposureResolver::resolve_effective( $server_id, $slug, $meta_array ) ) {
 				$result[] = $slug;
 			}
 		}

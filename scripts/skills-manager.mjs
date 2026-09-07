@@ -19,7 +19,7 @@ import readline from 'node:readline';
 import { spawnSync } from 'node:child_process';
 
 const PLUGIN_ROOT = process.cwd();
-const SKILLPACK_DIR = path.join(PLUGIN_ROOT, '.agents', 'skills');
+const SKILLPACK_DIR = path.join( PLUGIN_ROOT, '.agents', 'skills' );
 
 const SOURCES = [
 	{ repo: 'WPBoilerplate/agent-skills', label: 'WPBoilerplate' },
@@ -28,154 +28,167 @@ const SOURCES = [
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
-const HR = '━'.repeat(67);
-function banner(text) { console.log(`\n${HR}\n${text}\n${HR}\n`); }
+const HR = '━'.repeat( 67 );
+function banner( text ) {
+	console.log( `\n${ HR }\n${ text }\n${ HR }\n` );
+}
 
-function cloneRepo(repo, dest) {
-	console.log(`==> Cloning ${repo}...`);
-	if (fs.existsSync(dest)) fs.rmSync(dest, { recursive: true, force: true });
+function cloneRepo( repo, dest ) {
+	console.log( `==> Cloning ${ repo }...` );
+	if ( fs.existsSync( dest ) ) {
+		fs.rmSync( dest, { recursive: true, force: true } );
+	}
 
 	const result = spawnSync(
 		'git',
-		['clone', '--depth=1', `https://github.com/${repo}.git`, dest],
-		{ stdio: 'inherit' }
+		[ 'clone', '--depth=1', `https://github.com/${ repo }.git`, dest ],
+		{ stdio: 'inherit' },
 	);
 
-	if (result.status !== 0) {
-		console.error(`❌  Failed to clone ${repo}`);
-		process.exit(1);
+	if ( result.status !== 0 ) {
+		console.error( `❌  Failed to clone ${ repo }` );
+		process.exit( 1 );
 	}
 }
 
-function listSkills(repoDir) {
-	const skillsDir = path.join(repoDir, 'skills');
-	if (!fs.existsSync(skillsDir)) return [];
+function listSkills( repoDir ) {
+	const skillsDir = path.join( repoDir, 'skills' );
+	if ( ! fs.existsSync( skillsDir ) ) {
+		return [];
+	}
 
-	return fs.readdirSync(skillsDir, { withFileTypes: true })
-		.filter(d => d.isDirectory() && fs.existsSync(path.join(skillsDir, d.name, 'SKILL.md')))
-		.map(d => d.name);
+	return fs.readdirSync( skillsDir, { withFileTypes: true } )
+		.filter( ( d ) => d.isDirectory() && fs.existsSync( path.join( skillsDir, d.name, 'SKILL.md' ) ) )
+		.map( ( d ) => d.name );
 }
 
-function readDesc(repoDir, skill) {
-	const md = path.join(repoDir, 'skills', skill, 'SKILL.md');
-	for (const line of fs.readFileSync(md, 'utf8').split('\n')) {
+function readDesc( repoDir, skill ) {
+	const md = path.join( repoDir, 'skills', skill, 'SKILL.md' );
+	for ( const line of fs.readFileSync( md, 'utf8' ).split( '\n' ) ) {
 		const t = line.trim();
-		if (t && !t.startsWith('#') && !t.startsWith('<!--')) return t.slice(0, 80);
+		if ( t && ! t.startsWith( '#' ) && ! t.startsWith( '<!--' ) ) {
+			return t.slice( 0, 80 );
+		}
 	}
 	return '';
 }
 
-function copyDir(src, dest) {
-	fs.mkdirSync(dest, { recursive: true });
-	for (const entry of fs.readdirSync(src, { withFileTypes: true })) {
-		const srcPath = path.join(src, entry.name);
-		const destPath = path.join(dest, entry.name);
-		if (entry.isDirectory()) {
-			copyDir(srcPath, destPath);
+function copyDir( src, dest ) {
+	fs.mkdirSync( dest, { recursive: true } );
+	for ( const entry of fs.readdirSync( src, { withFileTypes: true } ) ) {
+		const srcPath = path.join( src, entry.name );
+		const destPath = path.join( dest, entry.name );
+		if ( entry.isDirectory() ) {
+			copyDir( srcPath, destPath );
 		} else {
-			fs.copyFileSync(srcPath, destPath);
+			fs.copyFileSync( srcPath, destPath );
 		}
 	}
 }
 
-function ask(question) {
-	return new Promise(resolve => {
-		const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
-		rl.question(question, answer => { rl.close(); resolve(answer.trim()); });
-	});
+function ask( question ) {
+	return new Promise( ( resolve ) => {
+		const rl = readline.createInterface( { input: process.stdin, output: process.stdout } );
+		rl.question( question, ( answer ) => {
+			rl.close(); resolve( answer.trim() );
+		} );
+	} );
 }
 
 // ── main ─────────────────────────────────────────────────────────────────────
 
 async function main() {
-	banner('🎓  WordPress Skillpack Manager');
+	banner( '🎓  WordPress Skillpack Manager' );
 
-	const WORK_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'wpb-skills-'));
+	const WORK_DIR = fs.mkdtempSync( path.join( os.tmpdir(), 'wpb-skills-' ) );
 
 	try {
 		// 1. Clone every source and collect available skills
 		const allSkills = [];
-		for (const src of SOURCES) {
-			const repoDir = path.join(WORK_DIR, src.repo.replace('/', '__'));
-			cloneRepo(src.repo, repoDir);
+		for ( const src of SOURCES ) {
+			const repoDir = path.join( WORK_DIR, src.repo.replace( '/', '__' ) );
+			cloneRepo( src.repo, repoDir );
 
-			for (const skill of listSkills(repoDir)) {
-				allSkills.push({
+			for ( const skill of listSkills( repoDir ) ) {
+				allSkills.push( {
 					name: skill,
 					label: src.label,
 					repoDir,
-					desc: readDesc(repoDir, skill),
-				});
+					desc: readDesc( repoDir, skill ),
+				} );
 			}
 			console.log();
 		}
 
-		if (allSkills.length === 0) {
-			console.error('❌  No skills found in any source.');
-			process.exit(1);
+		if ( allSkills.length === 0 ) {
+			console.error( '❌  No skills found in any source.' );
+			process.exit( 1 );
 		}
 
 		// 2. Display menu
-		console.log(`Found ${allSkills.length} skill(s):\n`);
-		allSkills.forEach(({ name, label, desc }, i) => {
-			const num = String(i + 1).padStart(3);
-			console.log(`${num}. [${label}] ${name}`);
-			if (desc) console.log(`       ${desc}`);
-		});
+		console.log( `Found ${ allSkills.length } skill(s):\n` );
+		allSkills.forEach( ( { name, label, desc }, i ) => {
+			const num = String( i + 1 ).padStart( 3 );
+			console.log( `${ num }. [${ label }] ${ name }` );
+			if ( desc ) {
+				console.log( `       ${ desc }` );
+			}
+		} );
 		console.log();
 
 		const answer = await ask(
-			"Enter numbers separated by spaces, 'all' to install everything, or press Enter to exit.\nYour selection: "
+			"Enter numbers separated by spaces, 'all' to install everything, or press Enter to exit.\nYour selection: ",
 		);
 
-		if (!answer) {
-			console.log('\nNo selection — exiting.');
-			process.exit(0);
+		if ( ! answer ) {
+			console.log( '\nNo selection — exiting.' );
+			process.exit( 0 );
 		}
 
 		// 3. Resolve selection
 		let selected;
-		if (answer.toLowerCase() === 'all') {
-			selected = [...allSkills];
+		if ( answer.toLowerCase() === 'all' ) {
+			selected = [ ...allSkills ];
 		} else {
 			selected = [];
-			for (const token of answer.split(/\s+/)) {
-				const idx = parseInt(token, 10) - 1;
-				if (idx >= 0 && idx < allSkills.length) {
-					console.log(`✅  Selected: ${allSkills[idx].name}`);
-					selected.push(allSkills[idx]);
+			for ( const token of answer.split( /\s+/ ) ) {
+				const idx = parseInt( token, 10 ) - 1;
+				if ( idx >= 0 && idx < allSkills.length ) {
+					console.log( `✅  Selected: ${ allSkills[ idx ].name }` );
+					selected.push( allSkills[ idx ] );
 				} else {
-					console.warn(`⚠️   Unknown index: ${token}`);
+					console.warn( `⚠️   Unknown index: ${ token }` );
 				}
 			}
 		}
 
-		if (selected.length === 0) {
-			console.log('\nNo valid skills selected — exiting.');
-			process.exit(0);
+		if ( selected.length === 0 ) {
+			console.log( '\nNo valid skills selected — exiting.' );
+			process.exit( 0 );
 		}
 
-		banner('📥  Installing to skillpack (.agents/skills/)...');
+		banner( '📥  Installing to skillpack (.agents/skills/)...' );
 
 		// 4. Copy each selected skill into .agents/skills/
-		for (const { name, label, repoDir } of selected) {
-			const src = path.join(repoDir, 'skills', name);
-			const dest = path.join(SKILLPACK_DIR, name);
+		for ( const { name, label, repoDir } of selected ) {
+			const src = path.join( repoDir, 'skills', name );
+			const dest = path.join( SKILLPACK_DIR, name );
 
-			console.log(`   [${label}] ${name} → .agents/skills/${name}`);
+			console.log( `   [${ label }] ${ name } → .agents/skills/${ name }` );
 
-			if (fs.existsSync(dest)) {
-				fs.rmSync(dest, { recursive: true, force: true });
+			if ( fs.existsSync( dest ) ) {
+				fs.rmSync( dest, { recursive: true, force: true } );
 			}
-			copyDir(src, dest);
+			copyDir( src, dest );
 		}
 
-		console.log(`\n✅  ${selected.length} skill(s) installed to .agents/skills/`);
-		console.log('   Run  npm run skillpack:push  to distribute to tool directories.\n');
-
+		console.log( `\n✅  ${ selected.length } skill(s) installed to .agents/skills/` );
+		console.log( '   Run  npm run skillpack:push  to distribute to tool directories.\n' );
 	} finally {
-		fs.rmSync(WORK_DIR, { recursive: true, force: true });
+		fs.rmSync( WORK_DIR, { recursive: true, force: true } );
 	}
 }
 
-main().catch(err => { console.error('Error:', err.message); process.exit(1); });
+main().catch( ( err ) => {
+	console.error( 'Error:', err.message ); process.exit( 1 );
+} );
