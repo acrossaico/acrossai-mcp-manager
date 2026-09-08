@@ -179,7 +179,7 @@ final class AIConnectorsPromoTab extends AbstractServerTab {
 		</div>
 
 		<h2 class="acai-aic-promo__title">
-			<?php esc_html_e( 'Connect WordPress to Claude, ChatGPT, Grok, Gemini & Cursor in one click', 'acrossai-mcp-manager' ); ?>
+			<?php esc_html_e( 'Connect WordPress to Claude, ChatGPT, Gemini, Grok & Cursor in one click', 'acrossai-mcp-manager' ); ?>
 		</h2>
 
 		<p class="acai-aic-promo__lede">
@@ -189,8 +189,8 @@ final class AIConnectorsPromoTab extends AbstractServerTab {
 		<div class="acai-aic-promo__clients" aria-label="<?php esc_attr_e( 'Supported AI clients', 'acrossai-mcp-manager' ); ?>">
 			<span class="acai-aic-promo__client-pill">Claude</span>
 			<span class="acai-aic-promo__client-pill">ChatGPT</span>
-			<span class="acai-aic-promo__client-pill">Grok</span>
 			<span class="acai-aic-promo__client-pill">Gemini</span>
+			<span class="acai-aic-promo__client-pill">Grok</span>
 			<span class="acai-aic-promo__client-pill">Cursor</span>
 		</div>
 
