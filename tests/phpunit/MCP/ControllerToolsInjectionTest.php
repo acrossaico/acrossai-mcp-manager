@@ -52,7 +52,23 @@ class ControllerToolsInjectionTest extends WP_UnitTestCase {
 		$this->assertSame( $config, $result );
 	}
 
-	public function test_filter_default_server_config_returns_input_untouched_when_compose_returns_empty(): void {
+	/**
+	 * An operator who switches every protocol tool off and curates nothing gets
+	 * an EMPTY tool list — never the vendor's auto-discovered set.
+	 *
+	 * This inverts the pre-0.6.1 `if ( ! empty( $tools ) )` fallback. That
+	 * fallback kept the vendor list whenever our effective set was empty, and
+	 * mcp-adapter 0.6.0 widened the vendor list: McpAbilityExposure::is_meta_public()
+	 * now falls back to a bare `meta.public` when `meta.mcp.public` is unset. The
+	 * combination listed abilities on a server the operator had switched fully
+	 * off — inverting operator intent. Execution stayed gated by
+	 * AbilityExposureGate, so the leak was name/schema-level only.
+	 *
+	 * Safe because the F025 columns are `tinyint(1) NOT NULL DEFAULT 1`
+	 * (Table::upgrade_to_1_1_1) — MySQL backfilled every pre-F025 row with 1, so
+	 * an empty set is always deliberate, never an un-migrated row.
+	 */
+	public function test_filter_default_server_config_empties_tools_rather_than_keeping_vendor_defaults(): void {
 		$this->seed_default_server( array(
 			'tool_discover_abilities' => 0,
 			'tool_get_ability_info'   => 0,
@@ -65,7 +81,17 @@ class ControllerToolsInjectionTest extends WP_UnitTestCase {
 		);
 		$result = Controller::instance()->filter_default_server_config( $config );
 
-		$this->assertSame( $config, $result );
+		$this->assertSame(
+			array(),
+			$result['tools'],
+			'All-off + nothing curated MUST yield an empty tool list, not the vendor fallback.'
+		);
+		$this->assertNotContains(
+			'vendor/one',
+			$result['tools'],
+			'The widened vendor set must never survive an operator "expose nothing" configuration.'
+		);
+		$this->assertSame( 'x', $result['server_id'], 'Unrelated config keys must be preserved.' );
 	}
 
 	public function test_filter_default_server_config_replaces_tools_and_preserves_other_keys(): void {
