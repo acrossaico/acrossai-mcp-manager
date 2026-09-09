@@ -22,7 +22,7 @@
 		"wpboilerplate/wpb-access-control": "^3.1.0",
 		"berlindb/core": "^3.0.0",
 		"acrossai-co/main-menu": "0.0.33",
-		"wordpress/mcp-adapter": "^0.5.0"
+		"wordpress/mcp-adapter": "^0.6.1"
 	},
 	"keywords": [
 		"wordpress",
