@@ -298,21 +298,30 @@ final class Controller {
 		$row       = $rows[0];
 		$server_id = (int) $row->id;
 
+		// F026: tools, resources and prompts ALL replace unconditionally (no
+		// empty-set fallback). Rationale: the vendor's DefaultServerFactory sets
+		// these via discover_abilities_by_type() with no F017 overlay. If an
+		// operator disables a public ability via the Abilities tab (persists
+		// is_exposed=0), we MUST remove it from the default server too —
+		// otherwise the Abilities-tab control is a no-op for the default server.
+		//
+		// Tools carried an `if ( ! empty( $tools ) )` fallback until mcp-adapter
+		// 0.6.1. That fallback kept the VENDOR list whenever our effective set
+		// was empty, and adapter 0.6.0 widened the vendor list —
+		// McpAbilityExposure::is_meta_public() now falls back to a bare
+		// `meta.public` when `meta.mcp.public` is unset. The combination listed
+		// abilities on a server the operator had switched fully off. Execution
+		// stayed gated by AbilityExposureGate, so the exposure was name- and
+		// schema-level only, but it inverted the operator's intent.
+		//
+		// Dropping the fallback is safe: the F025 protocol columns are
+		// `tinyint(1) NOT NULL DEFAULT 1` (Table::upgrade_to_1_1_1), so MySQL
+		// backfilled every pre-F025 row with 1. An empty effective set is only
+		// ever a deliberate "expose nothing", never an un-migrated row.
 		if ( isset( $config['tools'] ) && is_array( $config['tools'] ) ) {
-			$tools = ToolPolicy::compose_effective_tools_for_row( $row );
-			if ( ! empty( $tools ) ) {
-				$config['tools'] = $tools;
-			}
+			$config['tools'] = ToolPolicy::compose_effective_tools_for_row( $row );
 		}
 
-		// F026: resources and prompts REPLACE unconditionally (no empty-set fallback).
-		// Rationale: the vendor's DefaultServerFactory sets these via
-		// discover_abilities_by_type() to the mcp.public=true set with no F017 overlay.
-		// If an operator disables a public resource/prompt via the Abilities tab
-		// (persists is_exposed=0), we MUST remove it from the default server too —
-		// otherwise the Abilities-tab control is a no-op for the default server.
-		// Unlike tools (which have F025 protocol columns as a "starter set"), there
-		// is no equivalent "keep the vendor defaults" fallback for resources/prompts.
 		if ( isset( $config['resources'] ) && is_array( $config['resources'] ) ) {
 			$config['resources'] = AbilityDiscovery::for_server( $server_id, AbilityDiscovery::TYPE_RESOURCE );
 		}
