@@ -655,6 +655,20 @@ final class Main {
 		$this->loader->add_filter( 'rest_post_dispatch', $permission_override, 'clear_request_cache', 999, 1 );
 		$this->loader->add_action( 'shutdown', $permission_override, 'clear_request_cache', 999 );
 
+		/**
+		 * Per-server exposure for abilities reached through a sibling Toolset.
+		 *
+		 * The Toolsets in acrossai-abilities-manager are a fourth route into the
+		 * ability catalogue, alongside the three plugin-owned meta tools. Without
+		 * this bridge the Abilities tab's per-server toggles are silently
+		 * bypassed by every `toolset-*` call — see ToolsetExposureBridge.
+		 *
+		 * Registered unconditionally: the filter simply never fires when the
+		 * sibling is inactive, so no class_exists guard is needed.
+		 */
+		$toolset_exposure = \AcrossAI_MCP_Manager\Includes\Abilities\ToolsetExposureBridge::instance();
+		$this->loader->add_filter( 'acrossai_toolset_member_visible', $toolset_exposure, 'filter_member_visible', 10, 4 );
+
 		$current_server_holder = \AcrossAI_MCP_Manager\Includes\Abilities\CurrentServerHolder::instance();
 		// `rest_pre_dispatch` is a filter that returns $result; priority 5 to
 		// fire before any short-circuiting handlers at default 10.
