@@ -22,8 +22,8 @@ declare( strict_types = 1 );
 
 namespace AcrossAI_MCP_Manager\Includes\MCP;
 
+use AcrossAI_MCP_Manager\Includes\Abilities\ToolAbilities;
 use AcrossAI_MCP_Manager\Includes\Database\MCPServer\Query as MCPServerQuery;
-use AcrossAI_MCP_Manager\Includes\Database\MCPServer\ToolPolicy;
 use AcrossAI_MCP_Manager\Includes\Database\MCPServerAbility\ExposureResolver;
 
 defined( 'ABSPATH' ) || exit;
@@ -129,14 +129,15 @@ final class AbilityExposureGate {
 		}
 		$slug = $ability->get_name();
 
-		// Tool-level abilities are exempt. They are the transport, not cargo:
+		// Tool-level abilities are exempt — the same list the admin pickers
+		// read (F087). They are the transport, not cargo:
 		// the mcp-adapter protocol tools every client needs to bootstrap, plus
 		// any dispatcher a companion plugin declares. Letting the Abilities
 		// tab's hide policy 403 them would mean "Disable All" silently breaks
 		// every connected client instead of hiding abilities from them — the
 		// hiding still happens, one layer down, inside those tools' own
 		// callbacks (Execute::check_permission, acrossai_toolset_member_visible).
-		if ( in_array( $slug, self::exempt_slugs(), true ) ) {
+		if ( in_array( $slug, ToolAbilities::get_slugs(), true ) ) {
 			return $args;
 		}
 
@@ -149,23 +150,6 @@ final class AbilityExposureGate {
 			__( 'This ability is not exposed on this MCP server.', 'acrossai-mcp-manager' ),
 			array( 'status' => 403 )
 		);
-	}
-
-	/**
-	 * Ability slugs this gate never denies.
-	 *
-	 * Seeded with the three mcp-adapter protocol tools and widened by the same
-	 * filter the admin pickers read, so a companion plugin that declares a
-	 * dispatcher tool-level gets it exempted here for free.
-	 *
-	 * @since 0.1.1
-	 * @return string[]
-	 */
-	private static function exempt_slugs(): array {
-		/** This filter is documented in includes/Abilities/ToolAbilities.php */
-		$slugs = apply_filters( 'acrossai_mcp_manager_tool_abilities', ToolPolicy::PROTOCOL_TOOLS );
-
-		return array_values( array_unique( array_map( 'strval', (array) $slugs ) ) );
 	}
 
 	/**
