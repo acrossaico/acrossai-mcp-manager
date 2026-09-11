@@ -2471,3 +2471,75 @@ Second gotcha in the same recipe: this WP test library requires `tear_down()` to
 - T069 — the repo-wide WP-dependent suite breakage this recipe works around rather than fixes.
 - `A12` / `A18` — the WP-free bootstrap and its stub carve-out; those suites are unaffected because
   they never boot the plugin.
+
+---
+
+### 2026-09-11 — The vendor tool-name sanitizer breaks registry LOOKUPS too, and a missed lookup fails open
+
+**Status**
+Active (Feature 087 arc — fixed in `AbilityExposureGate` on `fix/ability-gate-sanitized-name`, PR #121).
+Extends `B31`, which recorded the same root cause with a prevention rule too narrow to have caught this.
+
+**Symptoms**
+Silence. No error, no denial, nothing in a log a reviewer would read — the gate simply stops
+enforcing. On this repo it meant F017/F082 per-server ability exposure was inert at call time for
+**every** ability: one hidden on a server, but curated as a tool, executed normally. The only visible
+trace was a `_doing_it_wrong()` notice per `tools/call`, which reads as test-harness noise rather than
+a disabled security gate.
+
+Confirmed live before and after the fix, against a real server with `abilities_default_policy = hide`
+and a curated-but-hidden `toolset/cron`:
+
+| Gate | `tools/call` → `toolset-cron` |
+|---|---|
+| before | `success: true` — executed despite being hidden |
+| after | `isError: true` — "This ability is not exposed on this MCP server." |
+
+**Root Cause**
+`B31` established that `$tool_name` at `mcp_adapter_pre_tool_call` is the vendor-SANITIZED form
+(`McpNameSanitizer::sanitize_name()` swaps `/` → `-`; `RegisterAbilityAsMcpTool.php:208`, passed
+through at `ToolsHandler.php:183`), while ability slugs are registered in the SLASH form.
+
+`B31`'s prevention addressed only slug *comparisons* — "list BOTH forms in bypass constants". This
+gate compared nothing. It did `wp_get_ability( $tool_name )`, and
+`WP_Abilities_Registry::get_registered()` (`wp-includes/abilities-api/class-wp-abilities-registry.php:260`)
+is an exact-key lookup with no normalization. Every registered ability slug contains a slash, so the
+lookup missed on all of them and the gate took its `if ( ! $ability ) return $args;` branch —
+the "ability not registered, nothing to enforce" path, written for a genuinely absent ability.
+
+Two properties make this worse than `B31`'s version:
+
+1. **`B31` fails closed and loud** (legitimate calls denied — someone files a bug within a day).
+   **This fails open and silent.** A disabled gate looks exactly like a gate with nothing to deny.
+2. **It is total, not partial.** A bypass constant with the wrong form misses on three slugs. A
+   lookup with the wrong form misses on every slug in the system.
+
+**Why the tests did not catch it**
+The five pre-existing SEC-001 cases invoked the gate with **raw slashed slugs** — the one form the
+sanitizer never produces — and asserted a correct 403. They passed continuously while the gate
+enforced nothing in production. A test that feeds a gate the form its caller never sends validates
+nothing about the gate.
+
+**Future mistake prevented**
+For any code reached from `mcp_adapter_pre_tool_call` (or any vendor hook passing a transformed
+identifier):
+
+1. **Do not resolve the subject by name.** Ask the object: ability-backed tools carry their source
+   slug in `get_observability_context()['ability_name']`. That is authoritative, and the only thing
+   that survives an `mcp_adapter_tool_name` rename, which no lookup strategy can invert. Fall back to
+   a direct registry hit, then to a forward-sanitized comparison across `wp_get_abilities()` — never
+   invert the sanitizer.
+2. **Drive every gate test with the sanitized form.** A suite that only exercises raw slugs is
+   evidence of nothing. Keep one raw-form case for the direct-hit path, but the sanitized form is the
+   real contract.
+3. **Audit the not-found branch of any gate.** "Subject unresolvable → allow" is a reasonable
+   fail-open policy and a catastrophic bug when the resolution step is itself broken. If resolution
+   can fail systemically, that branch needs a canary — a counter, an action, or a test that asserts
+   the gate denies *something* under a known-hidden fixture.
+
+**Where to look next**
+- `B31` — same root cause, comparison variant. Read both; neither prevention rule implies the other.
+- `includes/MCP/AbilityExposureGate.php::resolve_ability()` and
+  `includes/MCP/ToolExposureGate.php::is_added()` — the two gates, now sharing one resolution order.
+- `D56` — the tool-level exemption this fix depends on; without it, repairing the gate takes every
+  connected MCP client down.
