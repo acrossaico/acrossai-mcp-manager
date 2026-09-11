@@ -130,13 +130,15 @@ final class ToolExposureGate {
 	 * @param array<mixed>|\WP_Error       $args      Tool call args (or a WP_Error
 	 *                                                already returned by an earlier
 	 *                                                priority callback).
-	 * @param string                       $tool_name The MCP tool name (== ability slug).
+	 * @param string                       $tool_name The MCP tool name. NOT the ability
+	 *                                                slug: the vendor sanitizes the slug
+	 *                                                (`/` → `-`, and more) at registration,
+	 *                                                so this arrives in sanitized form.
 	 * @param mixed                        $mcp_tool  Vendor McpTool instance (unused).
 	 * @param \WP\MCP\Core\McpServer|mixed $server    Vendor McpServer instance.
 	 * @return array<mixed>|\WP_Error Original `$args` on allow / fail-open; WP_Error on deny.
 	 */
 	public function gate_tool_call_by_curation( $args, string $tool_name, $mcp_tool, $server ) {
-		unset( $mcp_tool );
 
 		// 1. Deny-precedence — never re-allow an already-denied ability.
 		if ( is_wp_error( $args ) ) {
@@ -186,7 +188,7 @@ final class ToolExposureGate {
 
 		// 4. Presence check via per-request cache.
 		$added = self::get_added_slugs_cached( $server_id );
-		if ( in_array( $tool_name, $added, true ) ) {
+		if ( self::is_added( $tool_name, $mcp_tool, $added ) ) {
 			// 6. Presence-allow.
 			return $args;
 		}
@@ -197,6 +199,92 @@ final class ToolExposureGate {
 			__( 'This tool is not enabled on this MCP server.', 'acrossai-mcp-manager' ),
 			array( 'status' => 403 )
 		);
+	}
+
+	/**
+	 * Is the tool being called one of the slugs curated for this server?
+	 *
+	 * `$added` holds raw ability slugs as stored by the Tools screen
+	 * (`toolset/content`). `$tool_name` is what the vendor registered the tool
+	 * under, and the vendor sanitizes the slug on the way in — at minimum
+	 * `/` → `-`, plus accent folding, character replacement and a hash suffix
+	 * past 128 characters, and the `mcp_adapter_tool_name` filter can rewrite
+	 * it outright. Comparing the two directly denies every curated ability;
+	 * only the hardcoded protocol tools in EXCLUDED_SLUGS survived, which is
+	 * why this went unnoticed until an ability was actually curated.
+	 *
+	 * Ability-backed tools carry their source slug in the vendor's
+	 * observability context, so ask the tool rather than trying to invert the
+	 * sanitizer. The sanitized-form comparison is the fallback for tools that
+	 * do not expose it.
+	 *
+	 * @since 0.1.1
+	 * @param string   $tool_name Tool name as invoked.
+	 * @param mixed    $mcp_tool  Vendor McpTool instance, when supplied.
+	 * @param string[] $added     Raw ability slugs curated for this server.
+	 * @return bool
+	 */
+	private static function is_added( string $tool_name, $mcp_tool, array $added ): bool {
+		// Authoritative: the tool's own record of the ability behind it.
+		$ability_name = self::ability_name_of( $mcp_tool );
+		if ( '' !== $ability_name ) {
+			return in_array( $ability_name, $added, true );
+		}
+
+		foreach ( $added as $slug ) {
+			if ( $slug === $tool_name || self::sanitize_slug( $slug ) === $tool_name ) {
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	/**
+	 * The raw ability slug behind a vendor tool, when it exposes one.
+	 *
+	 * Duck-typed for the same reason server resolution is (SEC-020-007): the
+	 * vendor namespace is not a contract this plugin should couple to.
+	 *
+	 * @since 0.1.1
+	 * @param mixed $mcp_tool Vendor McpTool instance, when supplied.
+	 * @return string Ability slug, or '' when the tool is not ability-backed.
+	 */
+	private static function ability_name_of( $mcp_tool ): string {
+		if ( ! is_object( $mcp_tool ) || ! method_exists( $mcp_tool, 'get_observability_context' ) ) {
+			return '';
+		}
+
+		$context = $mcp_tool->get_observability_context();
+		if ( ! is_array( $context ) || ! isset( $context['ability_name'] ) || ! is_string( $context['ability_name'] ) ) {
+			return '';
+		}
+
+		return $context['ability_name'];
+	}
+
+	/**
+	 * A stored slug in the form the vendor would have registered it under.
+	 *
+	 * Delegates to the vendor sanitizer when it is loadable so the two cannot
+	 * drift apart; the local fallback covers the `/` → `-` step, which is the
+	 * only transformation every bundled ability slug actually undergoes.
+	 *
+	 * @since 0.1.1
+	 * @param string $slug Raw ability slug.
+	 * @return string
+	 */
+	private static function sanitize_slug( string $slug ): string {
+		$sanitizer = '\\WP\\MCP\\Domain\\Utils\\McpNameSanitizer';
+
+		if ( class_exists( $sanitizer ) && is_callable( array( $sanitizer, 'sanitize_name' ) ) ) {
+			$sanitized = call_user_func( array( $sanitizer, 'sanitize_name' ), $slug );
+			if ( is_string( $sanitized ) ) {
+				return $sanitized;
+			}
+		}
+
+		return str_replace( '/', '-', $slug );
 	}
 
 	/**
