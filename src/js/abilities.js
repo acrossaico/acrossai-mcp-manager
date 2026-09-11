@@ -11,6 +11,8 @@
  *   - JS filter `acrossaiMcpManager.abilities.fields` — add columns
  *   - JS filter `acrossaiMcpManager.abilities.actions` — add bulk actions
  *   - JS filter `acrossaiMcpManager.abilities.row` — decorate rows
+ *   - PHP filter `acrossai_mcp_manager_tool_abilities` (F087) — declare a slug
+ *     tool-level and this table drops it; arrives as `config.toolAbilities`
  *
  * All three filters are wrapped in `safeApplyFilters` so a throwing
  * companion-plugin callback never white-screens the tab. Built-in
@@ -65,17 +67,24 @@ import '../scss/abilities.scss';
 const ABILITIES_STORE_KEY = 'core/abilities';
 
 /**
- * Slugs excluded from the operator-facing table. These are the MCP
- * adapter's own protocol-plumbing tools — every MCP server has to expose
- * them to be spec-compliant, so making them operator-selectable would
- * either produce a no-op toggle (the adapter re-exposes them anyway) or
- * silently break the protocol for connected clients.
+ * Boot-time fallback for the tool-level list — the MCP adapter's own
+ * protocol-plumbing tools. Every MCP server has to expose them to be
+ * spec-compliant, so making them operator-selectable here would either produce
+ * a no-op toggle (the adapter re-exposes them anyway) or silently break the
+ * protocol for connected clients. The sibling plugin's `toolset/*` dispatchers
+ * join them at runtime.
+ *
+ * F087: the effective list is PHP's, delivered as `config.toolAbilities` from
+ * `ToolAbilities::get_slugs()` (filterable by companion plugins via
+ * `acrossai_mcp_manager_tool_abilities`). This table drops every slug in it;
+ * the Tools tab's pool shows nothing else. These literals only apply when the
+ * key is missing from the localized payload.
  */
-const EXCLUDED_SLUGS = new Set( [
+const DEFAULT_TOOL_SLUGS = [
 	'mcp-adapter/discover-abilities',
 	'mcp-adapter/get-ability-info',
 	'mcp-adapter/execute-ability',
-] );
+];
 
 ( function() {
 	const mount = document.getElementById( 'acrossai-mcp-abilities-root' );
@@ -95,6 +104,15 @@ const EXCLUDED_SLUGS = new Set( [
 	if ( config.nonce ) {
 		apiFetch.use( apiFetch.createNonceMiddleware( config.nonce ) );
 	}
+
+	// F087 — server-resolved tool-level list; falls back to the protocol slugs
+	// when an older localized payload omits the key. This table renders every
+	// ability that is NOT one of these.
+	const toolSlugs = new Set(
+		Array.isArray( config.toolAbilities )
+			? config.toolAbilities
+			: DEFAULT_TOOL_SLUGS,
+	);
 
 	/**
 	 * Defensive `applyFilters` boundary (FR-029) — never lets a broken
@@ -407,10 +425,12 @@ const EXCLUDED_SLUGS = new Set( [
 		// During the initial-fetch transient the serverExposure map is empty;
 		// items default to `is_exposed=false` until the augmented GET response
 		// arrives. The surrounding `loading` state (Spinner) handles this UX.
-		// EXCLUDED_SLUGS drops the MCP adapter's protocol-plumbing tools.
+		// toolSlugs drops the protocol-plumbing tools plus any dispatcher a
+		// companion plugin declared via `acrossai_mcp_manager_tool_abilities`.
+		// Those belong to the Tools tab; this table is per-ability toggles.
 		const items = useMemo( () => {
 			return abilities
-				.filter( ( a ) => ! EXCLUDED_SLUGS.has( a.name ) )
+				.filter( ( a ) => ! toolSlugs.has( a.name ) )
 				.map( ( a ) => {
 					const meta = a.meta || {};
 					const mcpMeta = meta.mcp || {};

@@ -158,6 +158,24 @@ The Abilities tab (`?tab=abilities`) controls per-server ability visibility via 
 
 The Tools tab UI is deliberately unchanged. It reflects the operator's Tools-tab picks (protocol + curated) only. The Abilities tab is the sole surface for F017 override management.
 
+## 7a. Tool-level abilities and this filter — Feature 087
+
+`acrossai_mcp_manager_tool_abilities` (documented in [Extending the Abilities Tab](extending-abilities-tab.md)) decides what the Tools tab's left "Available tools" pool offers. It is an allow list: only tool-level slugs appear there, seeded with `ToolPolicy::PROTOCOL_TOOLS` and extended by companion plugins. An ability that isn't in it can't be put on a server with **+ Add** — this filter is the supported way to do it in PHP:
+
+```php
+add_filter( 'acrossai_mcp_manager_server_tools', static function ( array $tools, $server ): array {
+    // Advertise the sibling's cron dispatcher on every database server,
+    // whether or not an operator picked it on the Tools tab.
+    $tools[] = 'toolset/cron';
+    return $tools;
+}, 10, 2 );
+```
+
+Two things to know:
+
+- The allow list is cosmetic. It does not remove anything from `wp_acrossai_mcp_server_tools` and does not affect `compose_for_row()` — a slug this filter adds is advertised regardless of what the pool shows.
+- Abilities already curated on a server render in the "Added as tools" pane whether or not they're tool-level, stay removable, and round-trip through save untouched. Nothing is dropped silently.
+
 ## 8. Throw safety note
 
 Neither filter is wrapped in try/catch on the plugin side. This matches standard WordPress behavior: throws propagate up the call stack. If your callback may throw:

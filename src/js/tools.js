@@ -45,6 +45,9 @@ import { useSelect } from '@wordpress/data';
  * F025: no longer filters the left "All abilities" pool — protocol slugs are
  * first-class entries visible in both panes with the recommended-defaults
  * color treatment (see TYPE_STYLE.Built-in).
+ *
+ * F087: also the boot-time fallback for `toolSlugs` — PHP seeds the tool-level
+ * list with exactly these three (`ToolPolicy::PROTOCOL_TOOLS`).
  */
 const PROTOCOL_TOOL_SLUGS = [
 	'mcp-adapter/discover-abilities',
@@ -336,6 +339,43 @@ function ToolsApp( { serverId } ) {
 		return source;
 	}, [ abilitiesFromStore, abilitiesFromRest ] );
 
+	// F087 — the tool-level abilities, server-resolved from
+	// `ToolAbilities::get_slugs()` (PHP filter `acrossai_mcp_manager_tool_abilities`).
+	// Falls back to the protocol slugs when an older localized payload omits
+	// the key. This tab curates what a server ADVERTISES in `tools/list`, and
+	// that has only ever been tool-level entries: the three protocol tools plus
+	// whatever dispatchers a companion plugin declares (the sibling's
+	// `toolset/*` groups). Individual abilities reach clients THROUGH those,
+	// so listing all ~370 of them here was offering a choice that isn't one.
+	const toolSlugs = useMemo(
+		() =>
+			new Set(
+				Array.isArray( config.toolAbilities )
+					? config.toolAbilities
+					: PROTOCOL_TOOL_SLUGS,
+			),
+		[ config.toolAbilities ],
+	);
+
+	// The left pool is an ALLOW list — only tool-level slugs — unioned with
+	// whatever is already curated on this server. That union is load-bearing:
+	// an install that picked individual abilities before F087 keeps seeing and
+	// managing them (they just can't be re-added once removed), and `totalPool`
+	// stays coherent with `added.size`. `visibleAvailable` drops the added ones
+	// from the left pane anyway via its own `added.has()` check.
+	//
+	// `abilities` itself is left unfiltered because `addedRows` needs it for the
+	// byName metadata lookup — that's what makes a curated non-tool-level slug
+	// render with its real label in the right pane, stay removable, and
+	// round-trip through save instead of being silently dropped.
+	const poolAbilities = useMemo(
+		() =>
+			abilities.filter(
+				( a ) => toolSlugs.has( a.name ) || added.has( a.name ),
+			),
+		[ abilities, toolSlugs, added ],
+	);
+
 	// Initial mount: GET /tools?include_abilities=1
 	useEffect( () => {
 		const path = `/${ config.namespace }/servers/${ serverId }/tools?include_abilities=1`;
@@ -356,7 +396,7 @@ function ToolsApp( { serverId } ) {
 
 	const visibleAvailable = useMemo( () => {
 		const q = search.trim().toLowerCase();
-		return abilities.filter( ( a ) => {
+		return poolAbilities.filter( ( a ) => {
 			if ( added.has( a.name ) ) {
 				return false;
 			}
@@ -370,7 +410,7 @@ function ToolsApp( { serverId } ) {
 				( a.category || '' ).toLowerCase().includes( q )
 			);
 		} );
-	}, [ abilities, added, search ] );
+	}, [ poolAbilities, added, search ] );
 
 	const addedRows = useMemo( () => {
 		const byName = Object.fromEntries( abilities.map( ( a ) => [ a.name, a ] ) );
@@ -491,7 +531,7 @@ function ToolsApp( { serverId } ) {
 		);
 	}
 
-	const totalPool = abilities.length;
+	const totalPool = poolAbilities.length;
 
 	return createElement(
 		Fragment,
@@ -521,7 +561,7 @@ function ToolsApp( { serverId } ) {
 				sprintf(
 					/* translators: 1: added count, 2: total available count */
 					__(
-						'%1$d of %2$d abilities added as tools',
+						'%1$d of %2$d tools added to this server',
 						'acrossai-mcp-manager',
 					),
 					added.size,
@@ -571,7 +611,7 @@ function ToolsApp( { serverId } ) {
 						createElement(
 							'span',
 							{ style: { fontSize: '14px', fontWeight: 700 } },
-							__( 'All abilities', 'acrossai-mcp-manager' ),
+							__( 'Available tools', 'acrossai-mcp-manager' ),
 						),
 						' ',
 						createElement(
@@ -591,7 +631,7 @@ function ToolsApp( { serverId } ) {
 					createElement( SearchControl, {
 						value: search,
 						onChange: setSearch,
-						placeholder: __( 'Search abilities…', 'acrossai-mcp-manager' ),
+						placeholder: __( 'Search tools…', 'acrossai-mcp-manager' ),
 					} ),
 				),
 				createElement(
@@ -602,8 +642,8 @@ function ToolsApp( { serverId } ) {
 							'div',
 							{ style: { padding: '40px 24px', textAlign: 'center', color: '#646970' } },
 							search.trim()
-								? __( 'No abilities match your search.', 'acrossai-mcp-manager' )
-								: __( 'Every ability has been added as a tool.', 'acrossai-mcp-manager' ),
+								? __( 'No tools match your search.', 'acrossai-mcp-manager' )
+								: __( 'Every available tool has been added to this server.', 'acrossai-mcp-manager' ),
 						)
 						: visibleAvailable.map( ( a ) =>
 							createElement( AbilityRow, {

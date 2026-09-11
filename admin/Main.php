@@ -8,6 +8,7 @@
 
 namespace AcrossAI_MCP_Manager\Admin;
 
+use AcrossAI_MCP_Manager\Includes\Abilities\ToolAbilities;
 use AcrossAI_MCP_Manager\Includes\Utilities\AdminPageSlugs;
 use AcrossAI_MCP_Manager\Includes\Utilities\LocalEnvironment;
 
@@ -457,17 +458,22 @@ class Main {
 			$handle,
 			'acrossaiMcpAbilities',
 			array(
-				'serverId'    => $server_id,
-				'serverSlug'  => $server_slug,
+				'serverId'      => $server_id,
+				'serverSlug'    => $server_slug,
 				// B17 defense — `rest_url()` returns with a trailing slash;
 				// the client concatenates `restApiRoot + '/acrossai-mcp-manager/v1/…'`
 				// so we strip the slash here to avoid `//`-doubled routes → 404.
-				'restApiRoot' => esc_url_raw( untrailingslashit( rest_url() ) ),
-				'nonce'       => wp_create_nonce( 'wp_rest' ),
-				'namespace'   => 'acrossai-mcp-manager/v1',
+				'restApiRoot'   => esc_url_raw( untrailingslashit( rest_url() ) ),
+				'nonce'         => wp_create_nonce( 'wp_rest' ),
+				'namespace'     => 'acrossai-mcp-manager/v1',
 				// Brand icon for the full-screen loading overlay — same asset
 				// the Quick Connect wizard's hydrate/busy overlay uses.
-				'iconUrl'     => esc_url_raw( \ACROSSAI_MCP_MANAGER_PLUGIN_URL . 'assets/quick-connect/icon.svg' ),
+				'iconUrl'       => esc_url_raw( \ACROSSAI_MCP_MANAGER_PLUGIN_URL . 'assets/quick-connect/icon.svg' ),
+				// F087 — the tool-level abilities this table DROPS: protocol
+				// plumbing plus whatever companion plugins declare via
+				// `acrossai_mcp_manager_tool_abilities`. PHP is the source of
+				// truth; the JS literals are a boot fallback.
+				'toolAbilities' => ToolAbilities::get_slugs(),
 			)
 		);
 	}
@@ -536,11 +542,15 @@ class Main {
 			$handle,
 			'acrossaiMcpTools',
 			array(
-				'serverId'    => $server_id,
-				'serverSlug'  => $server_slug,
-				'restApiRoot' => esc_url_raw( untrailingslashit( rest_url() ) ),
-				'nonce'       => wp_create_nonce( 'wp_rest' ),
-				'namespace'   => 'acrossai-mcp-manager/v1',
+				'serverId'      => $server_id,
+				'serverSlug'    => $server_slug,
+				'restApiRoot'   => esc_url_raw( untrailingslashit( rest_url() ) ),
+				'nonce'         => wp_create_nonce( 'wp_rest' ),
+				'namespace'     => 'acrossai-mcp-manager/v1',
+				// F087 — same list the Abilities tab uses, opposite job: the left
+				// "All abilities" pool shows ONLY these. The "Added as tools" pane
+				// is unfiltered so earlier picks round-trip on save.
+				'toolAbilities' => ToolAbilities::get_slugs(),
 			)
 		);
 	}
