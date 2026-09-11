@@ -113,6 +113,44 @@ add_filter( 'acrossai_mcp_ability_row', function ( $row, $server_id, $ability ) 
 - A callback that returns a non-array value has its return discarded and a `_doing_it_wrong()` notice is emitted. The unfiltered `$row` is used.
 - A callback that throws — WordPress core surfaces the exception. Your extension is responsible for its own try/catch.
 
+### `acrossai_mcp_manager_tool_abilities` — declare tool-level abilities
+
+**Feature 087.** Not every registered ability is an operator-facing choice. A handful are *tool-level*: they are what an MCP server advertises in `tools/list`, and every other ability reaches a client through one of them. Two families exist today — the three `mcp-adapter/*` protocol tools, whose plugin-owned callbacks enumerate and run the ability catalogue, and the sibling `acrossai-abilities-manager` plugin's `toolset/*` dispatchers, each of which takes `action=discover|info|execute` and routes to the abilities in one `meta.acrossai.tab_group`.
+
+One list drives two opposite behaviours:
+
+| Surface | Effect |
+| --- | --- |
+| **Abilities tab** (`?tab=abilities`) | Hides every slug in the list. They're plumbing — a per-ability **Exposed** toggle on them either no-ops or breaks the protocol. The "N exposed" counter, the category/type dropdowns and bulk selection all follow, since they derive from the same filtered set. |
+| **Tools tab** (`?tab=tools`) left "Available tools" pool | Shows **nothing but** these slugs, unioned with whatever is already curated on the server. |
+
+The default is `ToolPolicy::PROTOCOL_TOOLS` — the three the vendored mcp-adapter registers. Nothing here hardcodes another plugin's vocabulary; a plugin declares its own:
+
+```php
+add_filter( 'acrossai_mcp_manager_tool_abilities', function ( array $slugs ): array {
+    foreach ( wp_get_abilities() as $ability ) {
+        $meta = $ability->get_meta();
+        if ( ! empty( $meta['acrossai']['toolset'] ) ) {
+            $slugs[] = $ability->get_name();
+        }
+    }
+    return $slugs;
+} );
+```
+
+**Signature**:
+- `$slugs` — `string[]`, `ToolPolicy::PROTOCOL_TOOLS` plus whatever prior callbacks added.
+- Return `string[]`. The resolver casts every entry with `strval()`, drops empty strings, de-duplicates, and re-indexes — a callback returning `null` or a scalar degrades to an empty list rather than fatalling.
+
+**Invariants**:
+- The filter **subtracts as well as adds**. Dropping one of the defaults puts it back on the Abilities tab and takes it out of the Tools pool.
+- An ability **already curated** on a server keeps rendering in the Tools tab's "Added as tools" pane whether or not it's in this list, and stays removable. That union is deliberate: filtering it out of the client's state would make the next save delete it from `wp_acrossai_mcp_server_tools`. It just can't be re-added from the left pool once removed.
+- On a site where nothing hooks the filter, the Tools pool holds exactly the three protocol tools. Individual abilities are not addable as tools from that screen unless a plugin declares them here — which matches how they actually reach clients (through the tool-level entries, not as direct `tools/list` entries; see [Extending per-server MCP tool lists §7](extending-server-tools.md)).
+- **This is presentation only.** It changes neither exposure (F017/F082), curation (F020/F025), nor call-time enforcement at `mcp_adapter_pre_tool_call`. In particular it is *not* `MCP\ToolExposureGate::EXCLUDED_SLUGS`, which means "always callable" — an ability's membership here gates nothing.
+- To put a tool-level ability on a server in PHP rather than by hand, use [`acrossai_mcp_manager_server_tools`](extending-server-tools.md).
+
+Resolved by `Includes\Abilities\ToolAbilities::get_slugs()` and delivered to both React apps as `config.toolAbilities` via `wp_localize_script()`. PHP is the single source of truth; the slug literals in `src/js/abilities.js` and `src/js/tools.js` are boot-time fallbacks for a stale localized payload only.
+
 ### `acrossai_mcp_ability_exposure_changed` — audit hook
 
 Fires after the REST POST endpoint upserts a `(server, ability)` row **and** the effective exposure value changed. Writes that leave the effective value unchanged do NOT fire the action.

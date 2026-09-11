@@ -2808,3 +2808,61 @@ removed.
 - Constitution §IV connector-picker card exception (v1.1.0) — sanctions `.nav-tab-wrapper` here.
 - F084 `spec.md` FR-017 / SC-007, amended 2026-09-07: the original wording required level 2 to look
   UNLIKE its neighbours, which forbade this decision. `plan.md` §Design Revision records the reversal.
+
+---
+
+### 2026-09-11 — One declared list read in opposite directions; and an allow-list pool must union with what is already stored
+
+**Status**
+Active (Feature 087, PR #120)
+
+**Decision**
+Two admin surfaces disagreeing about the same vocabulary get **one** filter, read in opposite
+directions — not two filters.
+
+F087's case: the per-server Abilities tab must *hide* the tool-level abilities (the three
+`mcp-adapter/*` protocol tools, plus the `toolset/*` dispatchers a sibling plugin registers), while
+the Tools tab's pool must show *nothing but* them. The first design shipped a hide-list; the inverted
+requirement arrived a day later and the obvious move was to add an allow-list beside it. That would
+have been two filters contending over one slug — a plugin declaring `toolset/cron` tool-level would
+have had to add it to one list and keep it out of the other, with no way to express "these are the
+tool-level abilities" once.
+
+`apply_filters( 'acrossai_mcp_manager_tool_abilities', string[] $slugs )` states the fact. Each
+surface applies the reading that suits it. PHP is the single source of truth, handed to both React
+apps through `wp_localize_script()`; the JS literals are boot-time fallbacks for a stale payload only.
+
+**Two constraints that generalise past this feature**
+
+1. **An allow-list over a pool that round-trips through a replace-style POST must union with what is
+   already stored.** The Tools pool is `toolSlugs ∪ added`, never `toolSlugs` alone. The save path
+   POSTs the client's full set and `replace_set()` overwrites the table, so any row filtered out of
+   the client's state is **deleted from the database on the next unrelated save** — silently, with no
+   user action naming it. The filter is a *view* concern; the stored set is not the view's to prune.
+   Smell: any client-side `.filter()` whose output later feeds a whole-collection write.
+
+2. **A policy that hides cargo must exempt the transport.** `abilities_default_policy = hide` is
+   meant to hide abilities, not disconnect clients. The tool-level entries are how every ability
+   reaches a client, so they are exempt from the hide policy by construction — hiding happens one
+   layer lower, inside those tools' own callbacks. This is not cosmetic: repairing
+   `AbilityExposureGate` without the exemption (see `B58`) makes "Disable All" return 403 for
+   `mcp-adapter-execute-ability` and take every connected client down. The transport/cargo split is
+   the thing to look for whenever a bulk "disable everything" control meets a protocol that needs
+   *something* callable to function.
+
+**Tradeoffs**
+- Gained: one vocabulary, declared once, by the plugin that owns it. No cross-plugin slug list
+  hardcoded here. Both surfaces provably agree because they read the same array.
+- Made harder: the two readings are opposite, so the filter's name alone does not tell you what a
+  surface will do with it. Both call sites carry a comment explaining their direction; keep them.
+- Accepted: with no subscriber, the Tools pool holds exactly the three protocol tools, so individual
+  abilities are no longer addable as tools from that screen. `acrossai_mcp_manager_server_tools`
+  remains the PHP route. Deliberate — it matches how abilities actually reach clients.
+- Reconsider: if a third surface needs a *third* reading of the same list, the single-array shape is
+  probably exhausted and the entries want a shape (`['slug' => ..., 'role' => ...]`) instead.
+
+**Where to look next**
+- `includes/Abilities/ToolAbilities.php` — the resolver and the filter's documented contract.
+- `src/js/tools.js` — `poolAbilities`, where the union is, and why `abilities` stays unfiltered.
+- `B58` — the enforcement-gate bug whose fix depends on the exemption above.
+- `D48` — sibling rule on preserving extension surfaces through subtractive UI changes.
