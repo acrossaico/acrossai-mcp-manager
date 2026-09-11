@@ -22,6 +22,7 @@ declare( strict_types = 1 );
 
 namespace AcrossAI_MCP_Manager\Includes\MCP;
 
+use AcrossAI_MCP_Manager\Includes\Abilities\ToolAbilities;
 use AcrossAI_MCP_Manager\Includes\Database\MCPServer\Query as MCPServerQuery;
 use AcrossAI_MCP_Manager\Includes\Database\MCPServerAbility\ExposureResolver;
 
@@ -122,13 +123,25 @@ final class AbilityExposureGate {
 		if ( ! function_exists( 'wp_get_ability' ) ) {
 			return $args; // Abilities API absent — nothing to enforce.
 		}
-		$ability = \wp_get_ability( $tool_name );
+		$ability = self::resolve_ability( $tool_name, $mcp_tool );
 		if ( ! $ability ) {
 			return $args; // Ability not registered — nothing to enforce.
 		}
-		$meta = $ability->get_meta();
+		$slug = $ability->get_name();
 
-		if ( ExposureResolver::resolve_effective( $server_id, $tool_name, $meta ) ) {
+		// Tool-level abilities are exempt — the same list the admin pickers
+		// read (F087). They are the transport, not cargo:
+		// the mcp-adapter protocol tools every client needs to bootstrap, plus
+		// any dispatcher a companion plugin declares. Letting the Abilities
+		// tab's hide policy 403 them would mean "Disable All" silently breaks
+		// every connected client instead of hiding abilities from them — the
+		// hiding still happens, one layer down, inside those tools' own
+		// callbacks (Execute::check_permission, acrossai_toolset_member_visible).
+		if ( in_array( $slug, ToolAbilities::get_slugs(), true ) ) {
+			return $args;
+		}
+
+		if ( ExposureResolver::resolve_effective( $server_id, $slug, $ability->get_meta() ) ) {
 			return $args;
 		}
 
@@ -137,5 +150,89 @@ final class AbilityExposureGate {
 			__( 'This ability is not exposed on this MCP server.', 'acrossai-mcp-manager' ),
 			array( 'status' => 403 )
 		);
+	}
+
+	/**
+	 * The ability behind the tool being called.
+	 *
+	 * `$tool_name` is NOT an ability slug. The vendor registers each tool under
+	 * `McpNameSanitizer::sanitize_name()` of the ability's name — at minimum
+	 * `/` → `-`, plus accent folding, character replacement and a hash suffix
+	 * past 128 characters — and `mcp_adapter_tool_name` can rewrite it outright.
+	 * Every bundled ability slug contains a slash, so the pre-0.1.1 code
+	 * (`wp_get_ability( $tool_name )`) missed on all of them, fail-opened on
+	 * every call, and emitted a `_doing_it_wrong()` notice each time. Same
+	 * defect ToolExposureGate carried; same resolution order used here.
+	 *
+	 * @since 0.1.1
+	 * @param string $tool_name Tool name as invoked.
+	 * @param mixed  $mcp_tool  Vendor McpTool instance, when supplied.
+	 * @return \WP_Ability|null
+	 */
+	private static function resolve_ability( string $tool_name, $mcp_tool ): ?\WP_Ability {
+		// Authoritative: the tool's own record of the ability behind it. Also
+		// survives a `mcp_adapter_tool_name` rename, which no lookup could.
+		$reported = self::ability_name_of( $mcp_tool );
+		if ( '' !== $reported && \wp_has_ability( $reported ) ) {
+			return \wp_get_ability( $reported );
+		}
+
+		// A slug the sanitizer left untouched (no slash, already valid).
+		if ( \wp_has_ability( $tool_name ) ) {
+			return \wp_get_ability( $tool_name );
+		}
+
+		// Last resort: the sanitizer is not invertible, so compare forward.
+		foreach ( \wp_get_abilities() as $ability ) {
+			if ( self::sanitize_slug( $ability->get_name() ) === $tool_name ) {
+				return $ability;
+			}
+		}
+
+		return null;
+	}
+
+	/**
+	 * The ability slug a tool reports for itself, or '' when it reports none.
+	 *
+	 * @since 0.1.1
+	 * @param mixed $mcp_tool Vendor McpTool instance, when supplied.
+	 * @return string
+	 */
+	private static function ability_name_of( $mcp_tool ): string {
+		if ( ! is_object( $mcp_tool ) || ! method_exists( $mcp_tool, 'get_observability_context' ) ) {
+			return '';
+		}
+
+		$context = $mcp_tool->get_observability_context();
+		if ( ! is_array( $context ) || ! isset( $context['ability_name'] ) || ! is_string( $context['ability_name'] ) ) {
+			return '';
+		}
+
+		return $context['ability_name'];
+	}
+
+	/**
+	 * A raw slug in the form the vendor would have registered it under.
+	 *
+	 * Delegates to the vendor sanitizer when loadable so the two cannot drift;
+	 * the local fallback covers the `/` → `-` step, the only transformation
+	 * every bundled ability slug actually undergoes.
+	 *
+	 * @since 0.1.1
+	 * @param string $slug Raw ability slug.
+	 * @return string
+	 */
+	private static function sanitize_slug( string $slug ): string {
+		$sanitizer = '\\WP\\MCP\\Domain\\Utils\\McpNameSanitizer';
+
+		if ( class_exists( $sanitizer ) && is_callable( array( $sanitizer, 'sanitize_name' ) ) ) {
+			$sanitized = call_user_func( array( $sanitizer, 'sanitize_name' ), $slug );
+			if ( is_string( $sanitized ) ) {
+				return $sanitized;
+			}
+		}
+
+		return str_replace( '/', '-', $slug );
 	}
 }

@@ -8,6 +8,18 @@
  * unchanged (never override an F015 deny), and MUST fail-open on
  * unresolvable server context (matches D19 pattern).
  *
+ * 0.1.1 adds the sanitized-name regression. The gate resolved its ability with
+ * `wp_get_ability( $tool_name )`, but `$tool_name` at `mcp_adapter_pre_tool_call`
+ * is the vendor-SANITIZED tool name (`McpNameSanitizer::sanitize_name()` swaps
+ * `/` → `-` at registration), while the Abilities registry is an exact-key
+ * lookup on the raw slashed slug. Every bundled ability slug contains a slash,
+ * so the lookup missed on all of them: the gate fail-opened on every real call
+ * and emitted a `_doing_it_wrong()` notice each time. The pre-existing cases
+ * below passed only because they invoke the gate with the RAW slug, which the
+ * sanitizer never sees. Same defect ToolExposureGate carried; same resolution
+ * order used here, plus the tool-level exemption that keeps "Disable All" from
+ * 403-ing the protocol tools and breaking every connected client.
+ *
  * @package    AcrossAI_MCP_Manager
  * @subpackage Tests\PHPUnit\MCP
  */
@@ -36,6 +48,24 @@ final class FakeMcpServer {
 	}
 	public function get_server_id(): string {
 		return $this->slug;
+	}
+}
+
+/**
+ * Duck-typed ability-backed McpTool — reports its source slug the way the
+ * vendor's RegisterAbilityAsMcpTool does. The only thing that can resolve a
+ * tool renamed by `mcp_adapter_tool_name`.
+ */
+final class FakeAbilityBackedToolForExposureGate {
+	private string $ability_name;
+	public function __construct( string $ability_name ) {
+		$this->ability_name = $ability_name;
+	}
+	/**
+	 * @return array<string, string>
+	 */
+	public function get_observability_context(): array {
+		return array( 'ability_name' => $this->ability_name );
 	}
 }
 
@@ -110,5 +140,164 @@ class AbilityExposureGateTest extends WP_UnitTestCase {
 		$args = array( 'foo' => 'bar' );
 		$out  = $gate->gate_tool_call_by_exposure( $args, 'core/get-user-info', null, new \stdClass() );
 		$this->assertSame( $args, $out, 'Unrecognized server object → fail-open per D19.' );
+	}
+
+	// -----------------------------------------------------------------
+	// 0.1.1 — sanitized-name resolution.
+	// -----------------------------------------------------------------
+
+	public function tear_down(): void {
+		remove_all_filters( 'acrossai_mcp_manager_tool_abilities' );
+		parent::tear_down();
+	}
+
+	private function maybe_skip(): void {
+		if ( ! function_exists( 'wp_register_ability' ) || ! function_exists( 'wp_has_ability' ) ) {
+			$this->markTestSkipped( 'Abilities API not bootstrapped in this test environment.' );
+		}
+	}
+
+	/**
+	 * Register a tool-typed ability under a slashed slug. Re-uses an existing
+	 * registration — the vendor registers the protocol tools itself — rather
+	 * than colliding with it.
+	 */
+	private function register_ability( string $name ): void {
+		$this->maybe_skip();
+
+		if ( \wp_has_ability( $name ) ) {
+			return;
+		}
+
+		\wp_register_ability(
+			$name,
+			array(
+				'label'               => $name,
+				'description'         => 'Fixture ' . $name,
+				'category'            => 'test',
+				'input_schema'        => array(
+					'type'       => 'object',
+					'properties' => new \stdClass(),
+				),
+				'output_schema'       => array(
+					'type'       => 'object',
+					'properties' => new \stdClass(),
+				),
+				'execute_callback'    => static fn () => array(),
+				'permission_callback' => static fn () => true,
+				'meta'                => array(
+					'mcp' => array(
+						'public' => false,
+						'type'   => 'tool',
+					),
+				),
+			)
+		);
+	}
+
+	/**
+	 * @param mixed $mcp_tool Vendor McpTool stand-in, or null.
+	 * @return array<mixed>|WP_Error
+	 */
+	private function gate( string $tool_name, $mcp_tool = null ) {
+		return AbilityExposureGate::instance()->gate_tool_call_by_exposure(
+			array( 'p' => 'q' ),
+			$tool_name,
+			$mcp_tool,
+			new FakeMcpServer( $this->server_slug )
+		);
+	}
+
+	/**
+	 * The regression itself: the form an AI client actually sends.
+	 */
+	public function test_hidden_ability_is_denied_under_its_sanitized_tool_name(): void {
+		$this->register_ability( 'gate-fixture/hidden-one' );
+		MCPServerAbilityQuery::instance()->upsert( $this->server_id, 'gate-fixture/hidden-one', false );
+		ExposureResolver::_reset_cache_for_tests();
+
+		$out = $this->gate( 'gate-fixture-hidden-one' );
+
+		$this->assertInstanceOf( WP_Error::class, $out, 'Sanitized tool names must still resolve to their ability.' );
+		$this->assertSame( 'acrossai_mcp_ability_not_exposed', $out->get_error_code() );
+	}
+
+	public function test_exposed_ability_passes_under_its_sanitized_tool_name(): void {
+		$this->register_ability( 'gate-fixture/shown-one' );
+		MCPServerAbilityQuery::instance()->upsert( $this->server_id, 'gate-fixture/shown-one', true );
+		ExposureResolver::_reset_cache_for_tests();
+
+		$this->assertSame( array( 'p' => 'q' ), $this->gate( 'gate-fixture-shown-one' ) );
+	}
+
+	/**
+	 * An `mcp_adapter_tool_name` rename defeats every lookup — only the tool's
+	 * own report can resolve it.
+	 */
+	public function test_renamed_tool_resolves_through_its_reported_ability(): void {
+		$this->register_ability( 'gate-fixture/renamed-source' );
+		MCPServerAbilityQuery::instance()->upsert( $this->server_id, 'gate-fixture/renamed-source', false );
+		ExposureResolver::_reset_cache_for_tests();
+
+		$out = $this->gate(
+			'totally-renamed-by-a-filter',
+			new FakeAbilityBackedToolForExposureGate( 'gate-fixture/renamed-source' )
+		);
+
+		$this->assertInstanceOf( WP_Error::class, $out );
+	}
+
+	public function test_unregistered_tool_name_still_fails_open(): void {
+		$this->maybe_skip();
+
+		$this->assertSame( array( 'p' => 'q' ), $this->gate( 'nothing-registered-under-this' ) );
+	}
+
+	// -----------------------------------------------------------------
+	// Tool-level exemption — "Disable All" must not break the protocol.
+	// -----------------------------------------------------------------
+
+	public function test_protocol_tools_are_never_denied(): void {
+		$this->register_ability( 'mcp-adapter/execute-ability' );
+		MCPServerAbilityQuery::instance()->upsert( $this->server_id, 'mcp-adapter/execute-ability', false );
+		ExposureResolver::_reset_cache_for_tests();
+
+		$this->assertSame(
+			array( 'p' => 'q' ),
+			$this->gate( 'mcp-adapter-execute-ability' ),
+			'Hiding every ability must not 403 the tools clients bootstrap with.'
+		);
+	}
+
+	public function test_a_declared_dispatcher_is_exempt_too(): void {
+		$this->register_ability( 'toolset/cron' );
+		MCPServerAbilityQuery::instance()->upsert( $this->server_id, 'toolset/cron', false );
+		ExposureResolver::_reset_cache_for_tests();
+		add_filter(
+			'acrossai_mcp_manager_tool_abilities',
+			static function ( array $slugs ): array {
+				$slugs[] = 'toolset/cron';
+				return $slugs;
+			}
+		);
+
+		$this->assertSame( array( 'p' => 'q' ), $this->gate( 'toolset-cron' ) );
+	}
+
+	/**
+	 * The exemption list subtracts as well as adds.
+	 */
+	public function test_removing_a_default_from_the_filter_un_exempts_it(): void {
+		$this->register_ability( 'mcp-adapter/get-ability-info' );
+		MCPServerAbilityQuery::instance()->upsert( $this->server_id, 'mcp-adapter/get-ability-info', false );
+		ExposureResolver::_reset_cache_for_tests();
+		add_filter(
+			'acrossai_mcp_manager_tool_abilities',
+			static function ( array $slugs ): array {
+				return array_values( array_diff( $slugs, array( 'mcp-adapter/get-ability-info' ) ) );
+			}
+		);
+
+		$this->assertInstanceOf( WP_Error::class, $this->gate( 'mcp-adapter-get-ability-info' ) );
 	}
 }
