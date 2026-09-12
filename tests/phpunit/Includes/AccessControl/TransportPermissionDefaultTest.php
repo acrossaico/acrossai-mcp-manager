@@ -28,6 +28,7 @@ namespace AcrossAI_MCP_Manager\Tests\Includes\AccessControl;
 
 use AcrossAI_MCP_Manager\Includes\AccessControl\AcrossAI_MCP_Access_Control;
 use AcrossAI_MCP_Manager\Includes\AccessControl\TransportPermissionDefault;
+use AcrossAI_MCP_Manager\Includes\Database\MCPServer\DefaultServerSeeder;
 use AcrossAI_MCP_Manager\Includes\Database\MCPServer\Query as MCPServerQuery;
 use WP\MCP\Transport\Infrastructure\HttpRequestContext;
 use WP_REST_Request;
@@ -175,7 +176,38 @@ final class TransportPermissionDefaultTest extends WP_UnitTestCase {
 	 * This is the "plugin activates fresh → admin-only out of the box" case.
 	 */
 	public function test_returns_manage_options_for_seeded_default_server(): void {
+		// Establish both preconditions explicitly rather than inheriting them
+		// from bootstrap state. Other test classes TRUNCATE this table, and
+		// TRUNCATE implicitly COMMITs in MySQL — escaping WP_UnitTestCase's
+		// per-test rollback — so the row Activator::activate() seeded at
+		// bootstrap may already be gone by the time this runs.
+		DefaultServerSeeder::seed();
 		$this->purge_rule_for( 'mcp-adapter-default-server' );
+
+		// Assert the preconditions so a future failure names its own cause:
+		// filter_default_capability() returns the vendor default both when the
+		// route has no matching row AND when a rule exists, and those are very
+		// different problems.
+		$rows = MCPServerQuery::instance()->query(
+			array(
+				'server_route_namespace' => 'mcp',
+				'server_route'           => 'mcp-adapter-default-server',
+				'number'                 => 1,
+			)
+		);
+		$this->assertNotEmpty(
+			$rows,
+			'Precondition: the seeded default server row must exist for this assertion to mean anything.'
+		);
+
+		if ( class_exists( RuleQuery::class ) ) {
+			$rule = ( new RuleQuery( AcrossAI_MCP_Access_Control::TABLE_SLUG ) )
+				->get_rule( self::NAMESPACE_SLUG, 'mcp-adapter-default-server' );
+			$this->assertEmpty(
+				$rule['key'] ?? '',
+				'Precondition: no wpb-ac rule may be configured for the seeded default server.'
+			);
+		}
 
 		$ctx    = $this->build_context( '/mcp/mcp-adapter-default-server' );
 		$result = TransportPermissionDefault::instance()->filter_default_capability( 'read', $ctx );
