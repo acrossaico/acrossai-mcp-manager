@@ -73,6 +73,12 @@ class PhantomVersionGuardTest extends WP_UnitTestCase {
 		$this->assertSame( $version, get_option( $db_version_key ), 'setup: db_version_key still stamped after drop' );
 
 		// Invoke maybe_upgrade — the phantom-version guard should drop the option and recreate the table.
+		// Clear BerlinDB v3's `*_upgrade_lock` transient first: it is a 900-second
+		// production concurrency guard, and any earlier test in this suite that
+		// ran an upgrade can leave it set (its own DDL commits escape the
+		// per-test rollback). With the lock present maybe_upgrade() returns
+		// without doing anything and the table is never recreated.
+		delete_transient( $db_version_key . '_upgrade_lock' );
 		$table->maybe_upgrade();
 
 		$this->assertNotEmpty( $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $full_table ) ), 'guard: table must be recreated' );
