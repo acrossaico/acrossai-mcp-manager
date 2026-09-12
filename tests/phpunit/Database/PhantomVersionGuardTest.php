@@ -29,12 +29,21 @@ class PhantomVersionGuardTest extends WP_UnitTestCase {
 	 * @param string $table_class           Fully qualified Table subclass name.
 	 * @param string $table_name_no_prefix  Table name without the wpdb prefix.
 	 * @param string $db_version_key        WordPress option key for the schema version.
-	 * @param string $version               Expected schema version string.
+	 * @param string $version               Unused — the expected version is read from
+	 *                                      $table_class::$version, since a hard-coded
+	 *                                      value goes stale on every migration.
 	 */
 	public function test_phantom_version_guard_recreates_dropped_table( string $table_class, string $table_name_no_prefix, string $db_version_key, string $version ): void {
 		global $wpdb;
 
 		$full_table = $wpdb->prefix . $table_name_no_prefix;
+
+		// The provider's hard-coded '1.0.0' went stale the moment any table
+		// gained a migration (MCPServer is on 1.1.5). Read the version the
+		// class actually declares, so adding a migration never breaks this
+		// test again. Reflection on the DECLARED default avoids booting the
+		// Table just to read a property.
+		$version = (string) ( new \ReflectionClass( $table_class ) )->getDefaultProperties()['version'];
 
 		// Ensure table exists first (baseline).
 		$table = $table_class::instance();
