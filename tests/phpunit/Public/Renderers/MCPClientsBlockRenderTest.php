@@ -114,8 +114,23 @@ final class MCPClientsBlockRenderTest extends WP_UnitTestCase {
 		// Panel body shows the top-level key label (from ClaudeDesktopClient::get_top_level_key()).
 		$this->assertStringContainsString( 'mcpServers', $output, 'FR-016: panel MUST render the migrated top-level key.' );
 
-		// Instructions text renders (from ClaudeDesktopClient::get_instructions()).
-		$this->assertStringContainsString( 'Generate a password', $output, 'FR-016: panel MUST render the migrated instructions.' );
+		// F077 replaced the free-text get_instructions() paragraph on this panel
+		// with the numbered STEP layout, which carries the same guidance as
+		// headings. get_instructions() itself is still live — the discovery API
+		// reads it (ConnectionMethodRegistry) — it is just no longer rendered
+		// here, so assert the shipped layout instead of the retired prose.
+		$this->assertStringNotContainsString(
+			'Generate a password →',
+			$output,
+			'F077: the prose instructions paragraph was replaced by the STEP layout.'
+		);
+		foreach ( array( 'Generate the password', 'Open the config file', 'Locate the top-level key' ) as $step_heading ) {
+			$this->assertStringContainsString(
+				$step_heading,
+				$output,
+				'F077: panel MUST render the numbered STEP headings.'
+			);
+		}
 	}
 
 	/**
