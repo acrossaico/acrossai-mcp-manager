@@ -151,6 +151,10 @@ final class RegistryTest extends WP_UnitTestCase {
 	 */
 	public function test_render_unknown_slug_falls_back_gracefully(): void {
 		$this->expectNotToPerformAssertions();
+		// render() echoes the tab body. phpunit.xml.dist sets
+		// beStrictAboutOutputDuringTests + failOnRisky, so that output marks the
+		// test risky and fails the run; buffer it away.
+		ob_start();
 		// OverviewTab (the $tabs[0] fallback) reads $server['server_name'];
 		// the fixture must supply it. Pre-existing gap, repaired in F084.
 		Registry::instance()->render( 'unknown-slug', array(
@@ -164,6 +168,7 @@ final class RegistryTest extends WP_UnitTestCase {
 				'description'           => 'Fixture',
 				'is_enabled'            => 1,
 			) );
+		ob_end_clean();
 	}
 
 	/**
