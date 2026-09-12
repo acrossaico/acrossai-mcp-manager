@@ -17,8 +17,9 @@ class RecorderTest extends WP_UnitTestCase {
 
 	public function setUp(): void {
 		parent::setUp();
-		MCPServerQuery::maybe_create_table();
-		CliAuthLogQuery::maybe_create_table();
+		// Tables already exist: tests/bootstrap-wp.php runs Activator::activate().
+		// The Query::maybe_create_table() wrappers previously called here were
+		// deleted by F011's BerlinDB migration.
 	}
 
 	public function test_record_approved_persists_row_with_expected_columns(): void {

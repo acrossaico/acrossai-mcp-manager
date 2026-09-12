@@ -10,7 +10,6 @@
 
 namespace AcrossAI_MCP_Manager\Tests\RestCli;
 
-use AcrossAI_MCP_Manager\Includes\Database\CliAuthLog\Query as CliAuthLogQuery;
 use AcrossAI_MCP_Manager\Includes\Database\MCPServer\Query as MCPServerQuery;
 use AcrossAI_MCP_Manager\Includes\REST\CliController;
 use WP_REST_Request;
@@ -20,8 +19,9 @@ class AuthExchangeEndpointTest extends WP_UnitTestCase {
 
 	public function setUp(): void {
 		parent::setUp();
-		MCPServerQuery::maybe_create_table();
-		CliAuthLogQuery::maybe_create_table();
+		// Tables already exist: tests/bootstrap-wp.php runs Activator::activate().
+		// The Query::maybe_create_table() wrappers previously called here were
+		// deleted by F011's BerlinDB migration.
 	}
 
 	private function seed_full_flow( string $code, string $server, int $user_id ): string {

@@ -16,7 +16,9 @@ class ServersEndpointTest extends WP_UnitTestCase {
 
 	public function setUp(): void {
 		parent::setUp();
-		MCPServerQuery::maybe_create_table();
+		// Tables already exist: tests/bootstrap-wp.php runs Activator::activate().
+		// The Query::maybe_create_table() wrappers previously called here were
+		// deleted by F011's BerlinDB migration.
 		unset( $_SERVER['HTTP_AUTHORIZATION'] );
 	}
 
