@@ -22,9 +22,39 @@ use AcrossAI_MCP_Manager\Includes\REST\ClientRendererController;
 use AcrossAI_MCP_Manager\Public\Renderers\MCPClientsBlock;
 use AcrossAI_MCP_Manager\Public\Renderers\NpmClientBlock;
 use WP_REST_Request;
+use AcrossAI_MCP_Manager\Includes\Database\MCPServer\Query as MCPServerQuery;
 use WP_UnitTestCase;
 
 final class PublicApiTest extends WP_UnitTestCase {
+
+	/**
+	 * Fixture server id.
+	 *
+	 * These tests used to call render( 1, … ), assuming a row with id 1 had
+	 * survived from an earlier suite. Suites share one database and several
+	 * TRUNCATE their tables, so that assumption held only by accident — and
+	 * stopped holding as soon as the suites actually ran. Each test now owns
+	 * its fixture.
+	 *
+	 * @var int
+	 */
+	private $server_id = 0;
+
+	public function setUp(): void {
+		parent::setUp();
+		$this->server_id = (int) MCPServerQuery::instance()->add_item(
+			array(
+				'server_name'            => 'Renderer Fixture Server',
+				'server_slug'            => 'renderer-fixture-server',
+				'description'            => 'Fixture for the renderers suite.',
+				'is_enabled'             => 1,
+				'registered_from'        => 'database',
+				'server_route_namespace' => 'mcp',
+				'server_route'           => 'renderer-fixture-server',
+				'server_version'         => 'v1.0.0',
+			)
+		);
+	}
 
 	/**
 	 * SEC-013-005 — NpmClientBlock renders disabled notice when option is false.
@@ -36,7 +66,7 @@ final class PublicApiTest extends WP_UnitTestCase {
 		update_option( 'acrossai_mcp_npm_login_enabled', false );
 
 		ob_start();
-		NpmClientBlock::instance()->render( 1, array( 'context' => 'admin' ) );
+		NpmClientBlock::instance()->render( $this->server_id, array( 'context' => 'admin' ) );
 		$output = (string) ob_get_clean();
 
 		$this->assertStringContainsString( 'currently disabled', $output );
@@ -54,7 +84,7 @@ final class PublicApiTest extends WP_UnitTestCase {
 		update_option( 'acrossai_mcp_npm_login_enabled', false );
 
 		ob_start();
-		MCPClientsBlock::instance()->render( 1, array( 'context' => 'admin' ) );
+		MCPClientsBlock::instance()->render( $this->server_id, array( 'context' => 'admin' ) );
 		$output = (string) ob_get_clean();
 
 		// Even with both F012 gates off, MCP Clients still renders (or gracefully handles missing server).
@@ -119,7 +149,7 @@ final class PublicApiTest extends WP_UnitTestCase {
 		add_filter( 'acrossai_mcp_client_classes', $filter );
 
 		ob_start();
-		MCPClientsBlock::instance()->render( 1, array( 'context' => 'admin' ) );
+		MCPClientsBlock::instance()->render( $this->server_id, array( 'context' => 'admin' ) );
 		$output = (string) ob_get_clean();
 
 		// No fatal; block still renders (or gracefully handles missing server).
