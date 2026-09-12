@@ -33,17 +33,27 @@ class ColumnWidthInvariantTest extends TestCase {
 		$schema  = new $schema_class();
 		$columns = $schema->columns;
 
+		// BerlinDB v3 normalises a Schema's declared column arrays into Column
+		// objects when the Schema is constructed, so `$col['name']` fatals with
+		// "Cannot use object of type …\Column as array". Read either shape.
+		$read = static function ( $col, string $key ) {
+			if ( is_array( $col ) ) {
+				return $col[ $key ] ?? null;
+			}
+			return isset( $col->{$key} ) ? $col->{$key} : null;
+		};
+
 		$match = null;
 		foreach ( $columns as $col ) {
-			if ( ( $col['name'] ?? null ) === $column_name ) {
+			if ( $read( $col, 'name' ) === $column_name ) {
 				$match = $col;
 				break;
 			}
 		}
 
 		$this->assertNotNull( $match, "Column '{$column_name}' not found in {$schema_class}" );
-		$this->assertSame( $expected_type, $match['type'], "Column '{$column_name}' type MUST be '{$expected_type}' (FR-010 cryptographic invariant)" );
-		$this->assertSame( $expected_length, $match['length'], "Column '{$column_name}' length MUST be '{$expected_length}' (FR-010 cryptographic invariant)" );
+		$this->assertSame( $expected_type, $read( $match, 'type' ), "Column '{$column_name}' type MUST be '{$expected_type}' (FR-010 cryptographic invariant)" );
+		$this->assertSame( $expected_length, $read( $match, 'length' ), "Column '{$column_name}' length MUST be '{$expected_length}' (FR-010 cryptographic invariant)" );
 	}
 
 	/**
