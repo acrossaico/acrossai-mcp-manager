@@ -1,67 +1,68 @@
 {
-	"name": "wpboilerplate/acrossai-mcp-manager",
-	"type": "wordpress-plugin",
-	"license": "GPL-2.0-or-later",
-	"description": "Composer to autoload the condition checking for which this add-on is made",
-	"homepage": "https://github.com/WPBoilerplate/",
-	"minimum-stability": "dev",
-	"prefer-stable": true,
-	"repositories": [
-		{
-			"type": "vcs",
-			"url": "https://github.com/WPBoilerplate/wpb-access-control"
-		},
-		{
-			"type": "vcs",
-			"url": "https://github.com/acrossai-co/main-menu"
-		}
-	],
-	"require": {
-		"php": ">=8.1",
-		"automattic/jetpack-autoloader": "^5.0",
-		"wpboilerplate/wpb-access-control": "^3.1.0",
-		"berlindb/core": "^3.0.0",
-		"acrossai-co/main-menu": "0.0.33",
-		"wordpress/mcp-adapter": "^0.6.1"
-	},
-	"keywords": [
-		"wordpress",
-		"plugin"
-	],
-	"support": {
-		"issues": "https://github.com/wpboilerplate/acrossai-mcp-manager/issues"
-	},
-	"authors": [
-		{
-			"name": "WPBoilerplate"
-		}
-	],
-	"autoload": {
-		"psr-4": {
-			"AcrossAI_MCP_Manager\\Includes\\": "includes/",
-			"AcrossAI_MCP_Manager\\Admin\\": "admin/",
-			"AcrossAI_MCP_Manager\\Public\\": "public/"
-		},
-		"exclude-from-classmap": [
-			"/tests/"
-		]
-	},
-	"require-dev": {
-		"wp-coding-standards/wpcs": "*",
-		"dealerdirect/phpcodesniffer-composer-installer": "^1.2",
-		"phpunit/phpunit": "^13.2@dev",
-		"phpcompatibility/php-compatibility": "^10.0@alpha",
-		"phpstan/phpstan": "2.2.x-dev"
-	},
-	"config": {
-		"allow-plugins": {
-			"dealerdirect/phpcodesniffer-composer-installer": true,
-			"automattic/jetpack-autoloader": true
-		}
-	},
-	"scripts": {
-		"phpcs": "phpcs",
-		"phpstan": "phpstan analyse --memory-limit=4G --no-progress",
-		"test": "phpunit --colors=never"
-	}
+    "name": "wpboilerplate/acrossai-mcp-manager",
+    "type": "wordpress-plugin",
+    "license": "GPL-2.0-or-later",
+    "description": "Composer to autoload the condition checking for which this add-on is made",
+    "homepage": "https://github.com/WPBoilerplate/",
+    "minimum-stability": "dev",
+    "prefer-stable": true,
+    "repositories": [
+        {
+            "type": "vcs",
+            "url": "https://github.com/WPBoilerplate/wpb-access-control"
+        },
+        {
+            "type": "vcs",
+            "url": "https://github.com/acrossai-co/main-menu"
+        }
+    ],
+    "require": {
+        "php": ">=8.1",
+        "automattic/jetpack-autoloader": "^5.0",
+        "wpboilerplate/wpb-access-control": "^3.1.0",
+        "berlindb/core": "^3.0.0",
+        "acrossai-co/main-menu": "0.0.33",
+        "wordpress/mcp-adapter": "^0.6.1"
+    },
+    "keywords": [
+        "wordpress",
+        "plugin"
+    ],
+    "support": {
+        "issues": "https://github.com/wpboilerplate/acrossai-mcp-manager/issues"
+    },
+    "authors": [
+        {
+            "name": "WPBoilerplate"
+        }
+    ],
+    "autoload": {
+        "psr-4": {
+            "AcrossAI_MCP_Manager\\Includes\\": "includes/",
+            "AcrossAI_MCP_Manager\\Admin\\": "admin/",
+            "AcrossAI_MCP_Manager\\Public\\": "public/"
+        },
+        "exclude-from-classmap": [
+            "/tests/"
+        ]
+    },
+    "require-dev": {
+        "wp-coding-standards/wpcs": "*",
+        "dealerdirect/phpcodesniffer-composer-installer": "^1.2",
+        "phpunit/phpunit": "^12.0",
+        "phpcompatibility/php-compatibility": "^10.0@alpha",
+        "phpstan/phpstan": "2.2.x-dev",
+        "yoast/phpunit-polyfills": "^4.0"
+    },
+    "config": {
+        "allow-plugins": {
+            "dealerdirect/phpcodesniffer-composer-installer": true,
+            "automattic/jetpack-autoloader": true
+        }
+    },
+    "scripts": {
+        "phpcs": "phpcs",
+        "phpstan": "phpstan analyse --memory-limit=4G --no-progress",
+        "test": "phpunit --colors=never"
+    }
 }
