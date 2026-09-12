@@ -97,5 +97,44 @@ function acrossai_test_register_ability( string $name, array $args ) {
 	if ( null === $registry ) {
 		return null;
 	}
+
+	// Registration also refuses an unknown category, and categories are gated
+	// behind their own `wp_abilities_api_categories_init` action. Auto-register
+	// whatever the caller asked for so each test keeps declaring only the
+	// ability it cares about.
+	if ( isset( $args['category'] ) && is_string( $args['category'] ) && '' !== $args['category'] ) {
+		acrossai_test_register_ability_category( $args['category'] );
+	}
+
 	return $registry->register( $name, $args );
+}
+
+/**
+ * Register an ability category from a test, bypassing its hook requirement.
+ *
+ * Mirrors acrossai_test_register_ability(): wp_register_ability_category() is
+ * gated on `wp_abilities_api_categories_init`, so tests go straight to the
+ * registry method the wrapper delegates to. Idempotent — an already-registered
+ * slug is left alone, since re-registering trips core's duplicate warning.
+ *
+ * @param string $slug Category slug.
+ * @return void
+ */
+function acrossai_test_register_ability_category( string $slug ): void {
+	if ( function_exists( 'wp_has_ability_category' ) && \wp_has_ability_category( $slug ) ) {
+		return;
+	}
+
+	$categories = \WP_Ability_Categories_Registry::get_instance();
+	if ( null === $categories ) {
+		return;
+	}
+
+	$categories->register(
+		$slug,
+		array(
+			'label'       => $slug,
+			'description' => 'Registered by the test harness for ' . $slug . '.',
+		)
+	);
 }
