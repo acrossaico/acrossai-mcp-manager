@@ -50,6 +50,15 @@ class PhantomVersionGuardTest extends WP_UnitTestCase {
 		$table->maybe_upgrade();
 		$this->assertNotEmpty( $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $full_table ) ), 'baseline: table must exist' );
 
+		// Stamp the option ourselves rather than trusting whatever earlier tests
+		// in this suite left behind — several of them deliberately rewind this
+		// value to exercise migrations, and DDL commits escape the per-test
+		// rollback. The phantom state under test is "option stamped + table
+		// missing", so constructing the stamp explicitly is the point, and the
+		// assertion after the DROP still proves dropping the table does not
+		// clear it.
+		update_option( $db_version_key, $version );
+
 		// WP_UnitTestCase installs `query` filters that rewrite CREATE TABLE and
 		// DROP TABLE into their TEMPORARY equivalents. This test needs REAL DDL:
 		// with the filters in place the DROP becomes DROP TEMPORARY TABLE, fails
