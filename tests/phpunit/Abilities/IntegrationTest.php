@@ -146,6 +146,23 @@ class IntegrationTest extends WP_UnitTestCase {
 		}
 		$prop = $reflection->getProperty( $property );
 		$prop->setAccessible( true );
-		$this->assertSame( $expected, $prop->getValue( $ability ) );
+		$actual = $prop->getValue( $ability );
+
+		// F030's PermissionOverrideProcessor wraps EVERY ability's
+		// permission_callback in a closure (via wp_register_ability_args), so a
+		// raw identity check has been wrong since that feature shipped — it
+		// just never ran. Unwrap to the closure's captured $original and assert
+		// against that, which still proves OUR callback is the one bound.
+		if ( 'permission_callback' === $property && $actual instanceof \Closure ) {
+			$statics = ( new \ReflectionFunction( $actual ) )->getStaticVariables();
+			$this->assertArrayHasKey(
+				'original',
+				$statics,
+				'F030 wrapper must capture the original permission_callback as $original.'
+			);
+			$actual = $statics['original'];
+		}
+
+		$this->assertSame( $expected, $actual );
 	}
 }

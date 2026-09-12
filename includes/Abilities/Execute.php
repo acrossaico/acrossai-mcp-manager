@@ -56,7 +56,13 @@ final class Execute {
 			);
 		}
 
-		$ability = function_exists( 'wp_get_ability' ) ? \wp_get_ability( $ability_name ) : null;
+		// Check existence first: since WP 6.9, looking up an unregistered
+		// ability makes the registry emit a _doing_it_wrong notice. "Not
+		// found" is an expected outcome on this path — the caller supplies
+		// the name — so it must not be reported as incorrect core usage.
+		$ability = ( function_exists( 'wp_get_ability' ) && function_exists( 'wp_has_ability' ) && \wp_has_ability( $ability_name ) )
+			? \wp_get_ability( $ability_name )
+			: null;
 		if ( ! $ability ) {
 			return new WP_Error(
 				'ability_not_found',
@@ -109,7 +115,13 @@ final class Execute {
 			);
 		}
 
-		$ability = function_exists( 'wp_get_ability' ) ? \wp_get_ability( $ability_name ) : null;
+		// Check existence first: since WP 6.9, looking up an unregistered
+		// ability makes the registry emit a _doing_it_wrong notice. "Not
+		// found" is an expected outcome on this path — the caller supplies
+		// the name — so it must not be reported as incorrect core usage.
+		$ability = ( function_exists( 'wp_get_ability' ) && function_exists( 'wp_has_ability' ) && \wp_has_ability( $ability_name ) )
+			? \wp_get_ability( $ability_name )
+			: null;
 		if ( ! $ability ) {
 			return array(
 				'success' => false,
