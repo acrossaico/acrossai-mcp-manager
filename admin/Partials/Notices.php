@@ -80,6 +80,7 @@ class Notices {
 			'empty_name'       => array( 'error', __( 'Server name is required.', 'acrossai-mcp-manager' ) ),
 			'db_error'         => array( 'error', __( 'Database write failed.', 'acrossai-mcp-manager' ) ),
 			'server_not_found' => array( 'error', __( 'Server not found.', 'acrossai-mcp-manager' ) ),
+			'server_protected' => array( 'error', __( 'This server is managed by the plugin and cannot be edited or deleted.', 'acrossai-mcp-manager' ) ),
 		);
 
 		if ( ! isset( $messages[ $notice ] ) ) {
