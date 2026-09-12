@@ -89,14 +89,6 @@ final class Execute {
 		 * forbidden to a given principal at invocation time.
 		 */
 		$parameters        = $input['parameters'] ?? null;
-		// An MCP client's `{}` arrives as stdClass whenever the payload was
-		// decoded without associative mode. The vendor normalizer only
-		// recognises null and [] as "no arguments", so an object falls
-		// straight through and WP_Ability then does array access on it
-		// ("Cannot use object of type stdClass as array"). Flatten first.
-		if ( is_object( $parameters ) ) {
-			$parameters = (array) $parameters;
-		}
 		$parameters        = AbilityArgumentNormalizer::normalize( $ability, $parameters );
 		$permission_result = $ability->check_permissions( $parameters );
 
@@ -137,14 +129,6 @@ final class Execute {
 			);
 		}
 
-		// An MCP client's `{}` arrives as stdClass whenever the payload was
-		// decoded without associative mode. The vendor normalizer only
-		// recognises null and [] as "no arguments", so an object falls
-		// straight through and WP_Ability then does array access on it
-		// ("Cannot use object of type stdClass as array"). Flatten first.
-		if ( is_object( $parameters ) ) {
-			$parameters = (array) $parameters;
-		}
 		$parameters = AbilityArgumentNormalizer::normalize( $ability, $parameters );
 
 		try {

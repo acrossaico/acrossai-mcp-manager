@@ -177,11 +177,11 @@ class AbilityExposureGateTest extends WP_UnitTestCase {
 				'category'            => 'test',
 				'input_schema'        => array(
 					'type'       => 'object',
-					'properties' => new \stdClass(),
+					'properties' => array(),
 				),
 				'output_schema'       => array(
 					'type'       => 'object',
-					'properties' => new \stdClass(),
+					'properties' => array(),
 				),
 				'execute_callback'    => static fn () => array(),
 				'permission_callback' => static fn () => true,

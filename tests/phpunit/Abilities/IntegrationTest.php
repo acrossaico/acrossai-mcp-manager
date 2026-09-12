@@ -83,8 +83,8 @@ class IntegrationTest extends WP_UnitTestCase {
 				'description'         => 'Not one of the vendor three.',
 				'category'            => 'test',
 				'meta'                => array( 'mcp' => array( 'public' => true, 'type' => 'tool' ) ),
-				'input_schema'        => array( 'type' => 'object', 'properties' => new \stdClass() ),
-				'output_schema'       => array( 'type' => 'object', 'properties' => new \stdClass() ),
+				'input_schema'        => array( 'type' => 'object', 'properties' => array() ),
+				'output_schema'       => array( 'type' => 'object', 'properties' => array() ),
 				'permission_callback' => '__return_true',
 				'execute_callback'    => '__return_empty_array',
 			)
@@ -122,8 +122,8 @@ class IntegrationTest extends WP_UnitTestCase {
 				'label'               => 'Stub',
 				'description'         => 'Stub for integration test',
 				'category'            => 'mcp-adapter',
-				'input_schema'        => array( 'type' => 'object', 'properties' => new \stdClass() ),
-				'output_schema'       => array( 'type' => 'object', 'properties' => new \stdClass() ),
+				'input_schema'        => array( 'type' => 'object', 'properties' => array() ),
+				'output_schema'       => array( 'type' => 'object', 'properties' => array() ),
 				'permission_callback' => '__return_true',
 				'execute_callback'    => '__return_empty_array',
 			)

@@ -135,8 +135,8 @@ class AbilityDiscoveryTest extends WP_UnitTestCase {
 				'description' => 'default-type test',
 				'category'    => 'test',
 				'meta'        => array( 'mcp' => array( 'public' => true ) ),
-				'input_schema' => array( 'type' => 'object', 'properties' => new \stdClass() ),
-				'output_schema' => array( 'type' => 'object', 'properties' => new \stdClass() ),
+				'input_schema' => array( 'type' => 'object', 'properties' => array() ),
+				'output_schema' => array( 'type' => 'object', 'properties' => array() ),
 				'execute_callback' => static fn () => array(),
 			)
 		);
@@ -186,8 +186,8 @@ class AbilityDiscoveryTest extends WP_UnitTestCase {
 						'type'   => $type,
 					),
 				),
-				'input_schema' => array( 'type' => 'object', 'properties' => new \stdClass() ),
-				'output_schema' => array( 'type' => 'object', 'properties' => new \stdClass() ),
+				'input_schema' => array( 'type' => 'object', 'properties' => array() ),
+				'output_schema' => array( 'type' => 'object', 'properties' => array() ),
 				'execute_callback' => static fn () => array(),
 			)
 		);

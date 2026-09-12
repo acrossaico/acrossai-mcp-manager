@@ -228,8 +228,8 @@ class ExecuteTest extends WP_UnitTestCase {
 						'type'   => $type,
 					),
 				),
-				'input_schema'        => array( 'type' => 'object', 'properties' => new \stdClass() ),
-				'output_schema'       => array( 'type' => 'object', 'properties' => new \stdClass() ),
+				'input_schema'        => array( 'type' => 'object', 'properties' => array() ),
+				'output_schema'       => array( 'type' => 'object', 'properties' => array() ),
 				'permission_callback' => $permission_cb,
 				'execute_callback'    => $execute_cb ?? static fn () => array(),
 			)

@@ -275,8 +275,8 @@ class ControllerToolsInjectionTest extends WP_UnitTestCase {
 				'description' => 'F026 test — public ability MUST NOT widen tools/list post-revert',
 				'category'    => 'test',
 				'meta'        => array( 'mcp' => array( 'public' => true, 'type' => 'tool' ) ),
-				'input_schema' => array( 'type' => 'object', 'properties' => new \stdClass() ),
-				'output_schema' => array( 'type' => 'object', 'properties' => new \stdClass() ),
+				'input_schema' => array( 'type' => 'object', 'properties' => array() ),
+				'output_schema' => array( 'type' => 'object', 'properties' => array() ),
 				'execute_callback' => static fn () => array(),
 			)
 		);
@@ -317,8 +317,8 @@ class ControllerToolsInjectionTest extends WP_UnitTestCase {
 				'description' => 'F026 test — public resource ability',
 				'category'    => 'test',
 				'meta'        => array( 'mcp' => array( 'public' => true, 'type' => 'resource' ) ),
-				'input_schema' => array( 'type' => 'object', 'properties' => new \stdClass() ),
-				'output_schema' => array( 'type' => 'object', 'properties' => new \stdClass() ),
+				'input_schema' => array( 'type' => 'object', 'properties' => array() ),
+				'output_schema' => array( 'type' => 'object', 'properties' => array() ),
 				'execute_callback' => static fn () => array(),
 			)
 		);
@@ -365,8 +365,8 @@ class ControllerToolsInjectionTest extends WP_UnitTestCase {
 				'description' => 'F026 test — public prompt ability',
 				'category'    => 'test',
 				'meta'        => array( 'mcp' => array( 'public' => true, 'type' => 'prompt' ) ),
-				'input_schema' => array( 'type' => 'object', 'properties' => new \stdClass() ),
-				'output_schema' => array( 'type' => 'object', 'properties' => new \stdClass() ),
+				'input_schema' => array( 'type' => 'object', 'properties' => array() ),
+				'output_schema' => array( 'type' => 'object', 'properties' => array() ),
 				'execute_callback' => static fn () => array(),
 			)
 		);
@@ -401,8 +401,8 @@ class ControllerToolsInjectionTest extends WP_UnitTestCase {
 			array(
 				'label' => 'r', 'description' => 'r', 'category' => 'test',
 				'meta' => array( 'mcp' => array( 'public' => true, 'type' => 'resource' ) ),
-				'input_schema' => array( 'type' => 'object', 'properties' => new \stdClass() ),
-				'output_schema' => array( 'type' => 'object', 'properties' => new \stdClass() ),
+				'input_schema' => array( 'type' => 'object', 'properties' => array() ),
+				'output_schema' => array( 'type' => 'object', 'properties' => array() ),
 				'execute_callback' => static fn () => array(),
 			)
 		);
@@ -411,8 +411,8 @@ class ControllerToolsInjectionTest extends WP_UnitTestCase {
 			array(
 				'label' => 'p', 'description' => 'p', 'category' => 'test',
 				'meta' => array( 'mcp' => array( 'public' => true, 'type' => 'prompt' ) ),
-				'input_schema' => array( 'type' => 'object', 'properties' => new \stdClass() ),
-				'output_schema' => array( 'type' => 'object', 'properties' => new \stdClass() ),
+				'input_schema' => array( 'type' => 'object', 'properties' => array() ),
+				'output_schema' => array( 'type' => 'object', 'properties' => array() ),
 				'execute_callback' => static fn () => array(),
 			)
 		);
