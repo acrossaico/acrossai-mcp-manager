@@ -128,7 +128,7 @@ class AbilityDiscoveryTest extends WP_UnitTestCase {
 			$this->markTestSkipped( 'Abilities API not bootstrapped in this test harness.' );
 		}
 		// Register with meta.mcp.public=true but NO mcp.type — should default to 'tool'.
-		\wp_register_ability(
+		acrossai_test_register_ability(
 			'ad-test/no-type',
 			array(
 				'label'       => 'No Type',
@@ -174,7 +174,7 @@ class AbilityDiscoveryTest extends WP_UnitTestCase {
 	}
 
 	private function register_scratch_ability( string $slug, bool $mcp_public, string $type ): void {
-		\wp_register_ability(
+		acrossai_test_register_ability(
 			$slug,
 			array(
 				'label'       => ucfirst( basename( $slug ) ),

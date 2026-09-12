@@ -213,7 +213,7 @@ class ExecuteTest extends WP_UnitTestCase {
 	 * @param callable $execute_cb        Optional execute callback (defaults to no-op returning empty array).
 	 */
 	private function register_scratch_ability( string $slug, bool $mcp_public, string $type, $permission_cb, $execute_cb = null ): void {
-		\wp_register_ability(
+		acrossai_test_register_ability(
 			$slug,
 			array(
 				'label'               => ucfirst( basename( $slug ) ),

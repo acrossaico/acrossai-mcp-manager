@@ -268,7 +268,7 @@ class ControllerToolsInjectionTest extends WP_UnitTestCase {
 
 		// Seed a public tool-typed ability — must NOT appear in the composed set
 		// post-2026-07-15 revert.
-		\wp_register_ability(
+		acrossai_test_register_ability(
 			'f026-revert/public-tool',
 			array(
 				'label'       => 'F026 Public Tool',
@@ -310,7 +310,7 @@ class ControllerToolsInjectionTest extends WP_UnitTestCase {
 			'server_version'         => 'v1.0.0',
 		) );
 
-		\wp_register_ability(
+		acrossai_test_register_ability(
 			'f026-widened/public-resource',
 			array(
 				'label'       => 'F026 Public Resource',
@@ -358,7 +358,7 @@ class ControllerToolsInjectionTest extends WP_UnitTestCase {
 			'server_version'         => 'v1.0.0',
 		) );
 
-		\wp_register_ability(
+		acrossai_test_register_ability(
 			'f026-widened/public-prompt',
 			array(
 				'label'       => 'F026 Public Prompt',
@@ -396,7 +396,7 @@ class ControllerToolsInjectionTest extends WP_UnitTestCase {
 
 		$this->seed_default_server();
 
-		\wp_register_ability(
+		acrossai_test_register_ability(
 			'f026-default/public-resource',
 			array(
 				'label' => 'r', 'description' => 'r', 'category' => 'test',
@@ -406,7 +406,7 @@ class ControllerToolsInjectionTest extends WP_UnitTestCase {
 				'execute_callback' => static fn () => array(),
 			)
 		);
-		\wp_register_ability(
+		acrossai_test_register_ability(
 			'f026-default/public-prompt',
 			array(
 				'label' => 'p', 'description' => 'p', 'category' => 'test',

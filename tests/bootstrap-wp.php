@@ -70,3 +70,32 @@ require $wp_tests_dir . '/includes/bootstrap.php';
 // is what makes that true. DDL is not rolled back by WP_UnitTestCase's
 // per-test transactions, so the tables persist for the whole run.
 \AcrossAI_MCP_Manager\Includes\Activator::activate();
+
+/**
+ * Register an ability from a test, bypassing the hook-context requirement.
+ *
+ * WordPress 6.9 made `acrossai_test_register_ability()` refuse to run outside the
+ * `wp_abilities_api_init` action — it emits `_doing_it_wrong` and returns null.
+ * Every ability registration in this test estate predates that tightening and
+ * calls the function directly, which is why `wp_get_ability()` then returns
+ * null and 24 abilities-suite tests error or fail.
+ *
+ * Re-firing `wp_abilities_api_init` from a test is not a safe fix: the action
+ * has already run in this process, so firing it again re-invokes every other
+ * listener and core then reports duplicate registrations.
+ *
+ * `WP_Abilities_Registry::register()` is public and is exactly what
+ * `acrossai_test_register_ability()` calls once its hook check passes, so tests go
+ * straight to it. Same registration, same validation, no hook gymnastics.
+ *
+ * @param string               $name Ability name, e.g. 'my-plugin/do-thing'.
+ * @param array<string, mixed> $args Ability registration args.
+ * @return \WP_Ability|null The registered ability, or null on failure.
+ */
+function acrossai_test_register_ability( string $name, array $args ) {
+	$registry = \WP_Abilities_Registry::get_instance();
+	if ( null === $registry ) {
+		return null;
+	}
+	return $registry->register( $name, $args );
+}

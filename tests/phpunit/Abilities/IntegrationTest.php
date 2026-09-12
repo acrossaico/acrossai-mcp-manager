@@ -76,7 +76,7 @@ class IntegrationTest extends WP_UnitTestCase {
 	public function test_registering_non_vendor_slug_keeps_original_callbacks(): void {
 		$this->maybe_skip_abilities_api();
 
-		\wp_register_ability(
+		acrossai_test_register_ability(
 			'integration-test/mine',
 			array(
 				'label'               => 'Mine',
@@ -116,7 +116,7 @@ class IntegrationTest extends WP_UnitTestCase {
 	 * @param string $slug Vendor ability slug to register.
 	 */
 	private function register_stub_vendor_ability( string $slug ): void {
-		\wp_register_ability(
+		acrossai_test_register_ability(
 			$slug,
 			array(
 				'label'               => 'Stub',

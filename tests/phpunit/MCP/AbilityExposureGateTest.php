@@ -169,7 +169,7 @@ class AbilityExposureGateTest extends WP_UnitTestCase {
 			return;
 		}
 
-		\wp_register_ability(
+		acrossai_test_register_ability(
 			$name,
 			array(
 				'label'               => $name,

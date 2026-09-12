@@ -287,7 +287,7 @@ class ToolPolicyTest extends WP_UnitTestCase {
 	}
 
 	private function register_scratch_ability( string $slug, bool $mcp_public, string $type = 'tool' ): void {
-		\wp_register_ability(
+		acrossai_test_register_ability(
 			$slug,
 			array(
 				'label'       => ucfirst( basename( $slug ) ),
