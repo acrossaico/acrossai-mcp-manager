@@ -41,6 +41,13 @@ class PhantomVersionGuardTest extends WP_UnitTestCase {
 		$table->maybe_upgrade();
 		$this->assertNotEmpty( $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $full_table ) ), 'baseline: table must exist' );
 
+		// WP_UnitTestCase installs `query` filters that rewrite CREATE TABLE and
+		// DROP TABLE into their TEMPORARY equivalents. This test needs REAL DDL:
+		// with the filters in place the DROP becomes DROP TEMPORARY TABLE, fails
+		// against the real table, and the phantom-version state is never created.
+		remove_filter( 'query', array( $this, '_create_temporary_tables' ) );
+		remove_filter( 'query', array( $this, '_drop_temporary_tables' ) );
+
 		// Drop the physical table but leave db_version_key stamped — the "phantom version" state.
         // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange
 		$wpdb->query( $wpdb->prepare( 'DROP TABLE %i', $full_table ) );

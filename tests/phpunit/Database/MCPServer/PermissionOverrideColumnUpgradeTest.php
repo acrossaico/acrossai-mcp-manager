@@ -31,7 +31,11 @@ class PermissionOverrideColumnUpgradeTest extends WP_UnitTestCase {
 		$rows = $wpdb->get_results( "SHOW COLUMNS FROM `{$table}` LIKE 'override_abilities_permission'" );
 
 		$this->assertCount( 1, $rows, 'F030 must ship the override_abilities_permission column.' );
-		$this->assertSame( 'tinyint(1)', strtolower( (string) $rows[0]->Type ) );
+		// MySQL 8.0.19+ no longer reports an integer display width, and the
+		// BerlinDB schema declares the column unsigned, so the exact string is
+		// 'tinyint unsigned' here and 'tinyint(1)' on older servers. Assert the
+		// base type, which is what the invariant is actually about.
+		$this->assertStringStartsWith( 'tinyint', strtolower( (string) $rows[0]->Type ) );
 		$this->assertSame( 'NO', (string) $rows[0]->Null );
 		$this->assertSame( '0', (string) $rows[0]->Default );
 	}
@@ -87,7 +91,14 @@ class PermissionOverrideColumnUpgradeTest extends WP_UnitTestCase {
 		$rows = $wpdb->get_results( "SHOW COLUMNS FROM `{$table}` LIKE 'override_abilities_permission'" );
 		$this->assertCount( 1, $rows, 'D28 upgrade path must re-add the dropped column.' );
 
-		$this->assertSame( '1.1.2', (string) get_option( 'acrossai_mcp_servers_db_version' ) );
+		// Rewinding to 1.1.1 leaves EVERY later upgrade pending, and BerlinDB
+		// runs the whole chain — so the option lands on the table's current
+		// version, not on 1.1.2. Asserting the declared version keeps this
+		// correct the next time a migration is added.
+		$this->assertSame(
+			( new \ReflectionClass( MCPServerTable::class ) )->getDefaultProperties()['version'],
+			(string) get_option( 'acrossai_mcp_servers_db_version' )
+		);
 	}
 
 	/**

@@ -52,8 +52,11 @@ class ColumnWidthInvariantTest extends TestCase {
 		}
 
 		$this->assertNotNull( $match, "Column '{$column_name}' not found in {$schema_class}" );
-		$this->assertSame( $expected_type, $read( $match, 'type' ), "Column '{$column_name}' type MUST be '{$expected_type}' (FR-010 cryptographic invariant)" );
-		$this->assertSame( $expected_length, $read( $match, 'length' ), "Column '{$column_name}' length MUST be '{$expected_length}' (FR-010 cryptographic invariant)" );
+		// BerlinDB v3's Column object upper-cases `type` ('CHAR'); the Schema
+		// declares it lower-case. Compare case-insensitively — the invariant is
+		// the type itself, not its casing.
+		$this->assertSame( strtolower( $expected_type ), strtolower( (string) $read( $match, 'type' ) ), "Column '{$column_name}' type MUST be '{$expected_type}' (FR-010 cryptographic invariant)" );
+		$this->assertSame( (string) $expected_length, (string) $read( $match, 'length' ), "Column '{$column_name}' length MUST be '{$expected_length}' (FR-010 cryptographic invariant)" );
 	}
 
 	/**
