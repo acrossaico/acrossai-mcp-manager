@@ -26,6 +26,12 @@ final class AbstractClientRendererTest extends WP_UnitTestCase {
 		};
 		add_filter( 'acrossai_mcp_client_block_context', $filter, 10, 3 );
 
+		// resolve_context() now correctly restores the defaults when a callback
+		// returns a non-array, so 'cap' is 'manage_options' again and render()
+		// gates on it before emitting anything. Without a user holding that
+		// cap the method returns early and the assertion below sees ''.
+		wp_set_current_user( self::factory()->user->create( array( 'role' => 'administrator' ) ) );
+
 		ob_start();
 		NpmClientBlock::instance()->render( 999999, array() );
 		$output = (string) ob_get_clean();

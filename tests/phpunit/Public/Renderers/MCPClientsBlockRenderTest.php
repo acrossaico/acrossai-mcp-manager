@@ -95,7 +95,14 @@ final class MCPClientsBlockRenderTest extends WP_UnitTestCase {
 		$output = (string) ob_get_clean();
 
 		// Sub-nav shows the claude-desktop emoji (from ClaudeDesktopClient::get_icon()).
-		$this->assertStringContainsString( '🍰', $output, 'FR-016: sub-nav MUST render the migrated emoji from get_icon().' );
+		// F076 deliberately removed the emoji from both picker surfaces at the
+		// user's request, keeping get_icon() on the client classes for
+		// third-party consumers. This assertion is inverted from FR-016 on
+		// purpose: the sub-nav MUST NOT render it any more. (076's planning doc
+		// records 'No test coverage on rendered emoji strings' — that was wrong,
+		// this test existed, it had just never run.)
+		$this->assertStringNotContainsString( '🍰', $output, 'F076: the picker sub-nav must no longer render get_icon().' );
+		$this->assertStringContainsString( 'Claude Desktop', $output, 'The sub-nav must still render the client name.' );
 
 		// Panel body shows the config file path (from ClaudeDesktopClient::get_config_file()).
 		$this->assertStringContainsString(
