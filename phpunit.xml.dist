@@ -85,23 +85,6 @@
             <directory>tests/phpunit/Public/Renderers/UserServers</directory>
         </testsuite>
 
-        <!--
-            OAuth (Feature 021): tests for the OAuth 2.1 authorization server.
-            All tests extend OAuthTestCase which truncates the 3 F021 tables +
-            resets ConnectorProfileRegistry memoization before each test.
-            Requires WP (wp_generate_uuid4, wp_delete_user, rest_do_request,
-            wp_schedule_event) — use tests/bootstrap-wp.php.
-
-            Coverage: BerlinDB phantom guard + column widths + atomic CAS +
-            PKCE S256 + RateLimiter + SecretsVault + ConnectorRegistry +
-            TokenValidator (recursion + audience + no-header short-circuit +
-            bearer fallbacks) + UserLifecycle cascade + DCR + Admin
-            credential generation + Discovery metadata + SEC-021-001 refresh
-            family revocation + Uninstall opt-in gate.
-        -->
-        <testsuite name="oauth">
-            <directory>tests/phpunit/OAuth</directory>
-        </testsuite>
 
         <!--
             Abilities (Feature 017/F026/F030): tests for the WP Abilities API
@@ -158,6 +141,21 @@
         -->
         <testsuite name="embeds">
             <directory>tests/phpunit/Embeds</directory>
+        </testsuite>
+
+        <!--
+            Everything that has no thematic suite of its own. These four
+            directories held 7 test files that NO suite referenced, so they had
+            never executed in CI even before the WP 4.7.35 harness bug — the
+            `remaining` suite plus the orphan-test guard in phpunit.yml exist so
+            that cannot happen again. Needs WP (REST controllers, uninstall
+            routine, utility helpers that call WP functions).
+        -->
+        <testsuite name="remaining">
+            <directory>tests/phpunit/REST</directory>
+            <directory>tests/phpunit/Utilities</directory>
+            <directory>tests/phpunit/Includes/Utilities</directory>
+            <directory>tests/phpunit/Uninstall</directory>
         </testsuite>
     </testsuites>
 

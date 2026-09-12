@@ -72,6 +72,33 @@ jobs:
       - name: Run PHPUnit — rename-gate suite (pure, no WP)
         run: vendor/bin/phpunit --testsuite rename-gate
 
+      # Every *Test.php must live under a directory some testsuite references.
+      # Four directories holding 7 test files had silently fallen outside all
+      # suites, so they never ran. Cheap structural check; no WP needed.
+      - name: Assert no test file is outside a configured testsuite
+        run: |
+          python3 - <<'PY'
+          import os, sys, xml.etree.ElementTree as ET
+          covered = {
+              os.path.normpath(d.text.strip())
+              for ts in ET.parse('phpunit.xml.dist').getroot().iter('testsuite')
+              for d in ts.findall('directory')
+          }
+          missing = [d for d in covered if not os.path.isdir(d)]
+          orphans = []
+          for root, _, files in os.walk('tests/phpunit'):
+              if not any(f.endswith('Test.php') for f in files):
+                  continue
+              n = os.path.normpath(root)
+              if not any(n == c or n.startswith(c + os.sep) for c in covered):
+                  orphans.append(n)
+          for d in sorted(missing):
+              print(f"::error::testsuite references a missing directory: {d}")
+          for d in sorted(orphans):
+              print(f"::error::test files outside every testsuite: {d}")
+          sys.exit(1 if (missing or orphans) else 0)
+          PY
+
   # WordPress integration tests — require the WP test lib + a MySQL service.
   # Covers the F021 oauth suite (SC-008 cleanup, TokenValidator audience, DCR,
   # authorize state policy, refresh-token family revocation, etc.).
@@ -161,9 +188,6 @@ jobs:
       #
       # If a suite fails here now, it is a real failure. Fix the test or the
       # code — do not reintroduce continue-on-error.
-      - name: Run PHPUnit — F021 OAuth suite
-        run: vendor/bin/phpunit --bootstrap tests/bootstrap-wp.php --testsuite oauth
-
       - name: Run PHPUnit — admin suite
         run: vendor/bin/phpunit --bootstrap tests/bootstrap-wp.php --testsuite admin
 
@@ -190,3 +214,6 @@ jobs:
 
       - name: Run PHPUnit — F038 user-servers suite
         run: vendor/bin/phpunit --bootstrap tests/bootstrap-wp.php --testsuite user-servers
+
+      - name: Run PHPUnit — remaining suite (REST / utilities / uninstall)
+        run: vendor/bin/phpunit --bootstrap tests/bootstrap-wp.php --testsuite remaining
