@@ -7,7 +7,7 @@
          beStrictAboutTestsThatDoNotTestAnything="true"
          failOnRisky="true"
          failOnWarning="true"
-         cacheDirectory=".phpunit.cache">
+         cacheResultFile=".phpunit.cache/test-results">
 
     <testsuites>
         <!--

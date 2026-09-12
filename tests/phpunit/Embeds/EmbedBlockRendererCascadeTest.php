@@ -28,7 +28,6 @@ namespace AcrossAI_MCP_Manager\Tests\Embeds;
 use AcrossAI_MCP_Manager\Includes\Database\MCPServerMeta\Query as ServerMetaQuery;
 use AcrossAI_MCP_Manager\Includes\Embeds\AbstractEmbedTransport;
 use AcrossAI_MCP_Manager\Public\Renderers\EmbedBlock\EmbedBlockRenderer;
-use PHPUnit\Framework\Attributes\DataProvider;
 use WP_UnitTestCase;
 
 final class EmbedBlockRendererCascadeTest extends WP_UnitTestCase {
@@ -86,7 +85,9 @@ final class EmbedBlockRendererCascadeTest extends WP_UnitTestCase {
 		return $rows;
 	}
 
-	#[DataProvider( 'provide_cascade_matrix' )]
+	/**
+	 * @dataProvider provide_cascade_matrix
+	 */
 	public function test_gate_cascade_matrix( string $category, string $slug, bool $master, bool $dto_enabled, string $f015_state, bool $expect_render ): void {
 		// Prime meta state.
 		if ( $master ) {

@@ -2,8 +2,8 @@
 /**
  * Tests for Registry — per-server-edit tab dispatch.
  *
- * Feature 013. PHPUnit 13+ note (per BUGS.md B9): use `#[DataProvider]` PHP
- * attribute instead of `@dataProvider` annotation — the annotation is
+ * Feature 013. PHPUnit 9.6 note: use the `@dataProvider` annotation. The WordPress test
+ * suite caps at PHPUnit 9.x, which predates PHP attributes.
  * silently ignored.
  *
  * @package AcrossAI_MCP_Manager\Tests\Admin\ServerTabs

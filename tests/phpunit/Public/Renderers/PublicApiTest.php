@@ -6,8 +6,10 @@
  * (App Password lockdown), SEC-013-005 (F012 gate placement), SEC-013-008
  * (invalid FQN silent skip), and SC-002 (byte-identity invariant).
  *
- * PHPUnit 13+ note (per BUGS.md B9): use `#[DataProvider]` PHP attribute
- * instead of `@dataProvider` annotation.
+ * PHPUnit 9.6 note (supersedes BUGS.md B9): use the `@dataProvider`
+ * annotation. The WordPress test suite calls PHPUnit APIs removed in
+ * PHPUnit 10, so the toolchain is pinned to 9.x — which predates PHP
+ * attributes, making `#[DataProvider]` a silent no-op.
  *
  * @package AcrossAI_MCP_Manager\Tests\Public\Renderers
  */

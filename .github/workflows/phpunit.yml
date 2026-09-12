@@ -32,11 +32,16 @@ jobs:
       fail-fast: false
       matrix:
         # Dev-only toolchain floor; does NOT affect runtime PHP 8.1+ support
-        # (verified by phpcompat.yml). phpunit/phpunit is pinned to ^12 rather
-        # than ^13 because yoast/phpunit-polyfills — which the WordPress test
-        # suite hard-requires — supports ^7.5 || ^8 || ^9 || ^11 || ^12 and has
-        # no PHPUnit 13 release. ^12 is also a stable tag, so the dev-stability
-        # flag the old ^13.2@dev constraint needed is gone.
+        # (verified by phpcompat.yml).
+        #
+        # phpunit/phpunit is pinned to ^9.6 — the highest version the WordPress
+        # test suite can run. WP's abstract-testcase.php calls
+        # PHPUnit\Util\Test::parseTestMethodAnnotations() and $this->getName(),
+        # both removed in PHPUnit 10, from expectDeprecated() — which set_up()
+        # invokes for EVERY test. On PHPUnit 12 that errored all 167 admin
+        # tests. WP 7.1 has no PHPUnit 10+ branch, so 9.x is the ceiling until
+        # upstream adds one. Consequence: #[DataProvider] attributes do not
+        # exist here; use @dataProvider annotations (supersedes BUGS.md B9).
         php: ['8.4']
 
     steps:
@@ -121,7 +126,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # See pure-job matrix note on the PHPUnit 12 pin.
+        # See pure-job matrix note on the PHPUnit 9.6 pin.
         php: ['8.4']
         wp: ['latest']
 

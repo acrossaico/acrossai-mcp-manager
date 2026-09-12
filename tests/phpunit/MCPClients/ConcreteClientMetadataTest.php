@@ -24,7 +24,6 @@ use AcrossAI_MCP_Manager\Includes\MCPClients\CustomClient;
 use AcrossAI_MCP_Manager\Includes\MCPClients\GeminiClient;
 use AcrossAI_MCP_Manager\Includes\MCPClients\GitHubCopilotClient;
 use AcrossAI_MCP_Manager\Includes\MCPClients\VSCodeClient;
-use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 final class ConcreteClientMetadataTest extends TestCase {
@@ -118,7 +117,9 @@ final class ConcreteClientMetadataTest extends TestCase {
 		);
 	}
 
-	#[DataProvider('provideClientMetadata')]
+	/**
+	 * @dataProvider provideClientMetadata
+	 */
 	public function testConcreteClientMigratedMetadata(
 		string $fqn,
 		string $expected_slug,

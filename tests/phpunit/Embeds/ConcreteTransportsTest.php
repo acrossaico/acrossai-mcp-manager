@@ -19,7 +19,6 @@ use AcrossAI_MCP_Manager\Includes\Embeds\AbstractEmbedTransport;
 use AcrossAI_MCP_Manager\Includes\Embeds\AiConnectorEmbedTransport;
 use AcrossAI_MCP_Manager\Includes\Embeds\ClientEmbedTransport;
 use AcrossAI_MCP_Manager\Includes\Embeds\NpmEmbedTransport;
-use PHPUnit\Framework\Attributes\DataProvider;
 use ReflectionClass;
 use WP_UnitTestCase;
 
@@ -36,28 +35,36 @@ final class ConcreteTransportsTest extends WP_UnitTestCase {
 		);
 	}
 
-	#[DataProvider( 'provide_built_in_transports' )]
+	/**
+	 * @dataProvider provide_built_in_transports
+	 */
 	public function test_transport_extends_abstract_base( string $fqn, string $key, string $label, int $priority ): void {
 		unset( $key, $label, $priority );
 		$this->assertTrue( class_exists( $fqn ) );
 		$this->assertTrue( is_subclass_of( $fqn, AbstractEmbedTransport::class ) );
 	}
 
-	#[DataProvider( 'provide_built_in_transports' )]
+	/**
+	 * @dataProvider provide_built_in_transports
+	 */
 	public function test_transport_class_is_final( string $fqn, string $key, string $label, int $priority ): void {
 		unset( $key, $label, $priority );
 		$reflection = new ReflectionClass( $fqn );
 		$this->assertTrue( $reflection->isFinal(), 'F037 subclass MUST be final per D36 (extension via filter, not subclass).' );
 	}
 
-	#[DataProvider( 'provide_built_in_transports' )]
+	/**
+	 * @dataProvider provide_built_in_transports
+	 */
 	public function test_transport_key_matches_expected( string $fqn, string $key, string $label, int $priority ): void {
 		unset( $label, $priority );
 		$instance = new $fqn();
 		$this->assertSame( $key, $instance->get_transport_key() );
 	}
 
-	#[DataProvider( 'provide_built_in_transports' )]
+	/**
+	 * @dataProvider provide_built_in_transports
+	 */
 	public function test_transport_key_matches_regex( string $fqn, string $key, string $label, int $priority ): void {
 		unset( $key, $label, $priority );
 		$instance = new $fqn();
@@ -67,14 +74,18 @@ final class ConcreteTransportsTest extends WP_UnitTestCase {
 		$this->assertMatchesRegularExpression( '/\A[a-z0-9_-]{1,64}\z/', $instance->get_transport_key() );
 	}
 
-	#[DataProvider( 'provide_built_in_transports' )]
+	/**
+	 * @dataProvider provide_built_in_transports
+	 */
 	public function test_transport_label_matches_expected( string $fqn, string $key, string $label, int $priority ): void {
 		unset( $key, $priority );
 		$instance = new $fqn();
 		$this->assertSame( $label, $instance->get_checkbox_label() );
 	}
 
-	#[DataProvider( 'provide_built_in_transports' )]
+	/**
+	 * @dataProvider provide_built_in_transports
+	 */
 	public function test_transport_label_is_non_empty_string( string $fqn, string $key, string $label, int $priority ): void {
 		unset( $key, $label, $priority );
 		$instance = new $fqn();
@@ -82,7 +93,9 @@ final class ConcreteTransportsTest extends WP_UnitTestCase {
 		$this->assertNotEmpty( $instance->get_checkbox_label() );
 	}
 
-	#[DataProvider( 'provide_built_in_transports' )]
+	/**
+	 * @dataProvider provide_built_in_transports
+	 */
 	public function test_transport_priority_matches_expected( string $fqn, string $key, string $label, int $priority ): void {
 		unset( $key, $label );
 		$instance = new $fqn();

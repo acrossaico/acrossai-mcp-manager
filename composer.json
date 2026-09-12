@@ -49,7 +49,7 @@
     "require-dev": {
         "wp-coding-standards/wpcs": "*",
         "dealerdirect/phpcodesniffer-composer-installer": "^1.2",
-        "phpunit/phpunit": "^12.0",
+        "phpunit/phpunit": "^9.6",
         "phpcompatibility/php-compatibility": "^10.0@alpha",
         "phpstan/phpstan": "2.2.x-dev",
         "yoast/phpunit-polyfills": "^4.0"

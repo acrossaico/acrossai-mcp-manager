@@ -30,7 +30,6 @@ namespace AcrossAI_MCP_Manager\Tests\Includes\AccessControl;
 use AcrossAI_MCP_Manager\Includes\AccessControl\AcrossAI_MCP_Access_Control;
 use AcrossAI_MCP_Manager\Includes\AccessControl\TransportPermissionDefault;
 use AcrossAI_MCP_Manager\Includes\Database\MCPServer\Query as MCPServerQuery;
-use PHPUnit\Framework\Attributes\DataProvider;
 use WP\MCP\Transport\Infrastructure\HttpRequestContext;
 use WP_REST_Request;
 use WP_UnitTestCase;
@@ -78,8 +77,9 @@ final class TransportPermissionRoleMatrixTest extends WP_UnitTestCase {
 	/**
 	 * @param string $role_key    Snake-case identifier for the test role slot.
 	 * @param bool   $expected    Whether the user of that role should reach the endpoint.
+	 *
+	 * @dataProvider no_rule_role_matrix
 	 */
-	#[DataProvider('no_rule_role_matrix')]
 	public function test_no_rule_only_admin_reaches_endpoint( string $role_key, bool $expected ): void {
 		$slug = $this->make_server( 'no-rule-' . uniqid() );
 		$this->purge_rule_for( $slug );
@@ -117,8 +117,9 @@ final class TransportPermissionRoleMatrixTest extends WP_UnitTestCase {
 	 * @param string $rule_role   The WP role slug configured in the wpb-ac rule.
 	 * @param string $user_role   Which of our fixture users to authenticate as.
 	 * @param bool   $expected    Whether that user should reach the endpoint.
+	 *
+	 * @dataProvider single_role_rule_matrix
 	 */
-	#[DataProvider('single_role_rule_matrix')]
 	public function test_single_role_rule_grants_matching_role_plus_admin_bypass(
 		string $rule_role,
 		string $user_role,

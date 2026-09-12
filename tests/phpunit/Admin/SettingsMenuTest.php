@@ -8,8 +8,10 @@
  *       shared 'acrossai-settings' option group with the correct sanitize
  *       callbacks and defaults.
  *
- * PHPUnit 13+ note (per BUGS.md B9): use `#[DataProvider]` PHP attribute
- * instead of `@dataProvider` annotation — the annotation is silently ignored.
+ * PHPUnit 9.6 note (supersedes BUGS.md B9): use the `@dataProvider`
+ * annotation. The WordPress test suite calls PHPUnit APIs removed in
+ * PHPUnit 10, so the toolchain is pinned to 9.x — which predates PHP
+ * attributes, making `#[DataProvider]` a silent no-op.
  *
  * @package AcrossAI_MCP_Manager\Tests\Admin
  */
@@ -19,7 +21,6 @@ declare(strict_types=1);
 namespace AcrossAI_MCP_Manager\Tests\Admin;
 
 use AcrossAI_MCP_Manager\Admin\Partials\SettingsMenu;
-use PHPUnit\Framework\Attributes\DataProvider;
 use WP_UnitTestCase;
 
 final class SettingsMenuTest extends WP_UnitTestCase {
@@ -41,8 +42,9 @@ final class SettingsMenuTest extends WP_UnitTestCase {
 	 * Verifies register_tab() normalizes non-array input to a 1-element array.
 	 *
 	 * @param mixed $input Non-array input the filter callback must tolerate.
+	 *
+	 * @dataProvider non_array_input_provider
 	 */
-	#[DataProvider( 'non_array_input_provider' )]
 	public function test_register_tab_normalizes_non_array_input( $input ): void {
 		$result = SettingsMenu::instance()->register_tab( $input );
 
