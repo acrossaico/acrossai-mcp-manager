@@ -38,7 +38,7 @@ class ServersEndpointTest extends WP_UnitTestCase {
 	}
 
 	private function seed_server( string $slug, int $enabled = 1, string $name = 'Server', string $route = 'route' ): int {
-		return (int) ( new MCPServerQuery() )->add_item(
+		return (int) MCPServerQuery::instance()->add_item(
 			array(
 				'server_name'             => $name,
 				'server_slug'             => $slug,

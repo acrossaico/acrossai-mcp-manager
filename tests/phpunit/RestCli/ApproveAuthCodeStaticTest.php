@@ -85,7 +85,7 @@ class ApproveAuthCodeStaticTest extends WP_UnitTestCase {
 
 		CliController::approve_auth_code( $code, 7 );
 
-		$rows = ( new CliAuthLogQuery() )->query(
+		$rows = CliAuthLogQuery::instance()->query(
 			array( 'status' => 'approved', 'auth_code_hash' => hash( 'sha256', $code ) )
 		);
 		$this->assertCount( 1, $rows );

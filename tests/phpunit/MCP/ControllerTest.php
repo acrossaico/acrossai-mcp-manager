@@ -102,7 +102,7 @@ class ControllerTest extends WP_UnitTestCase {
 	}
 
 	private function seed_enabled_server( string $slug ): void {
-		( new MCPServerQuery() )->add_item(
+		MCPServerQuery::instance()->add_item(
 			array(
 				'server_name'            => 'Test Server ' . $slug,
 				'server_slug'            => $slug,

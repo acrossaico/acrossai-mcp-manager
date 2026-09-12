@@ -23,7 +23,7 @@ class RecorderTest extends WP_UnitTestCase {
 	}
 
 	public function test_record_approved_persists_row_with_expected_columns(): void {
-		$server_id = (int) ( new MCPServerQuery() )->add_item(
+		$server_id = (int) MCPServerQuery::instance()->add_item(
 			array(
 				'server_name' => 'Test',
 				'server_slug' => 'test-srv',
@@ -34,7 +34,7 @@ class RecorderTest extends WP_UnitTestCase {
 		$hash = hash( 'sha256', 'auth-code-abc' );
 		Recorder::record_approved( 42, 'test-srv', $hash );
 
-		$rows = ( new CliAuthLogQuery() )->query( array( 'status' => 'approved', 'auth_code_hash' => $hash ) );
+		$rows = CliAuthLogQuery::instance()->query( array( 'status' => 'approved', 'auth_code_hash' => $hash ) );
 		$this->assertCount( 1, $rows );
 		$this->assertSame( $server_id, $rows[0]->server_id );
 		$this->assertSame( 'test-srv', $rows[0]->server_slug );
@@ -45,7 +45,7 @@ class RecorderTest extends WP_UnitTestCase {
 	}
 
 	public function test_record_success_persists_row_with_app_password_uuid(): void {
-		( new MCPServerQuery() )->add_item(
+		MCPServerQuery::instance()->add_item(
 			array(
 				'server_name' => 'Srv',
 				'server_slug' => 'srv-success',
@@ -57,7 +57,7 @@ class RecorderTest extends WP_UnitTestCase {
 		$uuid = '01234567-89ab-cdef-0123-456789abcdef';
 		Recorder::record_success( 7, 'srv-success', $hash, $uuid );
 
-		$rows = ( new CliAuthLogQuery() )->query( array( 'status' => 'success', 'auth_code_hash' => $hash ) );
+		$rows = CliAuthLogQuery::instance()->query( array( 'status' => 'success', 'auth_code_hash' => $hash ) );
 		$this->assertCount( 1, $rows );
 		$this->assertSame( 7, $rows[0]->user_id );
 		$this->assertSame( 'srv-success', $rows[0]->server_slug );
@@ -72,7 +72,7 @@ class RecorderTest extends WP_UnitTestCase {
 		$hash = hash( 'sha256', 'graceful-degrade' );
 		Recorder::record_approved( 99, 'nonexistent-server', $hash );
 
-		$rows = ( new CliAuthLogQuery() )->query( array( 'status' => 'approved', 'auth_code_hash' => $hash ) );
+		$rows = CliAuthLogQuery::instance()->query( array( 'status' => 'approved', 'auth_code_hash' => $hash ) );
 		$this->assertCount( 1, $rows );
 		$this->assertSame( 0, $rows[0]->server_id );
 		$this->assertSame( 'nonexistent-server', $rows[0]->server_slug );
