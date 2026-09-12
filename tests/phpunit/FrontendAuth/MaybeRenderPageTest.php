@@ -85,7 +85,8 @@ class MaybeRenderPageTest extends WP_UnitTestCase {
 		try {
 			FrontendAuth::instance()->maybe_render_page();
 		} catch ( \Exception $e ) {
-		}
+			$this->rethrow_unless_wp_die( $e );
+}
 		$out = (string) ob_get_clean();
 
 		$this->assertStringContainsString( 'CLI Login Not Enabled', $out );
@@ -104,7 +105,8 @@ class MaybeRenderPageTest extends WP_UnitTestCase {
 		try {
 			FrontendAuth::instance()->maybe_render_page();
 		} catch ( \Exception $e ) {
-		}
+			$this->rethrow_unless_wp_die( $e );
+}
 		$out = (string) ob_get_clean();
 
 		// The disabled-notice page, not the consent form.
@@ -126,7 +128,8 @@ class MaybeRenderPageTest extends WP_UnitTestCase {
 		try {
 			FrontendAuth::instance()->maybe_render_page();
 		} catch ( \Exception $e ) {
-		}
+			$this->rethrow_unless_wp_die( $e );
+}
 		$out = (string) ob_get_clean();
 
 		$this->assertStringContainsString( 'Missing Authentication Parameters', $out );
@@ -146,7 +149,8 @@ class MaybeRenderPageTest extends WP_UnitTestCase {
 		try {
 			FrontendAuth::instance()->maybe_render_page();
 		} catch ( \Exception $e ) {
-		}
+			$this->rethrow_unless_wp_die( $e );
+}
 		$out = (string) ob_get_clean();
 
 		// We should hit handle_cli_auth (missing-params path because code='').
@@ -264,4 +268,25 @@ class MaybeRenderPageTest extends WP_UnitTestCase {
 
 		return $redirect_target;
 	}
+
+	/**
+	 * Swallow only the wp_die / redirect intercept these render paths raise on
+	 * purpose, and re-throw anything else.
+	 *
+	 * The previous `catch ( \Exception $e ) {}` hid every failure mode: when
+	 * this suite first ran, 13 render assertions failed with the useless
+	 * "Failed asserting that '' contains ..." because whatever
+	 * maybe_render_page() actually threw was discarded before a single byte
+	 * was echoed.
+	 *
+	 * @param \Throwable $e Exception raised inside the captured render.
+	 * @throws \Throwable Re-thrown unless it is an intentional wp_die intercept.
+	 */
+	private function rethrow_unless_wp_die( \Throwable $e ): void {
+		if ( $e instanceof \WPDieException ) {
+			return;
+		}
+		throw $e;
+	}
+
 }

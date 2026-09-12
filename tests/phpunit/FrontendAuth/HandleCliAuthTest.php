@@ -57,8 +57,8 @@ class HandleCliAuthTest extends WP_UnitTestCase {
 		try {
 			FrontendAuth::instance()->maybe_render_page();
 		} catch ( \Exception $e ) {
-			// maybe_render_page() exits — tests may need to catch.
-		}
+			$this->rethrow_unless_wp_die( $e );
+}
 		return (string) ob_get_clean();
 	}
 
@@ -180,4 +180,25 @@ class HandleCliAuthTest extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'acrossai-mcp-frontend__card', $html );
 		$this->assertStringContainsString( 'acrossai-mcp-frontend__button', $html );
 	}
+
+	/**
+	 * Swallow only the wp_die / redirect intercept these render paths raise on
+	 * purpose, and re-throw anything else.
+	 *
+	 * The previous `catch ( \Exception $e ) {}` hid every failure mode: when
+	 * this suite first ran, 13 render assertions failed with the useless
+	 * "Failed asserting that '' contains ..." because whatever
+	 * maybe_render_page() actually threw was discarded before a single byte
+	 * was echoed.
+	 *
+	 * @param \Throwable $e Exception raised inside the captured render.
+	 * @throws \Throwable Re-thrown unless it is an intentional wp_die intercept.
+	 */
+	private function rethrow_unless_wp_die( \Throwable $e ): void {
+		if ( $e instanceof \WPDieException ) {
+			return;
+		}
+		throw $e;
+	}
+
 }
