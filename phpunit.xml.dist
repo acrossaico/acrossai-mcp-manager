@@ -159,12 +159,15 @@
         </testsuite>
     </testsuites>
 
-    <source>
+    <!-- PHPUnit 9.x spells this <coverage>; <source> is 10+ only and fails
+         schema validation here. See the PHPUnit 9.6 pin note in
+         .github/workflows/phpunit.yml. -->
+    <coverage>
         <include>
             <directory>includes</directory>
         </include>
         <exclude>
             <directory>includes/Database</directory><!-- WP-dependent; not in 004 scope -->
         </exclude>
-    </source>
+    </coverage>
 </phpunit>
