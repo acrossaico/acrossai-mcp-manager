@@ -9,6 +9,7 @@
 namespace AcrossAI_MCP_Manager\Admin\Partials;
 
 use AcrossAI_MCP_Manager\Admin\Partials\ServerTabs\ConnectTab;
+use AcrossAI_MCP_Manager\Includes\Database\MCPServer\ProtectedServers;
 use AcrossAI_MCP_Manager\Includes\Database\MCPServer\Query;
 use AcrossAI_MCP_Manager\Includes\Utilities\AdminPageSlugs;
 
@@ -107,6 +108,20 @@ class MCPServerListTable extends \WP_List_Table {
 			},
 			$rows
 		);
+
+		// F088 — pin the Recommended plugin-managed server to the top of the
+		// list; every other row keeps today's insertion order (id ASC).
+		usort(
+			$this->items,
+			static function ( $a, $b ) {
+				$rank_a = ProtectedServers::is_recommended( (string) $a['slug'] ) ? 0 : 1;
+				$rank_b = ProtectedServers::is_recommended( (string) $b['slug'] ) ? 0 : 1;
+
+				return ( $rank_a === $rank_b )
+					? ( (int) $a['id'] <=> (int) $b['id'] )
+					: ( $rank_a <=> $rank_b );
+			}
+		);
 	}
 
 	/**
@@ -115,6 +130,13 @@ class MCPServerListTable extends \WP_List_Table {
 	 * @param array<string, mixed> $item Row data.
 	 */
 	public function column_cb( $item ): string {
+		// F088 — plugin-managed rows carry no checkbox, so they cannot be
+		// swept into a bulk delete. handle_bulk_actions() enforces the same
+		// rule server-side.
+		if ( ProtectedServers::is_protected_server( $item ) ) {
+			return '';
+		}
+
 		return sprintf(
 			'<input type="checkbox" name="server_ids[]" value="%d" />',
 			(int) $item['id']
@@ -141,10 +163,12 @@ class MCPServerListTable extends \WP_List_Table {
 	}
 
 	/**
-	 * Name column with row actions (Edit + conditional Delete).
+	 * Name column with row actions (Edit + conditional Delete) and the F088
+	 * Recommended badge.
 	 * Source-repo behavior preserved: Delete row action only appears for
 	 * 'database'-source rows (the seeded default-plugin row is not deletable
-	 * from the UI).
+	 * from the UI). F088 additionally excludes every plugin-managed row —
+	 * the AcrossAI row is 'database'-source but seeder-owned.
 	 *
 	 * @param array<string, mixed> $item Row data.
 	 */
@@ -166,7 +190,7 @@ class MCPServerListTable extends \WP_List_Table {
 			),
 		);
 
-		if ( 'database' === $item['registered_from'] ) {
+		if ( 'database' === $item['registered_from'] && ! ProtectedServers::is_protected_server( $item ) ) {
 			$delete_url            = wp_nonce_url(
 				add_query_arg(
 					array(
@@ -186,10 +210,15 @@ class MCPServerListTable extends \WP_List_Table {
 			);
 		}
 
+		$badge = ProtectedServers::is_recommended( (string) $item['slug'] )
+			? ' ' . ProtectedServers::recommended_badge()
+			: '';
+
 		return sprintf(
-			'<strong><a class="row-title" href="%s">%s</a></strong>%s',
+			'<strong><a class="row-title" href="%s">%s</a></strong>%s%s',
 			esc_url( $edit_url ),
 			esc_html( $item['name'] ),
+			$badge,
 			$this->row_actions( $row_actions )
 		);
 	}

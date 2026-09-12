@@ -13,6 +13,7 @@
 
 namespace AcrossAI_MCP_Manager\Admin\Partials\ServerTabs;
 
+use AcrossAI_MCP_Manager\Includes\Database\MCPServer\ProtectedServers;
 use AcrossAI_MCP_Manager\Includes\Utilities\AdminPageSlugs;
 
 // Exit if accessed directly.
@@ -58,14 +59,20 @@ final class UpdateServerTab extends AbstractServerTab {
 	}
 
 	/**
-	 * Visible only when the server is database-registered.
+	 * Visible only for operator-created, database-registered servers.
+	 *
+	 * F088 — plugin-managed rows (DefaultServerSeeder) are excluded even
+	 * though the AcrossAI one is `registered_from = 'database'`: the seeder
+	 * re-asserts its managed columns on every admin request, so edits here
+	 * would silently revert.
 	 *
 	 * @since 0.0.6
 	 * @param array $server Server row data.
 	 * @return bool
 	 */
 	public function visible_for( array $server ): bool {
-		return 'database' === ( $server['registered_from'] ?? '' );
+		return 'database' === ( $server['registered_from'] ?? '' )
+			&& ! ProtectedServers::is_protected_server( $server );
 	}
 
 	/**
