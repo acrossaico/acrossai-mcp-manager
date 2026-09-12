@@ -61,6 +61,13 @@ jobs:
       - name: Run PHPUnit — mcpclients suite (pure, no WP)
         run: vendor/bin/phpunit --testsuite mcpclients
 
+      # F080 rename gate — also pure (no WP bootstrap). It existed in
+      # phpunit.xml.dist but was never wired into CI, so the canary that is
+      # supposed to catch a "quick-setup" identifier creeping back has never
+      # actually guarded a pull request.
+      - name: Run PHPUnit — rename-gate suite (pure, no WP)
+        run: vendor/bin/phpunit --testsuite rename-gate
+
   # WordPress integration tests — require the WP test lib + a MySQL service.
   # Covers the F021 oauth suite (SC-008 cleanup, TokenValidator audience, DCR,
   # authorize state policy, refresh-token family revocation, etc.).
@@ -68,24 +75,15 @@ jobs:
     name: PHPUnit (integration) — PHP ${{ matrix.php }} / WP ${{ matrix.wp }}
     runs-on: ubuntu-latest
     timeout-minutes: 25
-    # Two-part fix for the WP-core-vs-PHP-8.4 fatal on
-    # /tmp/wordpress/wp-includes/compat.php:502
-    # ("__autoload() is no longer supported, use spl_autoload_register()"):
-    #
-    #  1. A `sed`-based neutralization step below (renames the offending
-    #     `function __autoload` so PHP 8.0+ doesn't fatal at compile time).
-    #  2. Step-level `continue-on-error: true` on every `Run PHPUnit` step
-    #     as belt-and-braces — if the sed pattern ever misses (WP core
-    #     changes shape) the JOB still reports success to branch
-    #     protection.
-    #
-    # Notably NOT using JOB-level `continue-on-error: true` (which commit
-    # 52605fc originally added and `a5c195c` later removed): that setting
-    # makes the WORKFLOW succeed but the JOB itself is still reported as
-    # failed to branch protection's required_status_checks. Only step-
-    # level `continue-on-error` unblocks branch protection here. Follow-up
-    # to remove the neutralization + step-level continue-on-error tracked
-    # in the PR description.
+    # This job is a real gate again. It previously ran WordPress 4.7.35 (a
+    # greedy regex in bin/install-wp-tests.sh picked the LAST offer from the
+    # version-check payload instead of the first), which cannot be installed
+    # by PHP 8.4 — so the test tables were never created and every suite
+    # below fataled on startup. Two `sed` neutralization steps and a
+    # step-level `continue-on-error: true` on all ten suites turned that into
+    # a passing check. Both the hacks and the flags are gone; the resolution
+    # bug is fixed at source with a hard version floor that fails the job
+    # loudly rather than silently installing an ancient core.
     permissions:
       contents: read
 
@@ -145,86 +143,46 @@ jobs:
         run: |
           bash bin/install-wp-tests.sh wordpress_test root root 127.0.0.1:3306 "$WP_VERSION" true
 
-      # PHPUnit 13+ (the plugin's dev dep, per composer.json `^13.2@dev`)
-      # makes `PHPUnit\Util\Test` final + drops several classes the WP test
-      # lib's phpunit6-compat.php still expects. The compat file is designed
-      # for PHPUnit 6-9 and is a fatal-error source on modern PHPUnit —
-      # unused by modern tests. Neutralize it to a no-op stub.
-      #
-      # This is a hermetic per-CI patch; the WP test lib is a scratch install
-      # inside the runner, not shared.
-      - name: Neutralize legacy phpunit6-compat.php (PHPUnit 13 incompatible)
-        run: |
-          COMPAT=/tmp/wordpress-tests-lib/includes/phpunit6-compat.php
-          if [ -f "$COMPAT" ]; then
-            printf '%s\n' '<?php // Neutralized in CI by phpunit.yml — targets PHPUnit 6-9, unused on modern PHPUnit.' > "$COMPAT"
-          fi
-
-      # WordPress core's wp-includes/compat.php defines a `function
-      # __autoload()` polyfill for pre-PHP-7.2 sites. PHP 8.0 REMOVED
-      # __autoload entirely (moved to a hard error) — the mere presence of
-      # the function definition fatals at compile time on PHP 8.0+.
-      # Fatal message: "__autoload() is no longer supported, use
-      # spl_autoload_register() instead in /tmp/wordpress/wp-includes/
-      # compat.php on line 502".
-      #
-      # Rename the function so it's harmless — nothing in the WP test
-      # scaffolding calls it. Hermetic per-CI patch, same shape as the
-      # phpunit6-compat.php neutralization above.
-      - name: Neutralize WP core __autoload() polyfill (PHP 8.4 incompatible)
-        run: |
-          COMPAT=/tmp/wordpress/wp-includes/compat.php
-          if [ -f "$COMPAT" ]; then
-            sed -i 's/^\(\s*\)function __autoload/\1function __autoload_wp_disabled_ci/' "$COMPAT"
-          fi
-
       # WP-dependent suites — override the default pure bootstrap in
       # phpunit.xml.dist to load the WordPress test scaffolding + plugin.
       #
-      # Step-level `continue-on-error: true` as belt-and-braces on top of
-      # the __autoload neutralization: if the sed pattern above misses
-      # (WP core changes shape) OR a genuine test regression fires, the
-      # JOB still reports success to branch protection. This IS the
-      # "silent-pass" trap in B26 memory — accepted here because the
-      # alternative is "PR blocked forever". Job-level `continue-on-error`
-      # (per commit 52605fc) does NOT satisfy branch protection; only
-      # step-level does. Follow-ups tracked in the PR description.
+      # These steps deliberately carry NO `continue-on-error`. They used to,
+      # as belt-and-braces around the __autoload / phpunit6-compat hacks that
+      # a WordPress 4.7.35 install forced on us. That combination meant every
+      # one of these ten suites fataled on startup and the job still reported
+      # success to branch protection — zero tests executed, green check, for
+      # months. Root cause was a greedy regex in bin/install-wp-tests.sh
+      # resolving "latest" to the LAST offer in the version-check payload;
+      # fixed there, with a hard version floor so it cannot regress silently.
+      #
+      # If a suite fails here now, it is a real failure. Fix the test or the
+      # code — do not reintroduce continue-on-error.
       - name: Run PHPUnit — F021 OAuth suite
-        continue-on-error: true
         run: vendor/bin/phpunit --bootstrap tests/bootstrap-wp.php --testsuite oauth
 
       - name: Run PHPUnit — admin suite
-        continue-on-error: true
         run: vendor/bin/phpunit --bootstrap tests/bootstrap-wp.php --testsuite admin
 
       - name: Run PHPUnit — cli-rest suite
-        continue-on-error: true
         run: vendor/bin/phpunit --bootstrap tests/bootstrap-wp.php --testsuite cli-rest
 
       - name: Run PHPUnit — renderers suite
-        continue-on-error: true
         run: vendor/bin/phpunit --bootstrap tests/bootstrap-wp.php --testsuite renderers
 
       - name: Run PHPUnit — abilities suite
-        continue-on-error: true
         run: vendor/bin/phpunit --bootstrap tests/bootstrap-wp.php --testsuite abilities
 
       - name: Run PHPUnit — database suite
-        continue-on-error: true
         run: vendor/bin/phpunit --bootstrap tests/bootstrap-wp.php --testsuite database
 
       - name: Run PHPUnit — mcp suite
-        continue-on-error: true
         run: vendor/bin/phpunit --bootstrap tests/bootstrap-wp.php --testsuite mcp
 
       - name: Run PHPUnit — F035 discovery suite
-        continue-on-error: true
         run: vendor/bin/phpunit --bootstrap tests/bootstrap-wp.php --testsuite discovery
 
       - name: Run PHPUnit — F037 embeds suite
-        continue-on-error: true
         run: vendor/bin/phpunit --bootstrap tests/bootstrap-wp.php --testsuite embeds
 
       - name: Run PHPUnit — F038 user-servers suite
-        continue-on-error: true
         run: vendor/bin/phpunit --bootstrap tests/bootstrap-wp.php --testsuite user-servers
