@@ -27,6 +27,7 @@ namespace AcrossAI_MCP_Manager\Tests\Embeds;
 
 use AcrossAI_MCP_Manager\Includes\Database\MCPServerMeta\Query as ServerMetaQuery;
 use AcrossAI_MCP_Manager\Includes\Embeds\AbstractEmbedTransport;
+use AcrossAI_MCP_Manager\Includes\Database\MCPServer\Query as MCPServerQuery;
 use AcrossAI_MCP_Manager\Public\Renderers\EmbedBlock\EmbedBlockRenderer;
 use WP_UnitTestCase;
 
@@ -45,6 +46,27 @@ final class EmbedBlockRendererCascadeTest extends WP_UnitTestCase {
 	protected function setUp(): void {
 		parent::setUp();
 		AbstractEmbedTransport::flush_cache();
+
+		// Create a REAL server row and use its real id + slug.
+		//
+		// The hard-coded id 1 / slug 'test-server' never matched a row, so the
+		// shortcode's MCPServer\Query::get_by_slug() lookup always missed and
+		// returned '' — which made every expect_render=true case in the matrix
+		// unreachable (the comments below the assertions say as much). With a
+		// real row the positive half of the cascade is actually exercised.
+		$this->server_slug = 'embed-cascade-test';
+		$this->server_id   = (int) MCPServerQuery::instance()->add_item(
+			array(
+				'server_name'            => 'Embed Cascade Test',
+				'server_slug'            => $this->server_slug,
+				'description'            => 'Fixture for the embed gate cascade matrix.',
+				'is_enabled'             => 1,
+				'registered_from'        => 'database',
+				'server_route_namespace' => 'mcp',
+				'server_route'           => $this->server_slug,
+				'server_version'         => 'v1.0.0',
+			)
+		);
 	}
 
 	protected function tearDown(): void {
@@ -123,9 +145,8 @@ final class EmbedBlockRendererCascadeTest extends WP_UnitTestCase {
 		if ( $expect_render ) {
 			$this->assertNotSame( '', trim( $actual ), "MUST render for category={$category} slug={$slug} master=" . ( $master ? '1' : '0' ) . " dto=" . ( $dto_enabled ? '1' : '0' ) );
 		} else {
-			// The shortcode renderer resolves server by slug via MCPServer\Query::get_by_slug();
-			// this test uses a factory-created post — the query will miss and short-circuit to ''.
-			// We assert on the strict gate cascade: when a gate fails, output MUST be empty regardless of the server-resolution path.
+			// The server now resolves, so an empty result proves the gate cascade
+			// denied — not that server lookup missed.
 			$this->assertSame( '', trim( $actual ), "MUST NOT render (gate fail) for category={$category} slug={$slug}" );
 		}
 	}
