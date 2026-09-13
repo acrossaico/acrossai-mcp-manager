@@ -45,11 +45,11 @@ class AbilityDiscoveryTest extends WP_UnitTestCase {
 
 	public function tearDown(): void {
 		$this->truncate_tables();
-		// TRUNCATE implicitly COMMITs in MySQL, so it escapes WP_UnitTestCase's
-		// per-test transaction rollback and permanently removes the default
-		// server row that tests/bootstrap-wp.php seeds via Activator::activate().
-		// Restore it, or every later test (and later suite — they share one DB)
-		// sees a table with no seeded server.
+		// Best-effort restore of the row tests/bootstrap-wp.php seeded via
+		// Activator::activate(). NOTE: with autocommit=0 this INSERT lands in
+		// the transaction parent::tearDown() rolls back, so a test that needs
+		// the managed rows must seed them itself (see
+		// DefaultServerSeederTest::set_up()).
 		DefaultServerSeeder::seed();
 		parent::tearDown();
 	}

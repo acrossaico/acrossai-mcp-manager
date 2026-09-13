@@ -17,6 +17,20 @@ use WP_UnitTestCase;
 
 class ProtectedServersTest extends WP_UnitTestCase {
 
+	/**
+	 * Seed the managed rows for this test rather than inheriting them.
+	 *
+	 * Other classes in this suite TRUNCATE acrossai_mcp_servers. Their teardowns
+	 * call DefaultServerSeeder::seed() to restore it, but that does not survive:
+	 * WP_UnitTestCase runs with autocommit=0, so the INSERT after TRUNCATE's
+	 * implicit COMMIT opens a fresh transaction that parent::tearDown() rolls
+	 * back. Establishing the precondition here is what actually makes it true.
+	 */
+	public function set_up(): void {
+		parent::set_up();
+		DefaultServerSeeder::seed();
+	}
+
 	public function test_both_seeded_slugs_are_protected(): void {
 		$this->assertTrue( ProtectedServers::is_protected( DefaultServerSeeder::SLUG ) );
 		$this->assertTrue( ProtectedServers::is_protected( DefaultServerSeeder::ACROSSAI_SLUG ) );
