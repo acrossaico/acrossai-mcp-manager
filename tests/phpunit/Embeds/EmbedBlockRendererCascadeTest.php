@@ -28,6 +28,7 @@ namespace AcrossAI_MCP_Manager\Tests\Embeds;
 use AcrossAI_MCP_Manager\Includes\Database\MCPServerMeta\Query as ServerMetaQuery;
 use AcrossAI_MCP_Manager\Includes\Embeds\AbstractEmbedTransport;
 use AcrossAI_MCP_Manager\Includes\Database\MCPServer\Query as MCPServerQuery;
+use AcrossAI_MCP_Manager\Public\Discovery\ConnectionMethodRegistry;
 use AcrossAI_MCP_Manager\Public\Renderers\EmbedBlock\EmbedBlockRenderer;
 use WP_UnitTestCase;
 
@@ -141,6 +142,29 @@ final class EmbedBlockRendererCascadeTest extends WP_UnitTestCase {
 			);
 		}
 		AbstractEmbedTransport::flush_cache();
+
+		// F040 moved AI connector profiles to the companion plugin, so
+		// get_ai_connectors() returns [] here and the ai_connector rows of this
+		// matrix have nothing to render. Supply one through the documented
+		// filter — the same seam the companion uses — so the cascade is
+		// exercised rather than skipped.
+		if ( 'ai_connector' === $category ) {
+			add_filter(
+				'acrossai_mcp_manager_discovery_ai_connectors',
+				static function () use ( $slug ): array {
+					return array(
+						array(
+							'category'    => 'ai_connector',
+							'slug'        => $slug,
+							'name'        => ucfirst( $slug ),
+							'description' => 'Fixture connector.',
+							'icon'        => '',
+						),
+					);
+				}
+			);
+			ConnectionMethodRegistry::instance()->flush_cache();
+		}
 
 		// Stub F015 state via filter — the shortcode renderer uses
 		// `class_exists('\AcrossAI_MCP_Access_Control')` + method call;
