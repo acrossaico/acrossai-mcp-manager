@@ -277,6 +277,219 @@ class DiscoverTest extends WP_UnitTestCase {
 		}
 	}
 
+	// -----------------------------------------------------------------
+	// F089 — search + pagination
+	// -----------------------------------------------------------------
+
+	public function test_zero_argument_call_still_returns_every_visible_ability(): void {
+		$this->maybe_skip_abilities_api();
+		$this->register_scratch_ability( 'discover-test/back-compat', true, 'tool' );
+
+		$result = Discover::execute();
+
+		$this->assertContains( 'discover-test/back-compat', array_column( $result['abilities'], 'name' ) );
+		$this->assertSame( count( $result['abilities'] ), $result['returned'] );
+		$this->assertSame( 1, $result['page'] );
+	}
+
+	public function test_each_entry_carries_its_category(): void {
+		$this->maybe_skip_abilities_api();
+		$this->register_rich_ability( 'discover-cat/one', 'One', 'desc', 'reporting' );
+
+		$entry = $this->entry_for( Discover::execute(), 'discover-cat/one' );
+
+		$this->assertSame( 'reporting', $entry['category'] );
+	}
+
+	public function test_default_page_size_is_60_and_flags_more(): void {
+		$this->maybe_skip_abilities_api();
+		for ( $i = 0; $i < 61; $i++ ) {
+			$this->register_rich_ability( sprintf( 'discover-page/a-%02d', $i ), 'Paged', 'desc', 'paging' );
+		}
+
+		$first = Discover::execute( array( 'namespace' => 'discover-page' ) );
+
+		$this->assertSame( 61, $first['total'], 'total must count matches BEFORE the slice.' );
+		$this->assertSame( Discover::PER_PAGE_DEFAULT, $first['per_page'] );
+		$this->assertCount( 60, $first['abilities'] );
+		$this->assertSame( 60, $first['returned'] );
+		$this->assertTrue( $first['has_more'] );
+
+		$second = Discover::execute( array( 'namespace' => 'discover-page', 'page' => 2 ) );
+
+		$this->assertSame( 61, $second['total'] );
+		$this->assertCount( 1, $second['abilities'] );
+		$this->assertFalse( $second['has_more'], 'The final page must not claim more.' );
+		$this->assertNotSame(
+			array_column( $first['abilities'], 'name' ),
+			array_column( $second['abilities'], 'name' ),
+			'Page 2 must be a different window.'
+		);
+	}
+
+	public function test_page_past_the_end_is_empty_without_has_more(): void {
+		$this->maybe_skip_abilities_api();
+		$this->register_rich_ability( 'discover-end/only', 'Only', 'desc', 'ending' );
+
+		$result = Discover::execute( array( 'namespace' => 'discover-end', 'page' => 9 ) );
+
+		$this->assertSame( 1, $result['total'] );
+		$this->assertSame( array(), $result['abilities'] );
+		$this->assertSame( 0, $result['returned'] );
+		$this->assertFalse( $result['has_more'] );
+	}
+
+	public function test_search_matches_each_text_field_case_insensitively(): void {
+		$this->maybe_skip_abilities_api();
+		$this->register_rich_ability( 'discover-find/alpha', 'Zebra Label', 'Ordinary text', 'finding' );
+
+		foreach ( array( 'ALPHA', 'zebra', 'ORDINARY', 'Finding' ) as $needle ) {
+			$names = array_column(
+				Discover::execute( array( 'search' => $needle ) )['abilities'],
+				'name'
+			);
+			$this->assertContains( 'discover-find/alpha', $names, "search '{$needle}' must match." );
+		}
+
+		$miss = Discover::execute( array( 'search' => 'no-such-substring-anywhere' ) );
+		$this->assertSame( 0, $miss['total'] );
+	}
+
+	public function test_category_is_exact_and_namespace_is_a_prefix(): void {
+		$this->maybe_skip_abilities_api();
+		$this->register_rich_ability( 'discover-scope/in', 'In', 'desc', 'scoped' );
+		$this->register_rich_ability( 'discover-other/out', 'Out', 'desc', 'scoped-extra' );
+
+		$by_category = Discover::execute( array( 'category' => 'scoped' ) );
+		$this->assertSame( array( 'discover-scope/in' ), array_column( $by_category['abilities'], 'name' ) );
+
+		$by_namespace = Discover::execute( array( 'namespace' => 'discover-scope' ) );
+		$this->assertSame( array( 'discover-scope/in' ), array_column( $by_namespace['abilities'], 'name' ) );
+
+		// A namespace must not match by bare prefix across the slash boundary.
+		$partial = Discover::execute( array( 'namespace' => 'discover-sco' ) );
+		$this->assertSame( 0, $partial['total'] );
+	}
+
+	public function test_criteria_and_together(): void {
+		$this->maybe_skip_abilities_api();
+		$this->register_rich_ability( 'discover-and/keep', 'Keep', 'desc', 'combined' );
+		$this->register_rich_ability( 'discover-and/drop', 'Drop', 'desc', 'other' );
+
+		$result = Discover::execute(
+			array(
+				'namespace' => 'discover-and',
+				'category'  => 'combined',
+				'search'    => 'keep',
+			)
+		);
+
+		$this->assertSame( array( 'discover-and/keep' ), array_column( $result['abilities'], 'name' ) );
+	}
+
+	/**
+	 * The security invariant: caller-supplied filtering runs AFTER the exposure
+	 * gate, so no search term can surface an ability the per-server policy hides.
+	 */
+	public function test_hidden_ability_is_unreachable_through_any_criterion(): void {
+		$this->maybe_skip_abilities_api();
+		$this->register_rich_ability( 'discover-hidden/secret', 'Secret', 'desc', 'classified' );
+
+		add_filter(
+			'acrossai_mcp_is_ability_exposed',
+			static function ( $exposed, $ability_name ) {
+				return 'discover-hidden/secret' === $ability_name ? false : $exposed;
+			},
+			10,
+			2
+		);
+		ExposureResolver::_reset_cache_for_tests();
+
+		foreach (
+			array(
+				array( 'search' => 'secret' ),
+				array( 'search' => 'classified' ),
+				array( 'category' => 'classified' ),
+				array( 'namespace' => 'discover-hidden' ),
+				array(),
+			) as $criteria
+		) {
+			$names = array_column( Discover::execute( $criteria )['abilities'], 'name' );
+			$this->assertNotContains(
+				'discover-hidden/secret',
+				$names,
+				'Exposure gate must win over ' . wp_json_encode( $criteria )
+			);
+		}
+	}
+
+	public function test_per_page_is_clamped_to_the_supported_range(): void {
+		$this->maybe_skip_abilities_api();
+		$this->register_rich_ability( 'discover-clamp/one', 'One', 'desc', 'clamping' );
+
+		$too_big = Discover::execute( array( 'namespace' => 'discover-clamp', 'per_page' => 9999 ) );
+		$this->assertSame( Discover::PER_PAGE_MAXIMUM, $too_big['per_page'] );
+
+		$too_small = Discover::execute( array( 'namespace' => 'discover-clamp', 'per_page' => 0 ) );
+		$this->assertSame( 1, $too_small['per_page'] );
+
+		$negative_page = Discover::execute( array( 'namespace' => 'discover-clamp', 'page' => -5 ) );
+		$this->assertSame( 1, $negative_page['page'] );
+	}
+
+	public function test_filters_override_the_default_and_maximum_page_size(): void {
+		$this->maybe_skip_abilities_api();
+		for ( $i = 0; $i < 3; $i++ ) {
+			$this->register_rich_ability( sprintf( 'discover-filter/a-%d', $i ), 'Filtered', 'desc', 'filtering' );
+		}
+
+		add_filter( 'acrossai_mcp_discover_abilities_default_per_page', static fn () => 2 );
+		$defaulted = Discover::execute( array( 'namespace' => 'discover-filter' ) );
+		$this->assertSame( 2, $defaulted['per_page'] );
+		$this->assertTrue( $defaulted['has_more'] );
+
+		add_filter( 'acrossai_mcp_discover_abilities_max_per_page', static fn () => 1 );
+		$capped = Discover::execute( array( 'namespace' => 'discover-filter', 'per_page' => 50 ) );
+		$this->assertSame( 1, $capped['per_page'], 'The max filter must clamp an explicit per_page.' );
+
+		remove_all_filters( 'acrossai_mcp_discover_abilities_default_per_page' );
+		remove_all_filters( 'acrossai_mcp_discover_abilities_max_per_page' );
+	}
+
+	/**
+	 * @param array<string, mixed> $result
+	 * @return array<string, string>
+	 */
+	private function entry_for( array $result, string $name ): array {
+		foreach ( $result['abilities'] as $entry ) {
+			if ( $entry['name'] === $name ) {
+				return $entry;
+			}
+		}
+
+		$this->fail( "Ability {$name} was not returned." );
+	}
+
+	private function register_rich_ability( string $slug, string $label, string $description, string $category ): void {
+		acrossai_test_register_ability(
+			$slug,
+			array(
+				'label'            => $label,
+				'description'      => $description,
+				'category'         => $category,
+				'meta'             => array(
+					'mcp' => array(
+						'public' => true,
+						'type'   => 'tool',
+					),
+				),
+				'input_schema'     => array( 'type' => 'object', 'properties' => array() ),
+				'output_schema'    => array( 'type' => 'object', 'properties' => array() ),
+				'execute_callback' => static fn () => array(),
+			)
+		);
+	}
+
 	private function register_scratch_ability( string $slug, bool $mcp_public, string $type ): void {
 		acrossai_test_register_ability(
 			$slug,

@@ -8,8 +8,14 @@
  * registered is one of vendor's three defaults, rebinds
  * `execute_callback` + `permission_callback` to plugin-owned classes.
  *
- * The ability schemas, labels, descriptions, categories, and
- * annotations remain vendor-supplied.
+ * Labels, categories and annotations remain vendor-supplied. F089 adds one
+ * exception: `mcp-adapter/discover-abilities` also gets its `input_schema`,
+ * `output_schema` and `description` from here, because the vendor registers it
+ * with NO input schema at all and WP core then refuses any input
+ * (`WP_Ability::validate_input()` → `ability_missing_input_schema`) and never
+ * passes `$input` to the callback (`invoke_callback()`). Contributing the
+ * schema through this same filter is what makes search + pagination reachable
+ * without forking the adapter.
  *
  * @package    AcrossAI_MCP_Manager
  * @subpackage Includes\Abilities
@@ -31,12 +37,18 @@ defined( 'ABSPATH' ) || exit;
 final class CallbackReplacer {
 
 	/**
+	 * The discovery ability slug. Named because F089 contributes a schema to
+	 * this one specifically, not just a callback swap.
+	 */
+	public const DISCOVER_ABILITY = 'mcp-adapter/discover-abilities';
+
+	/**
 	 * Map of vendor ability slug → [ callback_class, permission_method, execute_method ].
 	 */
 	private const VENDOR_ABILITIES = array(
-		'mcp-adapter/discover-abilities' => array( Discover::class, 'check_permission', 'execute' ),
-		'mcp-adapter/get-ability-info'   => array( GetAbilityInfo::class, 'check_permission', 'execute' ),
-		'mcp-adapter/execute-ability'    => array( Execute::class, 'check_permission', 'execute' ),
+		self::DISCOVER_ABILITY         => array( Discover::class, 'check_permission', 'execute' ),
+		'mcp-adapter/get-ability-info' => array( GetAbilityInfo::class, 'check_permission', 'execute' ),
+		'mcp-adapter/execute-ability'  => array( Execute::class, 'check_permission', 'execute' ),
 	);
 
 	/**
@@ -78,6 +90,153 @@ final class CallbackReplacer {
 		$args['permission_callback'] = array( $class, $permission_method );
 		$args['execute_callback']    = array( $class, $execute_method );
 
+		if ( self::DISCOVER_ABILITY !== $name ) {
+			return $args;
+		}
+
+		// Idempotency: this filter fires on EVERY registration of the slug, and
+		// a third party may re-register it (the competitor plugin Novamira, for
+		// one, unregisters and re-registers this ability wholesale). Bail if our
+		// schema is already in place rather than re-deriving it.
+		if ( isset( $args['input_schema']['properties']['per_page'] ) ) {
+			return $args;
+		}
+
+		$args['input_schema']  = $this->discover_input_schema();
+		$args['output_schema'] = $this->discover_output_schema(
+			isset( $args['output_schema'] ) && is_array( $args['output_schema'] ) ? $args['output_schema'] : array()
+		);
+		$args['description']   = $this->discover_description();
+
 		return $args;
+	}
+
+	/**
+	 * Input schema for `mcp-adapter/discover-abilities` (F089).
+	 *
+	 * The root `default` is load-bearing: `WP_Ability::normalize_input()` applies
+	 * only the TOP-LEVEL default, and `validate_input()` rejects `null` once a
+	 * schema exists. Without it, every existing zero-argument caller would start
+	 * failing the moment this schema is registered.
+	 *
+	 * Per-property defaults are NOT applied by core — `Discover::execute()`
+	 * applies its own. They are declared here purely so the LLM reading
+	 * `tools/list` can see them, and they read from Discover's constants so the
+	 * advertised numbers cannot drift from the ones actually enforced.
+	 *
+	 * @return array<string, mixed>
+	 */
+	private function discover_input_schema(): array {
+		return array(
+			'type'                 => 'object',
+			'default'              => array(),
+			'additionalProperties' => false,
+			'properties'           => array(
+				'search'    => array(
+					'type'        => 'string',
+					'description' => __(
+						'Free-text filter. Case-insensitive substring match against each ability\'s name, label, description and category. Example: "post" finds acrossai/list-posts and acrossai/update-post.',
+						'acrossai-mcp-manager'
+					),
+				),
+				'category'  => array(
+					'type'        => 'string',
+					'description' => __(
+						'Return only abilities in this exact category. Category values appear on every returned ability, so call once without filters to see which exist.',
+						'acrossai-mcp-manager'
+					),
+				),
+				'namespace' => array(
+					'type'        => 'string',
+					'description' => __(
+						'Return only abilities whose name starts with this namespace, e.g. "acrossai" matches acrossai/list-posts. Use this to scope to one plugin.',
+						'acrossai-mcp-manager'
+					),
+				),
+				'page'      => array(
+					'type'        => 'integer',
+					'minimum'     => 1,
+					'default'     => 1,
+					'description' => __(
+						'1-based page number. Only needed when a previous response returned has_more = true.',
+						'acrossai-mcp-manager'
+					),
+				),
+				'per_page'  => array(
+					'type'        => 'integer',
+					'minimum'     => 1,
+					'maximum'     => Discover::PER_PAGE_MAXIMUM,
+					'default'     => Discover::PER_PAGE_DEFAULT,
+					'description' => __(
+						'How many abilities to return per page. Defaults to 60, maximum 200. Prefer narrowing with search/category/namespace over raising this.',
+						'acrossai-mcp-manager'
+					),
+				),
+			),
+		);
+	}
+
+	/**
+	 * Merge F089's pagination fields into the vendor output schema.
+	 *
+	 * Merged rather than replaced so vendor keys (and anything another filter
+	 * already contributed) survive.
+	 *
+	 * @param array<string, mixed> $existing Output schema as registered so far.
+	 * @return array<string, mixed>
+	 */
+	private function discover_output_schema( array $existing ): array {
+		$existing['type'] = 'object';
+
+		$properties = isset( $existing['properties'] ) && is_array( $existing['properties'] )
+			? $existing['properties']
+			: array();
+
+		// F089 also adds `category` to each ability entry, so the item schema
+		// the vendor declared needs it too.
+		if ( isset( $properties['abilities']['items']['properties'] ) && is_array( $properties['abilities']['items']['properties'] ) ) {
+			$properties['abilities']['items']['properties']['category'] = array( 'type' => 'string' );
+		}
+
+		$properties['total']    = array(
+			'type'        => 'integer',
+			'description' => __( 'Total abilities matching the filters, before pagination.', 'acrossai-mcp-manager' ),
+		);
+		$properties['returned'] = array(
+			'type'        => 'integer',
+			'description' => __( 'How many abilities this response contains.', 'acrossai-mcp-manager' ),
+		);
+		$properties['page']     = array(
+			'type'        => 'integer',
+			'description' => __( 'The 1-based page this response represents.', 'acrossai-mcp-manager' ),
+		);
+		$properties['per_page'] = array(
+			'type'        => 'integer',
+			'description' => __( 'The page size actually applied, after clamping.', 'acrossai-mcp-manager' ),
+		);
+		$properties['has_more'] = array(
+			'type'        => 'boolean',
+			'description' => __( 'True when more abilities match than this page returned. Request page + 1 to continue.', 'acrossai-mcp-manager' ),
+		);
+
+		$existing['properties'] = $properties;
+
+		return $existing;
+	}
+
+	/**
+	 * The tool description an MCP client shows the model.
+	 *
+	 * This string is the ability's `description`, which
+	 * `RegisterAbilityAsMcpTool::build_tool_data()` copies verbatim into the
+	 * tool's `description` in `tools/list` — so it IS the documentation the LLM
+	 * reads. State the default page size and the paging contract explicitly;
+	 * a model that cannot see `has_more` assumes it received everything.
+	 */
+	private function discover_description(): string {
+		return __(
+			'Discover the WordPress abilities available on this site. Returns up to 60 abilities per call, each with its name, label, description and category. Narrow the list with search, category or namespace rather than paging through everything. When has_more is true, request the next page with page. Once you have a name, call mcp-adapter/get-ability-info for that ability\'s full input schema.',
+			'acrossai-mcp-manager'
+		);
 	}
 }
