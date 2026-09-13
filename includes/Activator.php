@@ -7,6 +7,7 @@ use AcrossAI_MCP_Manager\Includes\Database\MCPServer\DefaultServerSeeder;
 use AcrossAI_MCP_Manager\Includes\Database\CliAuthLog\Table as CliAuthLogTable;
 use AcrossAI_MCP_Manager\Includes\Database\MCPServerAbility\Table as MCPServerAbilityTable;
 use AcrossAI_MCP_Manager\Includes\Database\MCPServerTool\Table as MCPServerToolTable;
+use AcrossAI_MCP_Manager\Includes\Database\MCPServerMeta\Table as MCPServerMetaTable;
 use AcrossAI_MCP_Manager\Public\Partials\FrontendAuth;
 use WPBoilerplate\AccessControl\Database\Rule\RuleTable as WPB_AccessControl_RuleTable;
 
@@ -49,6 +50,14 @@ class Activator {
 		// non-empty set). Co-commit invariant with the Main.php request-time
 		// boot below (DEC-BERLINDB-TABLE-REQUEST-BOOT).
 		MCPServerToolTable::instance()->maybe_upgrade();
+
+		// F037 — per-server key-value meta. This was the only BerlinDB table the
+		// activator did not create: it relied on admin_init@3
+		// (Main::reconcile_database_schemas) to appear, so between activation and
+		// the first wp-admin request every read hit "table doesn't exist". Any
+		// front-end or REST request in that window — exactly where the Embeds
+		// feature reads `_embeds_enabled` — ran against a missing table.
+		MCPServerMetaTable::instance()->maybe_upgrade();
 
 		// Feature 015 — Access Control v2 adoption. Create the
 		// {$wpdb->prefix}mcp_access_control table via the vendor-owned

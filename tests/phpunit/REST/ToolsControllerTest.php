@@ -66,11 +66,15 @@ class ToolsControllerTest extends WP_UnitTestCase {
 
 	// --- Auth boundary (F020 preserved) ------------------------------------
 
-	public function test_get_returns_403_for_unauthenticated_user(): void {
+	public function test_get_returns_401_for_unauthenticated_user(): void {
+		// WordPress distinguishes the two: rest_authorization_required_code()
+		// returns 401 when nobody is logged in and 403 for a logged-in user
+		// lacking the capability. This test signs nobody in, so 401 is the
+		// correct contract — the old 403 expectation never matched core.
 		wp_set_current_user( 0 );
 		$req = new WP_REST_Request( 'GET', '/acrossai-mcp-manager/v1/servers/' . $this->server_id . '/tools' );
 		$res = rest_do_request( $req );
-		$this->assertSame( 403, $res->get_status() );
+		$this->assertSame( 401, $res->get_status() );
 	}
 
 	// --- F025: POST accepts protocol slugs (SEC-025-v2-2 hardening) --------

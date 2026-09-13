@@ -181,7 +181,7 @@ final class FrontendAuth {
 			}
 
 			wp_safe_redirect( wp_login_url( $redirect_to ) );
-			exit;
+			$this->terminate();
 		}
 
 		// FR-007.4 — NO current_user_can() check. Any logged-in user may
@@ -195,7 +195,7 @@ final class FrontendAuth {
 		$enabled = (bool) get_option( 'acrossai_mcp_npm_login_enabled', false );
 		if ( ! $enabled ) {
 			$this->render_disabled_notice();
-			exit;
+			$this->terminate();
 		}
 
 		switch ( $action ) {
@@ -209,7 +209,7 @@ final class FrontendAuth {
 			default:
 				$this->handle_cli_auth( $code );
 		}
-		exit;
+		$this->terminate();
 	}
 
 	/**
@@ -351,7 +351,7 @@ final class FrontendAuth {
 		}
 
 		wp_safe_redirect( add_query_arg( 'action', 'cli_auth_approved', self::get_base_url() ) );
-		exit;
+		$this->terminate();
 	}
 
 	/**
@@ -384,7 +384,9 @@ final class FrontendAuth {
 	 */
 	private function render_disabled_notice(): void {
 		status_header( 503 );
-		header( 'Retry-After: 3600' );
+		if ( ! headers_sent() ) {
+			header( 'Retry-After: 3600' );
+		}
 
 		$body  = '<meta name="robots" content="noindex,nofollow">';
 		$body .= '<p class="acrossai-mcp-frontend__lede">'
@@ -410,7 +412,14 @@ final class FrontendAuth {
 	 * @param string $body_html   Pre-escaped HTML body (caller's responsibility).
 	 */
 	private function render_page_shell( string $title, string $body_html ): void {
-		header( 'Content-Type: text/html; charset=UTF-8' );
+		// Guard like WP core's own nocache_headers(): calling header() after
+		// output has begun is a no-op that emits a PHP warning. In production
+		// that happens when a theme or plugin echoes early; under PHPUnit it
+		// happens on every run, which is what made all 13 render assertions
+		// return an empty buffer.
+		if ( ! headers_sent() ) {
+			header( 'Content-Type: text/html; charset=UTF-8' );
+		}
 
 		// We exit from template_redirect without calling wp_head(), so the
 		// 'wp_enqueue_scripts' action that Main wires enqueue_assets to never
@@ -499,5 +508,29 @@ final class FrontendAuth {
 			esc_html__( 'AcrossAI MCP Manager', 'acrossai-mcp-manager' ),
 			$card
 		);
+	}
+
+	/**
+	 * Terminate the CLI-auth request.
+	 *
+	 * Wraps the bare `exit` so there is a single hookable point before the
+	 * request dies. `exit` cannot be caught, which left the render tests with
+	 * no way to assert on markup this method had already echoed — they can now
+	 * throw from this action, the same throw-from-hook convention the redirect
+	 * tests already use against `wp_redirect`.
+	 *
+	 * @since 0.3.4
+	 */
+	private function terminate(): void {
+		/**
+		 * Fires immediately before the CLI-auth page terminates the request.
+		 *
+		 * Production has no listener; it exists so tests can intercept before
+		 * `exit`. Anything hooked here runs after the page markup is echoed.
+		 *
+		 * @since 0.3.4
+		 */
+		do_action( 'acrossai_mcp_frontend_auth_before_exit' );
+		exit;
 	}
 }

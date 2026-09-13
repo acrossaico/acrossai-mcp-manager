@@ -114,13 +114,20 @@ abstract class AbstractClientRenderer {
 			'sub_client'        => '',
 		);
 		$context      = wp_parse_args( $context, $defaults );
-		// SEC-013-003: cast filter return to (array) to defend against non-array returns from third-party callbacks.
-		return (array) apply_filters(
+
+		$filtered = apply_filters(
 			'acrossai_mcp_client_block_context',
 			$context,
 			$this->slug(),
 			$server_id
 		);
+
+		// SEC-013-003: a third-party callback returning a non-array MUST NOT
+		// fatal, and the defaults MUST still apply. A bare `(array)` cast is
+		// not enough for the second half — `(array) null` is `[]`, which drops
+		// every default and leaves render() reading an undefined 'cap' key.
+		// Re-merge so the contract in this method's docblock actually holds.
+		return wp_parse_args( is_array( $filtered ) ? $filtered : array(), $defaults );
 	}
 
 	/**

@@ -45,7 +45,14 @@ final class QuickConnectControllerTest extends WP_UnitTestCase {
 		MCPServerTable::instance()->maybe_upgrade();
 		DefaultServerSeeder::seed();
 
-		QuickConnectController::instance()->register_routes();
+		// Register on rest_api_init against a fresh server — the same pattern
+		// production uses. Calling register_routes() directly trips WP's
+		// "routes must be registered on rest_api_init" notice, which the WP
+		// harness reports as an unexpected incorrect usage on every test here.
+		global $wp_rest_server;
+		$wp_rest_server = new \WP_REST_Server();
+		add_action( 'rest_api_init', array( QuickConnectController::instance(), 'register_routes' ) );
+		do_action( 'rest_api_init', $wp_rest_server );
 
 		$this->admin_id      = static::factory()->user->create( array( 'role' => 'administrator' ) );
 		$this->subscriber_id = static::factory()->user->create( array( 'role' => 'subscriber' ) );
@@ -55,6 +62,9 @@ final class QuickConnectControllerTest extends WP_UnitTestCase {
 	}
 
 	public function tearDown(): void {
+		global $wp_rest_server;
+		$wp_rest_server = null;
+
 		wp_set_current_user( 0 );
 		delete_transient( 'acrossai_mcp_manager_quick_connect_state_' . $this->admin_id );
 		parent::tearDown();

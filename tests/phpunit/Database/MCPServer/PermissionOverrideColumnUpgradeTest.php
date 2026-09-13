@@ -31,7 +31,11 @@ class PermissionOverrideColumnUpgradeTest extends WP_UnitTestCase {
 		$rows = $wpdb->get_results( "SHOW COLUMNS FROM `{$table}` LIKE 'override_abilities_permission'" );
 
 		$this->assertCount( 1, $rows, 'F030 must ship the override_abilities_permission column.' );
-		$this->assertSame( 'tinyint(1)', strtolower( (string) $rows[0]->Type ) );
+		// MySQL 8.0.19+ no longer reports an integer display width, and the
+		// BerlinDB schema declares the column unsigned, so the exact string is
+		// 'tinyint unsigned' here and 'tinyint(1)' on older servers. Assert the
+		// base type, which is what the invariant is actually about.
+		$this->assertStringStartsWith( 'tinyint', strtolower( (string) $rows[0]->Type ) );
 		$this->assertSame( 'NO', (string) $rows[0]->Null );
 		$this->assertSame( '0', (string) $rows[0]->Default );
 	}
@@ -81,14 +85,47 @@ class PermissionOverrideColumnUpgradeTest extends WP_UnitTestCase {
 		// scenario B34 documents (silent write-loss when schema drifts).
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared
 		$wpdb->query( "ALTER TABLE `{$table}` DROP COLUMN `override_abilities_permission`" );
-		update_option( 'acrossai_mcp_servers_db_version', '1.1.1' );
-
-		MCPServerTable::instance()->maybe_upgrade();
+		$this->rerun_upgrades_from( '1.1.1' );
 
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared
 		$rows = $wpdb->get_results( "SHOW COLUMNS FROM `{$table}` LIKE 'override_abilities_permission'" );
 		$this->assertCount( 1, $rows, 'D28 upgrade path must re-add the dropped column.' );
 
-		$this->assertSame( '1.1.2', (string) get_option( 'acrossai_mcp_servers_db_version' ) );
+		// Rewinding to 1.1.1 leaves EVERY later upgrade pending, and BerlinDB
+		// runs the whole chain — so the option lands on the table's current
+		// version, not on 1.1.2. Asserting the declared version keeps this
+		// correct the next time a migration is added.
+		$this->assertSame(
+			( new \ReflectionClass( MCPServerTable::class ) )->getDefaultProperties()['version'],
+			(string) get_option( 'acrossai_mcp_servers_db_version' )
+		);
 	}
+
+	/**
+	 * Rewind the stored schema version and re-run the upgrade path.
+	 *
+	 * BerlinDB v3 guards maybe_upgrade() with a 900-second `*_upgrade_lock`
+	 * transient meant for production concurrency. A test that deliberately
+	 * rewinds the version to re-exercise an upgrade has to clear it, otherwise
+	 * maybe_upgrade() bails silently and the dropped column is never restored —
+	 * which then breaks every later test in the suite, because DDL implicitly
+	 * COMMITs and escapes WP_UnitTestCase's rollback.
+	 *
+	 * @param string $rewind_to Version to rewind the option to.
+	 */
+	private function rerun_upgrades_from( string $rewind_to ): void {
+		update_option( 'acrossai_mcp_servers_db_version', $rewind_to );
+		delete_transient( 'acrossai_mcp_servers_db_version_upgrade_lock' );
+
+		$table = MCPServerTable::instance();
+		$table->needs_upgrade();   // Refreshes the cached db_version from the option.
+
+		$this->assertNotEmpty(
+			$table->get_pending_upgrades(),
+			"Precondition: rewinding to {$rewind_to} must leave upgrades pending."
+		);
+
+		$table->maybe_upgrade();
+	}
+
 }

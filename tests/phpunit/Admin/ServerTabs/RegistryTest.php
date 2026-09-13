@@ -2,8 +2,8 @@
 /**
  * Tests for Registry — per-server-edit tab dispatch.
  *
- * Feature 013. PHPUnit 13+ note (per BUGS.md B9): use `#[DataProvider]` PHP
- * attribute instead of `@dataProvider` annotation — the annotation is
+ * Feature 013. PHPUnit 9.6 note: use the `@dataProvider` annotation. The WordPress test
+ * suite caps at PHPUnit 9.x, which predates PHP attributes.
  * silently ignored.
  *
  * @package AcrossAI_MCP_Manager\Tests\Admin\ServerTabs
@@ -151,6 +151,10 @@ final class RegistryTest extends WP_UnitTestCase {
 	 */
 	public function test_render_unknown_slug_falls_back_gracefully(): void {
 		$this->expectNotToPerformAssertions();
+		// render() echoes the tab body. phpunit.xml.dist sets
+		// beStrictAboutOutputDuringTests + failOnRisky, so that output marks the
+		// test risky and fails the run; buffer it away.
+		ob_start();
 		// OverviewTab (the $tabs[0] fallback) reads $server['server_name'];
 		// the fixture must supply it. Pre-existing gap, repaired in F084.
 		Registry::instance()->render( 'unknown-slug', array(
@@ -164,6 +168,7 @@ final class RegistryTest extends WP_UnitTestCase {
 				'description'           => 'Fixture',
 				'is_enabled'            => 1,
 			) );
+		ob_end_clean();
 	}
 
 	/**

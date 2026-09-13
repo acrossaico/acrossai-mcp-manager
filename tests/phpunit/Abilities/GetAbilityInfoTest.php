@@ -145,7 +145,7 @@ class GetAbilityInfoTest extends WP_UnitTestCase {
 	}
 
 	private function register_scratch_ability( string $slug, bool $mcp_public, string $type ): void {
-		\wp_register_ability(
+		acrossai_test_register_ability(
 			$slug,
 			array(
 				'label'            => ucfirst( basename( $slug ) ),
@@ -157,8 +157,8 @@ class GetAbilityInfoTest extends WP_UnitTestCase {
 						'type'   => $type,
 					),
 				),
-				'input_schema'     => array( 'type' => 'object', 'properties' => new \stdClass() ),
-				'output_schema'    => array( 'type' => 'object', 'properties' => new \stdClass() ),
+				'input_schema'     => array( 'type' => 'object', 'properties' => array() ),
+				'output_schema'    => array( 'type' => 'object', 'properties' => array() ),
 				'execute_callback' => static fn () => array(),
 			)
 		);

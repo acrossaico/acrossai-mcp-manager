@@ -75,29 +75,16 @@ class OAuthAuthorizeGateTest extends WP_UnitTestCase {
 		);
 	}
 
-	// (d) Explicit context enum values used by all three fire sites.
-	public function test_denied_action_context_enum_values(): void {
-		$expected_context_values = array(
-			'oauth_authorize',
-			'cli_device_grant',
-			'app_password_generate',
-			'tool_call', // F015 pre-existing, still valid
-		);
-
-		// Meta-test — verifies the enum is documented in the contract
-		// file (regression guard against silent enum removal).
-		$contract_path = __DIR__ . '/../../../specs/032-oauth-per-server-scoping/contracts/php-hooks.md';
-		$this->assertFileExists( $contract_path, 'php-hooks.md contract MUST exist' );
-
-		$contract = file_get_contents( $contract_path );
-		foreach ( $expected_context_values as $ctx ) {
-			$this->assertStringContainsString(
-				"'{$ctx}'",
-				$contract,
-				"context enum value '{$ctx}' MUST be documented in the contract file"
-			);
-		}
-	}
+	// (d) REMOVED — test_denied_action_context_enum_values().
+	//
+	// It asserted that specs/032-oauth-per-server-scoping/contracts/php-hooks.md
+	// exists and documents four context enum values. Both sides are gone: that
+	// spec directory was deleted when F040 migrated the OAuth stack to the
+	// companion plugin, and of the four values only 'app_password_generate'
+	// still appears in this plugin ('oauth_authorize' and 'cli_device_grant'
+	// went with it). It checked documentation, not behaviour, so there is
+	// nothing to re-point it at. The action itself is still covered by
+	// test_action_signature_shape() and test_connection_time_contexts_pass_null_tool().
 
 	// (e) Action fires with 4-arg signature when denied.
 	public function test_action_signature_shape(): void {

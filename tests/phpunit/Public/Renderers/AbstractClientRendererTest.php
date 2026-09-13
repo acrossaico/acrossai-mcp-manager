@@ -2,8 +2,8 @@
 /**
  * Tests for AbstractClientRenderer — resolve_context + cap check + missing server.
  *
- * Feature 013. PHPUnit 13+ note (per BUGS.md B9): use `#[DataProvider]` PHP
- * attribute instead of `@dataProvider` annotation.
+ * Feature 013. PHPUnit 9.6 note: use the `@dataProvider` annotation. The WordPress test
+ * suite caps at PHPUnit 9.x, which predates PHP attributes.
  *
  * @package AcrossAI_MCP_Manager\Tests\Public\Renderers
  */
@@ -25,6 +25,12 @@ final class AbstractClientRendererTest extends WP_UnitTestCase {
 			return null;  // Non-array intentionally.
 		};
 		add_filter( 'acrossai_mcp_client_block_context', $filter, 10, 3 );
+
+		// resolve_context() now correctly restores the defaults when a callback
+		// returns a non-array, so 'cap' is 'manage_options' again and render()
+		// gates on it before emitting anything. Without a user holding that
+		// cap the method returns early and the assertion below sees ''.
+		wp_set_current_user( self::factory()->user->create( array( 'role' => 'administrator' ) ) );
 
 		ob_start();
 		NpmClientBlock::instance()->render( 999999, array() );

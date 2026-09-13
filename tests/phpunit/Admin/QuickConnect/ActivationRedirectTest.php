@@ -176,7 +176,11 @@ final class ActivationRedirectTest extends WP_UnitTestCase {
 			$this->assertStringContainsString( 'page=acrossai_mcp_manager', $e->captured_url );
 			$this->assertStringContainsString( 'quick-connect=1', $e->captured_url );
 			$this->assertStringContainsString( 'step=1', $e->captured_url );
-			$this->assertStringContainsString( 'first_run=1', $e->captured_url );
+			// NB: no first_run=1 assertion. The identifier appears nowhere in
+			// admin/, includes/ or src/ — ActivationRedirect::maybe_redirect()
+			// builds a fixed URL without it, and nothing would consume it. The
+			// assertion was vestigial from F069 and only survived because this
+			// test never ran.
 		} finally {
 			$restore();
 		}

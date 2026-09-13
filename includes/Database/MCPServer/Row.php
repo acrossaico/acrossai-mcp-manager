@@ -48,6 +48,7 @@ class Row extends \BerlinDB\Database\Kern\Row {
 	public function __construct( $item ) {
 		parent::__construct( $item );
 		$this->id                            = (int) $this->id;
+		$this->is_enabled                    = (int) $this->is_enabled;
 		$this->tool_discover_abilities       = (int) $this->tool_discover_abilities;
 		$this->tool_get_ability_info         = (int) $this->tool_get_ability_info;
 		$this->tool_execute_ability          = (int) $this->tool_execute_ability;

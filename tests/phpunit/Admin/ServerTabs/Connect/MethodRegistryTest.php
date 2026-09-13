@@ -2,8 +2,10 @@
 /**
  * Tests for Connect\MethodRegistry — the Feature 084 level-2 method registry.
  *
- * PHPUnit 13+ note (per BUGS.md B9): use `#[DataProvider]` PHP attribute
- * instead of `@dataProvider` annotation — the annotation is silently ignored.
+ * PHPUnit 9.6 note (supersedes BUGS.md B9): use the `@dataProvider`
+ * annotation. The WordPress test suite calls PHPUnit APIs removed in
+ * PHPUnit 10, so the toolchain is pinned to 9.x — which predates PHP
+ * attributes, making `#[DataProvider]` a silent no-op.
  *
  * @package AcrossAI_MCP_Manager\Tests\Admin\ServerTabs\Connect
  */

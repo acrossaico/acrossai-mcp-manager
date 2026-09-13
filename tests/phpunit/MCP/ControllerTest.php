@@ -102,7 +102,7 @@ class ControllerTest extends WP_UnitTestCase {
 	}
 
 	private function seed_enabled_server( string $slug ): void {
-		( new MCPServerQuery() )->add_item(
+		MCPServerQuery::instance()->add_item(
 			array(
 				'server_name'            => 'Test Server ' . $slug,
 				'server_slug'            => $slug,
@@ -118,7 +118,10 @@ class ControllerTest extends WP_UnitTestCase {
 
 	private function truncate_mcp_server_table(): void {
 		global $wpdb;
-		$table = $wpdb->prefix . 'acrossai_mcp_manager_servers';
+		// The table is `acrossai_mcp_servers`. The old name here silently made
+		// every TRUNCATE a no-op ('table doesn't exist'), so tests asserting a
+		// server-free state ran against whatever rows the suite had left.
+		$table = $wpdb->prefix . 'acrossai_mcp_servers';
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		$wpdb->query( "TRUNCATE TABLE `{$table}`" );
 	}

@@ -231,10 +231,12 @@ final class UserServersBlockTest extends WP_UnitTestCase {
 	// ────────────────────────────────────────────────────────────────
 
 	public function test_escape_at_boundary_server_name(): void {
-		// Directly create a server with a hostile name via the Query.
+		// A real, embed-enabled server is required: get_accessible_servers()
+		// returns early when the query finds no rows, and the
+		// `acrossai_mcp_user_accessible_servers` filter runs only after that.
 		$server_id = (int) MCPServerQuery::instance()->add_item(
 			array(
-				'server_name'            => 'Foo <script>alert(1)</script>',
+				'server_name'            => 'Harmless',
 				'server_slug'            => 'srv-xss',
 				'description'            => 'ok',
 				'is_enabled'             => 1,
@@ -250,6 +252,24 @@ final class UserServersBlockTest extends WP_UnitTestCase {
 			array( 'mcp-client' => array( 'claude-desktop' ) )
 		);
 		AbstractEmbedTransport::flush_cache();
+
+		// Inject the hostile name at the renderer's own boundary.
+		//
+		// Storing it via add_item() does not work: BerlinDB sanitizes column
+		// values on write, so the row held "Foo alert(1)" with the tags already
+		// stripped and the renderer's esc_html() never saw anything dangerous.
+		// This filter is the last hop before render, and the realistic place
+		// untrusted data arrives (a third-party integration supplying server
+		// data), so it is the boundary worth asserting on.
+		add_filter(
+			'acrossai_mcp_user_accessible_servers',
+			static function ( array $data ): array {
+				foreach ( $data as $i => $server ) {
+					$data[ $i ]['server_name'] = 'Foo <script>alert(1)</script>';
+				}
+				return $data;
+			}
+		);
 
 		$out = do_shortcode( '[acrossai_mcp_servers]' );
 

@@ -27,8 +27,9 @@ namespace AcrossAI_MCP_Manager\Tests\Embeds;
 
 use AcrossAI_MCP_Manager\Includes\Database\MCPServerMeta\Query as ServerMetaQuery;
 use AcrossAI_MCP_Manager\Includes\Embeds\AbstractEmbedTransport;
+use AcrossAI_MCP_Manager\Includes\Database\MCPServer\Query as MCPServerQuery;
+use AcrossAI_MCP_Manager\Public\Discovery\ConnectionMethodRegistry;
 use AcrossAI_MCP_Manager\Public\Renderers\EmbedBlock\EmbedBlockRenderer;
-use PHPUnit\Framework\Attributes\DataProvider;
 use WP_UnitTestCase;
 
 final class EmbedBlockRendererCascadeTest extends WP_UnitTestCase {
@@ -46,6 +47,44 @@ final class EmbedBlockRendererCascadeTest extends WP_UnitTestCase {
 	protected function setUp(): void {
 		parent::setUp();
 		AbstractEmbedTransport::flush_cache();
+
+		// Create a REAL server row and use its real id + slug.
+		//
+		// The hard-coded id 1 / slug 'test-server' never matched a row, so the
+		// shortcode's MCPServer\Query::get_by_slug() lookup always missed and
+		// returned '' — which made every expect_render=true case in the matrix
+		// unreachable (the comments below the assertions say as much). With a
+		// real row the positive half of the cascade is actually exercised.
+		$this->server_slug = 'embed-cascade-test';
+		$this->server_id   = (int) MCPServerQuery::instance()->add_item(
+			array(
+				'server_name'            => 'Embed Cascade Test',
+				'server_slug'            => $this->server_slug,
+				'description'            => 'Fixture for the embed gate cascade matrix.',
+				'is_enabled'             => 1,
+				'registered_from'        => 'database',
+				'server_route_namespace' => 'mcp',
+				'server_route'           => $this->server_slug,
+				'server_version'         => 'v1.0.0',
+			)
+		);
+	}
+
+
+	/**
+	 * DTOs the renderer would consider for a category — used only to make a
+	 * render failure name its own cause.
+	 *
+	 * @param string $category Transport key.
+	 * @return array<int, array<string, mixed>>
+	 */
+	private function dtos_for( string $category ): array {
+		foreach ( AbstractEmbedTransport::get_all_registered_transports() as $transport ) {
+			if ( $transport->get_transport_key() === $category ) {
+				return $transport->get_dtos();
+			}
+		}
+		return array();
 	}
 
 	protected function tearDown(): void {
@@ -86,7 +125,9 @@ final class EmbedBlockRendererCascadeTest extends WP_UnitTestCase {
 		return $rows;
 	}
 
-	#[DataProvider( 'provide_cascade_matrix' )]
+	/**
+	 * @dataProvider provide_cascade_matrix
+	 */
 	public function test_gate_cascade_matrix( string $category, string $slug, bool $master, bool $dto_enabled, string $f015_state, bool $expect_render ): void {
 		// Prime meta state.
 		if ( $master ) {
@@ -101,6 +142,29 @@ final class EmbedBlockRendererCascadeTest extends WP_UnitTestCase {
 			);
 		}
 		AbstractEmbedTransport::flush_cache();
+
+		// F040 moved AI connector profiles to the companion plugin, so
+		// get_ai_connectors() returns [] here and the ai_connector rows of this
+		// matrix have nothing to render. Supply one through the documented
+		// filter — the same seam the companion uses — so the cascade is
+		// exercised rather than skipped.
+		if ( 'ai_connector' === $category ) {
+			add_filter(
+				'acrossai_mcp_manager_discovery_ai_connectors',
+				static function () use ( $slug ): array {
+					return array(
+						array(
+							'category'    => 'ai_connector',
+							'slug'        => $slug,
+							'name'        => ucfirst( $slug ),
+							'description' => 'Fixture connector.',
+							'icon'        => '',
+						),
+					);
+				}
+			);
+			ConnectionMethodRegistry::instance()->flush_cache();
+		}
 
 		// Stub F015 state via filter — the shortcode renderer uses
 		// `class_exists('\AcrossAI_MCP_Access_Control')` + method call;
@@ -120,11 +184,22 @@ final class EmbedBlockRendererCascadeTest extends WP_UnitTestCase {
 		$actual = do_shortcode( sprintf( '[acrossai_mcp_embed server="%s" category="%s" slug="%s"]', $this->server_slug, $category, $slug ) );
 
 		if ( $expect_render ) {
-			$this->assertNotSame( '', trim( $actual ), "MUST render for category={$category} slug={$slug} master=" . ( $master ? '1' : '0' ) . " dto=" . ( $dto_enabled ? '1' : '0' ) );
+			// Report which gate actually denied instead of just "two strings are
+			// not identical" — the renderer returns '' from several branches.
+			$diagnostic = sprintf(
+				'category=%s slug=%s master=%s dto=%s | dtos_in_category=%d | slug_present_in_dtos=%s | is_enabled_for_server=%s',
+				$category,
+				$slug,
+				$master ? '1' : '0',
+				$dto_enabled ? '1' : '0',
+				count( $this->dtos_for( $category ) ),
+				in_array( $slug, array_column( $this->dtos_for( $category ), 'slug' ), true ) ? 'yes' : 'no',
+				AbstractEmbedTransport::is_enabled_for_server( $this->server_id, $category, $slug ) ? 'yes' : 'no'
+			);
+			$this->assertNotSame( '', trim( $actual ), "MUST render for {$diagnostic}" );
 		} else {
-			// The shortcode renderer resolves server by slug via MCPServer\Query::get_by_slug();
-			// this test uses a factory-created post — the query will miss and short-circuit to ''.
-			// We assert on the strict gate cascade: when a gate fails, output MUST be empty regardless of the server-resolution path.
+			// The server now resolves, so an empty result proves the gate cascade
+			// denied — not that server lookup missed.
 			$this->assertSame( '', trim( $actual ), "MUST NOT render (gate fail) for category={$category} slug={$slug}" );
 		}
 	}
@@ -247,4 +322,5 @@ final class HostileEmbedTransport extends AbstractEmbedTransport {
 			),
 		);
 	}
+
 }

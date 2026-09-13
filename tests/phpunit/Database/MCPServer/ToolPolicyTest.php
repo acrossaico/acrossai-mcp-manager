@@ -18,6 +18,7 @@ use AcrossAI_MCP_Manager\Includes\Database\MCPServerAbility\ExposureResolver;
 use AcrossAI_MCP_Manager\Includes\Database\MCPServerAbility\Query as MCPServerAbilityQuery;
 use AcrossAI_MCP_Manager\Includes\Database\MCPServerTool\Query as MCPServerToolQuery;
 use WP_UnitTestCase;
+use AcrossAI_MCP_Manager\Includes\Database\MCPServer\DefaultServerSeeder;
 
 // phpcs:disable Squiz.Commenting.FunctionComment.Missing -- descriptive names.
 
@@ -45,6 +46,12 @@ class ToolPolicyTest extends WP_UnitTestCase {
 
 	public function tearDown(): void {
 		$this->truncate_tables();
+		// TRUNCATE implicitly COMMITs in MySQL, so it escapes WP_UnitTestCase's
+		// per-test transaction rollback and permanently removes the default
+		// server row that tests/bootstrap-wp.php seeds via Activator::activate().
+		// Restore it, or every later test (and later suite — they share one DB)
+		// sees a table with no seeded server.
+		DefaultServerSeeder::seed();
 		parent::tearDown();
 	}
 
@@ -280,7 +287,7 @@ class ToolPolicyTest extends WP_UnitTestCase {
 	}
 
 	private function register_scratch_ability( string $slug, bool $mcp_public, string $type = 'tool' ): void {
-		\wp_register_ability(
+		acrossai_test_register_ability(
 			$slug,
 			array(
 				'label'       => ucfirst( basename( $slug ) ),
@@ -292,8 +299,8 @@ class ToolPolicyTest extends WP_UnitTestCase {
 						'type'   => $type,
 					),
 				),
-				'input_schema' => array( 'type' => 'object', 'properties' => new \stdClass() ),
-				'output_schema' => array( 'type' => 'object', 'properties' => new \stdClass() ),
+				'input_schema' => array( 'type' => 'object', 'properties' => array() ),
+				'output_schema' => array( 'type' => 'object', 'properties' => array() ),
 				'execute_callback' => static fn () => array(),
 			)
 		);

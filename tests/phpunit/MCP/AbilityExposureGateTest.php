@@ -96,6 +96,11 @@ class AbilityExposureGateTest extends WP_UnitTestCase {
 	}
 
 	public function test_returns_args_unchanged_when_exposure_is_true(): void {
+		// The gate can only enforce on a REGISTERED ability — resolve_ability()
+		// returns null otherwise and the gate correctly allows. This fixture was
+		// never registered, so the deny path was unreachable and the allow test
+		// passed for the wrong reason.
+		$this->register_ability( 'core/get-user-info' );
 		MCPServerAbilityQuery::instance()->upsert( $this->server_id, 'core/get-user-info', true );
 		$gate = AbilityExposureGate::instance();
 		$args = array( 'foo' => 'bar' );
@@ -107,6 +112,7 @@ class AbilityExposureGateTest extends WP_UnitTestCase {
 		if ( ! function_exists( 'wp_get_ability' ) ) {
 			$this->markTestSkipped( 'wp_get_ability() is not available in this test environment.' );
 		}
+		$this->register_ability( 'core/get-user-info' );
 		MCPServerAbilityQuery::instance()->upsert( $this->server_id, 'core/get-user-info', false );
 		$gate = AbilityExposureGate::instance();
 		$out  = $gate->gate_tool_call_by_exposure( array( 'x' => 1 ), 'core/get-user-info', null, new FakeMcpServer( $this->server_slug ) );
@@ -169,7 +175,7 @@ class AbilityExposureGateTest extends WP_UnitTestCase {
 			return;
 		}
 
-		\wp_register_ability(
+		acrossai_test_register_ability(
 			$name,
 			array(
 				'label'               => $name,
@@ -177,11 +183,11 @@ class AbilityExposureGateTest extends WP_UnitTestCase {
 				'category'            => 'test',
 				'input_schema'        => array(
 					'type'       => 'object',
-					'properties' => new \stdClass(),
+					'properties' => array(),
 				),
 				'output_schema'       => array(
 					'type'       => 'object',
-					'properties' => new \stdClass(),
+					'properties' => array(),
 				),
 				'execute_callback'    => static fn () => array(),
 				'permission_callback' => static fn () => true,

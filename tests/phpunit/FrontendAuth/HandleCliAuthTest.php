@@ -53,12 +53,13 @@ class HandleCliAuthTest extends WP_UnitTestCase {
 
 	private function capture_render(): string {
 		$_GET['action'] = 'cli_auth';
+		$this->intercept_exit();
 		ob_start();
 		try {
 			FrontendAuth::instance()->maybe_render_page();
 		} catch ( \Exception $e ) {
-			// maybe_render_page() exits — tests may need to catch.
-		}
+			$this->rethrow_unless_expected( $e );
+}
 		return (string) ob_get_clean();
 	}
 
@@ -180,4 +181,48 @@ class HandleCliAuthTest extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'acrossai-mcp-frontend__card', $html );
 		$this->assertStringContainsString( 'acrossai-mcp-frontend__button', $html );
 	}
+
+	/**
+	 * Swallow only the wp_die / redirect intercept these render paths raise on
+	 * purpose, and re-throw anything else.
+	 *
+	 * The previous `catch ( \Exception $e ) {}` hid every failure mode: when
+	 * this suite first ran, 13 render assertions failed with the useless
+	 * "Failed asserting that '' contains ..." because whatever
+	 * maybe_render_page() actually threw was discarded before a single byte
+	 * was echoed.
+	 *
+	 * @param \Throwable $e Exception raised inside the captured render.
+	 * @throws \Throwable Re-thrown unless it is an intentional wp_die intercept.
+	 */
+	private function rethrow_unless_expected( \Throwable $e ): void {
+		if ( $e instanceof \WPDieException ) {
+			return;
+		}
+		if ( $e instanceof \RuntimeException
+			&& in_array( $e->getMessage(), array( 'exit_intercepted', 'redirect_intercepted' ), true ) ) {
+			return;
+		}
+		throw $e;
+	}
+
+
+	/**
+	 * Intercept FrontendAuth's terminal `exit` so assertions can run against
+	 * markup the page has already echoed.
+	 *
+	 * `exit` is not catchable, so production routes every terminal exit on
+	 * this request path through the `acrossai_mcp_frontend_auth_before_exit`
+	 * action. Throwing from it is the same throw-from-hook convention these
+	 * tests already use against `wp_redirect`.
+	 */
+	private function intercept_exit(): void {
+		add_action(
+			'acrossai_mcp_frontend_auth_before_exit',
+			static function (): void {
+				throw new \RuntimeException( 'exit_intercepted' );
+			}
+		);
+	}
+
 }

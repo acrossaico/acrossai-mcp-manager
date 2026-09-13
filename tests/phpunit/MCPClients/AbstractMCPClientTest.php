@@ -8,7 +8,6 @@ declare(strict_types=1);
 namespace AcrossAI_MCP_Manager\Tests\MCPClients;
 
 use AcrossAI_MCP_Manager\Includes\MCPClients\AbstractMCPClient;
-use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -82,7 +81,9 @@ final class AbstractMCPClientTest extends TestCase {
 		);
 	}
 
-	#[DataProvider('deriveServerKeyMatrix')]
+	/**
+	 * @dataProvider deriveServerKeyMatrix
+	 */
 	public function testDeriveServerKey( string $url, string $expected ): void {
 		$this->assertSame( $expected, $this->newSubject()->exposeDeriveServerKey( $url ) );
 	}

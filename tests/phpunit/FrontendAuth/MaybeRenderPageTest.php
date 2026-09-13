@@ -27,6 +27,7 @@ class MaybeRenderPageTest extends WP_UnitTestCase {
 	public function test_query_var_absent_short_circuits_with_no_output(): void {
 		// FR-007.1 — global guard.
 		set_query_var( FrontendAuth::QUERY_VAR, '' );
+		$this->intercept_exit();
 		ob_start();
 		FrontendAuth::instance()->maybe_render_page();
 		$out = (string) ob_get_clean();
@@ -58,6 +59,7 @@ class MaybeRenderPageTest extends WP_UnitTestCase {
 			1
 		);
 
+		$this->intercept_exit();
 		ob_start();
 		try {
 			FrontendAuth::instance()->maybe_render_page();
@@ -81,11 +83,13 @@ class MaybeRenderPageTest extends WP_UnitTestCase {
 		wp_set_current_user( $user );
 		delete_option( 'acrossai_mcp_npm_login_enabled' );
 
+		$this->intercept_exit();
 		ob_start();
 		try {
 			FrontendAuth::instance()->maybe_render_page();
 		} catch ( \Exception $e ) {
-		}
+			$this->rethrow_unless_expected( $e );
+}
 		$out = (string) ob_get_clean();
 
 		$this->assertStringContainsString( 'CLI Login Not Enabled', $out );
@@ -100,11 +104,13 @@ class MaybeRenderPageTest extends WP_UnitTestCase {
 		$_GET['action'] = 'cli_auth';
 		$_GET['code']   = 'whatever';
 
+		$this->intercept_exit();
 		ob_start();
 		try {
 			FrontendAuth::instance()->maybe_render_page();
 		} catch ( \Exception $e ) {
-		}
+			$this->rethrow_unless_expected( $e );
+}
 		$out = (string) ob_get_clean();
 
 		// The disabled-notice page, not the consent form.
@@ -122,11 +128,13 @@ class MaybeRenderPageTest extends WP_UnitTestCase {
 		$_GET['action'] = 'totally-unknown-action';
 		$_GET['code']   = '';
 
+		$this->intercept_exit();
 		ob_start();
 		try {
 			FrontendAuth::instance()->maybe_render_page();
 		} catch ( \Exception $e ) {
-		}
+			$this->rethrow_unless_expected( $e );
+}
 		$out = (string) ob_get_clean();
 
 		$this->assertStringContainsString( 'Missing Authentication Parameters', $out );
@@ -142,11 +150,13 @@ class MaybeRenderPageTest extends WP_UnitTestCase {
 		$_GET['action'] = 'cli_auth';
 		$_GET['code']   = '';
 
+		$this->intercept_exit();
 		ob_start();
 		try {
 			FrontendAuth::instance()->maybe_render_page();
 		} catch ( \Exception $e ) {
-		}
+			$this->rethrow_unless_expected( $e );
+}
 		$out = (string) ob_get_clean();
 
 		// We should hit handle_cli_auth (missing-params path because code='').
@@ -254,6 +264,7 @@ class MaybeRenderPageTest extends WP_UnitTestCase {
 			1
 		);
 
+		$this->intercept_exit();
 		ob_start();
 		try {
 			FrontendAuth::instance()->maybe_render_page();
@@ -264,4 +275,48 @@ class MaybeRenderPageTest extends WP_UnitTestCase {
 
 		return $redirect_target;
 	}
+
+	/**
+	 * Swallow only the wp_die / redirect intercept these render paths raise on
+	 * purpose, and re-throw anything else.
+	 *
+	 * The previous `catch ( \Exception $e ) {}` hid every failure mode: when
+	 * this suite first ran, 13 render assertions failed with the useless
+	 * "Failed asserting that '' contains ..." because whatever
+	 * maybe_render_page() actually threw was discarded before a single byte
+	 * was echoed.
+	 *
+	 * @param \Throwable $e Exception raised inside the captured render.
+	 * @throws \Throwable Re-thrown unless it is an intentional wp_die intercept.
+	 */
+	private function rethrow_unless_expected( \Throwable $e ): void {
+		if ( $e instanceof \WPDieException ) {
+			return;
+		}
+		if ( $e instanceof \RuntimeException
+			&& in_array( $e->getMessage(), array( 'exit_intercepted', 'redirect_intercepted' ), true ) ) {
+			return;
+		}
+		throw $e;
+	}
+
+
+	/**
+	 * Intercept FrontendAuth's terminal `exit` so assertions can run against
+	 * markup the page has already echoed.
+	 *
+	 * `exit` is not catchable, so production routes every terminal exit on
+	 * this request path through the `acrossai_mcp_frontend_auth_before_exit`
+	 * action. Throwing from it is the same throw-from-hook convention these
+	 * tests already use against `wp_redirect`.
+	 */
+	private function intercept_exit(): void {
+		add_action(
+			'acrossai_mcp_frontend_auth_before_exit',
+			static function (): void {
+				throw new \RuntimeException( 'exit_intercepted' );
+			}
+		);
+	}
+
 }

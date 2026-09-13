@@ -87,6 +87,19 @@ final class ConnectionMethodRegistry {
 	}
 
 	/**
+	 * DTO/transport category value => get_all() bucket key.
+	 *
+	 * Only 'npm' is spelled identically in both, which is why the mismatch went
+	 * unnoticed: the npm shortcode worked and the other two never did.
+	 *
+	 * @var array<string, string>
+	 */
+	private const CATEGORY_BUCKETS = array(
+		'client'       => 'clients',
+		'ai_connector' => 'ai_connectors',
+	);
+
+	/**
 	 * Return the assembled three-category discovery result.
 	 *
 	 * Fires `acrossai_mcp_connection_methods` exactly once per request on
@@ -347,6 +360,16 @@ final class ConnectionMethodRegistry {
 	 */
 	public function find( string $category, string $slug ): ?array {
 		$all = $this->get_all();
+
+		// get_all() keys its buckets 'npm' / 'clients' / 'ai_connectors', but a
+		// DTO's own `category` field — and the matching F037 transport key — is
+		// 'npm' / 'client' / 'ai_connector'. Only 'npm' spelled the same in both,
+		// so find() silently returned null for the other two: every
+		// [acrossai_mcp_embed category="client" slug="…"] and
+		// category="ai_connector" shortcode rendered nothing at all. Accept the
+		// DTO/transport spelling as well as the bucket spelling.
+		$category = self::CATEGORY_BUCKETS[ $category ] ?? $category;
+
 		if ( ! isset( $all[ $category ] ) ) {
 			return null;
 		}

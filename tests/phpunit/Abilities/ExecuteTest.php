@@ -169,7 +169,7 @@ class ExecuteTest extends WP_UnitTestCase {
 		);
 
 		$result = Execute::execute( array( 'ability_name' => 'execute-test/ok', 'parameters' => new \stdClass() ) );
-		$this->assertTrue( $result['success'] );
+		$this->assertTrue( $result['success'], (string) ( $result['error'] ?? 'no error reported' ) );
 		$this->assertSame( array( 'result' => 'yes' ), $result['data'] );
 	}
 
@@ -187,7 +187,10 @@ class ExecuteTest extends WP_UnitTestCase {
 
 		$result = Execute::execute( array( 'ability_name' => 'execute-test/throws', 'parameters' => new \stdClass() ) );
 		$this->assertFalse( $result['success'] );
-		$this->assertSame( 'boom', $result['error'] );
+		// WP 6.9 wraps a throwing execute_callback's message as
+		// 'Ability "x/y" callback threw an exception: boom'. Assert the
+		// cause is surfaced rather than pinning core's exact wording.
+		$this->assertStringContainsString( 'boom', $result['error'] );
 	}
 
 	// -----------------------------------------------------------------
@@ -213,7 +216,7 @@ class ExecuteTest extends WP_UnitTestCase {
 	 * @param callable $execute_cb        Optional execute callback (defaults to no-op returning empty array).
 	 */
 	private function register_scratch_ability( string $slug, bool $mcp_public, string $type, $permission_cb, $execute_cb = null ): void {
-		\wp_register_ability(
+		acrossai_test_register_ability(
 			$slug,
 			array(
 				'label'               => ucfirst( basename( $slug ) ),
@@ -225,8 +228,8 @@ class ExecuteTest extends WP_UnitTestCase {
 						'type'   => $type,
 					),
 				),
-				'input_schema'        => array( 'type' => 'object', 'properties' => new \stdClass() ),
-				'output_schema'       => array( 'type' => 'object', 'properties' => new \stdClass() ),
+				'input_schema'        => array( 'type' => 'object', 'properties' => array() ),
+				'output_schema'       => array( 'type' => 'object', 'properties' => array() ),
 				'permission_callback' => $permission_cb,
 				'execute_callback'    => $execute_cb ?? static fn () => array(),
 			)
