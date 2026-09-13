@@ -30,11 +30,20 @@ import useAdvanceGuard from '../hooks/useAdvanceGuard.js';
 
 const CREATE_TILE_VALUE = '__create__';
 
-// Kept in sync with DefaultServerSeeder::SLUG on the PHP side. This is the
-// slug we prefer when auto-selecting a first-load default; if the seeded
-// row is missing (dev environment, manual delete), we fall back to whatever
-// server sits at index 0 in the DB-ordered list.
-const DEFAULT_SERVER_SLUG = 'mcp-adapter-default-server';
+// Kept in sync with DefaultServerSeeder::ACROSSAI_SLUG / ::SLUG on the PHP
+// side, most-preferred first. These are the plugin-managed seeded rows; the
+// first one is also the "Recommended" server and is pinned to the top of the
+// picker (mirroring MCPServerListTable::prepare_items()). If none of them are
+// present (dev environment, manual delete) we fall back to whatever server
+// sits at index 0 in the DB-ordered list.
+const PREFERRED_SERVER_SLUGS = [
+	'acrossai-mcp-server',
+	'mcp-adapter-default-server',
+];
+
+// The single slug surfaced as "Recommended" — mirrors
+// ProtectedServers::is_recommended() on the PHP side.
+const RECOMMENDED_SERVER_SLUG = PREFERRED_SERVER_SLUGS[ 0 ];
 
 const Step1_ServerPick = () => {
 	const { state, saveStep } = useWizardState();
@@ -53,11 +62,11 @@ const Step1_ServerPick = () => {
 		}
 	}, [ state.status, state.servers.length, createIntent, saveStep ] );
 
-	// First-load auto-select — pick the seeded "Default MCP Server" when the
-	// user has no prior pick AND no explicit create intent. Runs once per
-	// mount; if the user actively picks a different card (which clears the
-	// scratchpad's server_id? no — sets it to the other id) the condition
-	// stops matching so this effect stops re-firing.
+	// First-load auto-select — pick the Recommended seeded server (falling
+	// back through PREFERRED_SERVER_SLUGS, then index 0) when the user has no
+	// prior pick AND no explicit create intent. Runs once per mount; if the
+	// user actively picks a different card the condition stops matching so
+	// this effect stops re-firing.
 	useEffect( () => {
 		if (
 			state.status !== 'ready' ||
@@ -68,8 +77,11 @@ const Step1_ServerPick = () => {
 			return;
 		}
 		const preferred =
-			state.servers.find( ( s ) => s.slug === DEFAULT_SERVER_SLUG ) ||
-			state.servers[ 0 ];
+			PREFERRED_SERVER_SLUGS.reduce(
+				( found, slug ) =>
+					found || state.servers.find( ( s ) => s.slug === slug ),
+				null
+			) || state.servers[ 0 ];
 		if ( preferred ) {
 			saveStep( 1, { server_id: preferred.id } );
 		}
@@ -85,7 +97,15 @@ const Step1_ServerPick = () => {
 		await saveStep( 1, { create_intent: true } );
 	};
 
-	const servers = useMemo( () => state.servers || [], [ state.servers ] );
+	// Recommended server pinned first; everything else keeps the order the
+	// REST state returned (which is the list table's id ASC).
+	const servers = useMemo( () => {
+		const all = state.servers || [];
+		return [
+			...all.filter( ( s ) => s.slug === RECOMMENDED_SERVER_SLUG ),
+			...all.filter( ( s ) => s.slug !== RECOMMENDED_SERVER_SLUG ),
+		];
+	}, [ state.servers ] );
 
 	return (
 		<div>
@@ -113,11 +133,25 @@ const Step1_ServerPick = () => {
 						title={ server.name }
 						subtitle={ <code>{ server.route_full }</code> }
 						badge={
-							! server.enabled ? (
-								<span className="qs-card__badge qs-card__badge--inactive">
-									{ __( 'Inactive', 'acrossai-mcp-manager' ) }
-								</span>
-							) : null
+							<>
+								{ server.slug ===
+								RECOMMENDED_SERVER_SLUG ? (
+									<span className="qs-card__badge qs-card__badge--recommended">
+										{ __(
+											'Recommended',
+											'acrossai-mcp-manager'
+										) }
+									</span>
+								) : null }
+								{ ! server.enabled ? (
+									<span className="qs-card__badge qs-card__badge--inactive">
+										{ __(
+											'Inactive',
+											'acrossai-mcp-manager'
+										) }
+									</span>
+								) : null }
+							</>
 						}
 					/>
 				) ) }

@@ -10,6 +10,7 @@ namespace AcrossAI_MCP_Manager\Admin\Partials;
 
 use AcrossAI_MCP_Manager\Admin\Partials\ServerTabs\ConnectTab;
 use AcrossAI_MCP_Manager\Includes\Database\MCPServer\DefaultServerSeeder;
+use AcrossAI_MCP_Manager\Includes\Database\MCPServer\ProtectedServers;
 use AcrossAI_MCP_Manager\Includes\Database\MCPServer\Query;
 use AcrossAI_MCP_Manager\Includes\Utilities\AdminPageSlugs;
 use AcrossAI_MCP_Manager\Includes\Utilities\MCPServerFieldSanitizer;
@@ -68,13 +69,21 @@ class Settings {
 	// ─────────────────────────────────────────────────────────────────────────
 
 	/**
-	 * Auto-heal the default MCP server row when it goes missing.
+	 * Auto-heal + reconcile every plugin-managed MCP server row.
 	 *
-	 * DefaultServerSeeder::seed() is idempotent — it only inserts when the
-	 * canonical slug is absent. Running it on admin_init means the row
-	 * self-restores after a manual delete or bulk-delete that removed it,
-	 * without requiring plugin reactivation. Mirrors the reference plugin
-	 * pattern (see MCPServerTable::maybe_create_table → always seed).
+	 * DefaultServerSeeder::seed() is idempotent — it inserts only when a
+	 * managed slug is absent, and otherwise rewrites just the managed columns
+	 * that have drifted. Running it on admin_init means the rows self-restore
+	 * after a manual delete or bulk-delete, AND that a plugin UPDATE which
+	 * adds a column or changes a managed value rolls out on the next admin
+	 * page load without requiring reactivation (activation fires once only).
+	 *
+	 * Runs at priority 4, after Main::reconcile_database_schemas() at
+	 * priority 3 — so the DDL for any newly added column is already applied
+	 * by the time the seeder writes to it.
+	 *
+	 * Method name kept from F011 (singular "default server") for hook-wiring
+	 * stability; since F088 it owns all managed rows.
 	 *
 	 * @return void
 	 */
@@ -140,6 +149,14 @@ class Settings {
 		if ( 'delete' === $action ) {
 			$server_id = isset( $_GET['server'] ) ? absint( $_GET['server'] ) : 0; // phpcs:ignore WordPress.Security.NonceVerification
 			check_admin_referer( 'acrossai_mcp_delete_' . $server_id );
+
+			// F088 — plugin-managed rows are seeder-owned; deleting one just
+			// makes it reappear on the next admin request. Refuse instead of
+			// churning the table. The UI hides the affordance; this closes the
+			// hand-crafted-URL path.
+			if ( ProtectedServers::is_protected_id( $server_id ) ) {
+				$this->redirect_to_list( 'server_protected' );
+			}
 
 			if ( $server_id > 0 ) {
 				Query::instance()->delete_item( $server_id );
@@ -272,6 +289,12 @@ class Settings {
 			} elseif ( 'disable' === $action ) {
 				$query->update_item( $id, array( 'is_enabled' => 0 ) );
 			} elseif ( 'delete' === $action ) {
+				// F088 — never bulk-delete a plugin-managed row (the list
+				// table renders no checkbox for them, so this only fires on a
+				// forged request). Enable/Disable stay allowed.
+				if ( ProtectedServers::is_protected_id( $id ) ) {
+					continue;
+				}
 				$query->delete_item( $id );
 			}
 		}
@@ -438,6 +461,13 @@ class Settings {
 		);
 		if ( empty( $rows ) ) {
 			$this->redirect_to_list( 'server_not_found' );
+		}
+
+		// F088 — the Update Server tab is hidden for plugin-managed rows, but
+		// the POST target is still reachable; DefaultServerSeeder would revert
+		// any write here on the next admin request anyway.
+		if ( ProtectedServers::is_protected( (string) $rows[0]->server_slug ) ) {
+			$this->redirect_to_edit( $server_id, 'overview', 'server_protected' );
 		}
 
 		// phpcs:disable WordPress.Security.NonceVerification.Recommended, WordPress.Security.NonceVerification.Missing -- check_admin_referer( 'acrossai_mcp_update_' . $server_id ) ran in handle_actions() before dispatch.
