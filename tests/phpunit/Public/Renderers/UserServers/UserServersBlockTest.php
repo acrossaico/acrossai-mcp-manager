@@ -231,42 +231,43 @@ final class UserServersBlockTest extends WP_UnitTestCase {
 	// ────────────────────────────────────────────────────────────────
 
 	public function test_escape_at_boundary_server_name(): void {
+		// A real, embed-enabled server is required: get_accessible_servers()
+		// returns early when the query finds no rows, and the
+		// `acrossai_mcp_user_accessible_servers` filter runs only after that.
+		$server_id = (int) MCPServerQuery::instance()->add_item(
+			array(
+				'server_name'            => 'Harmless',
+				'server_slug'            => 'srv-xss',
+				'description'            => 'ok',
+				'is_enabled'             => 1,
+				'registered_from'        => 'database',
+				'server_route_namespace' => 'mcp',
+				'server_route'           => 'srv-xss',
+				'server_version'         => 'v1.0.0',
+			)
+		);
+		ServerMetaQuery::update_meta( $server_id, '_embeds_enabled', '1' );
+		AbstractEmbedTransport::save_items_for_server(
+			$server_id,
+			array( 'mcp-client' => array( 'claude-desktop' ) )
+		);
+		AbstractEmbedTransport::flush_cache();
+
 		// Inject the hostile name at the renderer's own boundary.
 		//
-		// This used to insert it through MCPServerQuery::add_item(), but BerlinDB
-		// sanitizes column values on write, so the row stored "Foo alert(1)" with
-		// the tags already gone — the renderer's esc_html() was never handed
-		// anything dangerous and the test proved nothing about escaping.
-		// `acrossai_mcp_user_accessible_servers` is the last hop before render
-		// and is exactly where a third-party integration could supply untrusted
-		// data, so that is the boundary worth asserting on.
+		// Storing it via add_item() does not work: BerlinDB sanitizes column
+		// values on write, so the row held "Foo alert(1)" with the tags already
+		// stripped and the renderer's esc_html() never saw anything dangerous.
+		// This filter is the last hop before render, and the realistic place
+		// untrusted data arrives (a third-party integration supplying server
+		// data), so it is the boundary worth asserting on.
 		add_filter(
 			'acrossai_mcp_user_accessible_servers',
-			static function (): array {
-				return array(
-					array(
-						'server_id'   => 1,
-						'server_slug' => 'srv-xss',
-						'server_name' => 'Foo <script>alert(1)</script>',
-						'description' => 'ok',
-						'transports'  => array(
-							array(
-								'key'      => 'client',
-								'label'    => 'MCP Clients',
-								'priority' => 20,
-								'dtos'     => array(
-									array(
-										'slug'        => 'claude-desktop',
-										'name'        => 'Claude Desktop',
-										'icon'        => '',
-										'description' => '',
-										'meta'        => array(),
-									),
-								),
-							),
-						),
-					),
-				);
+			static function ( array $data ): array {
+				foreach ( $data as $i => $server ) {
+					$data[ $i ]['server_name'] = 'Foo <script>alert(1)</script>';
+				}
+				return $data;
 			}
 		);
 
