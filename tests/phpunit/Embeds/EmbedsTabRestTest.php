@@ -53,13 +53,16 @@ final class EmbedsTabRestTest extends WP_UnitTestCase {
 		parent::setUp();
 		AbstractEmbedTransport::flush_cache();
 
-		// Register REST routes (Registry hasn't fired admin_init in the test bootstrap).
-		// WP 6.9 emits _doing_it_wrong for register_rest_route() called outside
-		// rest_api_init. Registering directly is deliberate here — re-firing the
-		// action would re-run every other listener — so declare the notice rather
-		// than let the harness report it as unexpected.
-		$this->setExpectedIncorrectUsage( 'register_rest_route' );
-		EmbedsTab::instance()->register_rest_routes();
+		// Register REST routes the way production does — on rest_api_init against
+		// a fresh server. Calling register_rest_routes() directly (the Registry
+		// never fires admin_init under test) both trips WP's
+		// "routes must be registered on rest_api_init" notice and leaves
+		// rest_do_request() dispatching against a server that never saw them, so
+		// every request came back 404.
+		global $wp_rest_server;
+		$wp_rest_server = new \WP_REST_Server();
+		add_action( 'rest_api_init', array( EmbedsTab::instance(), 'register_rest_routes' ) );
+		do_action( 'rest_api_init', $wp_rest_server );
 
 		// Create test users.
 		$this->admin_user_id      = self::factory()->user->create( array( 'role' => 'administrator' ) );
@@ -72,6 +75,10 @@ final class EmbedsTabRestTest extends WP_UnitTestCase {
 	}
 
 	protected function tearDown(): void {
+		// Drop the REST server so the next test builds its own.
+		global $wp_rest_server;
+		$wp_rest_server = null;
+
 		ServerMetaQuery::delete_by_server_id( $this->server_id );
 		AbstractEmbedTransport::flush_cache();
 		parent::tearDown();
