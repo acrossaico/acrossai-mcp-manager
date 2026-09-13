@@ -231,40 +231,49 @@ final class UserServersBlockTest extends WP_UnitTestCase {
 	// ────────────────────────────────────────────────────────────────
 
 	public function test_escape_at_boundary_server_name(): void {
-		// Directly create a server with a hostile name via the Query.
-		$server_id = (int) MCPServerQuery::instance()->add_item(
-			array(
-				'server_name'            => 'Foo <script>alert(1)</script>',
-				'server_slug'            => 'srv-xss',
-				'description'            => 'ok',
-				'is_enabled'             => 1,
-				'registered_from'        => 'database',
-				'server_route_namespace' => 'mcp',
-				'server_route'           => 'srv-xss',
-				'server_version'         => 'v1.0.0',
-			)
+		// Inject the hostile name at the renderer's own boundary.
+		//
+		// This used to insert it through MCPServerQuery::add_item(), but BerlinDB
+		// sanitizes column values on write, so the row stored "Foo alert(1)" with
+		// the tags already gone — the renderer's esc_html() was never handed
+		// anything dangerous and the test proved nothing about escaping.
+		// `acrossai_mcp_user_accessible_servers` is the last hop before render
+		// and is exactly where a third-party integration could supply untrusted
+		// data, so that is the boundary worth asserting on.
+		add_filter(
+			'acrossai_mcp_user_accessible_servers',
+			static function (): array {
+				return array(
+					array(
+						'server_id'   => 1,
+						'server_slug' => 'srv-xss',
+						'server_name' => 'Foo <script>alert(1)</script>',
+						'description' => 'ok',
+						'transports'  => array(
+							array(
+								'key'      => 'client',
+								'label'    => 'MCP Clients',
+								'priority' => 20,
+								'dtos'     => array(
+									array(
+										'slug'        => 'claude-desktop',
+										'name'        => 'Claude Desktop',
+										'icon'        => '',
+										'description' => '',
+										'meta'        => array(),
+									),
+								),
+							),
+						),
+					),
+				);
+			}
 		);
-		ServerMetaQuery::update_meta( $server_id, '_embeds_enabled', '1' );
-		AbstractEmbedTransport::save_items_for_server(
-			$server_id,
-			array( 'mcp-client' => array( 'claude-desktop' ) )
-		);
-		AbstractEmbedTransport::flush_cache();
 
 		$out = do_shortcode( '[acrossai_mcp_servers]' );
 
-		$diagnostic = sprintf(
-			'server_id=%d current_user=%d master=%s items=%s enabled=%s accessible=%d',
-			$server_id,
-			get_current_user_id(),
-			var_export( ServerMetaQuery::get_meta( $server_id, '_embeds_enabled' ), true ),
-			(string) wp_json_encode( AbstractEmbedTransport::get_items_for_server( $server_id ) ),
-			AbstractEmbedTransport::is_enabled_for_server( $server_id, 'client', 'claude-desktop' ) ? 'yes' : 'no',
-			count( UserServersBlock::instance()->get_accessible_servers() )
-		);
-
-		$this->assertStringNotContainsString( '<script>alert(1)</script>', $out, $diagnostic );
-		$this->assertStringContainsString( '&lt;script&gt;alert(1)&lt;/script&gt;', $out, $diagnostic );
+		$this->assertStringNotContainsString( '<script>alert(1)</script>', $out );
+		$this->assertStringContainsString( '&lt;script&gt;alert(1)&lt;/script&gt;', $out );
 	}
 
 	// ────────────────────────────────────────────────────────────────
