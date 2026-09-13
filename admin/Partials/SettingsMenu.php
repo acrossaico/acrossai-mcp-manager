@@ -21,7 +21,6 @@ namespace AcrossAI_MCP_Manager\Admin\Partials;
 
 use AcrossAI_MCP_Manager\Includes\Abilities\Discover;
 
-use AcrossAI_MCP_Manager\Includes\Utilities\AdminPageSlugs;
 use AcrossAI_MCP_Manager\Public\Partials\FrontendAuth;
 
 // Exit if accessed directly.
@@ -144,18 +143,6 @@ class SettingsMenu {
 		// list".
 		$option_group = $page_slug;
 
-		// Sub-nav — three-item tab strip (Servers / Settings / Quick Connect via AcrossAI)
-		// rendered at the top of the MCP tab body. Registered as a section so
-		// it lives inside do_settings_sections's output and inherits the same
-		// tab-scoped page-slug lifecycle as the real settings sections below.
-		// Empty title suppresses the <h2>; the callback outputs the nav bar.
-		add_settings_section(
-			'acrossai_mcp_subnav_section',
-			'',
-			array( $this, 'render_subnav' ),
-			$page_slug
-		);
-
 		// npm / CLI login toggle.
 		register_setting(
 			$option_group,
@@ -234,48 +221,6 @@ class SettingsMenu {
 			array( $this, 'render_uninstall_field' ),
 			$page_slug,
 			'acrossai_mcp_uninstall_section'
-		);
-	}
-
-	/**
-	 * Renders the three-item sub-nav (Servers / Settings / Quick Connect via AcrossAI) at
-	 * the top of the MCP tab body on the shared AcrossAI Settings page.
-	 *
-	 * Uses WP admin's native `.nav-tab-wrapper` / `.nav-tab` markup so the
-	 * strip looks like every other tabbed admin surface. The scoped inline
-	 * <style> hides the empty <table class="form-table"> that WP always
-	 * emits for a field-less section — cheaper than a stylesheet enqueue
-	 * for a two-line rule.
-	 *
-	 * Servers + Quick Connect via AcrossAI are outbound links to the plugin's own admin
-	 * pages; Settings is the current page (rendered as nav-tab-active).
-	 *
-	 * @since 0.2.13
-	 * @return void
-	 */
-	public function render_subnav(): void {
-		$servers_url       = admin_url( 'admin.php?page=' . AdminPageSlugs::PARENT );
-		$settings_url      = admin_url(
-			'admin.php?page=' . \AcrossAI_Main_Menu\SettingsPage::SETTINGS_SLUG
-			. '&tab=' . self::TAB_SLUG
-		);
-		$quick_connect_url = admin_url(
-			'admin.php?page=' . AdminPageSlugs::PARENT . '&quick-connect=1&step=1'
-		);
-
-		printf(
-			'<nav class="nav-tab-wrapper acrossai-mcp-settings-subnav" style="margin: 0 0 20px;">'
-			. '<a href="%1$s" class="nav-tab">%2$s</a>'
-			. '<a href="%3$s" class="nav-tab nav-tab-active">%4$s</a>'
-			. '<a href="%5$s" class="nav-tab">%6$s</a>'
-			. '</nav>'
-			. '<style>#acrossai_mcp_subnav_section + .form-table:empty { display: none; }</style>',
-			esc_url( $servers_url ),
-			esc_html__( 'Servers', 'acrossai-mcp-manager' ),
-			esc_url( $settings_url ),
-			esc_html__( 'Settings', 'acrossai-mcp-manager' ),
-			esc_url( $quick_connect_url ),
-			esc_html__( 'Quick Connect via AcrossAI', 'acrossai-mcp-manager' )
 		);
 	}
 
