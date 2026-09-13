@@ -113,6 +113,9 @@ final class AbstractEmbedTransportTest extends WP_UnitTestCase {
 	}
 
 	public function test_bad_key_regex_silently_dropped(): void {
+		// This test exists to prove the guard fires, so its _doing_it_wrong
+		// notice is the expected outcome, not an accident.
+		$this->setExpectedIncorrectUsage( 'AbstractEmbedTransport::get_all_registered_transports' );
 		add_filter(
 			'acrossai_mcp_embed_transports',
 			static function ( array $fqns ): array {
@@ -129,6 +132,9 @@ final class AbstractEmbedTransportTest extends WP_UnitTestCase {
 	}
 
 	public function test_duplicate_key_later_wins(): void {
+		// This test exists to prove the guard fires, so its _doing_it_wrong
+		// notice is the expected outcome, not an accident.
+		$this->setExpectedIncorrectUsage( 'AbstractEmbedTransport::get_all_registered_transports' );
 		add_filter(
 			'acrossai_mcp_embed_transports',
 			static function ( array $fqns ): array {

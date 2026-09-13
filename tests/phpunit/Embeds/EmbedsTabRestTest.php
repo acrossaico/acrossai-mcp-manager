@@ -54,6 +54,11 @@ final class EmbedsTabRestTest extends WP_UnitTestCase {
 		AbstractEmbedTransport::flush_cache();
 
 		// Register REST routes (Registry hasn't fired admin_init in the test bootstrap).
+		// WP 6.9 emits _doing_it_wrong for register_rest_route() called outside
+		// rest_api_init. Registering directly is deliberate here — re-firing the
+		// action would re-run every other listener — so declare the notice rather
+		// than let the harness report it as unexpected.
+		$this->setExpectedIncorrectUsage( 'register_rest_route' );
 		EmbedsTab::instance()->register_rest_routes();
 
 		// Create test users.
