@@ -85,6 +85,17 @@ final class MCPServerFieldSanitizer {
 		// sanitization to keep the downstream logic straightforward.
 		$filtered = array_intersect_key( $raw, array_flip( self::ALLOWED_KEYS ) );
 
+		// Strip NUL bytes. sanitize_text_field()/sanitize_textarea_field() do not
+		// remove them — NUL is valid UTF-8 — so "foo\0bar" survived intact into
+		// server names and routes, where it can truncate C-string consumers and
+		// confuse log/UI output. Cheap to drop at the single entry point every
+		// caller already funnels through.
+		foreach ( $filtered as $key => $value ) {
+			if ( is_string( $value ) ) {
+				$filtered[ $key ] = str_replace( "\0", '', $value );
+			}
+		}
+
 		$name = isset( $filtered['server_name'] )
 			? sanitize_text_field( (string) $filtered['server_name'] )
 			: '';
