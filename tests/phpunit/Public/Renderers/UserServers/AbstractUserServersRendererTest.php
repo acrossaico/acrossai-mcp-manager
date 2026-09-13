@@ -187,7 +187,12 @@ final class AbstractUserServersRendererTest extends WP_UnitTestCase {
 		}
 
 		$data = $this->renderer->get_accessible_servers( $this->user_id );
-		$this->assertCount( 3, $data );
+		$this->assertCount(
+			3,
+			$data,
+			'returned slugs: [' . implode( ', ', array_column( $data, 'server_slug' ) ) . '] '
+			. 'ids: zebra=' . $zebra_id . ' alpha=' . $alpha_id . ' beta=' . $beta_id
+		);
 		$this->assertSame( 'Alpha', $data[0]['server_name'] );
 		$this->assertSame( 'beta',  $data[1]['server_name'] );
 		$this->assertSame( 'zebra', $data[2]['server_name'] );
