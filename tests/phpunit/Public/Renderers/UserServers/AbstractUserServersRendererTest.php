@@ -187,11 +187,24 @@ final class AbstractUserServersRendererTest extends WP_UnitTestCase {
 		}
 
 		$data = $this->renderer->get_accessible_servers( $this->user_id );
+
+		$per_server = array();
+		foreach ( array( 'zebra' => $zebra_id, 'alpha' => $alpha_id, 'beta' => $beta_id ) as $label => $id ) {
+			$per_server[] = sprintf(
+				'%s(id=%d master=%s items=%s enabled=%s)',
+				$label,
+				$id,
+				var_export( ServerMetaQuery::get_meta( $id, '_embeds_enabled' ), true ),
+				wp_json_encode( AbstractEmbedTransport::get_items_for_server( $id ) ),
+				AbstractEmbedTransport::is_enabled_for_server( $id, 'client', 'claude-desktop' ) ? 'yes' : 'no'
+			);
+		}
+
 		$this->assertCount(
 			3,
 			$data,
-			'returned slugs: [' . implode( ', ', array_column( $data, 'server_slug' ) ) . '] '
-			. 'ids: zebra=' . $zebra_id . ' alpha=' . $alpha_id . ' beta=' . $beta_id
+			'returned slugs: [' . implode( ', ', array_column( $data, 'server_slug' ) ) . '] | '
+			. implode( ' ', $per_server )
 		);
 		$this->assertSame( 'Alpha', $data[0]['server_name'] );
 		$this->assertSame( 'beta',  $data[1]['server_name'] );
