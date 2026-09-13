@@ -112,6 +112,7 @@ from a complete one.
 > **TASK-4 — PHPUnit coverage**
 > **TASK-5 — This planning doc**
 > **TASK-6 — Memory capture + commit**
+> **TASK-7 — Operator setting for the page size**
 
 ### TASK-1 — Schema + description contribution
 
@@ -183,6 +184,51 @@ Fixtures register through `acrossai_test_register_ability()`
 (`tests/bootstrap-wp.php`) — WP 6.9 refuses `wp_register_ability()` outside
 `wp_abilities_api_init`.
 
+### TASK-7 — Operator setting for the page size
+
+**Files:** `admin/Partials/SettingsMenu.php`, `includes/Abilities/Discover.php`
+
+An "Ability Discovery" section on **MCP → Settings** with one number field,
+`acrossai_mcp_discover_per_page` (`SettingsMenu::DISCOVER_PER_PAGE_OPTION`),
+bounded 1–200 by `sanitize_discover_per_page()` — the same range the ability's
+`input_schema` advertises, so an operator cannot save a default that core would
+then reject at call time.
+
+`Discover::resolve_pagination()` reads the option as the base default; the
+`acrossai_mcp_discover_abilities_default_per_page` filter still runs on top and
+wins, so programmatic control is not locked out by a saved value. An explicit
+`per_page` argument beats both. A zero/negative option falls back to the
+constant rather than producing a zero-sized page.
+
+No uninstall change: `uninstall.php` already sweeps `acrossai_mcp_%`.
+
+#### Why 60 — the math
+
+Measured on a 15-entry sample of this site's real abilities: a
+name/label/description/category entry is **~320 bytes ≈ 80 tokens** (median 321,
+p90 417, max 582).
+
+| per_page | payload | ≈ tokens | share of a 200k context |
+|---|---|---|---|
+| 20 | 6.3 KB | 1,600 | 0.8% |
+| **60** | **18.8 KB** | **4,800** | **2.4%** |
+| 100 | 31.3 KB | 8,000 | 4.0% |
+| 200 | 62.6 KB | 16,000 | 8.0% |
+
+This site exposes **439** abilities over MCP, so the pre-F089 unpaginated
+response was ~137 KB / **~35,000 tokens** on every agent's first call.
+
+60 holds: ~4,800 tokens is 2.4% of a 200k context and still ~15% of a 32k one,
+which is the real constraint for smaller clients. 100 would put a 32k client at
+a quarter of its budget for one orientation call. The field exists because that
+trade depends on the site — a site with 40 abilities can raise it; one with
+thousands and long descriptions should lower it and lean on `search`.
+
+**Deliberately not shown in the UI:** a live "this site exposes N abilities"
+count. Most providers register only during an MCP/REST request, so counting in
+wp-admin reads **6** on this site while the MCP client sees **439**. A
+confidently wrong number is worse than none.
+
 ---
 
 ## Files
@@ -193,6 +239,7 @@ Fixtures register through `acrossai_test_register_ability()`
 | `includes/Abilities/Discover.php` | constants; `collect_visible_abilities()`, `filter_list()`, `matches_search()`, `resolve_pagination()`; `category` per entry |
 | `tests/phpunit/Abilities/DiscoverTest.php` | extended |
 | `tests/phpunit/Abilities/DiscoverSchemaTest.php` | new |
+| `admin/Partials/SettingsMenu.php` | `DISCOVER_PER_PAGE_OPTION`; Ability Discovery section, field, sanitizer |
 
 No DB change, no new ability, no vendor edit, no change to `novamira`.
 

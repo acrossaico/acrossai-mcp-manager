@@ -17,6 +17,7 @@ declare( strict_types = 1 );
 
 namespace AcrossAI_MCP_Manager\Includes\Abilities;
 
+use AcrossAI_MCP_Manager\Admin\Partials\SettingsMenu;
 use AcrossAI_MCP_Manager\Includes\Compat;
 use WP_Error;
 
@@ -211,14 +212,25 @@ final class Discover {
 	 * @return array{0:int, 1:int} [ page, per_page ]
 	 */
 	private static function resolve_pagination( array $criteria ): array {
+		// Operator setting (MCP → Settings → Ability Discovery) is the base
+		// default; the filter below still wins so programmatic control is not
+		// locked out by a saved option.
+		$default = (int) get_option( SettingsMenu::DISCOVER_PER_PAGE_OPTION, self::PER_PAGE_DEFAULT );
+		if ( $default < 1 ) {
+			$default = self::PER_PAGE_DEFAULT;
+		}
+
 		/**
 		 * Filter the default page size for `discover-abilities`.
+		 *
+		 * Receives the operator's saved setting, not the constant, so a
+		 * callback can adjust relative to what the site chose.
 		 *
 		 * @since 0.3.5 (Feature 089)
 		 *
 		 * @param int $per_page Default page size.
 		 */
-		$default = (int) apply_filters( 'acrossai_mcp_discover_abilities_default_per_page', self::PER_PAGE_DEFAULT );
+		$default = (int) apply_filters( 'acrossai_mcp_discover_abilities_default_per_page', $default );
 
 		/**
 		 * Filter the maximum page size for `discover-abilities`.

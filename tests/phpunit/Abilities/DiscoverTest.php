@@ -8,6 +8,7 @@
 namespace AcrossAI_MCP_Manager\Tests\Abilities;
 
 use AcrossAI_MCP_Manager\Includes\Abilities\CurrentServerHolder;
+use AcrossAI_MCP_Manager\Admin\Partials\SettingsMenu;
 use AcrossAI_MCP_Manager\Includes\Abilities\Discover;
 use AcrossAI_MCP_Manager\Includes\Database\MCPServer\Query as MCPServerQuery;
 use AcrossAI_MCP_Manager\Includes\Database\MCPServerAbility\ExposureResolver;
@@ -437,6 +438,66 @@ class DiscoverTest extends WP_UnitTestCase {
 
 		$negative_page = Discover::execute( array( 'namespace' => 'discover-clamp', 'page' => -5 ) );
 		$this->assertSame( 1, $negative_page['page'] );
+	}
+
+	public function test_operator_setting_drives_the_default_page_size(): void {
+		$this->maybe_skip_abilities_api();
+		for ( $i = 0; $i < 4; $i++ ) {
+			$this->register_rich_ability( sprintf( 'discover-option/a-%d', $i ), 'Opt', 'desc', 'optioning' );
+		}
+
+		update_option( SettingsMenu::DISCOVER_PER_PAGE_OPTION, 2 );
+
+		$result = Discover::execute( array( 'namespace' => 'discover-option' ) );
+
+		$this->assertSame( 2, $result['per_page'], 'The saved setting is the default page size.' );
+		$this->assertSame( 4, $result['total'] );
+		$this->assertTrue( $result['has_more'] );
+
+		delete_option( SettingsMenu::DISCOVER_PER_PAGE_OPTION );
+	}
+
+	public function test_explicit_per_page_beats_the_operator_setting(): void {
+		$this->maybe_skip_abilities_api();
+		$this->register_rich_ability( 'discover-explicit/one', 'One', 'desc', 'explicit' );
+
+		update_option( SettingsMenu::DISCOVER_PER_PAGE_OPTION, 2 );
+
+		$result = Discover::execute( array( 'namespace' => 'discover-explicit', 'per_page' => 7 ) );
+
+		$this->assertSame( 7, $result['per_page'], 'A caller-supplied per_page still wins.' );
+
+		delete_option( SettingsMenu::DISCOVER_PER_PAGE_OPTION );
+	}
+
+	public function test_absent_or_nonsense_setting_falls_back_to_the_constant(): void {
+		$this->maybe_skip_abilities_api();
+		$this->register_rich_ability( 'discover-fallback/one', 'One', 'desc', 'fallback' );
+
+		delete_option( SettingsMenu::DISCOVER_PER_PAGE_OPTION );
+		$this->assertSame(
+			Discover::PER_PAGE_DEFAULT,
+			Discover::execute( array( 'namespace' => 'discover-fallback' ) )['per_page']
+		);
+
+		// A zero or negative option must not produce a zero-sized page.
+		update_option( SettingsMenu::DISCOVER_PER_PAGE_OPTION, 0 );
+		$this->assertSame(
+			Discover::PER_PAGE_DEFAULT,
+			Discover::execute( array( 'namespace' => 'discover-fallback' ) )['per_page']
+		);
+
+		delete_option( SettingsMenu::DISCOVER_PER_PAGE_OPTION );
+	}
+
+	public function test_sanitizer_clamps_the_saved_setting_into_schema_range(): void {
+		$menu = SettingsMenu::instance();
+
+		$this->assertSame( Discover::PER_PAGE_MAXIMUM, $menu->sanitize_discover_per_page( 9999 ) );
+		$this->assertSame( Discover::PER_PAGE_DEFAULT, $menu->sanitize_discover_per_page( 0 ) );
+		$this->assertSame( Discover::PER_PAGE_DEFAULT, $menu->sanitize_discover_per_page( -3 ) );
+		$this->assertSame( Discover::PER_PAGE_DEFAULT, $menu->sanitize_discover_per_page( 'nonsense' ) );
+		$this->assertSame( 25, $menu->sanitize_discover_per_page( '25' ) );
 	}
 
 	public function test_filters_override_the_default_and_maximum_page_size(): void {
