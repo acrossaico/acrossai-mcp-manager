@@ -253,8 +253,18 @@ final class UserServersBlockTest extends WP_UnitTestCase {
 
 		$out = do_shortcode( '[acrossai_mcp_servers]' );
 
-		$this->assertStringNotContainsString( '<script>alert(1)</script>', $out );
-		$this->assertStringContainsString( '&lt;script&gt;alert(1)&lt;/script&gt;', $out );
+		$diagnostic = sprintf(
+			'server_id=%d current_user=%d master=%s items=%s enabled=%s accessible=%d',
+			$server_id,
+			get_current_user_id(),
+			var_export( ServerMetaQuery::get_meta( $server_id, '_embeds_enabled' ), true ),
+			(string) wp_json_encode( AbstractEmbedTransport::get_items_for_server( $server_id ) ),
+			AbstractEmbedTransport::is_enabled_for_server( $server_id, 'client', 'claude-desktop' ) ? 'yes' : 'no',
+			count( UserServersBlock::instance()->get_accessible_servers() )
+		);
+
+		$this->assertStringNotContainsString( '<script>alert(1)</script>', $out, $diagnostic );
+		$this->assertStringContainsString( '&lt;script&gt;alert(1)&lt;/script&gt;', $out, $diagnostic );
 	}
 
 	// ────────────────────────────────────────────────────────────────
