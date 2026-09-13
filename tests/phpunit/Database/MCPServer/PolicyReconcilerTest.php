@@ -121,9 +121,7 @@ class PolicyReconcilerTest extends WP_UnitTestCase {
 		// scenario B34 documents (silent write-loss when schema drifts).
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared
 		$wpdb->query( "ALTER TABLE `{$table}` DROP COLUMN `abilities_default_policy`" );
-		update_option( 'acrossai_mcp_servers_db_version', '1.1.4' );
-
-		MCPServerTable::instance()->maybe_upgrade();
+		$this->rerun_upgrades_from( '1.1.4' );
 
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared
 		$rows = $wpdb->get_results( "SHOW COLUMNS FROM `{$table}` LIKE 'abilities_default_policy'" );
@@ -159,4 +157,32 @@ class PolicyReconcilerTest extends WP_UnitTestCase {
 			"F082 \$version ({$version}) must be strictly greater than F037's 1.1.4."
 		);
 	}
+
+	/**
+	 * Rewind the stored schema version and re-run the upgrade path.
+	 *
+	 * BerlinDB v3 guards maybe_upgrade() with a 900-second `*_upgrade_lock`
+	 * transient meant for production concurrency. A test that deliberately
+	 * rewinds the version to re-exercise an upgrade has to clear it, otherwise
+	 * maybe_upgrade() bails silently and the dropped column is never restored —
+	 * which then breaks every later test in the suite, because DDL implicitly
+	 * COMMITs and escapes WP_UnitTestCase's rollback.
+	 *
+	 * @param string $rewind_to Version to rewind the option to.
+	 */
+	private function rerun_upgrades_from( string $rewind_to ): void {
+		update_option( 'acrossai_mcp_servers_db_version', $rewind_to );
+		delete_transient( 'acrossai_mcp_servers_db_version_upgrade_lock' );
+
+		$table = MCPServerTable::instance();
+		$table->needs_upgrade();   // Refreshes the cached db_version from the option.
+
+		$this->assertNotEmpty(
+			$table->get_pending_upgrades(),
+			"Precondition: rewinding to {$rewind_to} must leave upgrades pending."
+		);
+
+		$table->maybe_upgrade();
+	}
+
 }

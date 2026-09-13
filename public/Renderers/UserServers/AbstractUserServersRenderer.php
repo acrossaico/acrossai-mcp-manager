@@ -114,7 +114,11 @@ abstract class AbstractUserServersRenderer {
 		$rows = MCPServerQuery::instance()->query(
 			array(
 				'is_enabled' => 1,
-				'number'     => -1,
+				// BerlinDB's "no limit" is 0, not -1: parse_limits() runs
+				// absint( $number ), so -1 became LIMIT 1 and this block only ever
+				// rendered a single server — whichever the default ordering put
+				// first — no matter how many the visitor could access.
+				'number'     => 0,
 			)
 		);
 		if ( empty( $rows ) ) {

@@ -10,7 +10,6 @@
 
 namespace AcrossAI_MCP_Manager\Tests\RestCli;
 
-use AcrossAI_MCP_Manager\Includes\Database\CliAuthLog\Query as CliAuthLogQuery;
 use AcrossAI_MCP_Manager\Includes\Database\MCPServer\Query as MCPServerQuery;
 use AcrossAI_MCP_Manager\Includes\REST\CliController;
 use WP_REST_Request;
@@ -20,8 +19,9 @@ class AuthExchangeEndpointTest extends WP_UnitTestCase {
 
 	public function setUp(): void {
 		parent::setUp();
-		MCPServerQuery::maybe_create_table();
-		CliAuthLogQuery::maybe_create_table();
+		// Tables already exist: tests/bootstrap-wp.php runs Activator::activate().
+		// The Query::maybe_create_table() wrappers previously called here were
+		// deleted by F011's BerlinDB migration.
 	}
 
 	private function seed_full_flow( string $code, string $server, int $user_id ): string {
@@ -59,7 +59,7 @@ class AuthExchangeEndpointTest extends WP_UnitTestCase {
 	}
 
 	public function test_happy_path(): void {
-		( new MCPServerQuery() )->add_item(
+		MCPServerQuery::instance()->add_item(
 			array( 'server_name' => 'X', 'server_slug' => 'srv-happy', 'is_enabled' => 1 )
 		);
 		$user_id = (int) self::factory()->user->create();
@@ -81,7 +81,7 @@ class AuthExchangeEndpointTest extends WP_UnitTestCase {
 
 	public function test_app_password_name_includes_code_prefix_q3(): void {
 		// TASK-Q3 — App Password name MUST include first-8-hex of the code.
-		( new MCPServerQuery() )->add_item(
+		MCPServerQuery::instance()->add_item(
 			array( 'server_name' => 'Y', 'server_slug' => 'srv-q3', 'is_enabled' => 1 )
 		);
 		$user_id = (int) self::factory()->user->create();
@@ -136,7 +136,7 @@ class AuthExchangeEndpointTest extends WP_UnitTestCase {
 	}
 
 	public function test_missing_server(): void {
-		( new MCPServerQuery() )->add_item(
+		MCPServerQuery::instance()->add_item(
 			array( 'server_name' => 'S', 'server_slug' => 'srv-ms', 'is_enabled' => 1 )
 		);
 		$user_id = (int) self::factory()->user->create();
@@ -149,7 +149,7 @@ class AuthExchangeEndpointTest extends WP_UnitTestCase {
 	}
 
 	public function test_server_mismatch_preserves_transients(): void {
-		( new MCPServerQuery() )->add_item(
+		MCPServerQuery::instance()->add_item(
 			array( 'server_name' => 'S', 'server_slug' => 'srv-real', 'is_enabled' => 1 )
 		);
 		$user_id = (int) self::factory()->user->create();
@@ -176,7 +176,7 @@ class AuthExchangeEndpointTest extends WP_UnitTestCase {
 	}
 
 	public function test_single_use_after_success(): void {
-		( new MCPServerQuery() )->add_item(
+		MCPServerQuery::instance()->add_item(
 			array( 'server_name' => 'O', 'server_slug' => 'srv-once', 'is_enabled' => 1 )
 		);
 		$user_id = (int) self::factory()->user->create();

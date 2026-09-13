@@ -18,6 +18,7 @@ namespace AcrossAI_MCP_Manager\Tests\Public\Renderers;
 
 use AcrossAI_MCP_Manager\Includes\MCPClients\AbstractMCPClient;
 use AcrossAI_MCP_Manager\Public\Renderers\MCPClientsBlock;
+use AcrossAI_MCP_Manager\Includes\Database\MCPServer\Query as MCPServerQuery;
 use WP_UnitTestCase;
 
 // Named fake subclass returning attacker-controllable metadata — used to
@@ -43,8 +44,33 @@ final class HostileMetadataClient extends AbstractMCPClient {
 
 final class MCPClientsBlockRenderTest extends WP_UnitTestCase {
 
+	/**
+	 * Fixture server id.
+	 *
+	 * These tests used to call render( 1, … ), assuming a row with id 1 had
+	 * survived from an earlier suite. Suites share one database and several
+	 * TRUNCATE their tables, so that assumption held only by accident — and
+	 * stopped holding as soon as the suites actually ran. Each test now owns
+	 * its fixture.
+	 *
+	 * @var int
+	 */
+	private $server_id = 0;
+
 	public function setUp(): void {
 		parent::setUp();
+		$this->server_id = (int) MCPServerQuery::instance()->add_item(
+			array(
+				'server_name'            => 'Renderer Fixture Server',
+				'server_slug'            => 'renderer-fixture-server',
+				'description'            => 'Fixture for the renderers suite.',
+				'is_enabled'             => 1,
+				'registered_from'        => 'database',
+				'server_route_namespace' => 'mcp',
+				'server_route'           => 'renderer-fixture-server',
+				'server_version'         => 'v1.0.0',
+			)
+		);
 		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
 		wp_set_current_user( $admin_id );
 	}
@@ -60,8 +86,7 @@ final class MCPClientsBlockRenderTest extends WP_UnitTestCase {
 	 */
 	public function test_claude_desktop_panel_renders_migrated_metadata(): void {
 		ob_start();
-		MCPClientsBlock::instance()->render(
-			1,
+		MCPClientsBlock::instance()->render( $this->server_id,
 			array(
 				'context'    => 'admin',
 				'sub_client' => 'claude-desktop',
@@ -70,7 +95,14 @@ final class MCPClientsBlockRenderTest extends WP_UnitTestCase {
 		$output = (string) ob_get_clean();
 
 		// Sub-nav shows the claude-desktop emoji (from ClaudeDesktopClient::get_icon()).
-		$this->assertStringContainsString( '🍰', $output, 'FR-016: sub-nav MUST render the migrated emoji from get_icon().' );
+		// F076 deliberately removed the emoji from both picker surfaces at the
+		// user's request, keeping get_icon() on the client classes for
+		// third-party consumers. This assertion is inverted from FR-016 on
+		// purpose: the sub-nav MUST NOT render it any more. (076's planning doc
+		// records 'No test coverage on rendered emoji strings' — that was wrong,
+		// this test existed, it had just never run.)
+		$this->assertStringNotContainsString( '🍰', $output, 'F076: the picker sub-nav must no longer render get_icon().' );
+		$this->assertStringContainsString( 'Claude Desktop', $output, 'The sub-nav must still render the client name.' );
 
 		// Panel body shows the config file path (from ClaudeDesktopClient::get_config_file()).
 		$this->assertStringContainsString(
@@ -82,8 +114,23 @@ final class MCPClientsBlockRenderTest extends WP_UnitTestCase {
 		// Panel body shows the top-level key label (from ClaudeDesktopClient::get_top_level_key()).
 		$this->assertStringContainsString( 'mcpServers', $output, 'FR-016: panel MUST render the migrated top-level key.' );
 
-		// Instructions text renders (from ClaudeDesktopClient::get_instructions()).
-		$this->assertStringContainsString( 'Generate a password', $output, 'FR-016: panel MUST render the migrated instructions.' );
+		// F077 replaced the free-text get_instructions() paragraph on this panel
+		// with the numbered STEP layout, which carries the same guidance as
+		// headings. get_instructions() itself is still live — the discovery API
+		// reads it (ConnectionMethodRegistry) — it is just no longer rendered
+		// here, so assert the shipped layout instead of the retired prose.
+		$this->assertStringNotContainsString(
+			'Generate a password →',
+			$output,
+			'F077: the prose instructions paragraph was replaced by the STEP layout.'
+		);
+		foreach ( array( 'Generate the password', 'Open the config file', 'Locate the top-level key' ) as $step_heading ) {
+			$this->assertStringContainsString(
+				$step_heading,
+				$output,
+				'F077: panel MUST render the numbered STEP headings.'
+			);
+		}
 	}
 
 	/**
@@ -102,8 +149,7 @@ final class MCPClientsBlockRenderTest extends WP_UnitTestCase {
 		);
 
 		ob_start();
-		MCPClientsBlock::instance()->render(
-			1,
+		MCPClientsBlock::instance()->render( $this->server_id,
 			array(
 				'context'    => 'admin',
 				'sub_client' => 'hostile-metadata',

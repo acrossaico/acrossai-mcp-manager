@@ -16,7 +16,6 @@ use AcrossAI_MCP_Manager\Includes\MCPClients\CustomClient;
 use AcrossAI_MCP_Manager\Includes\MCPClients\GeminiClient;
 use AcrossAI_MCP_Manager\Includes\MCPClients\GitHubCopilotClient;
 use AcrossAI_MCP_Manager\Includes\MCPClients\VSCodeClient;
-use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -50,7 +49,9 @@ final class ConcreteClientsTest extends TestCase {
 		);
 	}
 
-	#[DataProvider('clientFixtureProvider')]
+	/**
+	 * @dataProvider clientFixtureProvider
+	 */
 	public function testGetClientSlugMatchesSpec(
 		AbstractMCPClient $client,
 		string $expected_slug,
@@ -59,7 +60,9 @@ final class ConcreteClientsTest extends TestCase {
 		$this->assertSame( $expected_slug, $client->get_client_slug() );
 	}
 
-	#[DataProvider('clientFixtureProvider')]
+	/**
+	 * @dataProvider clientFixtureProvider
+	 */
 	public function testGetClientNameMatchesSpec(
 		AbstractMCPClient $client,
 		string $expected_slug,
@@ -68,7 +71,9 @@ final class ConcreteClientsTest extends TestCase {
 		$this->assertSame( $expected_name, $client->get_client_name() );
 	}
 
-	#[DataProvider('clientFixtureProvider')]
+	/**
+	 * @dataProvider clientFixtureProvider
+	 */
 	public function testGetConfigSnippetWithToken(
 		AbstractMCPClient $client,
 		string $expected_slug,
@@ -81,7 +86,9 @@ final class ConcreteClientsTest extends TestCase {
 		);
 	}
 
-	#[DataProvider('clientFixtureProvider')]
+	/**
+	 * @dataProvider clientFixtureProvider
+	 */
 	public function testGetConfigSnippetEmptyToken(
 		AbstractMCPClient $client,
 		string $expected_slug,
@@ -96,7 +103,9 @@ final class ConcreteClientsTest extends TestCase {
 
 	// ─── Cross-client invariants ────────────────────────────────────────────
 
-	#[DataProvider('clientFixtureProvider')]
+	/**
+	 * @dataProvider clientFixtureProvider
+	 */
 	public function testEmptyTokenRendersPlaceholder(
 		AbstractMCPClient $client,
 		string $expected_slug,
@@ -111,7 +120,9 @@ final class ConcreteClientsTest extends TestCase {
 		);
 	}
 
-	#[DataProvider('clientFixtureProvider')]
+	/**
+	 * @dataProvider clientFixtureProvider
+	 */
 	public function testWithTokenEmbedsLiteralToken(
 		AbstractMCPClient $client,
 		string $expected_slug,
@@ -126,7 +137,9 @@ final class ConcreteClientsTest extends TestCase {
 		);
 	}
 
-	#[DataProvider('clientFixtureProvider')]
+	/**
+	 * @dataProvider clientFixtureProvider
+	 */
 	public function testWithTokenEmbedsServerUrl(
 		AbstractMCPClient $client,
 		string $expected_slug,

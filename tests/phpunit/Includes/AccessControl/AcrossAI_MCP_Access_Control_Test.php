@@ -2,9 +2,10 @@
 /**
  * Tests for AcrossAI_MCP_Access_Control (Feature 015).
  *
- * PHPUnit 13+ note (BUGS.md B9): use `#[DataProvider]` attribute; `@dataProvider`
- * annotations are silently ignored. This file demonstrates both approaches
- * where appropriate.
+ * PHPUnit 9.6 note (supersedes BUGS.md B9): use the `@dataProvider`
+ * annotation. The WordPress test suite calls PHPUnit APIs removed in
+ * PHPUnit 10, so the toolchain is pinned to 9.x — which predates PHP
+ * attributes, making `#[DataProvider]` a silent no-op.
  *
  * Covers:
  *   - FR-003 public API (is_available / boot_manager / get_manager)

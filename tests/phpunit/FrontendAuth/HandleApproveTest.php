@@ -62,6 +62,7 @@ class HandleApproveTest extends WP_UnitTestCase {
 	private function run_approve(): array {
 		$_GET['action'] = 'cli_auth_approve';
 		$exc            = null;
+		$this->intercept_exit();
 		ob_start();
 		try {
 			FrontendAuth::instance()->maybe_render_page();
@@ -219,6 +220,7 @@ class HandleApproveTest extends WP_UnitTestCase {
 		// Direct test of handle_approved() via the dispatcher.
 		$_GET['action'] = 'cli_auth_approved';
 
+		$this->intercept_exit();
 		ob_start();
 		try {
 			FrontendAuth::instance()->maybe_render_page();
@@ -229,4 +231,23 @@ class HandleApproveTest extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'CLI Authorization Approved', $out );
 		$this->assertStringContainsString( 'return to your CLI tool', $out );
 	}
+
+	/**
+	 * Intercept FrontendAuth's terminal `exit` so assertions can run against
+	 * markup the page has already echoed.
+	 *
+	 * `exit` is not catchable, so production routes every terminal exit on
+	 * this request path through the `acrossai_mcp_frontend_auth_before_exit`
+	 * action. Throwing from it is the same throw-from-hook convention these
+	 * tests already use against `wp_redirect`.
+	 */
+	private function intercept_exit(): void {
+		add_action(
+			'acrossai_mcp_frontend_auth_before_exit',
+			static function (): void {
+				throw new \RuntimeException( 'exit_intercepted' );
+			}
+		);
+	}
+
 }

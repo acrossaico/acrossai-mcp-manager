@@ -76,15 +76,15 @@ class IntegrationTest extends WP_UnitTestCase {
 	public function test_registering_non_vendor_slug_keeps_original_callbacks(): void {
 		$this->maybe_skip_abilities_api();
 
-		\wp_register_ability(
+		acrossai_test_register_ability(
 			'integration-test/mine',
 			array(
 				'label'               => 'Mine',
 				'description'         => 'Not one of the vendor three.',
 				'category'            => 'test',
 				'meta'                => array( 'mcp' => array( 'public' => true, 'type' => 'tool' ) ),
-				'input_schema'        => array( 'type' => 'object', 'properties' => new \stdClass() ),
-				'output_schema'       => array( 'type' => 'object', 'properties' => new \stdClass() ),
+				'input_schema'        => array( 'type' => 'object', 'properties' => array() ),
+				'output_schema'       => array( 'type' => 'object', 'properties' => array() ),
 				'permission_callback' => '__return_true',
 				'execute_callback'    => '__return_empty_array',
 			)
@@ -116,14 +116,14 @@ class IntegrationTest extends WP_UnitTestCase {
 	 * @param string $slug Vendor ability slug to register.
 	 */
 	private function register_stub_vendor_ability( string $slug ): void {
-		\wp_register_ability(
+		acrossai_test_register_ability(
 			$slug,
 			array(
 				'label'               => 'Stub',
 				'description'         => 'Stub for integration test',
 				'category'            => 'mcp-adapter',
-				'input_schema'        => array( 'type' => 'object', 'properties' => new \stdClass() ),
-				'output_schema'       => array( 'type' => 'object', 'properties' => new \stdClass() ),
+				'input_schema'        => array( 'type' => 'object', 'properties' => array() ),
+				'output_schema'       => array( 'type' => 'object', 'properties' => array() ),
 				'permission_callback' => '__return_true',
 				'execute_callback'    => '__return_empty_array',
 			)
@@ -146,6 +146,23 @@ class IntegrationTest extends WP_UnitTestCase {
 		}
 		$prop = $reflection->getProperty( $property );
 		$prop->setAccessible( true );
-		$this->assertSame( $expected, $prop->getValue( $ability ) );
+		$actual = $prop->getValue( $ability );
+
+		// F030's PermissionOverrideProcessor wraps EVERY ability's
+		// permission_callback in a closure (via wp_register_ability_args), so a
+		// raw identity check has been wrong since that feature shipped — it
+		// just never ran. Unwrap to the closure's captured $original and assert
+		// against that, which still proves OUR callback is the one bound.
+		if ( 'permission_callback' === $property && $actual instanceof \Closure ) {
+			$statics = ( new \ReflectionFunction( $actual ) )->getStaticVariables();
+			$this->assertArrayHasKey(
+				'original',
+				$statics,
+				'F030 wrapper must capture the original permission_callback as $original.'
+			);
+			$actual = $statics['original'];
+		}
+
+		$this->assertSame( $expected, $actual );
 	}
 }

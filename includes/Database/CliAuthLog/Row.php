@@ -42,7 +42,9 @@ class Row extends \BerlinDB\Database\Kern\Row {
 	 */
 	public function __construct( $item ) {
 		parent::__construct( $item );
-		$this->id = (int) $this->id;
+		$this->id        = (int) $this->id;
+		$this->server_id = (int) $this->server_id;
+		$this->user_id   = (int) $this->user_id;
 	}
 
 	/**

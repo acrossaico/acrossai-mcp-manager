@@ -29,17 +29,42 @@ class PhantomVersionGuardTest extends WP_UnitTestCase {
 	 * @param string $table_class           Fully qualified Table subclass name.
 	 * @param string $table_name_no_prefix  Table name without the wpdb prefix.
 	 * @param string $db_version_key        WordPress option key for the schema version.
-	 * @param string $version               Expected schema version string.
+	 * @param string $version               Unused — the expected version is read from
+	 *                                      $table_class::$version, since a hard-coded
+	 *                                      value goes stale on every migration.
 	 */
 	public function test_phantom_version_guard_recreates_dropped_table( string $table_class, string $table_name_no_prefix, string $db_version_key, string $version ): void {
 		global $wpdb;
 
 		$full_table = $wpdb->prefix . $table_name_no_prefix;
 
+		// The provider's hard-coded '1.0.0' went stale the moment any table
+		// gained a migration (MCPServer is on 1.1.5). Read the version the
+		// class actually declares, so adding a migration never breaks this
+		// test again. Reflection on the DECLARED default avoids booting the
+		// Table just to read a property.
+		$version = (string) ( new \ReflectionClass( $table_class ) )->getDefaultProperties()['version'];
+
 		// Ensure table exists first (baseline).
 		$table = $table_class::instance();
 		$table->maybe_upgrade();
 		$this->assertNotEmpty( $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $full_table ) ), 'baseline: table must exist' );
+
+		// Stamp the option ourselves rather than trusting whatever earlier tests
+		// in this suite left behind — several of them deliberately rewind this
+		// value to exercise migrations, and DDL commits escape the per-test
+		// rollback. The phantom state under test is "option stamped + table
+		// missing", so constructing the stamp explicitly is the point, and the
+		// assertion after the DROP still proves dropping the table does not
+		// clear it.
+		update_option( $db_version_key, $version );
+
+		// WP_UnitTestCase installs `query` filters that rewrite CREATE TABLE and
+		// DROP TABLE into their TEMPORARY equivalents. This test needs REAL DDL:
+		// with the filters in place the DROP becomes DROP TEMPORARY TABLE, fails
+		// against the real table, and the phantom-version state is never created.
+		remove_filter( 'query', array( $this, '_create_temporary_tables' ) );
+		remove_filter( 'query', array( $this, '_drop_temporary_tables' ) );
 
 		// Drop the physical table but leave db_version_key stamped — the "phantom version" state.
         // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange
@@ -48,6 +73,12 @@ class PhantomVersionGuardTest extends WP_UnitTestCase {
 		$this->assertSame( $version, get_option( $db_version_key ), 'setup: db_version_key still stamped after drop' );
 
 		// Invoke maybe_upgrade — the phantom-version guard should drop the option and recreate the table.
+		// Clear BerlinDB v3's `*_upgrade_lock` transient first: it is a 900-second
+		// production concurrency guard, and any earlier test in this suite that
+		// ran an upgrade can leave it set (its own DDL commits escape the
+		// per-test rollback). With the lock present maybe_upgrade() returns
+		// without doing anything and the table is never recreated.
+		delete_transient( $db_version_key . '_upgrade_lock' );
 		$table->maybe_upgrade();
 
 		$this->assertNotEmpty( $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $full_table ) ), 'guard: table must be recreated' );

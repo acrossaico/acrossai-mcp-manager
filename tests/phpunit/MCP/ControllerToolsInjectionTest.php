@@ -113,8 +113,14 @@ class ControllerToolsInjectionTest extends WP_UnitTestCase {
 
 		$this->assertSame( 'preserve-me', $result['server_id'] );
 		$this->assertSame( 'Preserve me', $result['server_name'] );
-		$this->assertSame( array( 'r/one' ), $result['resources'] );
-		$this->assertSame( array( 'p/one' ), $result['prompts'] );
+		// F026 replaces tools, resources AND prompts unconditionally — see the
+		// rationale block in Controller::filter_default_server_config(). If the
+		// vendor's resource/prompt lists survived, disabling a public ability on
+		// the Abilities tab would be a no-op for the default server. So these
+		// are the plugin's discovery output (empty: this fixture registers no
+		// resource- or prompt-typed abilities), not the incoming values.
+		$this->assertSame( array(), $result['resources'], 'F026: resources are replaced, not preserved.' );
+		$this->assertSame( array(), $result['prompts'], 'F026: prompts are replaced, not preserved.' );
 		$this->assertNotContains( 'vendor/should-be-replaced', $result['tools'] );
 		$this->assertContains( 'mcp-adapter/discover-abilities', $result['tools'] );
 		$this->assertContains( 'mcp-adapter/get-ability-info', $result['tools'] );
@@ -268,15 +274,15 @@ class ControllerToolsInjectionTest extends WP_UnitTestCase {
 
 		// Seed a public tool-typed ability — must NOT appear in the composed set
 		// post-2026-07-15 revert.
-		\wp_register_ability(
+		acrossai_test_register_ability(
 			'f026-revert/public-tool',
 			array(
 				'label'       => 'F026 Public Tool',
 				'description' => 'F026 test — public ability MUST NOT widen tools/list post-revert',
 				'category'    => 'test',
 				'meta'        => array( 'mcp' => array( 'public' => true, 'type' => 'tool' ) ),
-				'input_schema' => array( 'type' => 'object', 'properties' => new \stdClass() ),
-				'output_schema' => array( 'type' => 'object', 'properties' => new \stdClass() ),
+				'input_schema' => array( 'type' => 'object', 'properties' => array() ),
+				'output_schema' => array( 'type' => 'object', 'properties' => array() ),
 				'execute_callback' => static fn () => array(),
 			)
 		);
@@ -310,15 +316,15 @@ class ControllerToolsInjectionTest extends WP_UnitTestCase {
 			'server_version'         => 'v1.0.0',
 		) );
 
-		\wp_register_ability(
+		acrossai_test_register_ability(
 			'f026-widened/public-resource',
 			array(
 				'label'       => 'F026 Public Resource',
 				'description' => 'F026 test — public resource ability',
 				'category'    => 'test',
 				'meta'        => array( 'mcp' => array( 'public' => true, 'type' => 'resource' ) ),
-				'input_schema' => array( 'type' => 'object', 'properties' => new \stdClass() ),
-				'output_schema' => array( 'type' => 'object', 'properties' => new \stdClass() ),
+				'input_schema' => array( 'type' => 'object', 'properties' => array() ),
+				'output_schema' => array( 'type' => 'object', 'properties' => array() ),
 				'execute_callback' => static fn () => array(),
 			)
 		);
@@ -358,15 +364,15 @@ class ControllerToolsInjectionTest extends WP_UnitTestCase {
 			'server_version'         => 'v1.0.0',
 		) );
 
-		\wp_register_ability(
+		acrossai_test_register_ability(
 			'f026-widened/public-prompt',
 			array(
 				'label'       => 'F026 Public Prompt',
 				'description' => 'F026 test — public prompt ability',
 				'category'    => 'test',
 				'meta'        => array( 'mcp' => array( 'public' => true, 'type' => 'prompt' ) ),
-				'input_schema' => array( 'type' => 'object', 'properties' => new \stdClass() ),
-				'output_schema' => array( 'type' => 'object', 'properties' => new \stdClass() ),
+				'input_schema' => array( 'type' => 'object', 'properties' => array() ),
+				'output_schema' => array( 'type' => 'object', 'properties' => array() ),
 				'execute_callback' => static fn () => array(),
 			)
 		);
@@ -396,23 +402,23 @@ class ControllerToolsInjectionTest extends WP_UnitTestCase {
 
 		$this->seed_default_server();
 
-		\wp_register_ability(
+		acrossai_test_register_ability(
 			'f026-default/public-resource',
 			array(
 				'label' => 'r', 'description' => 'r', 'category' => 'test',
 				'meta' => array( 'mcp' => array( 'public' => true, 'type' => 'resource' ) ),
-				'input_schema' => array( 'type' => 'object', 'properties' => new \stdClass() ),
-				'output_schema' => array( 'type' => 'object', 'properties' => new \stdClass() ),
+				'input_schema' => array( 'type' => 'object', 'properties' => array() ),
+				'output_schema' => array( 'type' => 'object', 'properties' => array() ),
 				'execute_callback' => static fn () => array(),
 			)
 		);
-		\wp_register_ability(
+		acrossai_test_register_ability(
 			'f026-default/public-prompt',
 			array(
 				'label' => 'p', 'description' => 'p', 'category' => 'test',
 				'meta' => array( 'mcp' => array( 'public' => true, 'type' => 'prompt' ) ),
-				'input_schema' => array( 'type' => 'object', 'properties' => new \stdClass() ),
-				'output_schema' => array( 'type' => 'object', 'properties' => new \stdClass() ),
+				'input_schema' => array( 'type' => 'object', 'properties' => array() ),
+				'output_schema' => array( 'type' => 'object', 'properties' => array() ),
 				'execute_callback' => static fn () => array(),
 			)
 		);

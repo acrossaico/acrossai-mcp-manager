@@ -26,6 +26,7 @@ declare( strict_types = 1 );
 namespace AcrossAI_MCP_Manager\Tests\Embeds;
 
 use AcrossAI_MCP_Manager\Admin\Partials\ServerTabs\EmbedsTab;
+use AcrossAI_MCP_Manager\Includes\Database\MCPServer\Query as MCPServerQuery;
 use AcrossAI_MCP_Manager\Includes\Database\MCPServerMeta\Query as ServerMetaQuery;
 use AcrossAI_MCP_Manager\Includes\Embeds\AbstractEmbedTransport;
 use WP_REST_Request;
@@ -53,20 +54,48 @@ final class EmbedsTabRestTest extends WP_UnitTestCase {
 		parent::setUp();
 		AbstractEmbedTransport::flush_cache();
 
-		// Register REST routes (Registry hasn't fired admin_init in the test bootstrap).
-		EmbedsTab::instance()->register_rest_routes();
+		// Register REST routes the way production does — on rest_api_init against
+		// a fresh server. Calling register_rest_routes() directly (the Registry
+		// never fires admin_init under test) both trips WP's
+		// "routes must be registered on rest_api_init" notice and leaves
+		// rest_do_request() dispatching against a server that never saw them, so
+		// every request came back 404.
+		global $wp_rest_server;
+		$wp_rest_server = new \WP_REST_Server();
+		add_action( 'rest_api_init', array( EmbedsTab::instance(), 'register_rest_routes' ) );
+		do_action( 'rest_api_init', $wp_rest_server );
 
 		// Create test users.
 		$this->admin_user_id      = self::factory()->user->create( array( 'role' => 'administrator' ) );
 		$this->subscriber_user_id = self::factory()->user->create( array( 'role' => 'subscriber' ) );
 
 		// Create a test server row directly via the MCPServer Query.
-		$this->server_id = self::factory()->post->create(
-			array( 'post_title' => 'Test MCP Server' )
+		//
+		// This used to call factory()->post->create(), which returns a POST id —
+		// the comment and the code disagreed. The route pattern still matched, so
+		// the request got as far as the handler, which then could not find an MCP
+		// server with that id and returned 404. Every assertion downstream of a
+		// successful call (master toggle persistence, per-DTO blob, transition
+		// actions) failed as a consequence.
+		$this->server_id = (int) MCPServerQuery::instance()->add_item(
+			array(
+				'server_name'            => 'Test MCP Server',
+				'server_slug'            => 'embeds-rest-test',
+				'description'            => 'Fixture for the Embeds REST tests.',
+				'is_enabled'             => 1,
+				'registered_from'        => 'database',
+				'server_route_namespace' => 'mcp',
+				'server_route'           => 'embeds-rest-test',
+				'server_version'         => 'v1.0.0',
+			)
 		);
 	}
 
 	protected function tearDown(): void {
+		// Drop the REST server so the next test builds its own.
+		global $wp_rest_server;
+		$wp_rest_server = null;
+
 		ServerMetaQuery::delete_by_server_id( $this->server_id );
 		AbstractEmbedTransport::flush_cache();
 		parent::tearDown();

@@ -19,6 +19,7 @@ use AcrossAI_MCP_Manager\Admin\Partials\Settings;
 use AcrossAI_MCP_Manager\Includes\Database\MCPServer\Query as MCPServerQuery;
 use AcrossAI_MCP_Manager\Includes\Utilities\AdminPageSlugs;
 use WP_UnitTestCase;
+use AcrossAI_MCP_Manager\Includes\Database\MCPServer\DefaultServerSeeder;
 
 // phpcs:disable Squiz.Commenting.FunctionComment.Missing -- descriptive names.
 
@@ -53,6 +54,12 @@ class SettingsPermissionOverrideSaveTest extends WP_UnitTestCase {
 	public function tearDown(): void {
 		$this->reset_super_globals();
 		$this->truncate_tables();
+		// TRUNCATE implicitly COMMITs in MySQL, so it escapes WP_UnitTestCase's
+		// per-test transaction rollback and permanently removes the default
+		// server row that tests/bootstrap-wp.php seeds via Activator::activate().
+		// Restore it, or every later test (and later suite — they share one DB)
+		// sees a table with no seeded server.
+		DefaultServerSeeder::seed();
 		parent::tearDown();
 	}
 
@@ -67,14 +74,14 @@ class SettingsPermissionOverrideSaveTest extends WP_UnitTestCase {
 		$_POST['acrossai_mcp_manager_permission_override_nonce'] = 'invalid-nonce-1234';
 		$_REQUEST                                                = array_merge( $_GET, $_POST );
 
-		add_filter( 'wp_die_handler', array( $this, 'get_wp_die_handler' ) );
+		add_filter( 'wp_die_handler', array( $this, 'throwing_wp_die_handler' ) );
 		try {
 			Settings::instance()->handle_actions();
 			$this->fail( 'handle_actions() must wp_die on bad nonce.' );
 		} catch ( \WPDieException $e ) {
 			$this->assertNotEmpty( $e->getMessage() );
 		}
-		remove_filter( 'wp_die_handler', array( $this, 'get_wp_die_handler' ) );
+		remove_filter( 'wp_die_handler', array( $this, 'throwing_wp_die_handler' ) );
 
 		// DB assert — the flag MUST still be 0.
 		$row = MCPServerQuery::instance()->query( array( 'id' => $this->server_id, 'number' => 1 ) )[0];
@@ -97,20 +104,25 @@ class SettingsPermissionOverrideSaveTest extends WP_UnitTestCase {
 		$_POST['acrossai_mcp_manager_permission_override_nonce'] = $nonce;
 		$_REQUEST                                                = array_merge( $_GET, $_POST );
 
-		add_filter( 'wp_die_handler', array( $this, 'get_wp_die_handler' ) );
+		add_filter( 'wp_die_handler', array( $this, 'throwing_wp_die_handler' ) );
 		try {
 			Settings::instance()->handle_actions();
 			$this->fail( 'handle_actions() must wp_die when user lacks manage_options.' );
 		} catch ( \WPDieException $e ) {
 			$this->assertNotEmpty( $e->getMessage() );
 		}
-		remove_filter( 'wp_die_handler', array( $this, 'get_wp_die_handler' ) );
+		remove_filter( 'wp_die_handler', array( $this, 'throwing_wp_die_handler' ) );
 
 		$row = MCPServerQuery::instance()->query( array( 'id' => $this->server_id, 'number' => 1 ) )[0];
 		$this->assertSame( 0, (int) $row->override_abilities_permission, 'Missing cap MUST NOT permit a DB write.' );
 	}
 
-	public function get_wp_die_handler(): callable {
+	/**
+	 * Deliberately NOT named get_wp_die_handler(): that collides with
+	 * WP_UnitTestCase_Base::get_wp_die_handler( $handler ), whose signature
+	 * takes an argument, and PHP fatals on the incompatible declaration.
+	 */
+	public function throwing_wp_die_handler(): callable {
 		return static function ( $message ): void {
 			throw new \WPDieException( is_string( $message ) ? $message : 'wp_die called' );
 		};

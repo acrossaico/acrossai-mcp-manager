@@ -16,7 +16,9 @@ class ServersEndpointTest extends WP_UnitTestCase {
 
 	public function setUp(): void {
 		parent::setUp();
-		MCPServerQuery::maybe_create_table();
+		// Tables already exist: tests/bootstrap-wp.php runs Activator::activate().
+		// The Query::maybe_create_table() wrappers previously called here were
+		// deleted by F011's BerlinDB migration.
 		unset( $_SERVER['HTTP_AUTHORIZATION'] );
 	}
 
@@ -36,7 +38,7 @@ class ServersEndpointTest extends WP_UnitTestCase {
 	}
 
 	private function seed_server( string $slug, int $enabled = 1, string $name = 'Server', string $route = 'route' ): int {
-		return (int) ( new MCPServerQuery() )->add_item(
+		return (int) MCPServerQuery::instance()->add_item(
 			array(
 				'server_name'             => $name,
 				'server_slug'             => $slug,

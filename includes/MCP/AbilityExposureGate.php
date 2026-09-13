@@ -83,12 +83,15 @@ final class AbilityExposureGate {
 	 *                                                already returned by an earlier
 	 *                                                priority callback).
 	 * @param string                       $tool_name The MCP tool name (== ability slug).
-	 * @param mixed                        $mcp_tool  Vendor McpTool instance (unused).
+	 * @param mixed                        $mcp_tool  Vendor McpTool instance. Load-bearing:
+	 *                                                resolve_ability() reads the ability name
+	 *                                                the vendor reports for this tool, which is
+	 *                                                how F017 matches a renamed tool back to
+	 *                                                its ability.
 	 * @param \WP\MCP\Core\McpServer|mixed $server    Vendor McpServer instance.
 	 * @return array<mixed>|\WP_Error Original `$args` on allow / fail-open; WP_Error on deny.
 	 */
 	public function gate_tool_call_by_exposure( $args, string $tool_name, $mcp_tool, $server ) {
-		unset( $mcp_tool );
 
 		// Propagate an earlier-priority WP_Error unchanged — F017 never
 		// overrides an F015 deny with an allow.
