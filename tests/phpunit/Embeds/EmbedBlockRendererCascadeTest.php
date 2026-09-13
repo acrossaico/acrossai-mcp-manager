@@ -69,6 +69,23 @@ final class EmbedBlockRendererCascadeTest extends WP_UnitTestCase {
 		);
 	}
 
+
+	/**
+	 * DTOs the renderer would consider for a category — used only to make a
+	 * render failure name its own cause.
+	 *
+	 * @param string $category Transport key.
+	 * @return array<int, array<string, mixed>>
+	 */
+	private function dtos_for( string $category ): array {
+		foreach ( AbstractEmbedTransport::get_all_registered_transports() as $transport ) {
+			if ( $transport->get_transport_key() === $category ) {
+				return $transport->get_dtos();
+			}
+		}
+		return array();
+	}
+
 	protected function tearDown(): void {
 		ServerMetaQuery::delete_by_server_id( $this->server_id );
 		AbstractEmbedTransport::flush_cache();
@@ -280,22 +297,6 @@ final class HostileEmbedTransport extends AbstractEmbedTransport {
 				'icon' => '',
 			),
 		);
-	}
-
-	/**
-	 * DTOs the renderer would consider for a category — used only to make a
-	 * render failure name its own cause.
-	 *
-	 * @param string $category Transport key.
-	 * @return array<int, array<string, mixed>>
-	 */
-	private function dtos_for( string $category ): array {
-		foreach ( AbstractEmbedTransport::get_all_registered_transports() as $transport ) {
-			if ( $transport->get_transport_key() === $category ) {
-				return $transport->get_dtos();
-			}
-		}
-		return array();
 	}
 
 }
