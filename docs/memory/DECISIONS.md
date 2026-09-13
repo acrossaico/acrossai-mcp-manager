@@ -2866,3 +2866,61 @@ apps through `wp_localize_script()`; the JS literals are boot-time fallbacks for
 - `src/js/tools.js` — `poolAbilities`, where the union is, and why `abilities` stays unfiltered.
 - `B58` — the enforcement-gate bug whose fix depends on the exemption above.
 - `D48` — sibling rule on preserving extension surfaces through subtractive UI changes.
+
+---
+
+### 2026-09-13 - DEC-F089-REGISTER-ABILITY-ARGS-CONTRIBUTES-SCHEMA
+
+**Status**
+Active — extends `D25` (`DEC-F026-WP-REGISTER-ABILITY-ARGS-CALLBACK-SWAP`).
+
+**Why this is durable**
+`D25` established `wp_register_ability_args` as the way to rebind a vendor ability's
+callbacks *while keeping the vendor's schema intact*. F089 needed the opposite for one
+ability and found the same filter is the right seam for that too: it may contribute
+`input_schema`, `output_schema` and `description`, not only callbacks.
+
+This matters because the vendor MCP adapter exposes **no** filter over
+`mcp-adapter/discover-abilities`' args, result or schema. Core's filter is the only seam,
+and using it keeps the change fork-free across a `wordpress/mcp-adapter` bump.
+
+**Decision**
+When a vendor ability needs parameters it was not registered with, contribute the schema
+through `wp_register_ability_args` alongside the callback swap. Three requirements:
+
+1. **Merge, never replace, the output schema.** Vendor keys — and anything another filter
+   already contributed — must survive. F089's `discover_output_schema( array $existing )`
+   takes the current schema and adds to its `properties`.
+2. **Guard for idempotency.** The filter fires on *every* registration of a slug, and third
+   parties re-register vendor abilities wholesale — the competitor plugin Novamira
+   unregisters and re-registers `mcp-adapter/discover-abilities` outright. F089 bails when
+   `isset( $args['input_schema']['properties']['per_page'] )`.
+3. **Single source of truth for advertised limits.** The schema reads
+   `Discover::PER_PAGE_DEFAULT` / `PER_PAGE_MAXIMUM` so the documented default cannot drift
+   from the enforced one.
+
+Corollary to `D24`: caller-supplied filtering runs **after** the exposure gate, never before.
+Order inside the callback is collect → exposure gate → filter → count → slice, so no search
+term can surface an ability the per-server F017/F020 policy hides, and the pre-slice count
+keeps `has_more` honest.
+
+**Tradeoffs**
+- Gained: parameters on a vendor ability with no fork, no new ability name, and no client
+  reconfiguration. Survives adapter upgrades.
+- Made harder: two plugins contributing schema for the same slug would now conflict where
+  before they only fought over callbacks — the idempotency guard limits but does not remove
+  this. `B35`'s filter-priority slot map applies here too.
+- Reconsider: if the adapter ever ships its own `discover-abilities` arguments, drop the
+  contribution rather than layering on top of it.
+
+**Related**
+- `D25` — the pattern this extends; `D24` — the enforcement-ordering rule this applies.
+- `B35` — filter-priority slot map for `wp_register_ability_args` consumers.
+- `B59` — the core-API trap that makes the schema mandatory rather than optional.
+
+**Evidence**
+`includes/Abilities/CallbackReplacer.php` (`DISCOVER_ABILITY`, `discover_input_schema()`,
+`discover_output_schema()`, `discover_description()`),
+`includes/Abilities/Discover.php::execute()`,
+`tests/phpunit/Abilities/DiscoverSchemaTest.php` (schema shape, merge, idempotency),
+`docs/planings-tasks/089-discover-abilities-search-pagination.md`, PR #125.
