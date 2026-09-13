@@ -113,8 +113,14 @@ class ControllerToolsInjectionTest extends WP_UnitTestCase {
 
 		$this->assertSame( 'preserve-me', $result['server_id'] );
 		$this->assertSame( 'Preserve me', $result['server_name'] );
-		$this->assertSame( array( 'r/one' ), $result['resources'] );
-		$this->assertSame( array( 'p/one' ), $result['prompts'] );
+		// F026 replaces tools, resources AND prompts unconditionally — see the
+		// rationale block in Controller::filter_default_server_config(). If the
+		// vendor's resource/prompt lists survived, disabling a public ability on
+		// the Abilities tab would be a no-op for the default server. So these
+		// are the plugin's discovery output (empty: this fixture registers no
+		// resource- or prompt-typed abilities), not the incoming values.
+		$this->assertSame( array(), $result['resources'], 'F026: resources are replaced, not preserved.' );
+		$this->assertSame( array(), $result['prompts'], 'F026: prompts are replaced, not preserved.' );
 		$this->assertNotContains( 'vendor/should-be-replaced', $result['tools'] );
 		$this->assertContains( 'mcp-adapter/discover-abilities', $result['tools'] );
 		$this->assertContains( 'mcp-adapter/get-ability-info', $result['tools'] );
