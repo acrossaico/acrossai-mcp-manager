@@ -143,7 +143,19 @@ final class EmbedBlockRendererCascadeTest extends WP_UnitTestCase {
 		$actual = do_shortcode( sprintf( '[acrossai_mcp_embed server="%s" category="%s" slug="%s"]', $this->server_slug, $category, $slug ) );
 
 		if ( $expect_render ) {
-			$this->assertNotSame( '', trim( $actual ), "MUST render for category={$category} slug={$slug} master=" . ( $master ? '1' : '0' ) . " dto=" . ( $dto_enabled ? '1' : '0' ) );
+			// Report which gate actually denied instead of just "two strings are
+			// not identical" — the renderer returns '' from several branches.
+			$diagnostic = sprintf(
+				'category=%s slug=%s master=%s dto=%s | dtos_in_category=%d | slug_present_in_dtos=%s | is_enabled_for_server=%s',
+				$category,
+				$slug,
+				$master ? '1' : '0',
+				$dto_enabled ? '1' : '0',
+				count( $this->dtos_for( $category ) ),
+				in_array( $slug, array_column( $this->dtos_for( $category ), 'slug' ), true ) ? 'yes' : 'no',
+				AbstractEmbedTransport::is_enabled_for_server( $this->server_id, $category, $slug ) ? 'yes' : 'no'
+			);
+			$this->assertNotSame( '', trim( $actual ), "MUST render for {$diagnostic}" );
 		} else {
 			// The server now resolves, so an empty result proves the gate cascade
 			// denied — not that server lookup missed.
@@ -269,4 +281,21 @@ final class HostileEmbedTransport extends AbstractEmbedTransport {
 			),
 		);
 	}
+
+	/**
+	 * DTOs the renderer would consider for a category — used only to make a
+	 * render failure name its own cause.
+	 *
+	 * @param string $category Transport key.
+	 * @return array<int, array<string, mixed>>
+	 */
+	private function dtos_for( string $category ): array {
+		foreach ( AbstractEmbedTransport::get_all_registered_transports() as $transport ) {
+			if ( $transport->get_transport_key() === $category ) {
+				return $transport->get_dtos();
+			}
+		}
+		return array();
+	}
+
 }
