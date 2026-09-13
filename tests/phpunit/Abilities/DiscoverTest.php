@@ -395,13 +395,15 @@ class DiscoverTest extends WP_UnitTestCase {
 		$this->maybe_skip_abilities_api();
 		$this->register_rich_ability( 'discover-hidden/secret', 'Secret', 'desc', 'classified' );
 
+		// The second argument is a WP_Ability, not a name — matching the
+		// signature the sibling exposure tests in this class already use.
 		add_filter(
 			'acrossai_mcp_is_ability_exposed',
-			static function ( $exposed, $ability_name ) {
-				return 'discover-hidden/secret' === $ability_name ? false : $exposed;
+			static function ( $exposed, $ability ) {
+				return 'discover-hidden/secret' === $ability->get_name() ? false : $exposed;
 			},
 			10,
-			2
+			4
 		);
 		ExposureResolver::_reset_cache_for_tests();
 

@@ -59,12 +59,32 @@ class CallbackReplacerTest extends WP_UnitTestCase {
 			'execute_callback'    => '__return_true',
 			'permission_callback' => '__return_true',
 		);
-		$out  = CallbackReplacer::instance()->replace_callbacks( $args, 'mcp-adapter/discover-abilities' );
+		$out  = CallbackReplacer::instance()->replace_callbacks( $args, 'mcp-adapter/get-ability-info' );
 
 		$this->assertSame( 'X', $out['label'] );
 		$this->assertSame( 'Y', $out['description'] );
 		$this->assertSame( 'mcp-adapter', $out['category'] );
 		$this->assertSame( array( 'type' => 'object' ), $out['input_schema'] );
+	}
+
+	/**
+	 * F089 makes discover-abilities the documented exception to the rule above:
+	 * it also receives an input_schema (the vendor registers none, and WP core
+	 * then refuses any input) and a description written for the LLM. Label and
+	 * category are still passed through untouched.
+	 */
+	public function test_discover_abilities_also_receives_schema_and_description(): void {
+		$args = array(
+			'label'       => 'X',
+			'description' => 'Y',
+			'category'    => 'mcp-adapter',
+		);
+		$out  = CallbackReplacer::instance()->replace_callbacks( $args, CallbackReplacer::DISCOVER_ABILITY );
+
+		$this->assertSame( 'X', $out['label'] );
+		$this->assertSame( 'mcp-adapter', $out['category'] );
+		$this->assertNotSame( 'Y', $out['description'], 'F089 replaces the description.' );
+		$this->assertArrayHasKey( 'per_page', $out['input_schema']['properties'] );
 	}
 
 	private function stub_args(): array {
