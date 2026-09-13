@@ -200,33 +200,48 @@ No DB change, no new ability, no vendor edit, no change to `novamira`.
 
 ## Manual Verification Checklist
 
+Run live on `wordpress-7-0.local` against the connected
+`wordpress-7-0-mcp-adapter-default-server` MCP client, 2026-09-13.
+
 ### 1. Quality gates
 ```
-# composer run phpcs:
-# composer run phpstan:
-# phpunit abilities suite (CI):
+# composer run phpcs:                 pass
+# composer run phpstan:               pass
+# phpunit abilities suite (CI):       OK (98 tests, 214 assertions) — was 78 pre-F089
+# all 8 checks on PR #125:            pass
 ```
 
 ### 2. Schema reaches the client
-Enable a server, then `tools/list` on `/wp-json/acrossai/mcp-server`:
+Read back from the MCP client's own tool definition, not from our source:
 ```
-# mcp-adapter-discover-abilities advertises inputSchema? (y/n):
-# all 5 properties present WITH descriptions? (y/n):
-# description mentions the 60 default and has_more? (y/n):
+# mcp-adapter-discover-abilities advertises inputSchema?   yes
+# all 5 properties present WITH descriptions?              yes
+# additionalProperties:false present?                      yes
+# per_page default 60 / maximum 200?                       yes
+# description mentions the 60 default and has_more?        yes
 ```
 
 ### 3. Behaviour
 ```
-# tools/call, no arguments -> count <= 60, has_more correct? (y/n):
-# {"search":"post"} -> narrowed, total = filtered count (not global)? (y/n):
-# {"page":2,"per_page":5} -> correct window, has_more accurate? (y/n):
-# {"namespace":"acrossai"} -> only acrossai/* returned? (y/n):
-# {"bogus":1} -> rejected by additionalProperties:false? (y/n):
+# no arguments -> total 439, returned 60, has_more true    yes
+#   (439 abilities on this site — before F089 every call
+#    returned all 439 in one response)
+# {"search":"permalink"} -> total 10, has_more false       yes
+#   total is the FILTERED count, not the global one;
+#   matched descriptions too (content/get-post)
+# {"namespace":"cache","per_page":3,"page":2}
+#   -> total 7, returned 3, items 4-6, has_more true       yes
+# same at page 3 -> returned 1, has_more false             yes
+# {"category":"acrossai-themes"} -> total 7, exact match   yes
+# {"per_page":500} -> rejected by core:                    yes
+#   'input[per_page] must be between 1 (inclusive) and 200
+#    (inclusive)' — an error an LLM can self-correct from.
+#   Same validator enforces additionalProperties:false.
 ```
 
 ### 4. Exposure gate still wins
-```
-# hide an ability on the server's Abilities tab
-# search for it by name -> absent? (y/n):
-# request it by its category -> absent? (y/n):
-```
+Covered by CI rather than by hand — `DiscoverTest::
+test_hidden_ability_is_unreachable_through_any_criterion` asserts a
+gate-hidden ability is absent for `search`, `category`, `namespace` and the
+unfiltered call. Doing it live needs a per-server Abilities-tab toggle, and the
+default server used above is not the surface that carries those overrides.
