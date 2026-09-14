@@ -19,7 +19,8 @@
 
 namespace AcrossAI_MCP_Manager\Admin\Partials;
 
-use AcrossAI_MCP_Manager\Includes\Utilities\AdminPageSlugs;
+use AcrossAI_MCP_Manager\Includes\Abilities\Discover;
+
 use AcrossAI_MCP_Manager\Public\Partials\FrontendAuth;
 
 // Exit if accessed directly.
@@ -72,6 +73,14 @@ class SettingsMenu {
 	 * @var string
 	 */
 	public const TAB_SLUG = 'mcp';
+
+	/**
+	 * Option holding the default page size for `mcp-adapter/discover-abilities`.
+	 *
+	 * Swept on uninstall by the `acrossai_mcp_%` prefix rule in uninstall.php —
+	 * no explicit delete_option() needed.
+	 */
+	public const DISCOVER_PER_PAGE_OPTION = 'acrossai_mcp_discover_per_page';
 
 	/**
 	 * Registers the "MCP" tab on the shared AcrossAI Settings page.
@@ -134,18 +143,6 @@ class SettingsMenu {
 		// list".
 		$option_group = $page_slug;
 
-		// Sub-nav — three-item tab strip (Servers / Settings / Quick Connect via AcrossAI)
-		// rendered at the top of the MCP tab body. Registered as a section so
-		// it lives inside do_settings_sections's output and inherits the same
-		// tab-scoped page-slug lifecycle as the real settings sections below.
-		// Empty title suppresses the <h2>; the callback outputs the nav bar.
-		add_settings_section(
-			'acrossai_mcp_subnav_section',
-			'',
-			array( $this, 'render_subnav' ),
-			$page_slug
-		);
-
 		// npm / CLI login toggle.
 		register_setting(
 			$option_group,
@@ -153,6 +150,18 @@ class SettingsMenu {
 			array(
 				'sanitize_callback' => 'rest_sanitize_boolean',
 				'default'           => false,
+			)
+		);
+
+		// F089 — discover-abilities page size. Bounded by the same 1..200 range
+		// the ability's own input_schema advertises, so the admin cannot set a
+		// default the schema would then reject.
+		register_setting(
+			$option_group,
+			self::DISCOVER_PER_PAGE_OPTION,
+			array(
+				'sanitize_callback' => array( $this, 'sanitize_discover_per_page' ),
+				'default'           => Discover::PER_PAGE_DEFAULT,
 			)
 		);
 
@@ -182,6 +191,22 @@ class SettingsMenu {
 			'acrossai_mcp_npm_section'
 		);
 
+		// Section: Ability Discovery.
+		add_settings_section(
+			'acrossai_mcp_discovery_section',
+			__( 'Ability Discovery', 'acrossai-mcp-manager' ),
+			array( $this, 'render_discovery_section_description' ),
+			$page_slug
+		);
+
+		add_settings_field(
+			self::DISCOVER_PER_PAGE_OPTION,
+			__( 'Abilities per page', 'acrossai-mcp-manager' ),
+			array( $this, 'render_discover_per_page_field' ),
+			$page_slug,
+			'acrossai_mcp_discovery_section'
+		);
+
 		// Section: Uninstall Settings.
 		add_settings_section(
 			'acrossai_mcp_uninstall_section',
@@ -196,48 +221,6 @@ class SettingsMenu {
 			array( $this, 'render_uninstall_field' ),
 			$page_slug,
 			'acrossai_mcp_uninstall_section'
-		);
-	}
-
-	/**
-	 * Renders the three-item sub-nav (Servers / Settings / Quick Connect via AcrossAI) at
-	 * the top of the MCP tab body on the shared AcrossAI Settings page.
-	 *
-	 * Uses WP admin's native `.nav-tab-wrapper` / `.nav-tab` markup so the
-	 * strip looks like every other tabbed admin surface. The scoped inline
-	 * <style> hides the empty <table class="form-table"> that WP always
-	 * emits for a field-less section — cheaper than a stylesheet enqueue
-	 * for a two-line rule.
-	 *
-	 * Servers + Quick Connect via AcrossAI are outbound links to the plugin's own admin
-	 * pages; Settings is the current page (rendered as nav-tab-active).
-	 *
-	 * @since 0.2.13
-	 * @return void
-	 */
-	public function render_subnav(): void {
-		$servers_url       = admin_url( 'admin.php?page=' . AdminPageSlugs::PARENT );
-		$settings_url      = admin_url(
-			'admin.php?page=' . \AcrossAI_Main_Menu\SettingsPage::SETTINGS_SLUG
-			. '&tab=' . self::TAB_SLUG
-		);
-		$quick_connect_url = admin_url(
-			'admin.php?page=' . AdminPageSlugs::PARENT . '&quick-connect=1&step=1'
-		);
-
-		printf(
-			'<nav class="nav-tab-wrapper acrossai-mcp-settings-subnav" style="margin: 0 0 20px;">'
-			. '<a href="%1$s" class="nav-tab">%2$s</a>'
-			. '<a href="%3$s" class="nav-tab nav-tab-active">%4$s</a>'
-			. '<a href="%5$s" class="nav-tab">%6$s</a>'
-			. '</nav>'
-			. '<style>#acrossai_mcp_subnav_section + .form-table:empty { display: none; }</style>',
-			esc_url( $servers_url ),
-			esc_html__( 'Servers', 'acrossai-mcp-manager' ),
-			esc_url( $settings_url ),
-			esc_html__( 'Settings', 'acrossai-mcp-manager' ),
-			esc_url( $quick_connect_url ),
-			esc_html__( 'Quick Connect via AcrossAI', 'acrossai-mcp-manager' )
 		);
 	}
 
@@ -289,6 +272,89 @@ class SettingsMenu {
 	 */
 	public function sanitize_uninstall_flag( $value ): int {
 		return empty( $value ) ? 0 : 1;
+	}
+
+	/**
+	 * Explains what the page size buys, in the terms that actually matter to
+	 * the operator — context tokens spent on the agent's first orientation call.
+	 *
+	 * @since 0.3.5
+	 * @return void
+	 */
+	public function render_discovery_section_description(): void {
+		printf(
+			'<p>%s</p>',
+			esc_html__(
+				'How many abilities mcp-adapter/discover-abilities returns per call. This is the first tool most AI agents call, so its response is paid for out of the model\'s context window on every new conversation.',
+				'acrossai-mcp-manager'
+			)
+		);
+	}
+
+	/**
+	 * Number input for the discover-abilities page size.
+	 *
+	 * @since 0.3.5
+	 * @return void
+	 */
+	public function render_discover_per_page_field(): void {
+		$value = (int) get_option( self::DISCOVER_PER_PAGE_OPTION, Discover::PER_PAGE_DEFAULT );
+
+		printf(
+			'<input type="number" id="%1$s" name="%1$s" value="%2$s" min="1" max="%3$s" step="1" class="small-text" />',
+			esc_attr( self::DISCOVER_PER_PAGE_OPTION ),
+			esc_attr( (string) $value ),
+			esc_attr( (string) Discover::PER_PAGE_MAXIMUM )
+		);
+
+		printf(
+			' <span class="description">%s</span>',
+			esc_html(
+				sprintf(
+					/* translators: 1: default page size, 2: maximum page size */
+					__( 'Default %1$d, maximum %2$d.', 'acrossai-mcp-manager' ),
+					Discover::PER_PAGE_DEFAULT,
+					Discover::PER_PAGE_MAXIMUM
+				)
+			)
+		);
+
+		// Measured on a real install: a name/label/description/category entry
+		// averages ~320 bytes, so ~80 tokens. Showing the cost of the CURRENT
+		// setting beats asking an operator to guess at an abstract number.
+		$estimated_tokens = (int) round( $value * 80 );
+
+		// Deliberately NOT showing "this site exposes N abilities". Most
+		// providers register their abilities only during an MCP/REST request,
+		// so a count taken here in wp-admin reads 6 on a site whose MCP client
+		// sees 439 — a confidently wrong number is worse than none.
+		$note = sprintf(
+			/* translators: 1: page size, 2: estimated tokens */
+			__( 'About %1$d abilities ≈ %2$s tokens per call, at roughly 80 tokens each. Agents should narrow with search, category or namespace rather than paging through everything.', 'acrossai-mcp-manager' ),
+			$value,
+			number_format_i18n( $estimated_tokens )
+		);
+
+		printf( '<p class="description">%s</p>', esc_html( $note ) );
+	}
+
+	/**
+	 * Clamp the submitted page size into the range the ability's input_schema
+	 * advertises. An out-of-range default would be rejected by core at call
+	 * time, which the operator would only discover through a failing agent.
+	 *
+	 * @since 0.3.5
+	 * @param mixed $value Raw submitted value.
+	 * @return int
+	 */
+	public function sanitize_discover_per_page( $value ): int {
+		$per_page = (int) $value;
+
+		if ( $per_page < 1 ) {
+			return Discover::PER_PAGE_DEFAULT;
+		}
+
+		return min( Discover::PER_PAGE_MAXIMUM, $per_page );
 	}
 
 	/**

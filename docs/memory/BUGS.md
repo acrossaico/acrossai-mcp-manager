@@ -2543,3 +2543,68 @@ identifier):
   `includes/MCP/ToolExposureGate.php::is_added()` — the two gates, now sharing one resolution order.
 - `D56` — the tool-level exemption this fix depends on; without it, repairing the gate takes every
   connected MCP client down.
+
+---
+
+### 2026-09-13 — Adding a parameter to an ability with no `input_schema` fails twice, both silently
+
+**Status**
+Active (Feature 089 — `mcp-adapter/discover-abilities` search + pagination, PR #125).
+
+**Symptoms**
+Two distinct failures, neither of which announces itself.
+
+*Before you add a schema:* a callback that declares `$input` can never receive one. WP core
+gates it twice — `WP_Ability::validate_input()` returns
+`WP_Error( 'ability_missing_input_schema' )` for **any** non-null input when the ability
+registers no `input_schema`, and `WP_Ability::invoke_callback()` only appends `$input` to the
+callback arguments when a schema exists:
+
+```php
+// wp-includes/abilities-api/class-wp-ability.php:519-546
+if ( empty( $input_schema ) ) {
+    if ( null === $input ) { return true; }
+    return new WP_Error( 'ability_missing_input_schema', … );
+}
+
+// :585-590
+if ( ! empty( $this->get_input_schema() ) ) { $args[] = $input; }
+```
+
+The tell is a callback whose parameter is immediately discarded. F089 found exactly that in
+`Discover::execute()`:
+
+```php
+public static function execute( $input = array() ): array {
+    unset( $input );   // not laziness — input could never arrive
+```
+
+*After you add a schema:* every existing zero-argument caller breaks. `validate_input( null )`
+now runs against a non-empty schema and fails, and `normalize_input()` applies **only the
+top-level** `default`. Per-property `default`s are never applied by core at all.
+
+**Prevention**
+- Adding parameters to a vendor ability means adding `input_schema`. There is no other route —
+  no filter on the callback side can smuggle arguments past `validate_input()`.
+- Put `'default' => array()` on the **schema root**. Without it the first zero-argument call
+  after your change returns `ability_invalid_input`.
+- Apply per-property defaults inside the callback. Declaring `default` on a property documents
+  it for the LLM reading `tools/list`; it does not populate anything.
+- Treat `unset( $param );` at the top of any callback as a question, not a convention. The same
+  idiom produced the F017 gate bug fixed in PR #124, where `unset( $mcp_tool )` was followed 35
+  lines later by a use of `$mcp_tool`.
+
+**Grep gate**
+`wp_register_ability` arg sets with no `input_schema` key whose `execute_callback` declares a
+parameter; and `unset( $` as the first statement of any ability callback.
+
+**Evidence**
+`includes/Abilities/CallbackReplacer.php::discover_input_schema()` (root `default`),
+`includes/Abilities/Discover.php::execute()` + `resolve_pagination()` (callback-side defaults),
+`tests/phpunit/Abilities/DiscoverSchemaTest.php::test_root_default_keeps_zero_argument_calls_valid`
+and `DiscoverTest::test_zero_argument_call_still_returns_every_visible_ability` — the
+back-compat guard that would have caught this.
+
+**Related**
+- `D25` — the callback-swap pattern this extends.
+- `D57` — the decision that schema contribution belongs on the same filter.

@@ -124,9 +124,9 @@ class Menu {
 	 * @return array<int|string, string> Modified links.
 	 */
 	public function plugin_action_links( $links ): array {
-		// Settings link now targets the shared AcrossAI Settings page with the
-		// MCP tab preselected. The tab body's sub-nav (Servers / Settings /
-		// Quick Connect via AcrossAI) lives in SettingsMenu::render_subnav.
+		// Settings link targets the shared AcrossAI Settings page with the MCP
+		// tab preselected. Servers and Quick Connect are reached from the
+		// AcrossAI admin menu; the tab body no longer carries a sub-nav.
 		$settings_url  = esc_url(
 			admin_url(
 				'admin.php?page=' . SettingsPage::SETTINGS_SLUG
