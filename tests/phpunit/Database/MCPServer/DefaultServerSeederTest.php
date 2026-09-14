@@ -88,7 +88,7 @@ class DefaultServerSeederTest extends WP_UnitTestCase {
 		$this->assertNotNull( $row, 'Activation must seed the AcrossAI managed row.' );
 		$this->assertSame( 'AcrossAI', $row['server_name'] );
 		$this->assertSame( 'acrossai', $row['server_route_namespace'] );
-		$this->assertSame( 'mcp-server', $row['server_route'] );
+		$this->assertSame( 'mcp', $row['server_route'] );
 		$this->assertSame( 'v1.0.0', $row['server_version'] );
 
 		// Must be 'database', not 'plugin' — MCP\Controller only registers
@@ -165,7 +165,7 @@ class DefaultServerSeederTest extends WP_UnitTestCase {
 
 		$row = $this->row( DefaultServerSeeder::ACROSSAI_SLUG );
 		$this->assertSame( 'AcrossAI', $row['server_name'] );
-		$this->assertSame( 'mcp-server', $row['server_route'] );
+		$this->assertSame( 'mcp', $row['server_route'] );
 	}
 
 	/**

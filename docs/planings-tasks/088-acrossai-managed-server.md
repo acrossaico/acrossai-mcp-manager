@@ -1,6 +1,6 @@
 # Planning: Ship a second plugin-managed "AcrossAI" MCP server (Feature 088)
 
-Add an AcrossAI-branded MCP server at route `acrossai/mcp-server` that every
+Add an AcrossAI-branded MCP server at route `acrossai/mcp` that every
 install gets automatically — fresh activations **and** in-place plugin updates —
 seeded Inactive, badged **Recommended**, pinned first in the servers list and in
 the Quick Connect Step 1 picker, and impossible to edit or delete.
@@ -247,7 +247,7 @@ is the oracle, as for every other WP-dependent suite in this repo.
 3. **Edit page** — Overview / Connect / Tools / Abilities / Access Control / Logs
    only; no Update Server, no Danger Zone. An operator-created server still shows
    both tabs.
-4. **Endpoint live when enabled** — `GET`/`POST /wp-json/acrossai/mcp-server`
+4. **Endpoint live when enabled** — `GET`/`POST /wp-json/acrossai/mcp`
    returns **401** (registered, auth-required) while a bogus sibling route under
    the same namespace returns **404**, proving the `'database'` choice registers
    it via `MCP\Controller::register_database_servers()`.
@@ -258,3 +258,19 @@ is the oracle, as for every other WP-dependent suite in this repo.
 A protected row mints no delete nonce anywhere in the UI, so the server-side
 delete guard has no reachable hand-crafted-URL path to exercise manually; it is
 covered by the PHPUnit tests above.
+
+---
+
+## Amendment — 2026-09-14: route shortened to `acrossai/mcp`
+
+The route was originally seeded as `mcp-server`, rendering as `acrossai/mcp-server` —
+which stutters inside a namespace that already says `acrossai`. Shortened to `mcp`.
+
+The slug is unchanged (`acrossai-mcp-server`): `DefaultServerSeeder` keys its definitions
+by slug, so renaming that would seed a second row and orphan the first rather than rename
+anything.
+
+No migration was needed. `server_route` sits in the `managed` bucket, so changing the
+definition *is* the migration — `seed()` diffs it against the stored row and issues the
+UPDATE on the next admin request. The verification numbers above were taken before this
+change; the endpoint is now `/wp-json/acrossai/mcp` and the old path 404s.
