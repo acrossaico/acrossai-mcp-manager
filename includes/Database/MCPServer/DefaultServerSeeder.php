@@ -92,7 +92,11 @@ final class DefaultServerSeeder {
 					'description'            => __( 'Recommended AcrossAI MCP server, managed by the plugin.', 'acrossai-mcp-manager' ),
 					'registered_from'        => 'database',
 					'server_route_namespace' => 'acrossai',
-					'server_route'           => 'mcp-server',
+					// Route only — the slug stays `acrossai-mcp-server`. This lives in
+					// the `managed` bucket, so changing it here IS the migration: seed()
+					// diffs it against the stored row and issues the UPDATE on the next
+					// admin request. No schema change, no Table::$version bump.
+					'server_route'           => 'mcp',
 					'server_version'         => 'v1.0.0',
 				),
 				'initial' => array(
