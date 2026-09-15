@@ -598,6 +598,16 @@ function ToolsApp( { serverId } ) {
 	// the operator's selection. It now restores this server's TYPE's set.
 	const applyReset = () => {
 		const prev = new Set( added );
+
+		// Restoring a type's defaults means the server ACTUALLY serves them.
+		// If a coarse rule is in force it would override the set we just wrote,
+		// so Reset clears the rule first — otherwise the operator presses
+		// "Reset to Type Defaults" and nothing they can see changes, which is
+		// the same class of bug FR-012a fixes for a type switch.
+		if ( toolsPolicy !== 'per-tool' ) {
+			persistPolicy( 'per-tool' );
+		}
+
 		persistSet( new Set( typeTools ), prev );
 	};
 	const openResetDialog = () => setPendingReset( true );
@@ -824,8 +834,14 @@ function ToolsApp( { serverId } ) {
 					{
 						variant: 'secondary',
 						size: 'compact',
-						disabled: saving || toolsPolicy === 'per-tool',
-						onClick: () => persistPolicy( 'per-tool' ),
+						// Deliberately NOT disabled on `per-tool`, unlike the
+						// other two. The Abilities tab's equivalent only flips a
+						// rule, so offering it in its own state is a no-op. This
+						// one ALSO rewrites the tool set to the type's, which is
+						// meaningful whatever the current rule — it is the defect
+						// this whole feature exists to fix.
+						disabled: saving,
+						onClick: openResetDialog,
 					},
 					__( 'Reset to Type Defaults', 'acrossai-mcp-manager' ),
 				),
@@ -1060,43 +1076,6 @@ function ToolsApp( { serverId } ) {
 							},
 							String( added.size ),
 						),
-					),
-					// F090 (T049) — bulk bar matching the Abilities tab's
-					// Enable All / Disable All / Reset to Ability Defaults.
-					// "Reset to Type Defaults" differs by design: for tools the
-					// baseline is the server TYPE's set, not each tool's own
-					// default.
-					createElement(
-						'div',
-						{ style: { display: 'flex', gap: '6px', flexWrap: 'wrap' } },
-						createElement( Button, {
-							variant: 'secondary',
-							isSmall: true,
-							disabled: saving || toolsPolicy === 'all',
-							onClick: () => setPendingBulk( 'all' ),
-							children: __( 'Add All', 'acrossai-mcp-manager' ),
-						} ),
-						createElement( Button, {
-							variant: 'secondary',
-							isSmall: true,
-							isDestructive: true,
-							disabled: saving || toolsPolicy === 'none',
-							onClick: () => setPendingBulk( 'none' ),
-							children: __( 'Remove All', 'acrossai-mcp-manager' ),
-						} ),
-						createElement( Button, {
-							variant: 'secondary',
-							isSmall: true,
-							onClick: openResetDialog,
-							// F025: Reset is always meaningful — even when the
-							// pane looks default, it clears invisible curated
-							// rows and re-affirms the protocol columns.
-							disabled: saving,
-							children: __(
-								'Reset to Type Defaults',
-								'acrossai-mcp-manager',
-							),
-						} ),
 					),
 				),
 				createElement(
