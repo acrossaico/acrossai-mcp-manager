@@ -35,6 +35,7 @@ import apiFetch from '@wordpress/api-fetch';
 import { __, _n, sprintf } from '@wordpress/i18n';
 import { applyFilters } from '@wordpress/hooks';
 import { useSelect } from '@wordpress/data';
+import '../scss/tools.scss';
 
 /**
  * The three MCP protocol slugs — mirror of PHP-side
@@ -756,58 +757,79 @@ function ToolsApp( { serverId } ) {
 			)
 			: null,
 
-		// F090 (T050) — the standing-rule pill, mirroring the Abilities tab's
-		// "Default policy: …" panel. States BOTH what the rule does now AND —
-		// per SEC-008 — that 'all' accepts tools registered LATER. That second
-		// sentence is the forward-consent warning; without it an operator can
-		// enable future tools sight-unseen.
+		// F090 (T050) — the standing tool-rule panel. Deliberately the SAME
+		// markup and styling as the Abilities tab's default-policy panel
+		// (`acrossai-mcp-abilities-policy`), because it is the same idea: a
+		// standing rule that overrides individual selection. The shared SCSS
+		// mixin means the two cannot drift apart visually.
+		//
+		// Like that panel, the button matching the CURRENT rule is disabled —
+		// clicking it would be a silent no-op, so offering it would mislead.
 		createElement(
 			'div',
-			{
-				style: {
-					display: 'flex',
-					alignItems: 'center',
-					gap: '8px',
-					margin: '0 0 12px',
-					flexWrap: 'wrap',
-				},
-			},
+			{ className: 'acrossai-mcp-tools-policy' },
 			createElement(
-				'span',
-				{
-					className: 'acrossai-policy-pill',
-					style: {
-						border: '1px solid #2271b1',
-						borderRadius: '999px',
-						padding: '2px 10px',
-						fontSize: '12px',
-						fontWeight: 600,
+				'div',
+				{ className: 'acrossai-mcp-tools-policy__status' },
+				createElement(
+					'span',
+					{
+						className:
+							'acrossai-mcp-tools-policy__pill is-policy-' + toolsPolicy,
+						role: 'status',
+						'aria-live': 'polite',
 					},
-				},
-				POLICY_PILL_LABEL[ toolsPolicy ] || POLICY_PILL_LABEL[ 'per-tool' ],
+					POLICY_PILL_LABEL[ toolsPolicy ] || POLICY_PILL_LABEL[ 'per-tool' ],
+				),
+				createElement(
+					'p',
+					{ className: 'description acrossai-mcp-tools-policy__counter' },
+					POLICY_PILL_DESCRIPTION[ toolsPolicy ] ||
+						sprintf(
+							/* translators: 1: tools added, 2: tools available. */
+							__(
+								'%1$d of %2$d tools added — rule: choose individually.',
+								'acrossai-mcp-manager',
+							),
+							added.size,
+							totalPool,
+						),
+				),
 			),
 			createElement(
-				'span',
-				{ className: 'description' },
-				POLICY_PILL_DESCRIPTION[ toolsPolicy ] ||
-						sprintf(
-							/* translators: %d: number of tools currently added. */
-							__( '%d tool(s) added individually.', 'acrossai-mcp-manager' ),
-							added.size,
-						),
+				'div',
+				{ className: 'acrossai-mcp-tools-policy__actions' },
+				createElement(
+					Button,
+					{
+						variant: 'secondary',
+						size: 'compact',
+						disabled: saving || toolsPolicy === 'all',
+						onClick: () => setPendingBulk( 'all' ),
+					},
+					__( 'Add All', 'acrossai-mcp-manager' ),
+				),
+				createElement(
+					Button,
+					{
+						variant: 'secondary',
+						size: 'compact',
+						disabled: saving || toolsPolicy === 'none',
+						onClick: () => setPendingBulk( 'none' ),
+					},
+					__( 'Remove All', 'acrossai-mcp-manager' ),
+				),
+				createElement(
+					Button,
+					{
+						variant: 'secondary',
+						size: 'compact',
+						disabled: saving || toolsPolicy === 'per-tool',
+						onClick: () => persistPolicy( 'per-tool' ),
+					},
+					__( 'Reset to Type Defaults', 'acrossai-mcp-manager' ),
+				),
 			),
-			toolsPolicy !== 'per-tool'
-				? createElement( Button, {
-					variant: 'link',
-					isSmall: true,
-					disabled: saving,
-					onClick: () => persistPolicy( 'per-tool' ),
-					children: __(
-						'Return to choosing individually',
-						'acrossai-mcp-manager',
-					),
-				} )
-				: null,
 		),
 
 		// F090 — when what the server SERVES differs from what is CONFIGURED,
