@@ -13,6 +13,7 @@ use AcrossAI_MCP_Manager\Includes\Database\MCPServer\DefaultServerSeeder;
 use AcrossAI_MCP_Manager\Includes\Database\MCPServer\ProtectedServers;
 use AcrossAI_MCP_Manager\Includes\Database\MCPServer\Query;
 use AcrossAI_MCP_Manager\Includes\Database\MCPServer\ServerEnablement;
+use AcrossAI_MCP_Manager\Includes\Database\MCPServer\ServerTypes;
 use AcrossAI_MCP_Manager\Includes\Utilities\AdminPageSlugs;
 use AcrossAI_MCP_Manager\Includes\Utilities\MCPServerFieldSanitizer;
 
@@ -379,6 +380,17 @@ class Settings {
 			$route = $slug;
 		}
 
+		// F090 (SEC-001) — write server_type EXPLICITLY. A row that falls through
+		// to the column default takes the legacy type rather than the operator's
+		// selection, and the enablement gate then evaluates a type they never
+		// chose. Validated against the registry: an unregistered value (forged
+		// POST, stale form) degrades to the registry default, never persists.
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- check_admin_referer( 'acrossai_mcp_create_server' ) ran in handle_actions() before dispatch.
+		$submitted_type = isset( $_POST['server_type'] ) ? sanitize_key( wp_unslash( $_POST['server_type'] ) ) : '';
+		$server_type    = ( '' !== $submitted_type && null !== ServerTypes::get( $submitted_type ) )
+			? $submitted_type
+			: ServerTypes::default_slug();
+
 		$new_id = $query->add_item(
 			array(
 				'server_name'            => $name,
@@ -389,6 +401,7 @@ class Settings {
 				'server_route_namespace' => $namespace,
 				'server_route'           => $route,
 				'server_version'         => $version,
+				'server_type'            => $server_type,
 			)
 		);
 
@@ -751,6 +764,42 @@ class Settings {
 					<tr>
 						<th scope="row"><label for="server_version"><?php esc_html_e( 'Version', 'acrossai-mcp-manager' ); ?></label></th>
 						<td><input type="text" id="server_version" name="server_version" value="v1.0.0" class="regular-text" /></td>
+					</tr>
+					<tr>
+						<th scope="row"><label for="server_type"><?php esc_html_e( 'Server Type', 'acrossai-mcp-manager' ); ?></label></th>
+						<td>
+							<?php
+							// F090 (SEC-001) — the operator CHOOSES the type here; the
+							// handler writes it explicitly. Without this field the row
+							// falls through to the column default and the stored type
+							// disagrees with what they picked, so the enablement gate
+							// then evaluates a type they never chose.
+							$default_type = ServerTypes::default_slug();
+							?>
+							<select id="server_type" name="server_type">
+								<?php foreach ( ServerTypes::all() as $type_slug => $type_entry ) : ?>
+									<?php $type_available = ServerTypes::is_available( (string) $type_slug ); ?>
+									<option
+										value="<?php echo esc_attr( (string) $type_slug ); ?>"
+										<?php disabled( ! $type_available ); ?>
+										<?php selected( (string) $type_slug, $default_type ); ?>
+									>
+										<?php
+										echo esc_html(
+											$type_available
+												? (string) $type_entry['label']
+												: sprintf(
+													/* translators: %s: server type label. */
+													__( '%s (requires add-on)', 'acrossai-mcp-manager' ),
+													(string) $type_entry['label']
+												)
+										);
+										?>
+									</option>
+								<?php endforeach; ?>
+							</select>
+							<p class="description"><?php esc_html_e( 'Decides which tools this server starts with, and what Reset restores.', 'acrossai-mcp-manager' ); ?></p>
+						</td>
 					</tr>
 				</table>
 				<?php submit_button( __( 'Create Server', 'acrossai-mcp-manager' ) ); ?>

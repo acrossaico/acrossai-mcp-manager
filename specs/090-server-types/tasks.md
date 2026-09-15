@@ -105,12 +105,12 @@ every route and confirm each refuses; then switch its type and confirm it enable
 - [x] T030 [US2] Route the single toggle at `admin/Partials/Settings.php:238` through `ServerEnablement::set()` and render the returned message
 - [x] T031 [US2] Route the bulk branch at `admin/Partials/Settings.php:288` through `ServerEnablement::set()` with **partial-success** semantics — enable the eligible, skip the rest, name each skipped server and why
 - [x] T032 [US2] Route `includes/REST/QuickConnectController.php:729` through `ServerEnablement::set()` and surface the `WP_Error` to the wizard
-- [ ] T033 [US2] Render the Enable affordance disabled with its reason in `admin/Partials/MCPServerListTable.php`. Do NOT gate `includes/MCP/Controller.php:357` — it is a READ (`has_any_enabled_server()`)
-- [ ] T034 [P] [US2] **[SEC-001]** Add a Server Type field to the classic create form in `admin/Partials/Settings.php:693-721`, preselecting `ServerTypes::default_slug()` and offering only available types; the `add_item()` array at `:347` MUST write `server_type` explicitly
-- [ ] T035 [US2] **[SEC-001]** Add the same field to (NOT parallel — shares `QuickConnectController.php` with T032, per SEC-007) `src/js/quick-connect/steps/Step2_ServerCreate.jsx`, AND write `server_type` explicitly in the second creation path at `includes/REST/QuickConnectController.php:631` — the path the first plan draft missed
+- [x] T033 [US2] Render the Enable affordance disabled with its reason in `admin/Partials/MCPServerListTable.php`. Do NOT gate `includes/MCP/Controller.php:357` — it is a READ (`has_any_enabled_server()`)
+- [x] T034 [P] [US2] **[SEC-001]** Add a Server Type field to the classic create form in `admin/Partials/Settings.php:693-721`, preselecting `ServerTypes::default_slug()` and offering only available types; the `add_item()` array at `:347` MUST write `server_type` explicitly
+- [x] T035 [US2] **[SEC-001]** Add the same field to (NOT parallel — shares `QuickConnectController.php` with T032, per SEC-007) `src/js/quick-connect/steps/Step2_ServerCreate.jsx`, AND write `server_type` explicitly in the second creation path at `includes/REST/QuickConnectController.php:631` — the path the first plan draft missed
 - [ ] T036 [P] [US2] PHPUnit: a server created through EACH path carries the registry default, not the column default — in `tests/phpunit/Admin/ServerCreateTypeTest.php`
-- [ ] T037 [US2] Surface BOTH remedies (install the add-on, or switch this server's type) wherever a requirement is unmet, in `admin/Partials/ServerTabs/OverviewTab.php` and `admin/Partials/ServerTabs/ToolsTab.php`
-- [ ] T038 [US2] Make step 4 non-skippable when the server in play has an unmet requirement, in `src/js/quick-connect/steps/Step4_AbilitiesManager.jsx`, so the operator cannot dead-end at step 6
+- [x] T037 [US2] Surface BOTH remedies (install the add-on, or switch this server's type) wherever a requirement is unmet, in `admin/Partials/ServerTabs/OverviewTab.php` and `admin/Partials/ServerTabs/ToolsTab.php`
+- [x] T038 [US2] Make step 4 non-skippable when the server in play has an unmet requirement, in `src/js/quick-connect/steps/Step4_AbilitiesManager.jsx`, so the operator cannot dead-end at step 6
 
 **Checkpoint**: the requirement is enforced everywhere a server can be switched on.
 
@@ -283,3 +283,26 @@ Local PHPUnit cannot run WP-dependent suites (`WP_UnitTestCase` not found; no WP
 installed), so they must be written against CI. NOTE T012's regression WAS exercised manually
 against the live database — the operator's type switch survived a forced re-run — but the
 automated guard is not yet in place.
+
+### US2 pass — 2026-09-15
+
+T033-T038 delivered. T036 (create-path tests) deferred with the other five test
+tasks — local PHPUnit cannot run WP-dependent suites.
+
+Verified live rather than assumed, by setting a server to an unregistered type (which
+exercises the same `enablement_error()` path as a deactivated sibling, without touching
+plugin activation):
+
+- servers list — 1 disabled Enable carrying the exact reason, 0 clickable Enable,
+  **2 clickable Disable** confirming on->off is never gated
+- Overview tab — the warning renders with BOTH remedies as separate buttons
+- `active_plugins` byte-compared against a backup afterwards: never modified
+
+Two silent-failure bugs caught and fixed during this pass, both of the same shape —
+a control that refused correctly but said nothing:
+
+1. The single-toggle refusal was stored on an instance property that a
+   POST-redirect-GET flow can never render. Now redirects with a notice; bulk reports
+   partial success (FR-016a).
+2. T038's advance guard blocked Continue with no explanation. Now renders a warning
+   offering both remedies before the operator hits the wall.

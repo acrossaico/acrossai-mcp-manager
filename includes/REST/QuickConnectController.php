@@ -39,6 +39,7 @@ namespace AcrossAI_MCP_Manager\Includes\REST;
 use AcrossAI_MCP_Manager\Includes\Database\MCPServer\PolicyTransition;
 use AcrossAI_MCP_Manager\Includes\Database\MCPServer\Query as MCPServerQuery;
 use AcrossAI_MCP_Manager\Includes\Database\MCPServer\ServerEnablement;
+use AcrossAI_MCP_Manager\Includes\Database\MCPServer\ServerTypes;
 use AcrossAI_MCP_Manager\Includes\Database\MCPServerAbility\ExposureResolver as MCPServerAbilityExposureResolver;
 use AcrossAI_MCP_Manager\Includes\Utilities\MCPServerFieldSanitizer;
 use AcrossAI_MCP_Manager\Public\Discovery\ConnectionMethodRegistry;
@@ -629,6 +630,19 @@ final class QuickConnectController {
 			);
 		}
 
+		// Read from the wizard's `new_server` payload, where step 2's fields live.
+		// Deliberately NOT routed through MCPServerFieldSanitizer: that helper
+		// enforces a hard-coded 6-key whitelist as a B7 mass-assignment defence,
+		// and widening it would weaken that guarantee for every caller. Validated
+		// against the registry instead — an unregistered value degrades to the
+		// registry default and never persists.
+		$submitted_type = isset( $data['new_server']['server_type'] )
+			? sanitize_key( (string) $data['new_server']['server_type'] )
+			: '';
+		$server_type    = ( '' !== $submitted_type && null !== ServerTypes::get( $submitted_type ) )
+			? $submitted_type
+			: ServerTypes::default_slug();
+
 		$new_id = $query->add_item(
 			array(
 				'server_name'            => $sanitized['server_name'],
@@ -639,6 +653,12 @@ final class QuickConnectController {
 				'server_route_namespace' => $sanitized['server_route_namespace'],
 				'server_route'           => $sanitized['server_route'],
 				'server_version'         => $sanitized['server_version'],
+				// F090 (SEC-001) — the SECOND creation path. The first draft of
+				// the plan listed only the classic admin form; the security
+				// review found this one. Unwritten here, the row takes the
+				// column default and the gate evaluates a type the operator
+				// never chose.
+				'server_type'            => $server_type,
 			)
 		);
 		if ( ! $new_id ) {
@@ -773,6 +793,12 @@ final class QuickConnectController {
 				'route'           => $route,
 				'route_full'      => $route_full,
 				'enabled'         => ! empty( $row->is_enabled ),
+				// F090 (T038) — the wizard needs these so step 4 can refuse to be
+				// skipped for a server that step 6 would then be unable to
+				// enable. Discovering the requirement five steps in, at a dead
+				// end, is the worst possible place to learn about it.
+				'server_type'     => isset( $row->server_type ) ? (string) $row->server_type : '',
+				'type_available'  => ServerTypes::is_available( isset( $row->server_type ) ? (string) $row->server_type : '' ),
 			);
 		}
 		return $dtos;

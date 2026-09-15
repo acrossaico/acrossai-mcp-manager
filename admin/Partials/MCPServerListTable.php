@@ -9,6 +9,7 @@
 namespace AcrossAI_MCP_Manager\Admin\Partials;
 
 use AcrossAI_MCP_Manager\Admin\Partials\ServerTabs\ConnectTab;
+use AcrossAI_MCP_Manager\Includes\Database\MCPServer\ServerTypes;
 use AcrossAI_MCP_Manager\Includes\Database\MCPServer\ProtectedServers;
 use AcrossAI_MCP_Manager\Includes\Database\MCPServer\Query;
 use AcrossAI_MCP_Manager\Includes\Utilities\AdminPageSlugs;
@@ -104,6 +105,9 @@ class MCPServerListTable extends \WP_List_Table {
 					'server_route_namespace' => $row->server_route_namespace,
 					'server_route'           => $row->server_route,
 					'server_version'         => $row->server_version,
+					// F090 — the Enable affordance is disabled when this type's
+					// requirement is unmet, so the row must carry the type.
+					'server_type'            => $row->server_type,
 				);
 			},
 			$rows
@@ -302,11 +306,28 @@ class MCPServerListTable extends \WP_List_Table {
 				esc_html__( 'Disable', 'acrossai-mcp-manager' )
 			);
 		} else {
-			$toggle_html = sprintf(
-				'<a href="%s" class="button button-small acrossai-btn-enable">%s</a>',
-				esc_url( $toggle_url ),
-				esc_html__( 'Enable', 'acrossai-mcp-manager' )
-			);
+			// F090 (T033) — a server whose type has an unmet requirement cannot be
+			// enabled. Render the affordance disabled WITH its reason rather than
+			// letting the operator click into a refusal.
+			//
+			// This is presentation only. The boundary is server-side in
+			// ServerEnablement::set(), which every write path routes through — a
+			// disabled link stops the honest click, not a forged request.
+			$type_error = ServerTypes::enablement_error( (string) ( $item['server_type'] ?? '' ) );
+
+			if ( null !== $type_error ) {
+				$toggle_html = sprintf(
+					'<span class="button button-small disabled" aria-disabled="true" title="%s">%s</span>',
+					esc_attr( $type_error->get_error_message() ),
+					esc_html__( 'Enable', 'acrossai-mcp-manager' )
+				);
+			} else {
+				$toggle_html = sprintf(
+					'<a href="%s" class="button button-small acrossai-btn-enable">%s</a>',
+					esc_url( $toggle_url ),
+					esc_html__( 'Enable', 'acrossai-mcp-manager' )
+				);
+			}
 		}
 
 		// F084 — 'Connectors' and 'MCP Clients' are no longer top-level tabs;
