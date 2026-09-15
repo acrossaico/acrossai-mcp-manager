@@ -166,11 +166,11 @@ confirm it is included with no further action.
 
 ## Phase 7: Polish & Cross-Cutting Concerns
 
-- [ ] T051 [P] **[§VI]** Add `render_inline_notice()` to `admin/Partials/ServerTabs/Partials/AbilitiesManagerPromoCard.php`, then refit BOTH existing call sites — `admin/Partials/ServerTabs/AbilitiesTab.php:104` and `admin/Partials/ServerTabs/ToolsTab.php:97` — so neither retains its own hardcoded `is_plugin_active()` literal
-- [ ] T052 [P] Write `docs/extending-server-types.md` in the shape of `docs/extending-server-tools.md`: filter contract, entry shape, the placeholder→companion override pattern, and a worked example
-- [ ] T053 [P] Update `README.txt` §Unreleased with the schema change and the new filter
-- [ ] T054 Run `composer run phpcs`, `composer run phpstan`, `composer test`, `bin/verify-f021-gates.sh` and `npm run validate-packages` — all must be clean
-- [ ] T055 Work `quickstart.md` end to end on the live install, including §1a (the corrective-UPDATE regression) and §2 (the real page load)
+- [x] T051 [P] **[§VI]** Add `render_inline_notice()` to `admin/Partials/ServerTabs/Partials/AbilitiesManagerPromoCard.php`, then refit BOTH existing call sites — `admin/Partials/ServerTabs/AbilitiesTab.php:104` and `admin/Partials/ServerTabs/ToolsTab.php:97` — so neither retains its own hardcoded `is_plugin_active()` literal
+- [x] T052 [P] Write `docs/extending-server-types.md` in the shape of `docs/extending-server-tools.md`: filter contract, entry shape, the placeholder→companion override pattern, and a worked example
+- [x] T053 [P] Update `README.txt` §Unreleased with the schema change and the new filter
+- [x] T054 Run `composer run phpcs`, `composer run phpstan`, `composer test`, `bin/verify-f021-gates.sh` and `npm run validate-packages` — all must be clean
+- [x] T055 Work `quickstart.md` end to end on the live install, including §1a (the corrective-UPDATE regression) and §2 (the real page load)
 - [ ] T056 Re-run `/speckit-analyze` AFTER implementation — this feature had a 4-question clarification session and two architecture-review pivots, which is exactly the drift trigger recorded in WORKLOG 2026-07-04
 
 ---
@@ -337,3 +337,23 @@ normal use; not worth blocking on.
 Replaced two nested ternaries with lookup maps (`POLICY_PILL_LABEL` /
 `POLICY_PILL_DESCRIPTION`) — `no-nested-ternary` was right, and three states with two strings
 each read better as data.
+
+### Polish pass — 2026-09-15
+
+T051-T055 done. The §VI extraction landed as specified: `render_inline_notice()` on
+`AbilitiesManagerPromoCard`, both existing call sites refitted, and
+`grep -rn "is_plugin_active( 'acrossai-abilities-manager" admin/ includes/` now returns ZERO
+outside that card — one implementation, one plugin-path literal.
+
+The §VI-vs-A3 deviation is recorded in the method's own docblock, not only in plan.md, so the
+next person to read the code finds the reasoning where they need it.
+
+Gates: PHPCS 0, PHPStan 0, ESLint 0, all F021 gates pass, validate-packages clean.
+
+Quickstart §1/§2/§5 re-verified after the extraction; §3/§4 were verified through the UI
+during the MVP and US2 passes. Server 3's route returns 404 because it is DISABLED — that is
+A21's safety layer working, not a regression.
+
+T056 (`/speckit-analyze` after implementation) remains — it is the drift audit WORKLOG
+2026-07-04 recommends for exactly this shape of feature: four clarifications and two
+architecture-review pivots.

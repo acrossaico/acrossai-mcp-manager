@@ -18,6 +18,8 @@
 
 namespace AcrossAI_MCP_Manager\Admin\Partials\ServerTabs;
 
+use AcrossAI_MCP_Manager\Admin\Partials\ServerTabs\Partials\AbilitiesManagerPromoCard;
+
 // Exit if accessed directly.
 defined( 'ABSPATH' ) || exit;
 
@@ -89,18 +91,10 @@ final class ToolsTab extends AbstractServerTab {
 		// below (tools ARE abilities marked with MCP tool metadata). Same
 		// message + link for both "not installed" and "installed-but-off"
 		// states; the shared Add-ons page handles the transition.
-		if ( ! function_exists( 'is_plugin_active' ) ) {
-			require_once ABSPATH . 'wp-admin/includes/plugin.php';
-		}
-		if ( ! is_plugin_active( 'acrossai-abilities-manager/acrossai-abilities-manager.php' ) ) {
-			printf(
-				'<div class="notice notice-info inline"><p><strong>%1$s</strong> %2$s <a href="%3$s">%4$s</a></p></div>',
-				esc_html__( 'AcrossAI Abilities Manager', 'acrossai-mcp-manager' ),
-				esc_html__( '— the add-on ships a rich library of built-in WordPress abilities that surface as MCP tools here, a big head start for developing and building sites.', 'acrossai-mcp-manager' ),
-				esc_url( admin_url( 'admin.php?page=acrossai-addons' ) ),
-				esc_html__( 'Get it from the Add-ons page →', 'acrossai-mcp-manager' )
-			);
-		}
+		// §VI — see AbilitiesTab; same renderer, context sentence differs.
+		AbilitiesManagerPromoCard::instance()->render_inline_notice(
+			__( '— the add-on ships a rich library of built-in WordPress abilities that surface as MCP tools here, a big head start for developing and building sites.', 'acrossai-mcp-manager' )
+		);
 
 		if ( ! function_exists( 'wp_get_abilities' ) ) {
 			printf(

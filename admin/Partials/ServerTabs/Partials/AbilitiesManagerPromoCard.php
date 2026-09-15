@@ -259,4 +259,43 @@ final class AbilitiesManagerPromoCard {
 		}
 		return null;
 	}
+
+	/**
+	 * Render the slim inline "add-on missing" notice.
+	 *
+	 * Extracted per Constitution §VI — this markup was ALREADY duplicated in
+	 * `AbilitiesTab` and `ToolsTab`, each with its own hardcoded
+	 * `is_plugin_active()` path literal, while this class already owned
+	 * `SIBLING_SLUG` and the three-state `resolve_state()`. F090 would have made
+	 * it a third copy.
+	 *
+	 * Lives here rather than in `includes/Utilities/` despite §VI naming that
+	 * directory: the unit renders admin HTML and links to an admin page, and A3
+	 * forbids admin-specific logic in `includes/`. A3 is the harder rule, and
+	 * §VI's intent — one source of truth, no duplication — is satisfied either
+	 * way. Documented as a deviation in `specs/090-server-types/plan.md`.
+	 *
+	 * Renders nothing when the sibling is active. "Not installed" and
+	 * "installed but deactivated" deliberately share one message: the Add-ons
+	 * page handles both transitions, so splitting the copy would add words
+	 * without adding a decision.
+	 *
+	 * @since 0.1.0 (Feature 090)
+	 * @param string $message Context sentence, already translated. Rendered
+	 *                        after the bolded plugin name.
+	 * @return void
+	 */
+	public function render_inline_notice( string $message ): void {
+		if ( 'active' === $this->resolve_state() ) {
+			return;
+		}
+
+		printf(
+			'<div class="notice notice-info inline"><p><strong>%1$s</strong> %2$s <a href="%3$s">%4$s</a></p></div>',
+			esc_html__( 'AcrossAI Abilities Manager', 'acrossai-mcp-manager' ),
+			esc_html( $message ),
+			esc_url( add_query_arg( array( 'page' => self::ADDONS_PAGE_SLUG ), admin_url( 'admin.php' ) ) ),
+			esc_html__( 'Get it from the Add-ons page →', 'acrossai-mcp-manager' )
+		);
+	}
 }
