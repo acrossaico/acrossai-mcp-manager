@@ -127,7 +127,20 @@ class PolicyReconcilerTest extends WP_UnitTestCase {
 		$rows = $wpdb->get_results( "SHOW COLUMNS FROM `{$table}` LIKE 'abilities_default_policy'" );
 		$this->assertCount( 1, $rows, 'D28 upgrade path must re-add the dropped column.' );
 
-		$this->assertSame( '1.1.5', (string) get_option( 'acrossai_mcp_servers_db_version' ) );
+		// B48 — read the expected version from the class that declares it, never
+		// a literal. This assertion hardcoded '1.1.5' and went stale the moment
+		// F090 added 1.1.6, even though the behaviour under test (the D28 upgrade
+		// path re-adds a dropped column and stamps the CURRENT version) was
+		// unchanged. Reflection on the DECLARED default matches how
+		// PhantomVersionGuardTest already solves this.
+		$expected_version = (string) ( new \ReflectionClass( MCPServerTable::class ) )
+			->getDefaultProperties()['version'];
+
+		$this->assertSame(
+			$expected_version,
+			(string) get_option( 'acrossai_mcp_servers_db_version' ),
+			'The upgrade path must stamp the version the Table class currently declares.'
+		);
 	}
 
 	public function test_upgrades_array_registers_1_1_5_entry(): void {

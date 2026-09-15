@@ -27,8 +27,13 @@ class SchemaMigrationTest extends WP_UnitTestCase {
 	public function test_three_new_tool_columns_exist_after_upgrade(): void {
 		global $wpdb;
 		$table = $wpdb->prefix . 'acrossai_mcp_servers';
+		// NOTE the escaped underscore. In SQL LIKE, `_` is a SINGLE-CHARACTER
+		// WILDCARD, so the original `'tool_%'` also matched F090's
+		// `tools_default_policy` (tool + s + _default_policy) and this test
+		// failed with "actual size 4" on a change that added no tool_ column at
+		// all. Escaping makes the pattern mean what it always intended.
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared
-		$rows = $wpdb->get_results( "SHOW COLUMNS FROM `{$table}` LIKE 'tool_%'" );
+		$rows = $wpdb->get_results( "SHOW COLUMNS FROM `{$table}` LIKE 'tool\\_%'" );
 
 		$names = array_map(
 			static function ( $r ) {
