@@ -37,6 +37,7 @@ declare( strict_types = 1 );
 namespace AcrossAI_MCP_Manager\Includes\REST;
 
 use AcrossAI_MCP_Manager\Includes\Database\MCPServer\Query as MCPServerQuery;
+use AcrossAI_MCP_Manager\Includes\Database\MCPServer\ServerTypes;
 use AcrossAI_MCP_Manager\Includes\Database\MCPServer\ToolPolicy;
 use AcrossAI_MCP_Manager\Includes\Database\MCPServerTool\Query as MCPServerToolQuery;
 use AcrossAI_MCP_Manager\Includes\MCP\ToolExposureGate;
@@ -115,6 +116,31 @@ final class ToolsController {
 			),
 		);
 
+		// F090 (T048) — the standing tool rule. Separate from /tools because it
+		// answers a different question: /tools sets WHICH tools are curated,
+		// this sets whether that curation is consulted at all.
+		register_rest_route(
+			self::NS,
+			'/servers/(?P<server_id>\d+)/tools/policy',
+			array(
+				array(
+					'methods'             => WP_REST_Server::CREATABLE,
+					'callback'            => array( $this, 'post_tools_policy' ),
+					'permission_callback' => array( $this, 'permission_check' ),
+					'args'                => array_merge(
+						$server_id_arg,
+						array(
+							'policy' => array(
+								'type'     => 'string',
+								'required' => true,
+								'enum'     => ToolPolicy::POLICIES,
+							),
+						)
+					),
+				),
+			)
+		);
+
 		register_rest_route(
 			self::NS,
 			'/servers/(?P<server_id>\d+)/tools',
@@ -140,7 +166,14 @@ final class ToolsController {
 					'args'                => array_merge(
 						$server_id_arg,
 						array(
-							'tools' => array(
+							// F090 — declared so core rejects a non-string at the
+							// boundary; the handler still validates it against the
+							// registry, because "is a string" is not "is a type".
+							'server_type' => array(
+								'type'     => 'string',
+								'required' => false,
+							),
+							'tools'       => array(
 								'type'              => 'array',
 								'items'             => array( 'type' => 'string' ),
 								'required'          => true,
@@ -196,10 +229,25 @@ final class ToolsController {
 			return $server_row;
 		}
 
-		// F025: response 'tools' is the composed union of enabled protocol columns
-		// and curated rows — see ToolPolicy::compose_for_row.
+		// F025: 'tools' is the CONFIGURED set — the composed union of enabled
+		// protocol columns and curated rows (ToolPolicy::compose_for_row).
+		//
+		// F090 adds 'effective_tools': what the server ACTUALLY serves, after the
+		// standing policy and the unmet-requirement swap. The two are no longer
+		// the same question, and returning only one of them is what would let the
+		// Tools tab show a list the server is not serving (ARCH-2).
+		$server_type = (string) $server_row->server_type;
+
 		$response = array(
-			'tools' => ToolPolicy::compose_for_row( $server_row ),
+			'tools'                => ToolPolicy::compose_for_row( $server_row ),
+			'effective_tools'      => ToolPolicy::compose_effective_tools_for_row( $server_row ),
+			'server_type'          => $server_type,
+			'tools_default_policy' => (string) $server_row->tools_default_policy,
+			'type_available'       => ServerTypes::is_available( $server_type ),
+			// Falls back to the raw slug so an unrecognised type renders as
+			// itself marked unavailable, rather than blank (FR-010).
+			'type_label'           => self::type_label( $server_type ),
+			'server_types'         => self::types_payload(),
 		);
 
 		$include_abilities = (bool) $request->get_param( 'include_abilities' );
@@ -310,6 +358,35 @@ final class ToolsController {
 			}
 		}
 
+		// F090 (T022/T023) — an optional server_type makes a type switch and its
+		// resulting tool set ONE atomic write, so the two can never disagree.
+		$type_columns = array();
+		$type_param   = $request->get_param( 'server_type' );
+
+		if ( null !== $type_param && '' !== $type_param ) {
+			$type_param = sanitize_key( (string) $type_param );
+
+			if ( null === ServerTypes::get( $type_param ) ) {
+				return new WP_Error(
+					'acrossai_mcp_invalid_server_type',
+					esc_html__( 'That server type is not registered on this site.', 'acrossai-mcp-manager' ),
+					array( 'status' => 400 )
+				);
+			}
+
+			if ( $type_param !== (string) $server_row->server_type ) {
+				$type_columns['server_type'] = $type_param;
+
+				// FR-012a — a type change resets a coarse standing rule back to
+				// per-tool, so the new type's set takes effect immediately
+				// instead of appearing to do nothing. The confirmation dialog
+				// names both effects before the operator commits.
+				if ( ToolPolicy::POLICY_PER_TOOL !== (string) $server_row->tools_default_policy ) {
+					$type_columns['tools_default_policy'] = ToolPolicy::POLICY_PER_TOOL;
+				}
+			}
+		}
+
 		// F025: split the unified payload across the two storage layers.
 		$split         = ToolPolicy::split_payload( $tools_param );
 		$prior_columns = array(
@@ -320,7 +397,7 @@ final class ToolsController {
 
 		try {
 			// Layer 1 — flip the three protocol columns in one UPDATE.
-			MCPServerQuery::instance()->update_item( $server_id, $split['columns'] );
+			MCPServerQuery::instance()->update_item( $server_id, array_merge( $split['columns'], $type_columns ) );
 
 			// SEC-025-INFO-2: accepted race window between column update and curated
 			// replace_set — see security-review v1 § two-write POST path. Two concurrent
@@ -385,12 +462,30 @@ final class ToolsController {
 			return $refreshed;
 		}
 
+		// BerlinDB's singleton Query can serve a memoized row within the same
+		// request, so the re-fetch above may predate this handler's own column
+		// write. Re-apply what we know we wrote; without this a type switch
+		// reports the PREVIOUS type and its tool list (see post_tools_policy).
+		foreach ( $type_columns as $column => $value ) {
+			$refreshed->{$column} = $value;
+		}
+
 		return CacheHeaders::apply_to_rest_response(
 			new WP_REST_Response(
 				array(
-					'tools'   => ToolPolicy::compose_for_row( $refreshed ),
-					'added'   => array_values( array_merge( $columns_added, $curated_applied['added'] ) ),
-					'removed' => array_values( array_merge( $columns_removed, $curated_applied['removed'] ) ),
+					'tools'                => ToolPolicy::compose_for_row( $refreshed ),
+					'added'                => array_values( array_merge( $columns_added, $curated_applied['added'] ) ),
+					'removed'              => array_values( array_merge( $columns_removed, $curated_applied['removed'] ) ),
+					// F090 — the POST response mirrors the GET's F090 fields so
+					// the Tools tab reconciles against server truth after a
+					// write, exactly as it already does for `tools`. Omitting
+					// them would leave a type switch's UI state optimistic and
+					// unverified.
+					'effective_tools'      => ToolPolicy::compose_effective_tools_for_row( $refreshed ),
+					'server_type'          => (string) $refreshed->server_type,
+					'tools_default_policy' => (string) $refreshed->tools_default_policy,
+					'type_available'       => ServerTypes::is_available( (string) $refreshed->server_type ),
+					'type_label'           => self::type_label( (string) $refreshed->server_type ),
 				)
 			)
 		);
@@ -467,5 +562,117 @@ final class ToolsController {
 				)
 			);
 		}
+	}
+
+	/**
+	 * The registered server types, shaped for the Tools tab selector.
+	 *
+	 * Availability is resolved here rather than in JS so the UI cannot drift
+	 * from `ServerTypes::is_available()` — the single resolver the enablement
+	 * gate and the runtime composer also use (B32).
+	 *
+	 * @since 0.1.0 (Feature 090)
+	 * @return array<int, array{slug: string, label: string, description: string, available: bool, requires: ?string, tools: string[]}>
+	 */
+	private static function types_payload(): array {
+		$payload = array();
+
+		foreach ( ServerTypes::all() as $slug => $type ) {
+			$payload[] = array(
+				'slug'        => (string) $slug,
+				'label'       => (string) $type['label'],
+				'description' => (string) $type['description'],
+				'available'   => ServerTypes::is_available( (string) $slug ),
+				'requires'    => $type['requires'],
+				// The actual slugs, not just a count — the Tools tab resolves
+				// Reset and a type switch from this, so the UI can never drift
+				// from what ServerTypes::tools_for() would return.
+				// Resolved through tools_for() so the UI applies the SAME empty
+				// and unknown fallbacks the server does — a raw $type['tools']
+				// here would let Reset wipe a server whose type is a
+				// not-yet-replaced placeholder.
+				'tools'       => ServerTypes::tools_for( (string) $slug ),
+			);
+		}
+
+		return $payload;
+	}
+
+	/**
+	 * A type's display label, falling back to the raw slug.
+	 *
+	 * Extracted at its second use (Constitution VI) — the GET and POST
+	 * responses both need it, and a copy is how the two drift.
+	 *
+	 * @since 0.1.0 (Feature 090)
+	 * @param string $slug Stored type slug.
+	 * @return string
+	 */
+	private static function type_label( string $slug ): string {
+		$type = ServerTypes::get( $slug );
+
+		return null !== $type ? (string) $type['label'] : $slug;
+	}
+
+	/**
+	 * POST /servers/{id}/tools/policy — set the standing tool rule.
+	 *
+	 * Does NOT touch curated presence rows. Switching back to `per-tool` must
+	 * restore exactly the prior selection, so `all`/`none` can only ever be a
+	 * lens over the stored set, never a rewrite of it.
+	 *
+	 * @since 0.1.0 (Feature 090)
+	 * @param WP_REST_Request $request Request.
+	 * @return WP_REST_Response|WP_Error
+	 */
+	public function post_tools_policy( WP_REST_Request $request ) {
+		$server_id  = (int) $request->get_param( 'server_id' );
+		$server_row = $this->fetch_server_row( $server_id );
+
+		if ( is_wp_error( $server_row ) ) {
+			return $server_row;
+		}
+
+		$policy = (string) $request->get_param( 'policy' );
+
+		// Belt to core's `enum` braces — the enum is declared on the route, but
+		// a validated-elsewhere assumption is how invalid values reach storage.
+		if ( ! in_array( $policy, ToolPolicy::POLICIES, true ) ) {
+			return new WP_Error(
+				'acrossai_mcp_invalid_tools_policy',
+				esc_html__( 'That tool rule is not recognised.', 'acrossai-mcp-manager' ),
+				array( 'status' => 400 )
+			);
+		}
+
+		MCPServerQuery::instance()->update_item( $server_id, array( 'tools_default_policy' => $policy ) );
+
+		// Compose from the row we ALREADY hold, with the value we just wrote
+		// applied in memory — do NOT re-query.
+		//
+		// BerlinDB's Query is a singleton and serves a memoized row within the
+		// same request, so a re-fetch here returns PRE-write state. Observed
+		// directly: after switching back to 'per-tool' the response still
+		// reported the 'all' tool count, and the tab showed "serving 26 while 3
+		// are configured" until the operator reloaded. Storage was correct
+		// throughout; only the response lied.
+		//
+		// Reflecting the single field we changed is both accurate and cheaper
+		// than a cache round-trip, and it cannot drift: this endpoint writes
+		// exactly one column.
+		$server_row->tools_default_policy = $policy;
+
+		return CacheHeaders::apply_to_rest_response(
+			new WP_REST_Response(
+				array(
+					'tools'                => ToolPolicy::compose_for_row( $server_row ),
+					'effective_tools'      => ToolPolicy::compose_effective_tools_for_row( $server_row ),
+					'tools_default_policy' => $policy,
+					'server_type'          => (string) $server_row->server_type,
+					'type_available'       => ServerTypes::is_available( (string) $server_row->server_type ),
+					'type_label'           => self::type_label( (string) $server_row->server_type ),
+				)
+			)
+		);
 	}
 }

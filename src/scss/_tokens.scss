@@ -1,0 +1,17 @@
+/**
+ * Shared design tokens.
+ *
+ * Extracted from `abilities.scss` at their second use (Constitution §VI) — the
+ * Tools tab's policy panel needs the identical palette, and a second copy is how
+ * two screens that must look alike drift apart.
+ *
+ * @since 0.1.0
+ * @package AcrossAI_MCP_Manager
+ */
+
+$acmcp-border:        #c3c4c7;
+$acmcp-inner-bg:      #fff;
+$acmcp-text-primary:  #1d2327;
+$acmcp-text-secondary:#50575e;
+$acmcp-text-tertiary: #646970;
+$acmcp-accent:        #2271b1;

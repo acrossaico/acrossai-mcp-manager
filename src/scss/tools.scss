@@ -1,0 +1,22 @@
+/**
+ * Feature 090 — per-server Tools tab styles.
+ *
+ * Bundled by webpack alongside `src/js/tools.js`. `@wordpress/scripts` emits it
+ * as `build/js/tools.css`, which `admin/Main.php` auto-enqueues when present —
+ * it already guards on `file_exists`, and before F090 no such file was produced.
+ *
+ * @since 0.1.0
+ * @package AcrossAI_MCP_Manager
+ */
+
+@import 'tokens';
+@import 'policy-panel';
+
+// The standing tool-rule panel. Deliberately IDENTICAL to the Abilities tab's
+// default-policy panel: it is the same idea — a standing rule that overrides
+// individual selection — and an operator who has learned one should recognise
+// the other without re-reading it. Shared mixin, so the two cannot drift.
+.acrossai-mcp-tools-policy {
+
+	@include acmcp-policy-panel;
+}

@@ -32,9 +32,10 @@ import {
 	__experimentalConfirmDialog as ConfirmDialog,
 } from '@wordpress/components';
 import apiFetch from '@wordpress/api-fetch';
-import { __, sprintf } from '@wordpress/i18n';
+import { __, _n, sprintf } from '@wordpress/i18n';
 import { applyFilters } from '@wordpress/hooks';
 import { useSelect } from '@wordpress/data';
+import '../scss/tools.scss';
 
 /**
  * The three MCP protocol slugs — mirror of PHP-side
@@ -49,6 +50,33 @@ import { useSelect } from '@wordpress/data';
  * F087: also the boot-time fallback for `toolSlugs` — PHP seeds the tool-level
  * list with exactly these three (`ToolPolicy::PROTOCOL_TOOLS`).
  */
+/**
+ * F090 — copy for the standing tool rule pill, keyed by policy value.
+ *
+ * Lookup maps rather than nested ternaries: three states with two strings each
+ * reads far better as data, and `no-nested-ternary` is right to reject the
+ * alternative.
+ *
+ * The 'all' description carries the forward-consent warning required by SEC-008
+ * — an operator choosing it is accepting tools that do not exist yet.
+ */
+const POLICY_PILL_LABEL = {
+	all: __( 'Tool rule: expose every tool', 'acrossai-mcp-manager' ),
+	none: __( 'Tool rule: expose no tools', 'acrossai-mcp-manager' ),
+	'per-tool': __( 'Tool rule: choose tools individually', 'acrossai-mcp-manager' ),
+};
+
+const POLICY_PILL_DESCRIPTION = {
+	all: __(
+		'Every tool-level ability is exposed, including ones registered later by plugins you install in future. The individual selection below is overridden until this returns to choosing individually.',
+		'acrossai-mcp-manager',
+	),
+	none: __(
+		'No tools are exposed. The individual selection below is overridden until this returns to choosing individually.',
+		'acrossai-mcp-manager',
+	),
+};
+
 const PROTOCOL_TOOL_SLUGS = [
 	'mcp-adapter/discover-abilities',
 	'mcp-adapter/get-ability-info',
@@ -308,6 +336,19 @@ function ToolsApp( { serverId } ) {
 	// Single source of truth — the operator-curated tool set as the server
 	// has it. Optimistic-per-toggle: each Add/Remove POSTs immediately.
 	const [ added, setAdded ] = useState( new Set() );
+	// F090 — the server's type, the registry, and what the server ACTUALLY
+	// serves. `added` is the CONFIGURED set; `effectiveTools` is what a client
+	// sees after the standing policy and the unmet-requirement swap. Keeping
+	// both is what stops this tab showing a list the server is not serving.
+	const [ serverType, setServerType ] = useState( '' );
+	const [ serverTypes, setServerTypes ] = useState( [] );
+	const [ typeAvailable, setTypeAvailable ] = useState( true );
+	const [ typeLabel, setTypeLabel ] = useState( '' );
+	const [ effectiveTools, setEffectiveTools ] = useState( [] );
+	const [ pendingTypeSwitch, setPendingTypeSwitch ] = useState( null );
+	// F090 (T050) — the standing tool rule. 'per-tool' | 'all' | 'none'.
+	const [ toolsPolicy, setToolsPolicy ] = useState( 'per-tool' );
+	const [ pendingBulk, setPendingBulk ] = useState( null );
 	const [ search, setSearch ] = useState( '' );
 	const [ loading, setLoading ] = useState( true );
 	const [ saving, setSaving ] = useState( false );
@@ -382,6 +423,12 @@ function ToolsApp( { serverId } ) {
 		apiFetch( { path } )
 			.then( ( response ) => {
 				setAdded( new Set( response.tools || [] ) );
+				setServerType( response.server_type || '' );
+				setServerTypes( response.server_types || [] );
+				setTypeAvailable( response.type_available !== false );
+				setTypeLabel( response.type_label || '' );
+				setEffectiveTools( response.effective_tools || [] );
+				setToolsPolicy( response.tools_default_policy || 'per-tool' );
 				if ( Array.isArray( response.abilities ) ) {
 					setAbilitiesFromRest( response.abilities );
 				}
@@ -461,22 +508,40 @@ function ToolsApp( { serverId } ) {
 	 * state before the POST; on error, rolls back to the previous state and
 	 * surfaces the error to the operator.
 	 *
-	 * @param {Set<string>} nextSet The desired full tool set after this action.
-	 * @param {Set<string>} prevSet The prior tool set — used for rollback on failure.
+	 * @param {Set<string>} nextSet  The desired full tool set after this action.
+	 * @param {Set<string>} prevSet  The prior tool set — used for rollback on failure.
+	 * @param {?string}     nextType Optional server type to switch to in the SAME
+	 *                               write, so the stored type and the stored tools
+	 *                               can never disagree.
 	 */
-	const persistSet = ( nextSet, prevSet ) => {
+	const persistSet = ( nextSet, prevSet, nextType = null ) => {
 		setAdded( nextSet ); // Optimistic — UI reflects the change immediately.
 		setSaving( true );
 		setError( null );
 		const path = `/${ config.namespace }/servers/${ serverId }/tools`;
+		// F090 — when a type switch accompanies the tool set, both travel in ONE
+		// request so the stored type and the stored tools can never disagree.
+		const data = { tools: Array.from( nextSet ) };
+		if ( nextType ) {
+			data.server_type = nextType;
+		}
 		apiFetch( {
 			path,
 			method: 'POST',
-			data: { tools: Array.from( nextSet ) },
+			data,
 		} )
 			.then( ( response ) => {
 				// Server truth — reconcile against what actually persisted.
 				setAdded( new Set( response.tools || [] ) );
+				if ( response.server_type ) {
+					setServerType( response.server_type );
+					setTypeAvailable( response.type_available !== false );
+					setTypeLabel( response.type_label || '' );
+				}
+				setEffectiveTools( response.effective_tools || [] );
+				if ( response.tools_default_policy ) {
+					setToolsPolicy( response.tools_default_policy );
+				}
 			} )
 			.catch( ( err ) => {
 				// Rollback the optimistic update — the server rejected the
@@ -513,15 +578,87 @@ function ToolsApp( { serverId } ) {
 		// FR-006: non-protocol removals bypass the dialog.
 		applyRemove( name );
 	};
-	// F025 US3: Reset now sets the tool set to exactly the three protocol
-	// slugs — the backend's ToolPolicy::split_payload flips all three columns
-	// to 1 and calls replace_set with an empty curated array, dropping every
-	// non-protocol row atomically.
+	// F090 — the tool set this server's TYPE starts with. Resolved from the
+	// registry the REST layer sent, so the UI cannot drift from the server's
+	// own answer. Falls back to the protocol slugs when the type is
+	// unrecognised, matching ServerTypes::tools_for().
+	const typeTools = useMemo( () => {
+		const entry = serverTypes.find( ( t ) => t.slug === serverType );
+		if ( ! entry || ! Array.isArray( entry.tools ) ) {
+			return PROTOCOL_TOOL_SLUGS;
+		}
+		return entry.tools;
+	}, [ serverTypes, serverType ] );
+
+	// F090 (T025) — THE DEFECT FIX.
+	//
+	// Reset previously restored exactly PROTOCOL_TOOL_SLUGS on EVERY server,
+	// regardless of what that server was for. On a server meant to serve the
+	// AcrossAI toolsets that produced the WRONG defaults and silently destroyed
+	// the operator's selection. It now restores this server's TYPE's set.
 	const applyReset = () => {
 		const prev = new Set( added );
-		persistSet( new Set( PROTOCOL_TOOL_SLUGS ), prev );
+
+		// Restoring a type's defaults means the server ACTUALLY serves them.
+		// If a coarse rule is in force it would override the set we just wrote,
+		// so Reset clears the rule first — otherwise the operator presses
+		// "Reset to Type Defaults" and nothing they can see changes, which is
+		// the same class of bug FR-012a fixes for a type switch.
+		if ( toolsPolicy !== 'per-tool' ) {
+			persistPolicy( 'per-tool' );
+		}
+
+		persistSet( new Set( typeTools ), prev );
 	};
 	const openResetDialog = () => setPendingReset( true );
+
+	// F090 (T049) — write the standing rule. Deliberately does NOT touch curated
+	// rows: switching back to 'per-tool' must restore exactly the prior
+	// selection, so 'all'/'none' is a lens over the stored set, never a rewrite.
+	const persistPolicy = ( nextPolicy ) => {
+		setSaving( true );
+		setError( null );
+		apiFetch( {
+			path: `/${ config.namespace }/servers/${ serverId }/tools/policy`,
+			method: 'POST',
+			data: { policy: nextPolicy },
+		} )
+			// Re-READ after the write rather than trusting the write's own
+			// response. A POST response is a claim about state; a GET is the
+			// state. Observed: the policy write reported the PREVIOUS effective
+			// tool list, so the tab showed "serving 26 while 3 are configured"
+			// until the operator reloaded — storage was correct throughout, only
+			// the response disagreed. One extra request is a cheap price for the
+			// tab never showing numbers the server does not agree with.
+			.then( () =>
+				apiFetch( {
+					path: `/${ config.namespace }/servers/${ serverId }/tools`,
+				} ),
+			)
+			.then( ( fresh ) => {
+				setToolsPolicy( fresh.tools_default_policy || nextPolicy );
+				setAdded( new Set( fresh.tools || [] ) );
+				setEffectiveTools( fresh.effective_tools || [] );
+			} )
+			.catch( ( err ) => {
+				setError(
+					err.message ||
+						__( 'Failed to update the tool rule.', 'acrossai-mcp-manager' ),
+				);
+			} )
+			.finally( () => setSaving( false ) );
+	};
+
+	// F090 (T026) — switching type replaces the tool set AND resets a coarse
+	// standing rule back to per-tool (FR-012a). Both effects are named in the
+	// confirmation before the operator commits; a switch that silently did
+	// nothing visible would read as a bug.
+	const applyTypeSwitch = ( nextType ) => {
+		const entry = serverTypes.find( ( t ) => t.slug === nextType );
+		const nextTools = entry && Array.isArray( entry.tools ) ? entry.tools : [];
+		const prev = new Set( added );
+		persistSet( new Set( nextTools ), prev, nextType );
+	};
 
 	if ( loading ) {
 		return createElement(
@@ -533,6 +670,10 @@ function ToolsApp( { serverId } ) {
 
 	const totalPool = poolAbilities.length;
 
+	// F090 — tools this server's type provides that it does not currently have.
+	// Drives the Apply prompt; never applied without the operator asking.
+	const missingFromType = typeTools.filter( ( slug ) => ! added.has( slug ) );
+
 	return createElement(
 		Fragment,
 		null,
@@ -541,6 +682,227 @@ function ToolsApp( { serverId } ) {
 				Notice,
 				{ status: 'error', onRemove: () => setError( null ) },
 				error,
+			)
+			: null,
+
+		// F090 (T024) — the server type selector. Unavailable types are listed
+		// but disabled, so an operator can see the option exists and why it is
+		// not usable rather than wondering where it went.
+		createElement(
+			'div',
+			{
+				style: {
+					display: 'flex',
+					alignItems: 'center',
+					gap: '10px',
+					margin: '0 0 12px',
+					flexWrap: 'wrap',
+				},
+			},
+			createElement(
+				'label',
+				{ htmlFor: 'acrossai-mcp-server-type', style: { fontWeight: 600 } },
+				__( 'Server type', 'acrossai-mcp-manager' ),
+			),
+			createElement(
+				'select',
+				{
+					id: 'acrossai-mcp-server-type',
+					value: serverType,
+					disabled: saving,
+					onChange: ( e ) => {
+						const next = e.target.value;
+						if ( next && next !== serverType ) {
+							setPendingTypeSwitch( next );
+						}
+					},
+				},
+				// An unrecognised stored type still renders as itself, marked
+				// unavailable, rather than silently snapping to another value
+				// (FR-010).
+				serverTypes.some( ( t ) => t.slug === serverType )
+					? null
+					: createElement(
+						'option',
+						{ key: serverType, value: serverType },
+						sprintf(
+							/* translators: %s: the stored server type slug. */
+							__( '%s (unavailable)', 'acrossai-mcp-manager' ),
+							typeLabel || serverType,
+						),
+					),
+				serverTypes.map( ( t ) =>
+					createElement(
+						'option',
+						{ key: t.slug, value: t.slug, disabled: ! t.available },
+						t.available
+							? t.label
+							: sprintf(
+								/* translators: %s: server type label. */
+								__( '%s (requires add-on)', 'acrossai-mcp-manager' ),
+								t.label,
+							),
+					),
+				),
+			),
+		),
+
+		// F090 — requirement unmet: state it plainly and offer BOTH remedies.
+		! typeAvailable
+			? createElement(
+				Notice,
+				{ status: 'warning', isDismissible: false },
+				createElement(
+					'p',
+					null,
+					sprintf(
+						/* translators: %s: server type label. */
+						__(
+							'The %s server type requires the AcrossAI Abilities Manager add-on. Until it is installed and activated this server advertises a single notice to AI clients instead of tools. Install the add-on, or change this server\'s type above.',
+							'acrossai-mcp-manager',
+						),
+						typeLabel || serverType,
+					),
+				),
+			)
+			: null,
+
+		// F090 (T050) — the standing tool-rule panel. Deliberately the SAME
+		// markup and styling as the Abilities tab's default-policy panel
+		// (`acrossai-mcp-abilities-policy`), because it is the same idea: a
+		// standing rule that overrides individual selection. The shared SCSS
+		// mixin means the two cannot drift apart visually.
+		//
+		// Like that panel, the button matching the CURRENT rule is disabled —
+		// clicking it would be a silent no-op, so offering it would mislead.
+		createElement(
+			'div',
+			{ className: 'acrossai-mcp-tools-policy' },
+			createElement(
+				'div',
+				{ className: 'acrossai-mcp-tools-policy__status' },
+				createElement(
+					'span',
+					{
+						className:
+							'acrossai-mcp-tools-policy__pill is-policy-' + toolsPolicy,
+						role: 'status',
+						'aria-live': 'polite',
+					},
+					POLICY_PILL_LABEL[ toolsPolicy ] || POLICY_PILL_LABEL[ 'per-tool' ],
+				),
+				createElement(
+					'p',
+					{ className: 'description acrossai-mcp-tools-policy__counter' },
+					POLICY_PILL_DESCRIPTION[ toolsPolicy ] ||
+						sprintf(
+							/* translators: 1: tools added, 2: tools available. */
+							__(
+								'%1$d of %2$d tools added — rule: choose individually.',
+								'acrossai-mcp-manager',
+							),
+							added.size,
+							totalPool,
+						),
+				),
+			),
+			createElement(
+				'div',
+				{ className: 'acrossai-mcp-tools-policy__actions' },
+				createElement(
+					Button,
+					{
+						variant: 'secondary',
+						size: 'compact',
+						disabled: saving || toolsPolicy === 'all',
+						onClick: () => setPendingBulk( 'all' ),
+					},
+					__( 'Add All', 'acrossai-mcp-manager' ),
+				),
+				createElement(
+					Button,
+					{
+						variant: 'secondary',
+						size: 'compact',
+						disabled: saving || toolsPolicy === 'none',
+						onClick: () => setPendingBulk( 'none' ),
+					},
+					__( 'Remove All', 'acrossai-mcp-manager' ),
+				),
+				createElement(
+					Button,
+					{
+						variant: 'secondary',
+						size: 'compact',
+						// Deliberately NOT disabled on `per-tool`, unlike the
+						// other two. The Abilities tab's equivalent only flips a
+						// rule, so offering it in its own state is a no-op. This
+						// one ALSO rewrites the tool set to the type's, which is
+						// meaningful whatever the current rule — it is the defect
+						// this whole feature exists to fix.
+						disabled: saving,
+						onClick: openResetDialog,
+					},
+					__( 'Reset to Type Defaults', 'acrossai-mcp-manager' ),
+				),
+			),
+		),
+
+		// F090 — when what the server SERVES differs from what is CONFIGURED,
+		// say so. Silently showing one while serving the other is the exact
+		// divergence ARCH-2 exists to prevent.
+		typeAvailable && effectiveTools.length !== added.size
+			? createElement(
+				Notice,
+				{ status: 'info', isDismissible: false },
+				sprintf(
+					/* translators: 1: number of tools served, 2: number configured. */
+					__(
+						'This server is currently serving %1$d tool(s), while %2$d are configured below. A bulk tool rule is overriding the individual selection.',
+						'acrossai-mcp-manager',
+					),
+					effectiveTools.length,
+					added.size,
+				),
+			)
+			: null,
+
+		// F090 (T027) — offer the type's missing tools; never auto-apply.
+		typeAvailable && missingFromType.length > 0
+			? createElement(
+				Notice,
+				{ status: 'info', isDismissible: false },
+				createElement(
+					'p',
+					null,
+					sprintf(
+						/* translators: 1: count of tools, 2: server type label. */
+						_n(
+							'%1$d tool is available for the %2$s server type but is not added here.',
+							'%1$d tools are available for the %2$s server type but are not added here.',
+							missingFromType.length,
+							'acrossai-mcp-manager',
+						),
+						missingFromType.length,
+						typeLabel || serverType,
+					),
+					' ',
+					createElement(
+						Button,
+						{
+							variant: 'secondary',
+							isSmall: true,
+							disabled: saving,
+							onClick: () => {
+								const prev = new Set( added );
+								const next = new Set( added );
+								missingFromType.forEach( ( slug ) => next.add( slug ) );
+								persistSet( next, prev );
+							},
+						},
+						__( 'Apply', 'acrossai-mcp-manager' ),
+					),
+				),
 			)
 			: null,
 		createElement(
@@ -715,16 +1077,6 @@ function ToolsApp( { serverId } ) {
 							String( added.size ),
 						),
 					),
-					createElement( Button, {
-						variant: 'secondary',
-						isSmall: true,
-						onClick: openResetDialog,
-						// F025: Reset is always meaningful — even when the pane
-						// looks default, it clears any invisible curated rows
-						// and re-affirms all three protocol columns as 1.
-						disabled: saving,
-						children: __( 'Reset', 'acrossai-mcp-manager' ),
-					} ),
 				),
 				createElement(
 					'div',
@@ -825,6 +1177,58 @@ function ToolsApp( { serverId } ) {
 				),
 			)
 			: null,
+		// F090 (T049) — confirm before a standing rule overrides the operator's
+		// individual selection. The selection is NOT destroyed — returning to
+		// 'per-tool' restores it — and the dialog says so, because a warning
+		// that overstates the damage trains people to ignore warnings.
+		pendingBulk
+			? createElement( ConfirmDialog, {
+				isOpen: true,
+				onConfirm: () => {
+					const next = pendingBulk;
+					setPendingBulk( null );
+					persistPolicy( next );
+				},
+				onCancel: () => setPendingBulk( null ),
+				confirmButtonText:
+						pendingBulk === 'all'
+							? __( 'Expose every tool', 'acrossai-mcp-manager' )
+							: __( 'Expose no tools', 'acrossai-mcp-manager' ),
+			},
+			pendingBulk === 'all'
+				? __(
+					'Expose every tool-level ability on this server, including ones registered later by plugins you install in future? Your individual selection is kept and takes effect again if you return to choosing individually.',
+					'acrossai-mcp-manager',
+				)
+				: __(
+					'Expose no tools on this server? AI clients will see nothing. Your individual selection is kept and takes effect again if you return to choosing individually.',
+					'acrossai-mcp-manager',
+				),
+			)
+			: null,
+
+		// F090 (T026) — ConfirmDialog for a type switch. Names BOTH effects,
+		// because a switch that silently changed a second setting would be a
+		// hidden side effect, and one that appeared to do nothing would read as
+		// a bug (FR-012a).
+		pendingTypeSwitch
+			? createElement( ConfirmDialog, {
+				isOpen: true,
+				onConfirm: () => {
+					const next = pendingTypeSwitch;
+					setPendingTypeSwitch( null );
+					applyTypeSwitch( next );
+				},
+				onCancel: () => setPendingTypeSwitch( null ),
+				confirmButtonText: __( 'Change type', 'acrossai-mcp-manager' ),
+			},
+			__(
+				'Change this server\'s type? Its current tool selection will be replaced by the new type\'s set, and the bulk tool rule returns to choosing tools individually.',
+				'acrossai-mcp-manager',
+			),
+			)
+			: null,
+
 		// F025 US3 — ConfirmDialog for Reset (destructive: wipes curated picks).
 		pendingReset
 			? createElement(

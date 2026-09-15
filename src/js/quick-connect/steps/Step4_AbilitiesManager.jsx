@@ -35,7 +35,7 @@ import { __ } from '@wordpress/i18n';
 import apiFetch from '@wordpress/api-fetch';
 import Notice from '../components/Notice.jsx';
 import useWizardState from '../hooks/useWizardState.js';
-import { useFooterAction } from '../hooks/useAdvanceGuard.js';
+import useAdvanceGuard, { useFooterAction } from '../hooks/useAdvanceGuard.js';
 
 const ABILITIES_MANAGER_SLUG = 'acrossai-abilities-manager';
 const WP_ORG_URL = 'https://wordpress.org/plugins/acrossai-abilities-manager/';
@@ -70,6 +70,29 @@ const Step4_AbilitiesManager = () => {
 
 	const managerState = state.plugins.abilitiesManager; // 'missing' | 'inactive' | 'active'
 	const isMissing = managerState === 'missing';
+
+	// F090 (T038) — this step is normally skippable: the add-on is a
+	// recommendation, not a requirement. But when the server chosen or created in
+	// THIS run has a type whose requirement is unmet, step 6 will refuse to
+	// enable it. Letting the operator past here would strand them five steps in
+	// with no way forward — the worst possible place to discover a requirement.
+	//
+	// So the guard is conditional on the server in play, not on the add-on
+	// alone. A server whose type works (mcp-adapter) leaves this step skippable
+	// exactly as before.
+	const currentServer = useMemo(
+		() =>
+			state.servers.find( ( s ) => s.id === state.wizardState.server_id ) ||
+			null,
+		[ state.servers, state.wizardState.server_id ],
+	);
+	const serverNeedsAddon =
+		currentServer !== null && currentServer.type_available === false;
+
+	// Re-evaluated on every render: installing the add-on inside this step
+	// refetches state, which flips type_available and releases the guard without
+	// the operator navigating away.
+	useAdvanceGuard( ! serverNeedsAddon );
 
 	const handleInstallOrActivateAndContinue = useCallback( async () => {
 		setWorking( true );
@@ -156,6 +179,21 @@ const Step4_AbilitiesManager = () => {
 			{ error && (
 				<div style={ { marginBottom: 20 } }>
 					<Notice status="error">{ error }</Notice>
+				</div>
+			) }
+
+			{ /* F090 (T038) — say WHY Continue is blocked. A disabled button with
+			     no explanation is the silent failure this feature exists to
+			     remove; the operator gets both remedies here, exactly as the
+			     Overview and Tools tabs offer them. */ }
+			{ serverNeedsAddon && (
+				<div style={ { marginBottom: 20 } }>
+					<Notice status="warning">
+						{ __(
+							'This server\'s type requires the AcrossAI Abilities Manager, so it cannot be enabled later in this setup without it. Install it below, or go back and choose a different server type.',
+							'acrossai-mcp-manager',
+						) }
+					</Notice>
 				</div>
 			) }
 
