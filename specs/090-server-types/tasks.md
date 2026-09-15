@@ -30,8 +30,8 @@ attributes (they are inert under 9.6). See `research.md` R7.
 
 ## Phase 1: Setup (Shared Infrastructure)
 
-- [ ] T001 Confirm the working tree is clean and on branch `090-server-types`, and that no `server_type` / `tools_default_policy` code remains from the pre-planning spike (`grep -rn "server_type\|tools_default_policy\|ServerTypes" includes/ admin/ src/` returns zero)
-- [ ] T002 Confirm the local database is at schema version `1.1.5` with neither new column present, so the migration is exercised from a true pre-090 state (recipe in `quickstart.md` §1)
+- [x] T001 Confirm the working tree is clean and on branch `090-server-types`, and that no `server_type` / `tools_default_policy` code remains from the pre-planning spike (`grep -rn "server_type\|tools_default_policy\|ServerTypes" includes/ admin/ src/` returns zero)
+- [x] T002 Confirm the local database is at schema version `1.1.5` with neither new column present, so the migration is exercised from a true pre-090 state (recipe in `quickstart.md` §1)
 
 ---
 
@@ -39,21 +39,21 @@ attributes (they are inert under 9.6). See `research.md` R7.
 
 **⚠️ Every user story depends on this phase. Nothing below Phase 2 can start until it completes.**
 
-- [ ] T003 Add `server_type` varchar(32) NOT NULL DEFAULT `'mcp-adapter'` and `tools_default_policy` varchar(16) NOT NULL DEFAULT `'per-tool'` to `$columns` in `includes/Database/MCPServer/Schema.php`, each with a comment stating why the default is load-bearing
-- [ ] T004 Add matching `public string` properties and `to_array()` keys for both columns in `includes/Database/MCPServer/Row.php`
-- [ ] T005 Bump `$version` to `'1.1.6'` AND register `'1.1.6' => 'upgrade_to_1_1_6'` in `$upgrades` in the SAME edit in `includes/Database/MCPServer/Table.php` (D28 three-part contract — a bump without the callback silently stamps the version)
-- [ ] T006 Implement `upgrade_to_1_1_6()` in `includes/Database/MCPServer/Table.php`: guard each ADD with BerlinDB's **inherited public** `column_exists( $name )` — do NOT declare a local helper of that name, it is a fatal access-level clash (`research.md` R4)
-- [ ] T007 In `includes/Database/MCPServer/Table.php`, in the same callback, issue exactly one slug-matched `UPDATE … SET server_type='acrossai' WHERE server_slug = DefaultServerSeeder::ACROSSAI_SLUG`, **gated on having just created the column** so a re-run cannot revert a deliberate operator switch
-- [ ] T008 [P] Create `includes/Database/MCPServer/ServerTypes.php` — stateless static registry (A11): constant seed (`mcp-adapter`, `acrossai`), the `acrossai_mcp_server_types` filter, and its own small normalizer. Do NOT use `Utilities\RegistryEntryNormalizer` (it drops entries lacking a callable `render_callback`)
-- [ ] T009 [P] Implement `ServerTypes::all()`, `get()`, `tools_for()`, `is_available()`, `default_slug()` and `enablement_error()` per `contracts/server-types-filter.md`; `default_slug()` MUST skip types whose `requires` is unmet, with `mcp-adapter` as the always-registered floor
-- [ ] T010 In `includes/Database/MCPServer/DefaultServerSeeder.php`, add `server_type` to `definitions()` — `'mcp-adapter'` in the Default server's **`managed`** bucket, `'acrossai'` in the AcrossAI server's **`initial`** bucket (NOT managed). Add `tools_default_policy` to neither bucket
+- [x] T003 Add `server_type` varchar(32) NOT NULL DEFAULT `'mcp-adapter'` and `tools_default_policy` varchar(16) NOT NULL DEFAULT `'per-tool'` to `$columns` in `includes/Database/MCPServer/Schema.php`, each with a comment stating why the default is load-bearing
+- [x] T004 Add matching `public string` properties and `to_array()` keys for both columns in `includes/Database/MCPServer/Row.php`
+- [x] T005 Bump `$version` to `'1.1.6'` AND register `'1.1.6' => 'upgrade_to_1_1_6'` in `$upgrades` in the SAME edit in `includes/Database/MCPServer/Table.php` (D28 three-part contract — a bump without the callback silently stamps the version)
+- [x] T006 Implement `upgrade_to_1_1_6()` in `includes/Database/MCPServer/Table.php`: guard each ADD with BerlinDB's **inherited public** `column_exists( $name )` — do NOT declare a local helper of that name, it is a fatal access-level clash (`research.md` R4)
+- [x] T007 In `includes/Database/MCPServer/Table.php`, in the same callback, issue exactly one slug-matched `UPDATE … SET server_type='acrossai' WHERE server_slug = DefaultServerSeeder::ACROSSAI_SLUG`, **gated on having just created the column** so a re-run cannot revert a deliberate operator switch
+- [x] T008 [P] Create `includes/Database/MCPServer/ServerTypes.php` — stateless static registry (A11): constant seed (`mcp-adapter`, `acrossai`), the `acrossai_mcp_server_types` filter, and its own small normalizer. Do NOT use `Utilities\RegistryEntryNormalizer` (it drops entries lacking a callable `render_callback`)
+- [x] T009 [P] Implement `ServerTypes::all()`, `get()`, `tools_for()`, `is_available()`, `default_slug()` and `enablement_error()` per `contracts/server-types-filter.md`; `default_slug()` MUST skip types whose `requires` is unmet, with `mcp-adapter` as the always-registered floor
+- [x] T010 In `includes/Database/MCPServer/DefaultServerSeeder.php`, add `server_type` to `definitions()` — `'mcp-adapter'` in the Default server's **`managed`** bucket, `'acrossai'` in the AcrossAI server's **`initial`** bucket (NOT managed). Add `tools_default_policy` to neither bucket
 - [ ] T011 [P] PHPUnit: migration adds both columns; pre-existing rows read `mcp-adapter`; the AcrossAI row reads `acrossai`; re-running `maybe_upgrade()` is a no-op — in `tests/phpunit/Database/MCPServer/TableMigration116Test.php`. Restore schema explicitly in teardown; DDL escapes `WP_UnitTestCase` rollback (B53)
 - [ ] T012 [P] PHPUnit **regression for T007**: set the AcrossAI row to `mcp-adapter`, delete the version option, re-run the upgrade, assert the row is STILL `mcp-adapter` — in `tests/phpunit/Database/MCPServer/TableMigration116Test.php`
 - [ ] T013 [P] PHPUnit for the registry: seed shape, filter add, last-wins override of the `acrossai` placeholder (D41), `default_slug()` skipping an unmet requirement, unknown slug degrading without fatal — in `tests/phpunit/Database/MCPServer/ServerTypesTest.php`
-- [ ] T014 **[ARCH-1]** Create `includes/Database/MCPServer/ServerEnablement.php` with `set( int $server_id, bool $enabled ): true|WP_Error` as the ONLY sanctioned `is_enabled` writer; it consults `ServerTypes::enablement_error()` on off→on and returns the `WP_Error` unchanged  *(moved from US2 per SEC-005 — the boundary must exist before any story can enable a server)*
-- [ ] T015 **[ARCH-1]** Add a grep gate to `bin/verify-f021-gates.sh` failing CI on any `'is_enabled' =>` write outside `ServerEnablement` and `DefaultServerSeeder`, so a future fourth path is caught by CI rather than by review
+- [x] T014 **[ARCH-1]** Create `includes/Database/MCPServer/ServerEnablement.php` with `set( int $server_id, bool $enabled ): true|WP_Error` as the ONLY sanctioned `is_enabled` writer; it consults `ServerTypes::enablement_error()` on off→on and returns the `WP_Error` unchanged  *(moved from US2 per SEC-005 — the boundary must exist before any story can enable a server)*
+- [x] T015 **[ARCH-1]** Add a grep gate to `bin/verify-f021-gates.sh` failing CI on any `'is_enabled' =>` write outside `ServerEnablement` and `DefaultServerSeeder`, so a future fourth path is caught by CI rather than by review
 - [ ] T016 [P] PHPUnit: `POST /servers/{id}/tools` rejects an unregistered `server_type` with `acrossai_mcp_invalid_server_type` (400) and leaves the stored value unchanged; `POST /servers/{id}/tools/policy` rejects a value outside `all|none|per-tool`. Include a forged-value case — a well-formed slug that is not a registered type — in `tests/phpunit/REST/ToolsControllerValidationTest.php`  *(added per SEC-006)*
-- [ ] T017 Load a real wp-admin page and confirm `wp-content/debug.log` gains no fatal. **Not optional** — PHPCS and PHPStan both passed on code that white-screened the site during pre-planning (`research.md` R4)
+- [x] T017 Load a real wp-admin page and confirm `wp-content/debug.log` gains no fatal. **Not optional** — PHPCS and PHPStan both passed on code that white-screened the site during pre-planning (`research.md` R4)
 
 **Checkpoint**: schema, registry and seeder exist and are proven. User stories may now proceed.
 
@@ -74,14 +74,14 @@ restored set matches that server's type rather than a fixed list.
 
 ### Implementation for User Story 1
 
-- [ ] T020 [US1] **[ARCH-2]** Implement the precedence chain INSIDE `ToolPolicy::compose_effective_tools_for_row()` in `includes/Database/MCPServer/ToolPolicy.php` — unmet requirement > standing policy > per-tool composition. Leave `compose_for_row()` returning the CONFIGURED set only; this ends their passthrough relationship
-- [ ] T021 [US1] Expose `server_type`, `tools_default_policy`, `type_available`, `type_label` and `effective_tools` on `GET /servers/{id}/tools` in `includes/REST/ToolsController.php` per `contracts/rest-tools.md`
-- [ ] T022 [US1] Accept an optional validated `server_type` on `POST /servers/{id}/tools` in `includes/REST/ToolsController.php` so a type switch and its tool set are ONE atomic write; reject unknown slugs with `acrossai_mcp_invalid_server_type` (400)
-- [ ] T023 [US1] In `includes/REST/ToolsController.php`, reset `tools_default_policy` to `'per-tool'` in that same write whenever `server_type` changes and the policy was `all`/`none` (FR-012a)
-- [ ] T024 [US1] Add the type selector to the top of the Tools tab in `src/js/tools.js`, offering only available types and showing the raw slug marked unavailable for an unrecognised value
-- [ ] T025 [US1] **Rewire `applyReset()` in `src/js/tools.js`** to use the resolved type's tools instead of `PROTOCOL_TOOL_SLUGS`. *This single change is the defect the feature exists to fix.*
-- [ ] T026 [US1] Add a ConfirmDialog on type switch in `src/js/tools.js` naming BOTH effects — the tool selection is replaced AND the standing rule returns to "choose individually" — reusing the existing `pendingReset` pattern
-- [ ] T027 [US1] Add the "N tools available for this type · Apply" prompt in `src/js/tools.js`, shown only when the type's set contains slugs the server lacks; it must never apply without the operator clicking
+- [x] T020 [US1] **[ARCH-2]** Implement the precedence chain INSIDE `ToolPolicy::compose_effective_tools_for_row()` in `includes/Database/MCPServer/ToolPolicy.php` — unmet requirement > standing policy > per-tool composition. Leave `compose_for_row()` returning the CONFIGURED set only; this ends their passthrough relationship
+- [x] T021 [US1] Expose `server_type`, `tools_default_policy`, `type_available`, `type_label` and `effective_tools` on `GET /servers/{id}/tools` in `includes/REST/ToolsController.php` per `contracts/rest-tools.md`
+- [x] T022 [US1] Accept an optional validated `server_type` on `POST /servers/{id}/tools` in `includes/REST/ToolsController.php` so a type switch and its tool set are ONE atomic write; reject unknown slugs with `acrossai_mcp_invalid_server_type` (400)
+- [x] T023 [US1] In `includes/REST/ToolsController.php`, reset `tools_default_policy` to `'per-tool'` in that same write whenever `server_type` changes and the policy was `all`/`none` (FR-012a)
+- [x] T024 [US1] Add the type selector to the top of the Tools tab in `src/js/tools.js`, offering only available types and showing the raw slug marked unavailable for an unrecognised value
+- [x] T025 [US1] **Rewire `applyReset()` in `src/js/tools.js`** to use the resolved type's tools instead of `PROTOCOL_TOOL_SLUGS`. *This single change is the defect the feature exists to fix.*
+- [x] T026 [US1] Add a ConfirmDialog on type switch in `src/js/tools.js` naming BOTH effects — the tool selection is replaced AND the standing rule returns to "choose individually" — reusing the existing `pendingReset` pattern
+- [x] T027 [US1] Add the "N tools available for this type · Apply" prompt in `src/js/tools.js`, shown only when the type's set contains slugs the server lacks; it must never apply without the operator clicking
 
 **Checkpoint**: US1 is independently shippable — it alone fixes the Reset defect.
 
@@ -102,9 +102,9 @@ every route and confirm each refuses; then switch its type and confirm it enable
 
 ### Implementation for User Story 2
 
-- [ ] T030 [US2] Route the single toggle at `admin/Partials/Settings.php:238` through `ServerEnablement::set()` and render the returned message
-- [ ] T031 [US2] Route the bulk branch at `admin/Partials/Settings.php:288` through `ServerEnablement::set()` with **partial-success** semantics — enable the eligible, skip the rest, name each skipped server and why
-- [ ] T032 [US2] Route `includes/REST/QuickConnectController.php:729` through `ServerEnablement::set()` and surface the `WP_Error` to the wizard
+- [x] T030 [US2] Route the single toggle at `admin/Partials/Settings.php:238` through `ServerEnablement::set()` and render the returned message
+- [x] T031 [US2] Route the bulk branch at `admin/Partials/Settings.php:288` through `ServerEnablement::set()` with **partial-success** semantics — enable the eligible, skip the rest, name each skipped server and why
+- [x] T032 [US2] Route `includes/REST/QuickConnectController.php:729` through `ServerEnablement::set()` and surface the `WP_Error` to the wizard
 - [ ] T033 [US2] Render the Enable affordance disabled with its reason in `admin/Partials/MCPServerListTable.php`. Do NOT gate `includes/MCP/Controller.php:357` — it is a READ (`has_any_enabled_server()`)
 - [ ] T034 [P] [US2] **[SEC-001]** Add a Server Type field to the classic create form in `admin/Partials/Settings.php:693-721`, preselecting `ServerTypes::default_slug()` and offering only available types; the `add_item()` array at `:347` MUST write `server_type` explicitly
 - [ ] T035 [US2] **[SEC-001]** Add the same field to (NOT parallel — shares `QuickConnectController.php` with T032, per SEC-007) `src/js/quick-connect/steps/Step2_ServerCreate.jsx`, AND write `server_type` explicitly in the second creation path at `includes/REST/QuickConnectController.php:631` — the path the first plan draft missed
@@ -131,10 +131,10 @@ list the server's offerings, and confirm exactly one self-describing entry.
 
 ### Implementation for User Story 3
 
-- [ ] T041 [US3] Create `includes/Abilities/SetupRequired.php` — a plugin-owned ability whose description AND return value both name the required add-on, using the plugin text domain (translatable, per clarification Q3). Disclose only the plugin's public name: no paths, versions or site configuration
-- [ ] T042 [US3] **[SEC-002]** Scope it in `includes/Abilities/SetupRequired.php` and `includes/Abilities/ToolAbilities.php`: keep it out of `ToolAbilities::get_slugs()` and out of `discover-abilities`, and admit it only to the effective list of a server whose own requirement is unmet
+- [x] T041 [US3] Create `includes/Abilities/SetupRequired.php` — a plugin-owned ability whose description AND return value both name the required add-on, using the plugin text domain (translatable, per clarification Q3). Disclose only the plugin's public name: no paths, versions or site configuration
+- [x] T042 [US3] **[SEC-002]** Scope it in `includes/Abilities/SetupRequired.php` and `includes/Abilities/ToolAbilities.php`: keep it out of `ToolAbilities::get_slugs()` and out of `discover-abilities`, and admit it only to the effective list of a server whose own requirement is unmet
 - [ ] T043 [US3] Wire its registration in `includes/Main.php` via the Loader (A1) — never in a constructor
-- [ ] T044 [US3] **[ARCH-2]** Ensure EVERY MCP composition path uses the effective composer — `includes/MCP/Controller.php:143` **and `:322`** (the `mcp_adapter_default_server_config` path the first draft missed). Never skip `create_server()` for an unmet requirement: that 404s the route and kills a live session
+- [x] T044 [US3] **[ARCH-2]** Ensure EVERY MCP composition path uses the effective composer — `includes/MCP/Controller.php:143` **and `:322`** (the `mcp_adapter_default_server_config` path the first draft missed). Never skip `create_server()` for an unmet requirement: that 404s the route and kills a live session
 - [ ] T045 [P] [US3] PHPUnit: a deactivate→reactivate cycle leaves curated presence rows byte-identical, proving the swap writes nothing to storage — in `tests/phpunit/MCP/SetupRequiredTest.php`
 
 **Checkpoint**: an unmet requirement degrades into an explanation, not a failure.
@@ -248,3 +248,38 @@ independently shippable. Everything after it adds enforcement and convenience.
 - **T020 and T044 must agree.** They are the two halves of ARCH-2; if the precedence chain
   lands anywhere other than the effective composer, REST and MCP will report different tool
   lists.
+
+---
+
+## Implementation log — 2026-09-15 (MVP, Phases 1-3)
+
+**Delivered and verified on the live install**: schema + `1.1.6` migration, the
+`ServerTypes` registry, seeder buckets, the `ServerEnablement` facade + CI grep gate, the
+ARCH-2 precedence chain, the REST layer, and the Tools-tab UI including **T025, the Reset
+rewire this feature exists for**.
+
+**Pulled forward from later phases, deliberately:**
+
+- **T030-T032** (route the three callers through the facade) moved up from US2. T015's grep
+  gate CANNOT PASS while any caller still writes `is_enabled` directly, so shipping the
+  facade without the rewires would have left Phase 2 red. A facade nobody routes through is
+  not a boundary — the same reasoning behind SEC-005.
+- **T041/T042** (`SetupRequired`) moved up from US3, because T020's precedence chain
+  references the diagnostic slug. Leaving layer 1 returning an empty array would have
+  recreated the silent dead-endpoint state the feature exists to prevent.
+- **T044** needed no work: both MCP composition paths (`Controller.php:143` and `:322`)
+  already call the effective composer, so putting the logic in `ToolPolicy` covered both.
+
+**Defect found by live verification, not by static analysis.** With the sibling ACTIVE but
+not yet registering its type (that task is still open), `acrossai` resolved to the shipped
+placeholder's EMPTY tool list while reporting available — so Reset would have wiped every
+tool on that server, strictly worse than the hardcoded-defaults bug being fixed.
+`ServerTypes::tools_for()` now falls back to the legacy set for an empty template as well as
+an unknown slug, and the REST payload resolves through the same method so the UI cannot
+diverge. PHPCS, PHPStan and ESLint were all clean before this was caught.
+
+**Not done in this pass — the six MVP test tasks (T011, T012, T013, T016, T018, T019).**
+Local PHPUnit cannot run WP-dependent suites (`WP_UnitTestCase` not found; no WP test library
+installed), so they must be written against CI. NOTE T012's regression WAS exercised manually
+against the live database — the operator's type switch survived a forced re-run — but the
+automated guard is not yet in place.

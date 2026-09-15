@@ -63,9 +63,22 @@ class Table extends \BerlinDB\Database\Kern\Table {
 	 * row — pre-F082 installs migrate to the row-only-wins-else-meta
 	 * semantics they already had.
 	 *
+	 * `1.1.6` (F090): forces the paired `upgrade_to_1_1_6()` callback to ADD
+	 * two columns in one pass — `server_type` and `tools_default_policy` —
+	 * plus one targeted backfill. Two columns in one version rather than
+	 * 1.1.6 + 1.1.7 a week apart: same table, same feature, and every extra
+	 * migration is another chance for a half-upgraded install. Same D28
+	 * 3-part contract.
+	 *
+	 * `server_type`'s column default `'mcp-adapter'` deliberately backfills
+	 * every pre-existing row inside the ALTER — correct for all of them
+	 * EXCEPT the F088 AcrossAI row, which the callback corrects with one
+	 * slug-matched UPDATE. See the callback for why that UPDATE is
+	 * conditional on having just created the column.
+	 *
 	 * @var string
 	 */
-	protected $version = '1.1.5';
+	protected $version = '1.1.6';
 
 	/**
 	 * BerlinDB per-version upgrade callbacks. Runs when `db_version` in
@@ -79,6 +92,7 @@ class Table extends \BerlinDB\Database\Kern\Table {
 		'1.1.3' => 'upgrade_to_1_1_3',
 		'1.1.4' => 'upgrade_to_1_1_4',
 		'1.1.5' => 'upgrade_to_1_1_5',
+		'1.1.6' => 'upgrade_to_1_1_6',
 	);
 
 	/**
@@ -362,6 +376,72 @@ class Table extends \BerlinDB\Database\Kern\Table {
 
 		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching,WordPress.DB.DirectDatabaseQuery.SchemaChange -- DDL with plugin-owned table name + hardcoded column definition; idempotent via existence check above. $wpdb->prepare() does not support DDL identifiers.
 		$wpdb->query( "ALTER TABLE `{$table}` ADD COLUMN `abilities_default_policy` varchar(16) NOT NULL DEFAULT 'per-ability'" );
+
+		return true;
+	}
+
+	/**
+	 * Feature 090 — ADD `server_type` + `tools_default_policy`, and correct the
+	 * one row the column default gets wrong.
+	 *
+	 * Each of the three steps is independently idempotent, so a partially
+	 * applied upgrade (fatal between statements, hosting timeout) heals on the
+	 * next run rather than erroring or double-applying.
+	 *
+	 * Uses BerlinDB's INHERITED PUBLIC `column_exists()` rather than the
+	 * INFORMATION_SCHEMA query the 1.1.1-1.1.5 callbacks each hand-rolled. The
+	 * base class has provided it since v3; a `private` re-implementation here is
+	 * a fatal `Access level ... must be public` clash with the parent that
+	 * NEITHER PHPCS NOR PHPSTAN CATCHES — it surfaces only as a white screen on
+	 * a real page load.
+	 *
+	 * @return bool True on success; BerlinDB stamps the version.
+	 */
+	protected function upgrade_to_1_1_6(): bool {
+		global $wpdb;
+
+		$table = $wpdb->prefix . 'acrossai_mcp_servers';
+
+		// `server_type`. The column default backfills every existing row to
+		// 'mcp-adapter' as part of the ALTER — the correct legacy value for all
+		// of them, so there is no backfill pass.
+		$added_server_type = false;
+		if ( ! $this->column_exists( 'server_type' ) ) {
+			// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching,WordPress.DB.DirectDatabaseQuery.SchemaChange -- DDL with plugin-owned table name + hardcoded column definition; idempotent via the existence check above. $wpdb->prepare() does not support DDL identifiers.
+			$wpdb->query( "ALTER TABLE `{$table}` ADD COLUMN `server_type` varchar(32) NOT NULL DEFAULT 'mcp-adapter'" );
+			$added_server_type = true;
+		}
+
+		// `tools_default_policy`. Default 'per-tool' preserves today's behaviour
+		// on every existing row; the coarse 'all'/'none' rules are opt-in.
+		if ( ! $this->column_exists( 'tools_default_policy' ) ) {
+			// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching,WordPress.DB.DirectDatabaseQuery.SchemaChange -- As above.
+			$wpdb->query( "ALTER TABLE `{$table}` ADD COLUMN `tools_default_policy` varchar(16) NOT NULL DEFAULT 'per-tool'" );
+		}
+
+		// Correct the one row the column default gets wrong. The F088 AcrossAI
+		// row is an AcrossAI-type server, but the ALTER just stamped it
+		// 'mcp-adapter' along with everything else.
+		//
+		// It cannot be fixed by the seeder: F090 puts `server_type` in that
+		// row's `initial` bucket (so the operator can switch type as the escape
+		// hatch when the sibling is deactivated), and `initial` only writes at
+		// INSERT — the row already exists on any site that has F088.
+		//
+		// GATED on having just created the column, deliberately. An
+		// unconditional UPDATE would re-run on a later invocation and revert an
+		// operator who had switched this server to 'mcp-adapter', silently
+		// undoing the very escape hatch the ownership change exists to provide.
+		if ( $added_server_type ) {
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+			$wpdb->update(
+				$table,
+				array( 'server_type' => 'acrossai' ),
+				array( 'server_slug' => DefaultServerSeeder::ACROSSAI_SLUG ),
+				array( '%s' ),
+				array( '%s' )
+			);
+		}
 
 		return true;
 	}

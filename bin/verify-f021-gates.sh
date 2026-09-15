@@ -100,6 +100,32 @@ run_gate 'T118d Partial/Repository/$wpdb layering' \
 	"$GATE_PARTIAL_HITS"
 
 # ---------------------------------------------------------------------------
+# F090 — `is_enabled` has exactly ONE sanctioned WRITER.
+# ServerEnablement::set() enforces the server type's requirement on off -> on.
+# A guard applied at each call site is a convention, not a boundary: F090's
+# call-site list was built by grep and the security review then found a path it
+# had missed. This gate makes the boundary self-maintaining — a future fourth
+# writer fails CI instead of relying on review memory.
+#
+# Scoped to `update_item` deliberately. `'is_enabled' => N` ALSO appears
+# legitimately in (a) query filters (`query( array( 'is_enabled' => 1 ) )`, a
+# READ) and (b) creation arrays (`add_item`, which seeds 0 per A21's
+# disabled-by-default rule). Matching the bare key flags all of those and the
+# gate becomes noise people learn to ignore.
+# ---------------------------------------------------------------------------
+GATE_ENABLED_WRITER_HITS="$(
+	grep -rEn -A2 "update_item\(" \
+		--include='*.php' \
+		includes/ admin/ public/ \
+	2>/dev/null \
+		| grep -E "'is_enabled'[[:space:]]*=>" \
+		| grep -v 'ServerEnablement.php' || true
+)"
+run_gate 'F090 single is_enabled writer' \
+	'Route every enable/disable through ServerEnablement::set() — it enforces the server type requirement on off -> on, and a direct update_item() bypasses it.' \
+	"$GATE_ENABLED_WRITER_HITS"
+
+# ---------------------------------------------------------------------------
 # T119 — FR-040 column-width invariants.
 # hash columns MUST be char(64); PKCE challenge MUST be char(43);
 # token_family_id MUST be char(36). No narrowing.

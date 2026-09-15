@@ -156,6 +156,46 @@ class Schema extends \BerlinDB\Database\Kern\Schema {
 			'default' => 'per-ability',
 		),
 
+		// Feature 090 — the server's TYPE. A type is a starting point plus a
+		// label: it decides what Switch and Reset WRITE into the tool columns
+		// and curated rows. It is never consulted at registration time, so what
+		// a server serves stays exactly what the Tools tab says.
+		//
+		// Default 'mcp-adapter' is load-bearing, not cosmetic: the 1.1.6
+		// migration relies on it to backfill every pre-existing row inside the
+		// ALTER itself, which is the correct legacy value for all of them except
+		// the F088 AcrossAI row (corrected by a targeted UPDATE in the same
+		// migration). A default of 'acrossai' would wrongly stamp every pre-090
+		// server as an AcrossAI server.
+		//
+		// NOTE both create paths MUST write this explicitly from
+		// ServerTypes::default_slug() — a row that falls through to this column
+		// default gets the legacy type, not the registry default.
+		array(
+			'name'    => 'server_type',
+			'type'    => 'varchar',
+			'length'  => '32',
+			'default' => 'mcp-adapter',
+		),
+
+		// Feature 090 — coarse tool policy, the Tools-tab sibling of
+		// `abilities_default_policy` above and deliberately the same shape:
+		// 'per-tool' → compose from the tool_* columns + curated rows (today's
+		// behaviour, and what a server type's preset fills in)
+		// 'all'      → every tool-level ability, INCLUDING ones registered later
+		// (a STANDING rule, not a snapshot — reactivating a companion plugin
+		// must not require re-adding its toolsets by hand)
+		// 'none'     → expose no tools
+		//
+		// 'all'/'none' sit ABOVE the type preset and win over it, exactly as
+		// abilities_default_policy wins over per-ability override rows.
+		array(
+			'name'    => 'tools_default_policy',
+			'type'    => 'varchar',
+			'length'  => '16',
+			'default' => 'per-tool',
+		),
+
 		// F037 — the `embeds_enabled` column was briefly added by
 		// upgrade_to_1_1_3 during initial development but retracted
 		// per user redesign 2026-07-27: all F037 state now lives in

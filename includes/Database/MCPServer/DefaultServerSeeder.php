@@ -100,7 +100,17 @@ final class DefaultServerSeeder {
 					'server_version'         => 'v1.0.0',
 				),
 				'initial' => array(
-					'is_enabled' => 0,
+					'is_enabled'  => 0,
+					// Feature 090 — deliberately `initial`, NOT `managed`. The
+					// operator must be able to switch this server's type as the
+					// escape hatch when the sibling plugin is deactivated;
+					// `managed` would revert them on the next admin request.
+					// Its name, route and description stay plugin-owned above.
+					//
+					// `initial` only writes at INSERT, so an install that
+					// already has the F088 row receives its correct value from
+					// the 1.1.6 migration's targeted UPDATE instead.
+					'server_type' => 'acrossai',
 				),
 			),
 			self::SLUG          => array(
@@ -112,6 +122,9 @@ final class DefaultServerSeeder {
 					'server_route_namespace' => 'mcp',
 					'server_route'           => self::SLUG,
 					'server_version'         => 'v1.0.0',
+					// Feature 090 — `managed` for this row: the legacy server's
+					// identity is plugin-owned and re-asserted every run.
+					'server_type'            => 'mcp-adapter',
 				),
 				'initial' => array(
 					'is_enabled' => 0,

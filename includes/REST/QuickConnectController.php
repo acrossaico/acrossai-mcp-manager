@@ -38,6 +38,7 @@ namespace AcrossAI_MCP_Manager\Includes\REST;
 
 use AcrossAI_MCP_Manager\Includes\Database\MCPServer\PolicyTransition;
 use AcrossAI_MCP_Manager\Includes\Database\MCPServer\Query as MCPServerQuery;
+use AcrossAI_MCP_Manager\Includes\Database\MCPServer\ServerEnablement;
 use AcrossAI_MCP_Manager\Includes\Database\MCPServerAbility\ExposureResolver as MCPServerAbilityExposureResolver;
 use AcrossAI_MCP_Manager\Includes\Utilities\MCPServerFieldSanitizer;
 use AcrossAI_MCP_Manager\Public\Discovery\ConnectionMethodRegistry;
@@ -726,14 +727,18 @@ final class QuickConnectController {
 		}
 
 		$enabled = ! empty( $data['enabled'] );
-		$updated = MCPServerQuery::instance()->update_item( $server_id, array( 'is_enabled' => $enabled ? 1 : 0 ) );
-		if ( false === $updated ) {
-			return new WP_Error(
-				'acrossai_mcp_quick_connect_persist_failed',
-				esc_html__( 'Failed to update the server. Try again.', 'acrossai-mcp-manager' ),
-				array( 'status' => 500 )
-			);
+
+		// F090 (ARCH-1): route through ServerEnablement, the sole sanctioned
+		// writer of `is_enabled`. Quick Connect never touches the servers list
+		// table, so a UI-only guard would not cover this path at all.
+		$result = ServerEnablement::set( $server_id, $enabled );
+
+		if ( is_wp_error( $result ) ) {
+			return $result;
 		}
+
+		// ServerEnablement returns its own WP_Error on a failed write, handled
+		// above — no second persistence check is needed here.
 		$scratchpad['enabled'] = $enabled;
 		return $scratchpad;
 	}

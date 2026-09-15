@@ -12,6 +12,7 @@ use AcrossAI_MCP_Manager\Admin\Partials\ServerTabs\ConnectTab;
 use AcrossAI_MCP_Manager\Includes\Database\MCPServer\DefaultServerSeeder;
 use AcrossAI_MCP_Manager\Includes\Database\MCPServer\ProtectedServers;
 use AcrossAI_MCP_Manager\Includes\Database\MCPServer\Query;
+use AcrossAI_MCP_Manager\Includes\Database\MCPServer\ServerEnablement;
 use AcrossAI_MCP_Manager\Includes\Utilities\AdminPageSlugs;
 use AcrossAI_MCP_Manager\Includes\Utilities\MCPServerFieldSanitizer;
 
@@ -30,6 +31,16 @@ defined( 'ABSPATH' ) || exit;
  * All hooks are wired externally by Includes\Main::define_admin_hooks().
  */
 class Settings {
+
+	/**
+	 * Per-server reasons from the last bulk enable, keyed by server id.
+	 *
+	 * F090 (FR-016a) — a bulk enable partially succeeds; every skipped row must
+	 * be named with its reason, never silently dropped.
+	 *
+	 * @var array<int, string>
+	 */
+	private $bulk_skipped = array();
 
 	/** @var Settings|null */
 	protected static $_instance = null;
@@ -235,7 +246,18 @@ class Settings {
 			return;
 		}
 		$current_enabled = (int) $rows[0]->is_enabled;
-		$query->update_item( $server_id, array( 'is_enabled' => 1 === $current_enabled ? 0 : 1 ) );
+
+		// F090 (ARCH-1): every enable/disable goes through ServerEnablement, the
+		// sole sanctioned writer of `is_enabled`. It enforces the server type's
+		// requirement on off -> on and always permits on -> off.
+		$result = ServerEnablement::set( $server_id, 1 !== $current_enabled );
+
+		if ( is_wp_error( $result ) ) {
+			// POST-redirect-GET: the list page re-renders on a fresh request, so
+			// an instance property would never reach the operator. Carry the
+			// refusal as a notice key, matching every other action here.
+			$this->redirect_to_list( 'type_unavailable' );
+		}
 	}
 
 	/**
@@ -284,10 +306,16 @@ class Settings {
 			if ( $id <= 0 ) {
 				continue;
 			}
-			if ( 'enable' === $action ) {
-				$query->update_item( $id, array( 'is_enabled' => 1 ) );
-			} elseif ( 'disable' === $action ) {
-				$query->update_item( $id, array( 'is_enabled' => 0 ) );
+			if ( 'enable' === $action || 'disable' === $action ) {
+				// F090 (ARCH-1 + FR-016a): PARTIAL SUCCESS. Route through the
+				// facade so an ineligible row is skipped rather than failing the
+				// whole action, and collect its reason so the operator is told
+				// which rows were skipped and why — never silently.
+				$result = ServerEnablement::set( $id, 'enable' === $action );
+
+				if ( is_wp_error( $result ) ) {
+					$this->bulk_skipped[ $id ] = $result->get_error_message();
+				}
 			} elseif ( 'delete' === $action ) {
 				// F088 — never bulk-delete a plugin-managed row (the list
 				// table renders no checkbox for them, so this only fires on a
@@ -297,6 +325,13 @@ class Settings {
 				}
 				$query->delete_item( $id );
 			}
+		}
+
+		// F090 (FR-016a) — partial success must be VISIBLE. Eligible rows were
+		// switched above; if any were skipped the operator is told, rather than
+		// the action appearing to have fully succeeded.
+		if ( ! empty( $this->bulk_skipped ) ) {
+			$this->redirect_to_list( 'bulk_partial' );
 		}
 	}
 

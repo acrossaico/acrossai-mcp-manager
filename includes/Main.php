@@ -635,6 +635,26 @@ final class Main {
 		$this->loader->add_filter( 'wp_register_ability_args', $callback_replacer, 'replace_callbacks', 10, 2 );
 
 		/**
+		 * Feature 090 — the diagnostic ability shown when a server type's
+		 * requirement is unmet.
+		 *
+		 * Registered unconditionally and Loader-wired per A1. It reaches a
+		 * client only by being placed in a specific server's tool list by
+		 * `ToolPolicy::compose_effective_tools_for_row()`, so registering it on
+		 * a healthy install costs nothing and avoids a presence probe whose
+		 * timing would depend on plugin load order.
+		 *
+		 * Priority 20 — after CallbackReplacer (10) has finished rebinding the
+		 * three vendor meta-tools, so the two never contend.
+		 */
+		$this->loader->add_action(
+			'wp_abilities_api_init',
+			\AcrossAI_MCP_Manager\Includes\Abilities\SetupRequired::class,
+			'register',
+			20
+		);
+
+		/**
 		 * Feature 030 — per-server ability permission_callback override.
 		 *
 		 * Wraps every ability's permission_callback in a closure that returns

@@ -37,6 +37,7 @@ declare( strict_types = 1 );
 namespace AcrossAI_MCP_Manager\Includes\REST;
 
 use AcrossAI_MCP_Manager\Includes\Database\MCPServer\Query as MCPServerQuery;
+use AcrossAI_MCP_Manager\Includes\Database\MCPServer\ServerTypes;
 use AcrossAI_MCP_Manager\Includes\Database\MCPServer\ToolPolicy;
 use AcrossAI_MCP_Manager\Includes\Database\MCPServerTool\Query as MCPServerToolQuery;
 use AcrossAI_MCP_Manager\Includes\MCP\ToolExposureGate;
@@ -196,10 +197,25 @@ final class ToolsController {
 			return $server_row;
 		}
 
-		// F025: response 'tools' is the composed union of enabled protocol columns
-		// and curated rows — see ToolPolicy::compose_for_row.
+		// F025: 'tools' is the CONFIGURED set — the composed union of enabled
+		// protocol columns and curated rows (ToolPolicy::compose_for_row).
+		//
+		// F090 adds 'effective_tools': what the server ACTUALLY serves, after the
+		// standing policy and the unmet-requirement swap. The two are no longer
+		// the same question, and returning only one of them is what would let the
+		// Tools tab show a list the server is not serving (ARCH-2).
+		$server_type = (string) $server_row->server_type;
+
 		$response = array(
-			'tools' => ToolPolicy::compose_for_row( $server_row ),
+			'tools'                => ToolPolicy::compose_for_row( $server_row ),
+			'effective_tools'      => ToolPolicy::compose_effective_tools_for_row( $server_row ),
+			'server_type'          => $server_type,
+			'tools_default_policy' => (string) $server_row->tools_default_policy,
+			'type_available'       => ServerTypes::is_available( $server_type ),
+			// Falls back to the raw slug so an unrecognised type renders as
+			// itself marked unavailable, rather than blank (FR-010).
+			'type_label'           => self::type_label( $server_type ),
+			'server_types'         => self::types_payload(),
 		);
 
 		$include_abilities = (bool) $request->get_param( 'include_abilities' );
@@ -310,6 +326,35 @@ final class ToolsController {
 			}
 		}
 
+		// F090 (T022/T023) — an optional server_type makes a type switch and its
+		// resulting tool set ONE atomic write, so the two can never disagree.
+		$type_columns = array();
+		$type_param   = $request->get_param( 'server_type' );
+
+		if ( null !== $type_param && '' !== $type_param ) {
+			$type_param = sanitize_key( (string) $type_param );
+
+			if ( null === ServerTypes::get( $type_param ) ) {
+				return new WP_Error(
+					'acrossai_mcp_invalid_server_type',
+					esc_html__( 'That server type is not registered on this site.', 'acrossai-mcp-manager' ),
+					array( 'status' => 400 )
+				);
+			}
+
+			if ( $type_param !== (string) $server_row->server_type ) {
+				$type_columns['server_type'] = $type_param;
+
+				// FR-012a — a type change resets a coarse standing rule back to
+				// per-tool, so the new type's set takes effect immediately
+				// instead of appearing to do nothing. The confirmation dialog
+				// names both effects before the operator commits.
+				if ( ToolPolicy::POLICY_PER_TOOL !== (string) $server_row->tools_default_policy ) {
+					$type_columns['tools_default_policy'] = ToolPolicy::POLICY_PER_TOOL;
+				}
+			}
+		}
+
 		// F025: split the unified payload across the two storage layers.
 		$split         = ToolPolicy::split_payload( $tools_param );
 		$prior_columns = array(
@@ -320,7 +365,7 @@ final class ToolsController {
 
 		try {
 			// Layer 1 — flip the three protocol columns in one UPDATE.
-			MCPServerQuery::instance()->update_item( $server_id, $split['columns'] );
+			MCPServerQuery::instance()->update_item( $server_id, array_merge( $split['columns'], $type_columns ) );
 
 			// SEC-025-INFO-2: accepted race window between column update and curated
 			// replace_set — see security-review v1 § two-write POST path. Two concurrent
@@ -388,9 +433,19 @@ final class ToolsController {
 		return CacheHeaders::apply_to_rest_response(
 			new WP_REST_Response(
 				array(
-					'tools'   => ToolPolicy::compose_for_row( $refreshed ),
-					'added'   => array_values( array_merge( $columns_added, $curated_applied['added'] ) ),
-					'removed' => array_values( array_merge( $columns_removed, $curated_applied['removed'] ) ),
+					'tools'                => ToolPolicy::compose_for_row( $refreshed ),
+					'added'                => array_values( array_merge( $columns_added, $curated_applied['added'] ) ),
+					'removed'              => array_values( array_merge( $columns_removed, $curated_applied['removed'] ) ),
+					// F090 — the POST response mirrors the GET's F090 fields so
+					// the Tools tab reconciles against server truth after a
+					// write, exactly as it already does for `tools`. Omitting
+					// them would leave a type switch's UI state optimistic and
+					// unverified.
+					'effective_tools'      => ToolPolicy::compose_effective_tools_for_row( $refreshed ),
+					'server_type'          => (string) $refreshed->server_type,
+					'tools_default_policy' => (string) $refreshed->tools_default_policy,
+					'type_available'       => ServerTypes::is_available( (string) $refreshed->server_type ),
+					'type_label'           => self::type_label( (string) $refreshed->server_type ),
 				)
 			)
 		);
@@ -467,5 +522,55 @@ final class ToolsController {
 				)
 			);
 		}
+	}
+
+	/**
+	 * The registered server types, shaped for the Tools tab selector.
+	 *
+	 * Availability is resolved here rather than in JS so the UI cannot drift
+	 * from `ServerTypes::is_available()` — the single resolver the enablement
+	 * gate and the runtime composer also use (B32).
+	 *
+	 * @since 0.1.0 (Feature 090)
+	 * @return array<int, array{slug: string, label: string, description: string, available: bool, requires: ?string, tools: string[]}>
+	 */
+	private static function types_payload(): array {
+		$payload = array();
+
+		foreach ( ServerTypes::all() as $slug => $type ) {
+			$payload[] = array(
+				'slug'        => (string) $slug,
+				'label'       => (string) $type['label'],
+				'description' => (string) $type['description'],
+				'available'   => ServerTypes::is_available( (string) $slug ),
+				'requires'    => $type['requires'],
+				// The actual slugs, not just a count — the Tools tab resolves
+				// Reset and a type switch from this, so the UI can never drift
+				// from what ServerTypes::tools_for() would return.
+				// Resolved through tools_for() so the UI applies the SAME empty
+				// and unknown fallbacks the server does — a raw $type['tools']
+				// here would let Reset wipe a server whose type is a
+				// not-yet-replaced placeholder.
+				'tools'       => ServerTypes::tools_for( (string) $slug ),
+			);
+		}
+
+		return $payload;
+	}
+
+	/**
+	 * A type's display label, falling back to the raw slug.
+	 *
+	 * Extracted at its second use (Constitution VI) — the GET and POST
+	 * responses both need it, and a copy is how the two drift.
+	 *
+	 * @since 0.1.0 (Feature 090)
+	 * @param string $slug Stored type slug.
+	 * @return string
+	 */
+	private static function type_label( string $slug ): string {
+		$type = ServerTypes::get( $slug );
+
+		return null !== $type ? (string) $type['label'] : $slug;
 	}
 }

@@ -25,6 +25,9 @@ declare( strict_types = 1 );
 
 namespace AcrossAI_MCP_Manager\Includes\Database\MCPServer;
 
+use AcrossAI_MCP_Manager\Includes\Abilities\SetupRequired;
+use AcrossAI_MCP_Manager\Includes\Abilities\ToolAbilities;
+
 use AcrossAI_MCP_Manager\Includes\Database\MCPServerTool\Query as MCPServerToolQuery;
 
 defined( 'ABSPATH' ) || exit;
@@ -41,6 +44,32 @@ final class ToolPolicy {
 	 * Single canonical PHP source — the JS mirror in `src/js/tools.js` is kept in
 	 * step by hand at build time.
 	 */
+	/**
+	 * `tools_default_policy` values.
+	 *
+	 * Sibling of `abilities_default_policy`'s `expose|hide|per-ability`. The
+	 * vocabularies deliberately differ: "expose" means something different for
+	 * a tool than for an ability, and D55 warns against reusing a sibling's
+	 * name for different semantics. Recorded as deliberate so it is not later
+	 * "corrected" into a false symmetry.
+	 *
+	 * @var string
+	 */
+	public const POLICY_PER_TOOL = 'per-tool';
+
+	/** @var string */
+	public const POLICY_ALL = 'all';
+
+	/** @var string */
+	public const POLICY_NONE = 'none';
+
+	/**
+	 * Every accepted `tools_default_policy` value.
+	 *
+	 * @var string[]
+	 */
+	public const POLICIES = array( self::POLICY_PER_TOOL, self::POLICY_ALL, self::POLICY_NONE );
+
 	public const PROTOCOL_TOOLS = array(
 		'mcp-adapter/discover-abilities',
 		'mcp-adapter/get-ability-info',
@@ -152,15 +181,63 @@ final class ToolPolicy {
 	 * and prevents ability slugs from leaking into the tool advertisement
 	 * surface.
 	 *
-	 * Currently a straight passthrough to `compose_for_row()`; kept as a
-	 * sibling method so both server-registration call sites in Controller
-	 * can be re-routed in one place if the widening semantic ever comes back.
+	 * **F090 ended the straight-passthrough relationship with
+	 * `compose_for_row()`.** The two now answer genuinely different questions:
 	 *
-	 * @since 0.1.0 (Feature 026)
+	 *   - `compose_for_row()`             — what the operator CONFIGURED
+	 *   - `compose_effective_tools_for_row()` — what this server ACTUALLY SERVES
+	 *
+	 * Both F090 precedence layers live HERE, and nowhere else. Architecture
+	 * review rated splitting them across `ToolPolicy` and `MCP\Controller`
+	 * High: REST reads `compose_for_row()` while MCP registration reads this
+	 * method, so a rule implemented in only one place would let the Tools tab
+	 * show the operator a list the server is not serving.
+	 *
+	 * Precedence, highest first:
+	 *
+	 *   1. Type requirement UNMET -> exactly the diagnostic slug. A server
+	 *      cannot advertise tools whose abilities are not registered, and the
+	 *      client must be told why rather than handed an empty list.
+	 *   2. `tools_default_policy` `all` / `none` -> a STANDING rule that wins
+	 *      over individual curation, exactly as `abilities_default_policy` wins
+	 *      over per-ability override rows.
+	 *   3. `per-tool` -> the configured set (columns + curated rows).
+	 *
+	 * The server TYPE's own tool list is deliberately NOT in this chain. A type
+	 * is a template that WRITES into layer 3 when Reset or a switch runs; it is
+	 * never a runtime filter.
+	 *
+	 * Writes nothing. An unmet requirement must leave curated rows untouched so
+	 * they return intact when the sibling plugin is reactivated.
+	 *
+	 * @since 0.1.0 (Feature 026; precedence chain added by Feature 090)
 	 * @param Row $row The server row.
-	 * @return string[] Protocol columns + F020 curated slugs, deduped.
+	 * @return string[] What this server serves right now, deduped.
 	 */
 	public static function compose_effective_tools_for_row( Row $row ): array {
+		$server_type = (string) $row->server_type;
+
+		// Layer 1 — requirement unmet. Highest precedence: nothing else can
+		// make unregistered abilities servable.
+		if ( ! ServerTypes::is_available( $server_type ) ) {
+			return array( SetupRequired::SLUG );
+		}
+
+		// Layer 2 — the coarse standing rule.
+		$policy = (string) $row->tools_default_policy;
+
+		if ( self::POLICY_NONE === $policy ) {
+			return array();
+		}
+
+		if ( self::POLICY_ALL === $policy ) {
+			// Resolved live, NOT snapshotted: a tool-level ability registered
+			// after the operator chose `all` must be included without them
+			// acting again. That is the whole point of a standing rule.
+			return ToolAbilities::get_slugs();
+		}
+
+		// Layer 3 — the configured set.
 		return self::compose_for_row( $row );
 	}
 
