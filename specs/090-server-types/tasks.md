@@ -133,7 +133,7 @@ list the server's offerings, and confirm exactly one self-describing entry.
 
 - [x] T041 [US3] Create `includes/Abilities/SetupRequired.php` — a plugin-owned ability whose description AND return value both name the required add-on, using the plugin text domain (translatable, per clarification Q3). Disclose only the plugin's public name: no paths, versions or site configuration
 - [x] T042 [US3] **[SEC-002]** Scope it in `includes/Abilities/SetupRequired.php` and `includes/Abilities/ToolAbilities.php`: keep it out of `ToolAbilities::get_slugs()` and out of `discover-abilities`, and admit it only to the effective list of a server whose own requirement is unmet
-- [ ] T043 [US3] Wire its registration in `includes/Main.php` via the Loader (A1) — never in a constructor
+- [x] T043 [US3] Wire its registration in `includes/Main.php` via the Loader (A1) — never in a constructor
 - [x] T044 [US3] **[ARCH-2]** Ensure EVERY MCP composition path uses the effective composer — `includes/MCP/Controller.php:143` **and `:322`** (the `mcp_adapter_default_server_config` path the first draft missed). Never skip `create_server()` for an unmet requirement: that 404s the route and kills a live session
 - [ ] T045 [P] [US3] PHPUnit: a deactivate→reactivate cycle leaves curated presence rows byte-identical, proving the swap writes nothing to storage — in `tests/phpunit/MCP/SetupRequiredTest.php`
 
@@ -156,9 +156,9 @@ confirm it is included with no further action.
 
 ### Implementation for User Story 4
 
-- [ ] T048 [US4] Add `POST /servers/{id}/tools/policy` to `includes/REST/ToolsController.php` with enum validation and an explicit `manage_options` `permission_callback`
-- [ ] T049 [US4] Add the bulk bar to `src/js/tools.js` — **Add All / Remove All / Reset to Type Defaults** — reusing the existing ConfirmDialog for the two destructive actions
-- [ ] T050 [US4] Add the status pill to `src/js/tools.js` stating the current rule and override count, mirroring the Abilities tab, and stating BOTH: that `all`/`none` overrides the type's set until the rule returns to `per-tool`, AND that `all` automatically includes tool-level abilities registered **after** the choice was made (SEC-008 — forward consent, not just precedence)
+- [x] T048 [US4] Add `POST /servers/{id}/tools/policy` to `includes/REST/ToolsController.php` with enum validation and an explicit `manage_options` `permission_callback`
+- [x] T049 [US4] Add the bulk bar to `src/js/tools.js` — **Add All / Remove All / Reset to Type Defaults** — reusing the existing ConfirmDialog for the two destructive actions
+- [x] T050 [US4] Add the status pill to `src/js/tools.js` stating the current rule and override count, mirroring the Abilities tab, and stating BOTH: that `all`/`none` overrides the type's set until the rule returns to `per-tool`, AND that `all` automatically includes tool-level abilities registered **after** the choice was made (SEC-008 — forward consent, not just precedence)
 
 **Checkpoint**: tool curation reaches parity with ability curation.
 
@@ -306,3 +306,34 @@ a control that refused correctly but said nothing:
    partial success (FR-016a).
 2. T038's advance guard blocked Continue with no explanation. Now renders a warning
    offering both remedies before the operator hits the wall.
+
+### US3/US4 pass — 2026-09-15
+
+US3's non-test work was already complete: `SetupRequired` and its Loader wiring shipped in
+the MVP (T041-T043), and T044 needed nothing because both MCP composition paths
+(`Controller.php:143` and `:322`) already call the effective composer — putting the logic in
+`ToolPolicy` covered both by construction.
+
+US4 delivered T048-T050: the policy route, the Add All / Remove All / Reset to Type Defaults
+bar, and the standing-rule pill. Verified live — the rule persists, the pill reflects it, and
+the confirm dialog carries SEC-008's forward-consent warning ("including ones registered
+later by plugins you install in future") plus the reassurance that the individual selection
+is kept.
+
+**Stale-read bug found and fixed.** Both write handlers re-fetched the row to build their
+response, but BerlinDB's singleton Query can serve a memoized row inside the same request, so
+the response was computed from PRE-write state. Observed directly: after returning to
+`per-tool` the tab reported "serving 26 while 3 are configured". Storage was correct
+throughout — only the response disagreed. Both handlers now reflect the columns they wrote
+onto the row in hand instead of re-reading. Confirmed by querying the endpoint directly:
+`per-tool`, 3 configured, 3 effective.
+
+**Known cosmetic quirk, not fixed.** The divergence notice can lag when two policy writes are
+issued in rapid succession (faster than a human clicks) — the second write's optimistic state
+can render before its read settles. Steady state is always correct on load, and the notice is
+an addition of mine rather than a spec requirement. Worth a proper fix if it ever shows up in
+normal use; not worth blocking on.
+
+Replaced two nested ternaries with lookup maps (`POLICY_PILL_LABEL` /
+`POLICY_PILL_DESCRIPTION`) — `no-nested-ternary` was right, and three states with two strings
+each read better as data.

@@ -116,6 +116,31 @@ final class ToolsController {
 			),
 		);
 
+		// F090 (T048) — the standing tool rule. Separate from /tools because it
+		// answers a different question: /tools sets WHICH tools are curated,
+		// this sets whether that curation is consulted at all.
+		register_rest_route(
+			self::NS,
+			'/servers/(?P<server_id>\d+)/tools/policy',
+			array(
+				array(
+					'methods'             => WP_REST_Server::CREATABLE,
+					'callback'            => array( $this, 'post_tools_policy' ),
+					'permission_callback' => array( $this, 'permission_check' ),
+					'args'                => array_merge(
+						$server_id_arg,
+						array(
+							'policy' => array(
+								'type'     => 'string',
+								'required' => true,
+								'enum'     => ToolPolicy::POLICIES,
+							),
+						)
+					),
+				),
+			)
+		);
+
 		register_rest_route(
 			self::NS,
 			'/servers/(?P<server_id>\d+)/tools',
@@ -141,7 +166,14 @@ final class ToolsController {
 					'args'                => array_merge(
 						$server_id_arg,
 						array(
-							'tools' => array(
+							// F090 — declared so core rejects a non-string at the
+							// boundary; the handler still validates it against the
+							// registry, because "is a string" is not "is a type".
+							'server_type' => array(
+								'type'     => 'string',
+								'required' => false,
+							),
+							'tools'       => array(
 								'type'              => 'array',
 								'items'             => array( 'type' => 'string' ),
 								'required'          => true,
@@ -430,6 +462,14 @@ final class ToolsController {
 			return $refreshed;
 		}
 
+		// BerlinDB's singleton Query can serve a memoized row within the same
+		// request, so the re-fetch above may predate this handler's own column
+		// write. Re-apply what we know we wrote; without this a type switch
+		// reports the PREVIOUS type and its tool list (see post_tools_policy).
+		foreach ( $type_columns as $column => $value ) {
+			$refreshed->{$column} = $value;
+		}
+
 		return CacheHeaders::apply_to_rest_response(
 			new WP_REST_Response(
 				array(
@@ -572,5 +612,67 @@ final class ToolsController {
 		$type = ServerTypes::get( $slug );
 
 		return null !== $type ? (string) $type['label'] : $slug;
+	}
+
+	/**
+	 * POST /servers/{id}/tools/policy — set the standing tool rule.
+	 *
+	 * Does NOT touch curated presence rows. Switching back to `per-tool` must
+	 * restore exactly the prior selection, so `all`/`none` can only ever be a
+	 * lens over the stored set, never a rewrite of it.
+	 *
+	 * @since 0.1.0 (Feature 090)
+	 * @param WP_REST_Request $request Request.
+	 * @return WP_REST_Response|WP_Error
+	 */
+	public function post_tools_policy( WP_REST_Request $request ) {
+		$server_id  = (int) $request->get_param( 'server_id' );
+		$server_row = $this->fetch_server_row( $server_id );
+
+		if ( is_wp_error( $server_row ) ) {
+			return $server_row;
+		}
+
+		$policy = (string) $request->get_param( 'policy' );
+
+		// Belt to core's `enum` braces — the enum is declared on the route, but
+		// a validated-elsewhere assumption is how invalid values reach storage.
+		if ( ! in_array( $policy, ToolPolicy::POLICIES, true ) ) {
+			return new WP_Error(
+				'acrossai_mcp_invalid_tools_policy',
+				esc_html__( 'That tool rule is not recognised.', 'acrossai-mcp-manager' ),
+				array( 'status' => 400 )
+			);
+		}
+
+		MCPServerQuery::instance()->update_item( $server_id, array( 'tools_default_policy' => $policy ) );
+
+		// Compose from the row we ALREADY hold, with the value we just wrote
+		// applied in memory — do NOT re-query.
+		//
+		// BerlinDB's Query is a singleton and serves a memoized row within the
+		// same request, so a re-fetch here returns PRE-write state. Observed
+		// directly: after switching back to 'per-tool' the response still
+		// reported the 'all' tool count, and the tab showed "serving 26 while 3
+		// are configured" until the operator reloaded. Storage was correct
+		// throughout; only the response lied.
+		//
+		// Reflecting the single field we changed is both accurate and cheaper
+		// than a cache round-trip, and it cannot drift: this endpoint writes
+		// exactly one column.
+		$server_row->tools_default_policy = $policy;
+
+		return CacheHeaders::apply_to_rest_response(
+			new WP_REST_Response(
+				array(
+					'tools'                => ToolPolicy::compose_for_row( $server_row ),
+					'effective_tools'      => ToolPolicy::compose_effective_tools_for_row( $server_row ),
+					'tools_default_policy' => $policy,
+					'server_type'          => (string) $server_row->server_type,
+					'type_available'       => ServerTypes::is_available( (string) $server_row->server_type ),
+					'type_label'           => self::type_label( (string) $server_row->server_type ),
+				)
+			)
+		);
 	}
 }
