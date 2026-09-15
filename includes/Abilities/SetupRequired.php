@@ -60,6 +60,25 @@ final class SetupRequired {
 	public const SLUG = 'acrossai/setup-required';
 
 	/**
+	 * Ability category this plugin owns and registers.
+	 *
+	 * WP 6.9+ requires a category to be REGISTERED before an ability may be
+	 * assigned to it — `WP_Abilities_Registry::register()` emits
+	 * `_doing_it_wrong` otherwise. That notice is not a fatal, so it does not
+	 * show up in manual testing; PHPUnit's incorrect-usage tracking is what
+	 * catches it.
+	 *
+	 * Deliberately NOT the vendor's `mcp-adapter` category. The adapter
+	 * registers that one inside `McpAdapter`, so borrowing it would make this
+	 * ability depend on the adapter having booted — and this ability exists
+	 * precisely to describe a broken configuration, which is the worst moment
+	 * to inherit someone else's boot order.
+	 *
+	 * @var string
+	 */
+	public const CATEGORY = 'acrossai-mcp';
+
+	/**
 	 * Register the ability. Loader-wired from `Main::define_public_hooks()`
 	 * on `wp_abilities_api_init` per A1 — never from a constructor.
 	 *
@@ -137,6 +156,33 @@ final class SetupRequired {
 		return __(
 			'This MCP server requires the AcrossAI Abilities Manager plugin to be installed and activated. No tools are available until then. Ask the site administrator to install it from the AcrossAI Add-ons page, or to change this server\'s type.',
 			'acrossai-mcp-manager'
+		);
+	}
+
+	/**
+	 * Register the ability category this plugin owns.
+	 *
+	 * Loader-wired to `wp_abilities_api_categories_init` per A1. Must run before
+	 * `register()` assigns an ability to it; WP fires the categories hook ahead
+	 * of `wp_abilities_api_init`, so the ordering is the platform's, not ours.
+	 *
+	 * Guarded on the function existing so a site without the Abilities API
+	 * degrades silently rather than fataling (§V: optional integrations).
+	 *
+	 * @since 0.1.0
+	 * @return void
+	 */
+	public static function register_category(): void {
+		if ( ! function_exists( 'wp_register_ability_category' ) ) {
+			return;
+		}
+
+		wp_register_ability_category(
+			self::CATEGORY,
+			array(
+				'label'       => __( 'AcrossAI MCP', 'acrossai-mcp-manager' ),
+				'description' => __( 'Diagnostic entries owned by the AcrossAI MCP Manager plugin.', 'acrossai-mcp-manager' ),
+			)
 		);
 	}
 }

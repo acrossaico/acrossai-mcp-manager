@@ -647,6 +647,15 @@ final class Main {
 		 * Priority 20 — after CallbackReplacer (10) has finished rebinding the
 		 * three vendor meta-tools, so the two never contend.
 		 */
+		// The category MUST be registered before any ability is assigned to it —
+		// WP 6.9+ emits _doing_it_wrong otherwise. Core fires the categories hook
+		// ahead of wp_abilities_api_init, so this ordering is the platform's.
+		$this->loader->add_action(
+			'wp_abilities_api_categories_init',
+			\AcrossAI_MCP_Manager\Includes\Abilities\SetupRequired::class,
+			'register_category',
+			10
+		);
 		$this->loader->add_action(
 			'wp_abilities_api_init',
 			\AcrossAI_MCP_Manager\Includes\Abilities\SetupRequired::class,
