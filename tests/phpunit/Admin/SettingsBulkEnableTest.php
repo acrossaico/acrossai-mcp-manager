@@ -120,7 +120,18 @@ class SettingsBulkEnableTest extends WP_UnitTestCase {
 	}
 
 	public function test_the_single_toggle_also_routes_through_the_facade(): void {
-		$this->assertStringContainsString( 'ServerEnablement::set', $this->method_source( 'handle_actions' ) );
+		// `handle_actions()` is only the dispatcher — the toggle itself lives in
+		// `toggle_server_status()`. Asserting against the dispatcher passed
+		// vacuously for neither the right nor the wrong reason, which is exactly
+		// the kind of green a source-contract test must not produce.
+		$this->assertStringContainsString( 'ServerEnablement::set', $this->method_source( 'toggle_server_status' ) );
+	}
+
+	public function test_the_single_toggle_writes_no_is_enabled_of_its_own(): void {
+		$this->assertDoesNotMatchRegularExpression(
+			"/update_item\([^)]*'is_enabled'/s",
+			$this->method_source( 'toggle_server_status' )
+		);
 	}
 
 	// ---------------------------------------------------------- helpers ----
