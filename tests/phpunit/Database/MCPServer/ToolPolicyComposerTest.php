@@ -63,14 +63,23 @@ class ToolPolicyComposerTest extends WP_UnitTestCase {
 	}
 
 	public function test_expose_makes_served_diverge_from_configured(): void {
-		$row = $this->row( ServerTypes::LEGACY, ToolPolicy::POLICY_EXPOSE );
-
-		// The standing rule serves the whole pool, which is a superset of the
-		// three protocol columns this bare row has configured.
-		$this->assertNotSame(
-			ToolPolicy::compose_for_row( $row ),
-			ToolPolicy::compose_effective_tools_for_row( $row )
+		// Configure NOTHING — all three protocol columns off, no curated rows —
+		// so the divergence is deterministic. An earlier version of this test
+		// assumed the pool was a superset of a default row's configuration, which
+		// is true on a populated site and FALSE in CI, where no companion plugin
+		// contributes toolsets and the pool is exactly the three protocol tools.
+		$row = $this->row(
+			ServerTypes::LEGACY,
+			ToolPolicy::POLICY_EXPOSE,
+			array(
+				'tool_discover_abilities' => 0,
+				'tool_get_ability_info'   => 0,
+				'tool_execute_ability'    => 0,
+			)
 		);
+
+		$this->assertSame( array(), ToolPolicy::compose_for_row( $row ), 'nothing configured…' );
+		$this->assertNotEmpty( ToolPolicy::compose_effective_tools_for_row( $row ), '…yet the rule serves the pool.' );
 	}
 
 	public function test_an_unmet_requirement_outranks_every_policy(): void {
@@ -115,20 +124,28 @@ class ToolPolicyComposerTest extends WP_UnitTestCase {
 		$this->assertNotEmpty( ToolPolicy::compose_for_row( $row ) );
 	}
 
-	private function row( string $server_type, string $policy ) {
+	/**
+	 * @param string               $server_type Type slug to store.
+	 * @param string               $policy      Standing rule to store.
+	 * @param array<string, mixed> $columns     Extra columns, e.g. the tool_* flags.
+	 */
+	private function row( string $server_type, string $policy, array $columns = array() ) {
 		$slug = 'composer-' . uniqid();
 		$id   = (int) MCPServerQuery::instance()->add_item(
-			array(
-				'server_name'            => 'Composer test server',
-				'server_slug'            => $slug,
-				'description'            => 'Seeded by ToolPolicyComposerTest',
-				'is_enabled'             => 0,
-				'server_type'            => $server_type,
-				'tools_default_policy'   => $policy,
-				'registered_from'        => 'database',
-				'server_route_namespace' => 'mcp',
-				'server_route'           => $slug,
-				'server_version'         => 'v1.0.0',
+			array_merge(
+				array(
+					'server_name'            => 'Composer test server',
+					'server_slug'            => $slug,
+					'description'            => 'Seeded by ToolPolicyComposerTest',
+					'is_enabled'             => 0,
+					'server_type'            => $server_type,
+					'tools_default_policy'   => $policy,
+					'registered_from'        => 'database',
+					'server_route_namespace' => 'mcp',
+					'server_route'           => $slug,
+					'server_version'         => 'v1.0.0',
+				),
+				$columns
 			)
 		);
 
