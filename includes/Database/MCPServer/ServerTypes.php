@@ -261,6 +261,26 @@ final class ServerTypes {
 			$names[ (string) $ability->get_name() ] = true;
 		}
 
+		// The three protocol tools are ALWAYS considered registered, whatever
+		// the registry currently says.
+		//
+		// The vendor registers them on `wp_abilities_api_init`, but attaches its
+		// listener inside `Controller::initialize_adapter()` (rest_api_init) —
+		// which runs AFTER `wp_abilities_api_init` has already fired on any
+		// request whose Abilities-API bootstrap ran on `init`. So
+		// `wp_get_abilities()` is blind to them in exactly the context the Tools
+		// tab runs in. `ToolPolicy::PROTOCOL_TOOL_METADATA` exists for the same
+		// reason and records the same finding.
+		//
+		// Without this, `tools_for()`'s legacy fallback resolved to an EMPTY set
+		// whenever the registry was non-empty but lacked the protocol slugs, and
+		// Reset on an unknown or empty-template type WIPED the server — the
+		// precise failure the fallback was written to prevent, defeated by the
+		// narrowing added alongside it. Caught by ServerTypesTest on its first
+		// CI run; `empty( $registered )` alone never covered it, because the
+		// registry is populated, just not with these.
+		$names += array_fill_keys( ToolPolicy::PROTOCOL_TOOLS, true );
+
 		return array_values(
 			array_filter(
 				$slugs,

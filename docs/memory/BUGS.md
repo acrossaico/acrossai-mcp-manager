@@ -2739,3 +2739,54 @@ while the invariant is gone, so the next reader gets a false signal instead of n
 - `B60` — the defect this gate protects. Its prevention section carries the companion rule: gate
   the DEFECT, not the function, or the allow-list grows until people ignore the gate.
 
+---
+
+### 2026-09-17 — A narrowing filter silently defeated the fallback it was added beside
+
+**Status**
+Retired (F090 — fixed; regression locked by ServerTypesTest)
+
+**What happened**
+`ServerTypes::tools_for()` falls back to the legacy tool set for an unknown type slug or an empty
+template, specifically so **Reset cannot wipe a server**. The same feature later added
+`registered_only()`, narrowing declared slugs to abilities that actually exist, and wrapped the
+fallback in it:
+
+```php
+return self::registered_only( $all[ self::LEGACY ]['tools'] ?? array() );
+```
+
+The legacy set IS the three `mcp-adapter/*` protocol tools — and `wp_get_abilities()` is blind to
+those in most contexts, because the vendor attaches its `wp_abilities_api_init` listener inside
+`Controller::initialize_adapter()` (rest_api_init), after that hook has already fired. So the
+fallback resolved to an EMPTY array in exactly the REST context the Tools tab runs in, and Reset
+on an unknown or empty-template type wiped the server: the precise failure the fallback existed to
+prevent, defeated by the narrowing added alongside it.
+
+`registered_only()`'s own bail-out (`empty( $registered )`) never covered this. The registry is
+POPULATED — just not with these three. The guard protected against "abilities not registered yet"
+and missed "these particular abilities are structurally invisible here".
+
+Both authored in the same feature, by the same hand, each correct in isolation. PHPCS, PHPStan L8
+and every manual UI pass were green; `ToolPolicy::PROTOCOL_TOOL_METADATA` already documented the
+vendor blindness a few files away and was not connected to it.
+
+**Prevention rule**
+When you add a filter over a value that some OTHER code path relies on being non-empty, check that
+path explicitly — a fallback and a narrowing filter compose into "fall back to nothing" unless
+something exempts the fallback. Prefer making the exemption structural: here, treat
+`ToolPolicy::PROTOCOL_TOOLS` as always-registered inside `registered_only()`, so no caller has to
+remember.
+
+Detection: any `array_filter()` applied to a constant or a hard-coded fallback set is suspect. The
+fallback is chosen precisely because it is meant to be unconditional.
+
+**Evidence**
+`ServerTypesTest::test_unknown_slug_degrades_without_fatal` and
+`::test_empty_template_falls_back_to_the_legacy_set` — both failed "asserting that an array is not
+empty" on the suite's FIRST CI run, before the test had ever been run locally.
+
+**Related**
+- `B60` — the review that produced this test. Its rule (test an extension point against a case you
+  did not author) is what put the test in place to catch this.
+
