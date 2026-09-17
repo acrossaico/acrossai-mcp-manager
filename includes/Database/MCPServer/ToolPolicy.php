@@ -241,7 +241,20 @@ final class ToolPolicy {
 			return ServerTypes::pool();
 		}
 
-		// Layer 3 — the configured set, narrowed to abilities that still exist.
+		// Layer 3 — the configured set, narrowed to abilities that still exist,
+		// minus the diagnostic.
+		//
+		// `SetupRequired` IS a registered ability, so without the subtraction a
+		// slug written straight into the curated rows would survive the narrowing
+		// and a HEALTHY server would advertise a "the add-on is missing" tool
+		// while nothing is missing. T042 specifies it is admitted only to a server
+		// whose own requirement is unmet — layer 1 above — and this is what makes
+		// that true rather than merely intended.
+		//
+		// Not reachable through the UI: the picker renders `ServerTypes::pool()`,
+		// which excludes it. Reachable by POSTing the slug to the tools route as
+		// an administrator, which is why the rule belongs here in the composer
+		// rather than in the picker.
 		//
 		// Curated rows are presence rows and they OUTLIVE the plugin that
 		// registered the ability: deactivate Advanced Custom Fields and the
@@ -249,7 +262,12 @@ final class ToolPolicy {
 		// no longer serve. Filtering here — not deleting the row — means the
 		// operator's pick returns intact the moment the plugin is reactivated,
 		// which is the same guarantee a deactivate/reactivate cycle already has.
-		return ServerTypes::registered_only( self::compose_for_row( $row ) );
+		return array_values(
+			array_diff(
+				ServerTypes::registered_only( self::compose_for_row( $row ) ),
+				array( SetupRequired::SLUG )
+			)
+		);
 	}
 
 	/**
