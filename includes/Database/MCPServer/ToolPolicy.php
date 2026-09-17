@@ -228,7 +228,7 @@ final class ToolPolicy {
 		}
 
 		if ( self::POLICY_EXPOSE === $policy ) {
-			// The server's POOL, not its type's declared list. Resolved live on
+			// The site's POOL, not the type's declared list. Resolved live on
 			// every request, which is what makes this a STANDING rule rather
 			// than a snapshot: a tool-level ability registered tomorrow by a
 			// plugin installed tomorrow lands in the pool and is exposed with no
@@ -238,7 +238,7 @@ final class ToolPolicy {
 			// Scoping it to the type's own list would silently exclude anything
 			// the type does not already name — including third-party tools no
 			// type claims.
-			return ServerTypes::pool_for( $server_type );
+			return ServerTypes::pool();
 		}
 
 		// Layer 3 — the configured set, narrowed to abilities that still exist.

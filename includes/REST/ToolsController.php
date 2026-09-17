@@ -251,7 +251,7 @@ final class ToolsController {
 			// F090 — the pool this server may offer, computed server-side so the
 			// picker and the `expose` rule cannot disagree about what "every
 			// available tool" means.
-			'type_pool'            => ServerTypes::pool_for( $server_type ),
+			'type_pool'            => ServerTypes::pool(),
 		);
 
 		$include_abilities = (bool) $request->get_param( 'include_abilities' );
@@ -493,7 +493,7 @@ final class ToolsController {
 					// The pool is TYPE-DEPENDENT, so a switch must return the new
 					// one. Without it the picker keeps offering the previous
 					// type's tools until the operator reloads.
-					'type_pool'            => ServerTypes::pool_for( (string) $refreshed->server_type ),
+					'type_pool'            => ServerTypes::pool(),
 					'server_types'         => self::types_payload(),
 				)
 			)
@@ -680,7 +680,7 @@ final class ToolsController {
 					'server_type'          => (string) $server_row->server_type,
 					'type_available'       => ServerTypes::is_available( (string) $server_row->server_type ),
 					'type_label'           => self::type_label( (string) $server_row->server_type ),
-					'type_pool'            => ServerTypes::pool_for( (string) $server_row->server_type ),
+					'type_pool'            => ServerTypes::pool(),
 				)
 			)
 		);
