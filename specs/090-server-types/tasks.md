@@ -69,8 +69,8 @@ restored set matches that server's type rather than a fixed list.
 
 ### Tests for User Story 1
 
-- [ ] T018 [P] [US1] PHPUnit: `Reset` resolves per type — assert the restored set for an `mcp-adapter` row is `ToolPolicy::PROTOCOL_TOOLS` and for an `acrossai` row is that type's tools — in `tests/phpunit/Database/MCPServer/ToolPolicyResetTest.php`
-- [ ] T019 [P] [US1] PHPUnit: `compose_for_row()` (configured) and `compose_effective_tools_for_row()` (served) return DIFFERENT results once a standing policy is set, proving they are no longer a passthrough — in `tests/phpunit/Database/MCPServer/ToolPolicyComposerTest.php`
+- [x] T018 [P] [US1] PHPUnit: `Reset` resolves per type — assert the restored set for an `mcp-adapter` row is `ToolPolicy::PROTOCOL_TOOLS` and for an `acrossai` row is that type's tools — in `tests/phpunit/Database/MCPServer/ToolPolicyResetTest.php`
+- [x] T019 [P] [US1] PHPUnit: `compose_for_row()` (configured) and `compose_effective_tools_for_row()` (served) return DIFFERENT results once a standing policy is set, proving they are no longer a passthrough — in `tests/phpunit/Database/MCPServer/ToolPolicyComposerTest.php`
 
 ### Implementation for User Story 1
 
@@ -98,7 +98,7 @@ every route and confirm each refuses; then switch its type and confirm it enable
 ### Tests for User Story 2
 
 - [x] T028 [P] [US2] PHPUnit: `ServerEnablement::set()` refuses off→on for an unmet requirement, ALWAYS permits on→off, and never auto-disables — in `tests/phpunit/Database/MCPServer/ServerEnablementTest.php`
-- [ ] T029 [P] [US2] PHPUnit: bulk enable over a mixed selection enables every eligible server and reports every skipped one with a reason (FR-016a) — in `tests/phpunit/Admin/SettingsBulkEnableTest.php`
+- [x] T029 [P] [US2] PHPUnit: bulk enable over a mixed selection enables every eligible server and reports every skipped one with a reason (FR-016a) — in `tests/phpunit/Admin/SettingsBulkEnableTest.php`
 
 ### Implementation for User Story 2
 
@@ -108,7 +108,7 @@ every route and confirm each refuses; then switch its type and confirm it enable
 - [x] T033 [US2] Render the Enable affordance disabled with its reason in `admin/Partials/MCPServerListTable.php`. Do NOT gate `includes/MCP/Controller.php:357` — it is a READ (`has_any_enabled_server()`)
 - [x] T034 [P] [US2] **[SEC-001]** Add a Server Type field to the classic create form in `admin/Partials/Settings.php:693-721`, preselecting `ServerTypes::default_slug()` and offering only available types; the `add_item()` array at `:347` MUST write `server_type` explicitly
 - [x] T035 [US2] **[SEC-001]** Add the same field to (NOT parallel — shares `QuickConnectController.php` with T032, per SEC-007) `src/js/quick-connect/steps/Step2_ServerCreate.jsx`, AND write `server_type` explicitly in the second creation path at `includes/REST/QuickConnectController.php:631` — the path the first plan draft missed
-- [ ] T036 [P] [US2] PHPUnit: a server created through EACH path carries the registry default, not the column default — in `tests/phpunit/Admin/ServerCreateTypeTest.php`
+- [x] T036 [P] [US2] PHPUnit: a server created through EACH path carries the registry default, not the column default — in `tests/phpunit/Admin/ServerCreateTypeTest.php`
 - [x] T037 [US2] Surface BOTH remedies (install the add-on, or switch this server's type) wherever a requirement is unmet, in `admin/Partials/ServerTabs/OverviewTab.php` and `admin/Partials/ServerTabs/ToolsTab.php`
 - [x] T038 [US2] Make step 4 non-skippable when the server in play has an unmet requirement, in `src/js/quick-connect/steps/Step4_AbilitiesManager.jsx`, so the operator cannot dead-end at step 6
 
@@ -126,8 +126,8 @@ list the server's offerings, and confirm exactly one self-describing entry.
 
 ### Tests for User Story 3
 
-- [ ] T039 [P] [US3] PHPUnit: with an unmet requirement the effective tool list is exactly the diagnostic slug, and the server still registers — in `tests/phpunit/MCP/SetupRequiredTest.php`
-- [ ] T040 [P] [US3] **[SEC-002]** PHPUnit: the diagnostic ability is absent from `ToolAbilities::get_slugs()`, absent from discover results, and absent from the effective list of a server whose requirement IS met — in `tests/phpunit/MCP/SetupRequiredTest.php`
+- [x] T039 [P] [US3] PHPUnit: with an unmet requirement the effective tool list is exactly the diagnostic slug, and the server still registers — in `tests/phpunit/MCP/SetupRequiredTest.php`
+- [x] T040 [P] [US3] **[SEC-002]** PHPUnit: the diagnostic ability is absent from `ToolAbilities::get_slugs()`, absent from discover results, and absent from the effective list of a server whose requirement IS met — in `tests/phpunit/MCP/SetupRequiredTest.php`
 
 ### Implementation for User Story 3
 
@@ -135,7 +135,7 @@ list the server's offerings, and confirm exactly one self-describing entry.
 - [x] T042 [US3] **[SEC-002]** Scope it in `includes/Abilities/SetupRequired.php` and `includes/Abilities/ToolAbilities.php`: keep it out of `ToolAbilities::get_slugs()` and out of `discover-abilities`, and admit it only to the effective list of a server whose own requirement is unmet
 - [x] T043 [US3] Wire its registration in `includes/Main.php` via the Loader (A1) — never in a constructor
 - [x] T044 [US3] **[ARCH-2]** Ensure EVERY MCP composition path uses the effective composer — `includes/MCP/Controller.php:143` **and `:322`** (the `mcp_adapter_default_server_config` path the first draft missed). Never skip `create_server()` for an unmet requirement: that 404s the route and kills a live session
-- [ ] T045 [P] [US3] PHPUnit: a deactivate→reactivate cycle leaves curated presence rows byte-identical, proving the swap writes nothing to storage — in `tests/phpunit/MCP/SetupRequiredTest.php`
+- [x] T045 [P] [US3] PHPUnit: a deactivate→reactivate cycle leaves curated presence rows byte-identical, proving the swap writes nothing to storage — in `tests/phpunit/MCP/SetupRequiredTest.php`
 
 **Checkpoint**: an unmet requirement degrades into an explanation, not a failure.
 
@@ -151,8 +151,8 @@ confirm it is included with no further action.
 
 ### Tests for User Story 4
 
-- [ ] T046 [P] [US4] PHPUnit: policy `expose` includes a tool-level ability registered AFTER the policy was set; `hide` yields an empty set; `per-tool` reproduces today's behaviour exactly — in `tests/phpunit/Database/MCPServer/ToolsDefaultPolicyTest.php`
-- [ ] T047 [P] [US4] PHPUnit: switching `server_type` while the policy is `expose`/`hide` resets it to `per-tool` (FR-012a) — in `tests/phpunit/Database/MCPServer/ToolsDefaultPolicyTest.php`
+- [x] T046 [P] [US4] PHPUnit: policy `expose` includes a tool-level ability registered AFTER the policy was set; `hide` yields an empty set; `per-tool` reproduces today's behaviour exactly — in `tests/phpunit/Database/MCPServer/ToolsDefaultPolicyTest.php`
+- [x] T047 [P] [US4] PHPUnit: switching `server_type` while the policy is `expose`/`hide` resets it to `per-tool` (FR-012a) — in `tests/phpunit/Database/MCPServer/ToolsDefaultPolicyTest.php`
 
 ### Implementation for User Story 4
 
@@ -386,7 +386,7 @@ because only the two shipped types exercise it.
   correct code. Gate the defect, not the function.
 - **Memory** — BUGS.md B60, DECISIONS.md D58, both routed in INDEX.md.
 
-Remaining: 9 test tasks (T018-T019, T029, T036, T039-T040, T045-T047).
+Remaining: NONE. Every test task in this feature is written.
 
 ### T011 + T012 — 2026-09-17
 
@@ -425,3 +425,30 @@ rejects everything passes every negative test. Policy cases are driven from
 `ToolPolicy::POLICIES` so adding a value cannot leave the test behind (B48), and the retired
 `all`/`none` are asserted to be REJECTED now — a stale client must fail loudly rather than store
 a value no branch of the precedence chain matches.
+
+### The remaining nine — 2026-09-17
+
+All written; the feature's Definition of Done gate for tests is now met.
+
+| Task | File | What it locks |
+|---|---|---|
+| T018 | `ToolPolicyResetTest` | Reset follows the TYPE, not a fixed list — the defect F090 exists to fix |
+| T019 | `ToolPolicyComposerTest` | configured vs served stay different questions (ARCH-2) |
+| T029 | `SettingsBulkEnableTest` | FR-016a partial success + the ARCH-1 boundary |
+| T036 | `ServerCreateTypeTest` | both create paths write `server_type` (SEC-001) |
+| T039/T040/T045 | `SetupRequiredTest` | the diagnostic swap: exactly one entry, never leaks, writes nothing |
+| T046/T047 | `ToolsDefaultPolicyTest` | `expose` is a STANDING rule; a type switch clears it |
+
+**Two are partial, and say so in their own docblocks.** `Settings::handle_bulk_actions()`,
+`Settings::handle_create_server()` and `QuickConnectController::apply_step_2()` are all private
+and every branch ends in `exit`, so none can be invoked under PHPUnit without terminating the
+run. Refactoring production code purely to make them callable was not judged worth it. T029 and
+T036 therefore test the BEHAVIOUR through the seam that carries it (`ServerEnablement::set_many()`,
+and the column-vs-registry default divergence) plus a SOURCE CONTRACT on each handler — the same
+approach the F080 rename gate uses, and the same invariant `bin/verify-f021-gates.sh` enforces in
+CI.
+
+T036's first test is the one worth reading: it demonstrates the SEC-001 failure rather than
+asserting it abstractly. A row created without an explicit `server_type` takes the column default
+`'mcp-adapter'` while `ServerTypes::default_slug()` resolves to something else — the two answers
+part company silently, and nothing errors.
