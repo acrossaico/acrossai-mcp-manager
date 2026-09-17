@@ -26,7 +26,6 @@ declare( strict_types = 1 );
 namespace AcrossAI_MCP_Manager\Includes\Database\MCPServer;
 
 use AcrossAI_MCP_Manager\Includes\Abilities\SetupRequired;
-use AcrossAI_MCP_Manager\Includes\Abilities\ToolAbilities;
 
 use AcrossAI_MCP_Manager\Includes\Database\MCPServerTool\Query as MCPServerToolQuery;
 
@@ -40,36 +39,34 @@ defined( 'ABSPATH' ) || exit;
 final class ToolPolicy {
 
 	/**
-	 * The three MCP protocol tools registered by the vendored mcp-adapter package.
-	 * Single canonical PHP source — the JS mirror in `src/js/tools.js` is kept in
-	 * step by hand at build time.
-	 */
-	/**
-	 * `tools_default_policy` values.
-	 *
-	 * Sibling of `abilities_default_policy`'s `expose|hide|per-ability`. The
-	 * vocabularies deliberately differ: "expose" means something different for
-	 * a tool than for an ability, and D55 warns against reusing a sibling's
-	 * name for different semantics. Recorded as deliberate so it is not later
-	 * "corrected" into a false symmetry.
+	 * `tools_default_policy` values — deliberately the SAME vocabulary as the
+	 * sibling `abilities_default_policy` column (`expose` | `hide` |
+	 * `per-ability`). An operator reading either column should not have to learn
+	 * two words for one idea; only the per-item value differs, because the item
+	 * differs.
 	 *
 	 * @var string
 	 */
 	public const POLICY_PER_TOOL = 'per-tool';
 
 	/** @var string */
-	public const POLICY_ALL = 'all';
+	public const POLICY_EXPOSE = 'expose';
 
 	/** @var string */
-	public const POLICY_NONE = 'none';
+	public const POLICY_HIDE = 'hide';
 
 	/**
 	 * Every accepted `tools_default_policy` value.
 	 *
 	 * @var string[]
 	 */
-	public const POLICIES = array( self::POLICY_PER_TOOL, self::POLICY_ALL, self::POLICY_NONE );
+	public const POLICIES = array( self::POLICY_PER_TOOL, self::POLICY_EXPOSE, self::POLICY_HIDE );
 
+	/**
+	 * The three MCP protocol tools registered by the vendored mcp-adapter package.
+	 * Single canonical PHP source — the JS mirror in `src/js/tools.js` is kept in
+	 * step by hand at build time.
+	 */
 	public const PROTOCOL_TOOLS = array(
 		'mcp-adapter/discover-abilities',
 		'mcp-adapter/get-ability-info',
@@ -198,7 +195,7 @@ final class ToolPolicy {
 	 *   1. Type requirement UNMET -> exactly the diagnostic slug. A server
 	 *      cannot advertise tools whose abilities are not registered, and the
 	 *      client must be told why rather than handed an empty list.
-	 *   2. `tools_default_policy` `all` / `none` -> a STANDING rule that wins
+	 *   2. `tools_default_policy` `expose` / `hide` -> a STANDING rule that wins
 	 *      over individual curation, exactly as `abilities_default_policy` wins
 	 *      over per-ability override rows.
 	 *   3. `per-tool` -> the configured set (columns + curated rows).
@@ -226,19 +223,33 @@ final class ToolPolicy {
 		// Layer 2 — the coarse standing rule.
 		$policy = (string) $row->tools_default_policy;
 
-		if ( self::POLICY_NONE === $policy ) {
+		if ( self::POLICY_HIDE === $policy ) {
 			return array();
 		}
 
-		if ( self::POLICY_ALL === $policy ) {
-			// Resolved live, NOT snapshotted: a tool-level ability registered
-			// after the operator chose `all` must be included without them
-			// acting again. That is the whole point of a standing rule.
-			return ToolAbilities::get_slugs();
+		if ( self::POLICY_EXPOSE === $policy ) {
+			// The server's POOL, not its type's declared list. Resolved live on
+			// every request, which is what makes this a STANDING rule rather
+			// than a snapshot: a tool-level ability registered tomorrow by a
+			// plugin installed tomorrow lands in the pool and is exposed with no
+			// admin action. That is the whole reason this is a column and not a
+			// one-time write.
+			//
+			// Scoping it to the type's own list would silently exclude anything
+			// the type does not already name — including third-party tools no
+			// type claims.
+			return ServerTypes::pool_for( $server_type );
 		}
 
-		// Layer 3 — the configured set.
-		return self::compose_for_row( $row );
+		// Layer 3 — the configured set, narrowed to abilities that still exist.
+		//
+		// Curated rows are presence rows and they OUTLIVE the plugin that
+		// registered the ability: deactivate Advanced Custom Fields and the
+		// `toolset/acf` row remains, so the tab kept listing a tool the site can
+		// no longer serve. Filtering here — not deleting the row — means the
+		// operator's pick returns intact the moment the plugin is reactivated,
+		// which is the same guarantee a deactivate/reactivate cycle already has.
+		return ServerTypes::registered_only( self::compose_for_row( $row ) );
 	}
 
 	/**

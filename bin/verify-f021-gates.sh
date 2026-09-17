@@ -126,6 +126,43 @@ run_gate 'F090 single is_enabled writer' \
 	"$GATE_ENABLED_WRITER_HITS"
 
 # ---------------------------------------------------------------------------
+# F090 — plugin presence has exactly ONE resolver, and it matches by DIRECTORY.
+#
+# Two failures this catches, both found by the post-implementation architecture
+# review after PHPCS, PHPStan, a security review AND an earlier architecture
+# review had all passed:
+#
+#   1. `slug/slug.php` is NOT a rule WordPress enforces. Three plugins active on
+#      the dev site break it — insert-headers-and-footers/ihaf.php (WPCode),
+#      sfwd-lms/sfwd_lms.php, wp-mail-smtp/wp_mail_smtp.php. A type whose
+#      `requires` named any of them resolved as permanently unavailable ON A SITE
+#      WHERE THE PLUGIN WAS RUNNING.
+#   2. "One resolver" was satisfied on paper — every caller went through
+#      ServerTypes::is_available() — while a SECOND implementation of the same
+#      question lived in the admin card with different (correct) semantics. They
+#      agreed only because the sibling's filename happens to match its folder.
+#
+# QuickConnectController is allow-listed: its install flow holds a REAL resolved
+# plugin file, which is what is_plugin_active() is actually for.
+# ---------------------------------------------------------------------------
+# Gate deliberately NOT written as "no is_plugin_active() outside one class".
+# That was tried and flagged CORRECT code: AIConnectorsPromoTab and
+# AbilitiesManagerPromoCard both resolve the REAL plugin file first and then ask
+# whether it is active, which is exactly what the function is for. A gate whose
+# allow-list must grow for every legitimate caller becomes noise people learn to
+# ignore — the same trap the is_enabled gate above documents. The defect is the
+# CONVENTION, so that is what is gated.
+GATE_PLUGIN_FILE_CONVENTION_HITS="$(
+	grep -rEn "\\\$[a-z_]+ \. '/' \. \\\$[a-z_]+ \. '\.php'" \
+		--include='*.php' \
+		includes/ admin/ public/ \
+	2>/dev/null || true
+)"
+run_gate 'F090 no slug/slug.php assumption' \
+	'A plugin main file is frequently NOT named after its folder (acf.php, wp-seo.php, ihaf.php). Resolve the real file by directory prefix over get_plugins()/active_plugins.' \
+	"$GATE_PLUGIN_FILE_CONVENTION_HITS"
+
+# ---------------------------------------------------------------------------
 # T119 — FR-040 column-width invariants.
 # hash columns MUST be char(64); PKCE challenge MUST be char(43);
 # token_family_id MUST be char(36). No narrowing.

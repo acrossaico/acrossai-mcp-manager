@@ -448,6 +448,50 @@ final class QuickConnectController {
 	// ─────────────────────────────────────────────────────────────────────
 
 	/**
+	 * Resolve an installed plugin's main file from its FOLDER slug.
+	 *
+	 * Matches by directory prefix rather than assuming `slug/slug.php` — see the
+	 * caller for why that convention cannot be trusted. The trailing slash on the
+	 * prefix is what stops `acf` matching `acf-pro`.
+	 *
+	 * @since 0.1.0
+	 * @param string $slug Plugin folder slug.
+	 * @return string|null `folder/file.php`, or null when not installed.
+	 */
+	private function find_installed_plugin_file( string $slug ): ?string {
+		$fallback = null;
+
+		// A plugin DIRECTORY can hold more than one file carrying a plugin
+		// header, and `get_plugins()` lists each. Taking whichever comes first
+		// could activate a secondary file, so prefer the conventionally-named
+		// one when the directory actually contains it — that keeps the previous
+		// behaviour everywhere it was already correct — and fall back to the
+		// first directory match, which is what makes `ihaf.php` and
+		// `wp_mail_smtp.php` resolvable at all.
+		//
+		// The preference is expressed by INSPECTING what exists, never by
+		// building `slug/slug.php` and hoping. That distinction is the whole
+		// point, and `bin/verify-f021-gates.sh` enforces it.
+		foreach ( array_keys( (array) get_plugins() ) as $candidate ) {
+			$candidate = (string) $candidate;
+
+			if ( 0 !== strpos( $candidate, $slug . '/' ) ) {
+				continue;
+			}
+
+			if ( basename( $candidate, '.php' ) === $slug ) {
+				return $candidate;
+			}
+
+			if ( null === $fallback ) {
+				$fallback = $candidate;
+			}
+		}
+
+		return $fallback;
+	}
+
+	/**
 	 * Install (if missing) and activate a whitelisted plugin from WordPress.org.
 	 *
 	 * Only accepts slugs on `INSTALLABLE_PLUGIN_SLUGS`. If the plugin is
@@ -477,10 +521,18 @@ final class QuickConnectController {
 		require_once ABSPATH . 'wp-admin/includes/misc.php';
 		require_once ABSPATH . 'wp-admin/includes/class-wp-upgrader.php';
 
-		$plugin_file = $slug . '/' . $slug . '.php';
-		$installed   = get_plugins();
+		// Resolve the plugin's REAL main file by DIRECTORY. The `slug/slug.php`
+		// convention is not a rule WordPress enforces: three plugins active on
+		// the dev site break it (`insert-headers-and-footers/ihaf.php`,
+		// `sfwd-lms/sfwd_lms.php`, `wp-mail-smtp/wp_mail_smtp.php`). It happens
+		// to hold for both allow-listed slugs today, so guessing would work
+		// until someone adds a third — at which point Quick Connect would
+		// reinstall a plugin that is already present and then fail to activate
+		// it. Deliberately NO convention fallback: an unresolvable file is an
+		// error, not a guess.
+		$plugin_file = $this->find_installed_plugin_file( $slug );
 
-		if ( ! isset( $installed[ $plugin_file ] ) ) {
+		if ( null === $plugin_file ) {
 			$api = plugins_api(
 				'plugin_information',
 				array(
@@ -514,6 +566,21 @@ final class QuickConnectController {
 					array( 'status' => 500 )
 				);
 			}
+
+			// Re-resolve: the plugin was not installed when we looked, so there
+			// was no file to name. WordPress caches the plugin list, so clear it
+			// or the freshly installed plugin stays invisible.
+			wp_clean_plugins_cache();
+			$plugin_file = $this->find_installed_plugin_file( $slug );
+		}
+
+		if ( null === $plugin_file ) {
+			error_log( sprintf( '[acrossai-mcp-manager] could not resolve a plugin file for %s after install', $slug ) ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- Deliberate diagnostics per file-header error-hygiene policy (internal log only, never surfaced to the client).
+			return new WP_Error(
+				'acrossai_mcp_quick_connect_install_failed',
+				esc_html__( 'Installation failed. Try installing manually from Plugins → Add New.', 'acrossai-mcp-manager' ),
+				array( 'status' => 500 )
+			);
 		}
 
 		if ( ! is_plugin_active( $plugin_file ) ) {

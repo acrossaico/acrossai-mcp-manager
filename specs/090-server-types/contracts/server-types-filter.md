@@ -30,11 +30,37 @@ could query the database — callbacks MUST be cheap and side-effect free.
 |---|---|---|---|---|
 | `label` | `string` | **yes** | — | Missing → entry dropped with `_doing_it_wrong()` under `WP_DEBUG` |
 | `description` | `string` | no | `''` | Shown beneath the selector |
-| `tools` | `string[]` | no | `[]` | Ability slugs this type starts with |
-| `requires` | `?string` | no | `null` | Plugin folder slug; `null` = always available |
+| `tools` | `string[]` | no | `[]` | Ability slugs this type starts with — **and claims exclusively**. See Exclusivity below |
+| `requires` | `?string` | no | `null` | Plugin FOLDER slug; `null` = always available. Resolved by DIRECTORY — the main file need not be named after the folder |
 | `is_default` | `bool` | no | `false` | Preselected for new servers, if available |
 
 Array key = the type slug, passed through `sanitize_key()`; empty → dropped.
+
+## Exclusivity — `tools` claims, it does not merely seed
+
+Declaring a slug in `tools` does two things:
+
+1. **Reset and Switch** write those slugs into the server's tool storage.
+2. Those slugs are **removed from every other type's pool** — the set a server of that type
+   may be offered, and the set its `expose` rule exposes.
+
+The subtraction keeps an AcrossAI server from being offered the three `mcp-adapter/*`
+protocol tools, and vice versa. A slug NO type claims belongs to every type, because nothing
+has asserted where it goes.
+
+**Claim only slugs your own plugin registers.** Naming another plugin's slug removes it from
+every type but yours.
+
+## API beyond the accessors
+
+| Method | Answers |
+|---|---|
+| `pool_for( $slug )` | every tool a server of this type may offer (the subtraction above) |
+| `registered_only( $slugs )` | narrows declared or curated slugs to abilities that EXIST here |
+| `plugin_is_active( $slug )` | THE single resolver for "is this required plugin running" (B32) |
+
+`registered_only()` returns its input unchanged when the ability registry is empty —
+"not registered yet" is not "invalid", and returning `[]` would make Reset wipe the server.
 
 ## Guarantees
 
@@ -45,6 +71,11 @@ Array key = the type slug, passed through `sanitize_key()`; empty → dropped.
 - **`mcp-adapter` is the floor** — always registered, always available. A callback removing
   it is ignored.
 - **Throw safety**: throws propagate (standard WP filter behaviour). Callback authors own it.
+- **`requires` is matched by DIRECTORY, never by filename.** WordPress stores active plugins
+  as `folder/file.php` and the file is frequently not named after the folder
+  (`advanced-custom-fields/acf.php`, `wordpress-seo/wp-seo.php`, `sfwd-lms/sfwd_lms.php`).
+  A `slug/slug.php` assumption held only for the two types this plugin ships and made every
+  realistic third-party `requires` resolve as permanently unavailable.
 
 ## Worked example — a companion contributing its own type
 

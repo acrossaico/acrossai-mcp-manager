@@ -131,6 +131,39 @@ Registry entries resolved per request from `ServerTypes::all()`. No table, no op
 
 ---
 
+## Derived set: the server's tool POOL
+
+Not persisted, resolved per request by `ServerTypes::pool_for( $server_type )`:
+
+```
+pool(T) = every tool-level ability registered on this site
+          MINUS every slug claimed by a type OTHER than T
+```
+
+A slug no type claims belongs to every type — nothing has asserted where it goes — so a
+third-party tool-level ability is offered on every server until some type claims it.
+
+The pool is the definition `expose` uses, which is what makes that rule STANDING rather than
+a snapshot: an ability registered tomorrow by a plugin installed tomorrow lands in the pool
+and is exposed with no admin action. Scoping `expose` to the type's own declared list would
+silently exclude everything the type does not already name.
+
+It is also what the picker renders (returned as `type_pool`), so the UI cannot offer a tool
+the write path would reject. The pool is TYPE-DEPENDENT: it must be recomputed on every type
+change, which is why both write responses return it.
+
+## Derived set: registered-only narrowing
+
+`ServerTypes::registered_only( $slugs )` narrows any declared or curated list to abilities
+that actually exist here. A type declares what it WANTS; the site decides what EXISTS.
+
+Applied to a type's `tools`, to a server's curated rows, and to the pool. It **filters, never
+deletes** — a presence row naming an ability whose plugin was deactivated is hidden, not
+removed, so the operator's selection returns intact on reactivation.
+
+Returns its input unchanged when the ability registry is empty: "not registered yet" is not
+"invalid", and returning `[]` there would make Reset wipe the server.
+
 ## Entity: Diagnostic ability (`SetupRequired`)
 
 Registered only while a server's type has an unmet requirement. Not persisted.

@@ -38,6 +38,7 @@ declare( strict_types = 1 );
 
 namespace AcrossAI_MCP_Manager\Includes\Database\MCPServer;
 
+use AcrossAI_MCP_Manager\Includes\Abilities\ToolAbilities;
 use WP_Error;
 
 defined( 'ABSPATH' ) || exit;
@@ -154,10 +155,120 @@ final class ServerTypes {
 		// A server type that offers nothing is never a useful template, so
 		// returning the legacy set is right regardless of how the empty arose.
 		if ( null === $type || empty( $type['tools'] ) ) {
-			return $all[ self::LEGACY ]['tools'] ?? array();
+			return self::registered_only( $all[ self::LEGACY ]['tools'] ?? array() );
 		}
 
-		return $type['tools'];
+		return self::registered_only( $type['tools'] );
+	}
+
+
+	/**
+	 * Every tool this server may offer — the picker's pool, server-side.
+	 *
+	 * "Everything available to THIS server" is:
+	 *
+	 *   every tool-level ability registered on the site
+	 *   MINUS any claimed exclusively by a DIFFERENT server type
+	 *
+	 * The subtraction is what keeps an AcrossAI server from being offered the
+	 * three `mcp-adapter/*` protocol tools, and vice versa. A tool that NO type
+	 * claims — a third-party tool-level ability — belongs to every server,
+	 * because nothing has asserted where it goes.
+	 *
+	 * This is the definition the `expose` policy uses, so that rule keeps its
+	 * promise: a tool registered LATER by a plugin installed tomorrow lands in
+	 * this pool and is exposed with no admin action. Scoping `expose` to the
+	 * type's own list instead would silently exclude anything the type does not
+	 * already name.
+	 *
+	 * Single source of truth for the pool: the Tools tab renders from this
+	 * rather than recomputing the subtraction in JavaScript, so the picker can
+	 * never offer something the write path would reject.
+	 *
+	 * @since 0.1.0
+	 * @param string $slug The server's type slug.
+	 * @return string[]
+	 */
+	public static function pool_for( string $slug ): array {
+		$all  = self::all();
+		$mine = isset( $all[ $slug ]['tools'] ) ? (array) $all[ $slug ]['tools'] : array();
+		$mine = array_flip( $mine );
+
+		$foreign = array();
+		foreach ( $all as $type_slug => $type ) {
+			if ( $type_slug === $slug ) {
+				continue;
+			}
+			foreach ( (array) $type['tools'] as $tool ) {
+				if ( ! isset( $mine[ $tool ] ) ) {
+					$foreign[ $tool ] = true;
+				}
+			}
+		}
+
+		$pool = array_filter(
+			ToolAbilities::get_slugs(),
+			static function ( string $tool ) use ( $foreign ): bool {
+				return ! isset( $foreign[ $tool ] );
+			}
+		);
+
+		return self::registered_only( array_values( $pool ) );
+	}
+	/**
+	 * Narrow declared tools to abilities that actually exist on this site.
+	 *
+	 * A type declares what it WANTS; this site decides what EXISTS. A companion
+	 * plugin registers one dispatcher per area it covers, but a dispatcher whose
+	 * group has no members never registers an ability — so a site without, say,
+	 * GeoDirectory still sees `toolset/geodirectory` declared.
+	 *
+	 * Left unfiltered this breaks two things: the Tools tab's write is refused
+	 * with "One or more submitted ability slugs are not registered on this site",
+	 * and the `expose` policy advertises tools that do not exist.
+	 *
+	 * Filtering belongs HERE rather than in the contributing plugin. A
+	 * contributor declares its slugs while abilities are still being assembled
+	 * and cannot know which will survive; by the time anything ASKS for a type's
+	 * tools the registry is populated, so this can simply look.
+	 *
+	 * Bails when the registry is empty rather than returning nothing — an empty
+	 * registry means abilities have not been registered yet, not that every
+	 * declared tool is invalid, and returning `array()` would make Reset wipe the
+	 * server.
+	 *
+	 * @since 0.1.0
+	 * Public because `ToolPolicy` needs the same narrowing for a server's CURATED
+	 * rows: a presence row outlives the plugin that registered its ability, so a
+	 * deactivated plugin leaves rows naming abilities that no longer exist.
+	 *
+	 * @param string[] $slugs Declared tool slugs.
+	 * @return string[] Those that are registered abilities.
+	 */
+	public static function registered_only( array $slugs ): array {
+		if ( ! function_exists( 'wp_get_abilities' ) ) {
+			return $slugs;
+		}
+
+		$registered = \wp_get_abilities();
+
+		if ( empty( $registered ) ) {
+			return $slugs;
+		}
+
+		$names = array();
+		foreach ( $registered as $ability ) {
+			$names[ (string) $ability->get_name() ] = true;
+		}
+
+		return array_values(
+			array_filter(
+				$slugs,
+				static function ( string $slug ) use ( $names ): bool {
+					return isset( $names[ $slug ] );
+				}
+			)
+		);
 	}
 
 	/**
@@ -359,20 +470,68 @@ final class ServerTypes {
 	}
 
 	/**
-	 * Whether a plugin folder slug is installed AND active.
+	 * Whether a plugin FOLDER slug is installed AND active.
+	 *
+	 * THE single implementation of "is this required plugin present and running"
+	 * (B32). `is_available()` calls it for a type's `requires`, and
+	 * `AbilitiesManagerPromoCard` calls it for the sibling add-on, so the gate
+	 * and the notice can never disagree about the same site.
 	 *
 	 * Both "not installed" and "installed but deactivated" count as unmet; they
-	 * differ only in the wording of the remedy the admin surfaces offer.
+	 * differ only in the wording of the remedy the admin surfaces offer, which
+	 * is why only the admin card distinguishes them.
+	 *
+	 * **Matches by DIRECTORY, never by filename.** `requires` is documented as a
+	 * plugin FOLDER slug, and WordPress stores active plugins as `folder/file.php`
+	 * where the file is very often NOT named after the folder:
+	 * `advanced-custom-fields/acf.php`, `wordpress-seo/wp-seo.php`,
+	 * `sfwd-lms/sfwd_lms.php`, `all-in-one-seo-pack/all_in_one_seo_pack.php`,
+	 * `wpforms-lite/wpforms.php`. An earlier version assumed `slug/slug.php`,
+	 * which held only for the two types this plugin ships — every third-party
+	 * type declaring a real-world `requires` resolved as permanently unavailable:
+	 * never selectable, never enablable, and at runtime `SetupRequired` told the
+	 * operator to install a plugin that was already installed and active.
+	 *
+	 * The `slug . '/'` prefix (rather than a bare substring) is what stops
+	 * `acf` matching `acf-pro`.
+	 *
+	 * Reads the stored option directly rather than calling `is_plugin_active()`,
+	 * which lives in `wp-admin/includes/plugin.php`. This class is
+	 * context-neutral (A3) and runs on every MCP and REST request; pulling the
+	 * admin bootstrap into the transport path to answer a question the options
+	 * table already holds is the wrong trade.
 	 *
 	 * @since 0.1.0
 	 * @param string $plugin_slug Plugin folder slug.
 	 * @return bool
 	 */
-	private static function plugin_is_active( string $plugin_slug ): bool {
-		if ( ! function_exists( 'is_plugin_active' ) ) {
-			require_once ABSPATH . 'wp-admin/includes/plugin.php';
+	public static function plugin_is_active( string $plugin_slug ): bool {
+		if ( '' === $plugin_slug ) {
+			return false;
 		}
 
-		return is_plugin_active( $plugin_slug . '/' . $plugin_slug . '.php' );
+		$prefix = $plugin_slug . '/';
+
+		foreach ( (array) get_option( 'active_plugins', array() ) as $plugin_file ) {
+			if ( 0 === strpos( (string) $plugin_file, $prefix ) ) {
+				return true;
+			}
+		}
+
+		// Network-activated plugins are stored separately, keyed by plugin file.
+		// F090 is scoped single-site, but a network-activated sibling is a real
+		// configuration and reporting it as missing would strand the operator on
+		// a site where the dependency is genuinely satisfied.
+		if ( is_multisite() ) {
+			$sitewide = (array) get_site_option( 'active_sitewide_plugins', array() );
+
+			foreach ( array_keys( $sitewide ) as $plugin_file ) {
+				if ( 0 === strpos( (string) $plugin_file, $prefix ) ) {
+					return true;
+				}
+			}
+		}
+
+		return false;
 	}
 }

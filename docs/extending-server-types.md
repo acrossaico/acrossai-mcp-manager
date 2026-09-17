@@ -51,7 +51,7 @@ admin page load into extra round-trips.
 |---|---|---|---|---|
 | `label` | `string` | **yes** | — | Missing → entry dropped, with `_doing_it_wrong()` under `WP_DEBUG` |
 | `description` | `string` | no | `''` | Shown beneath the selector |
-| `tools` | `string[]` | no | `[]` | Ability slugs this type starts with |
+| `tools` | `string[]` | no | `[]` | Ability slugs this type starts with — **and claims**. See §2.1 |
 | `requires` | `?string` | no | `null` | Plugin folder slug; `null` = always available |
 | `is_default` | `bool` | no | `false` | Preselected for new servers, **if available** |
 
@@ -69,6 +69,27 @@ The array KEY is the slug, passed through `sanitize_key()`. An empty key drops t
   returns an empty template, because an empty template would make **Reset wipe the server**.
 - **Throw safety** — throws propagate. Standard WordPress filter behaviour; callback authors
   own it.
+
+### 2.1 `tools` is also an exclusivity claim
+
+Declaring a slug in `tools` does two things, not one:
+
+1. **Reset and Switch** write those slugs into the server's tool storage.
+2. Those slugs are **removed from every other type's pool** — the set of tools a server of
+   that type may be offered in the picker, and the set its `expose` rule exposes.
+
+The subtraction is what stops an AcrossAI server being offered the three `mcp-adapter/*`
+protocol tools, and vice versa. A slug that NO type claims belongs to every type, because
+nothing has asserted where it goes — so a third-party tool-level ability is offered
+everywhere until some type claims it.
+
+**Practical consequence**: claim only slugs your own plugin registers. Naming another
+plugin's slug in your `tools` removes it from every type except yours. If you want a tool
+available to servers of all types, do not name it in any type.
+
+The pool is computed server-side by `ServerTypes::pool_for()` and the Tools tab renders from
+that, rather than recomputing the subtraction in JavaScript — so a picker can never offer
+something the write path would reject.
 
 ## 3. The placeholder → companion override pattern
 
@@ -149,6 +170,8 @@ ServerTypes::tools_for( 'acrossai' );   // its tools, with the legacy fallback
 ServerTypes::is_available( 'acrossai' );// THE single resolver for "requirement met"
 ServerTypes::default_slug();            // preselected type for new servers
 ServerTypes::enablement_error( $slug ); // ?WP_Error — why it may not be enabled
+ServerTypes::pool_for( 'acrossai' );    // every tool this type may offer — see §2.1
+ServerTypes::registered_only( $slugs ); // narrow declared slugs to abilities that exist here
 ```
 
 `is_available()` is the single source of truth for whether a requirement is satisfied.
@@ -162,8 +185,31 @@ Two columns on `{$wpdb->prefix}acrossai_mcp_servers`, both added by migration `1
 | Column | Values | Notes |
 |---|---|---|
 | `server_type` | a registered slug | Default `'mcp-adapter'` — the value every pre-090 row was backfilled to |
-| `tools_default_policy` | `all` \| `none` \| `per-tool` | Standing rule, sibling of `abilities_default_policy` |
+| `tools_default_policy` | `expose` \| `hide` \| `per-tool` | Standing rule; deliberately the same vocabulary as `abilities_default_policy` |
 
 An unrecognised stored `server_type` **must never fatal**: `get()` returns `null`, tool
 resolution falls back to the legacy set, and the admin shows the raw slug marked unavailable.
 A server whose type came from a plugin that has since been deleted stays manageable.
+
+## 8. Declared vs. existing — `registered_only()`
+
+A type declares what it WANTS; the site decides what EXISTS. A companion typically registers
+one dispatcher per area it covers, but a dispatcher whose group has no members never registers
+an ability — so a site without, say, GeoDirectory still sees `toolset/geodirectory` declared.
+
+`registered_only()` narrows any declared or curated slug list to abilities actually registered
+here. It runs on a type's tools, on a server's curated rows, and on the `expose` pool. Left
+unfiltered, the Tools tab's write is refused with "One or more submitted ability slugs are not
+registered on this site" and `expose` advertises tools that do not exist.
+
+It **returns the input unchanged when the ability registry is empty**, rather than returning
+nothing. An empty registry means abilities have not been registered *yet* — not that every
+declared slug is invalid — and returning `[]` there would make Reset wipe the server.
+
+Filtering belongs here rather than in the contributing plugin: a contributor declares its
+slugs while abilities are still being assembled and cannot know which will survive, whereas by
+the time anything ASKS for a type's tools the registry is populated.
+
+Note this **filters, never deletes**. A curated presence row naming an ability whose plugin is
+deactivated is hidden, not removed, so the operator's selection returns intact on
+reactivation.

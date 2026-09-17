@@ -50,33 +50,6 @@ import '../scss/tools.scss';
  * F087: also the boot-time fallback for `toolSlugs` — PHP seeds the tool-level
  * list with exactly these three (`ToolPolicy::PROTOCOL_TOOLS`).
  */
-/**
- * F090 — copy for the standing tool rule pill, keyed by policy value.
- *
- * Lookup maps rather than nested ternaries: three states with two strings each
- * reads far better as data, and `no-nested-ternary` is right to reject the
- * alternative.
- *
- * The 'all' description carries the forward-consent warning required by SEC-008
- * — an operator choosing it is accepting tools that do not exist yet.
- */
-const POLICY_PILL_LABEL = {
-	all: __( 'Tool rule: expose every tool', 'acrossai-mcp-manager' ),
-	none: __( 'Tool rule: expose no tools', 'acrossai-mcp-manager' ),
-	'per-tool': __( 'Tool rule: choose tools individually', 'acrossai-mcp-manager' ),
-};
-
-const POLICY_PILL_DESCRIPTION = {
-	all: __(
-		'Every tool-level ability is exposed, including ones registered later by plugins you install in future. The individual selection below is overridden until this returns to choosing individually.',
-		'acrossai-mcp-manager',
-	),
-	none: __(
-		'No tools are exposed. The individual selection below is overridden until this returns to choosing individually.',
-		'acrossai-mcp-manager',
-	),
-};
-
 const PROTOCOL_TOOL_SLUGS = [
 	'mcp-adapter/discover-abilities',
 	'mcp-adapter/get-ability-info',
@@ -345,10 +318,13 @@ function ToolsApp( { serverId } ) {
 	const [ typeAvailable, setTypeAvailable ] = useState( true );
 	const [ typeLabel, setTypeLabel ] = useState( '' );
 	const [ effectiveTools, setEffectiveTools ] = useState( [] );
+	const [ typePool, setTypePool ] = useState( [] );
 	const [ pendingTypeSwitch, setPendingTypeSwitch ] = useState( null );
-	// F090 (T050) — the standing tool rule. 'per-tool' | 'all' | 'none'.
-	const [ toolsPolicy, setToolsPolicy ] = useState( 'per-tool' );
 	const [ pendingBulk, setPendingBulk ] = useState( null );
+	// F090 — the standing rule, stored in `tools_default_policy`. Same model as
+	// the Abilities tab's `abilities_default_policy`: the COLUMN holds the
+	// logic, and the UI renders the server's computed EFFECTIVE result.
+	const [ toolsPolicy, setToolsPolicy ] = useState( 'per-tool' );
 	const [ search, setSearch ] = useState( '' );
 	const [ loading, setLoading ] = useState( true );
 	const [ saving, setSaving ] = useState( false );
@@ -409,13 +385,30 @@ function ToolsApp( { serverId } ) {
 	// byName metadata lookup — that's what makes a curated non-tool-level slug
 	// render with its real label in the right pane, stay removable, and
 	// round-trip through save instead of being silently dropped.
-	const poolAbilities = useMemo(
-		() =>
-			abilities.filter(
-				( a ) => toolSlugs.has( a.name ) || added.has( a.name ),
-			),
-		[ abilities, toolSlugs, added ],
-	);
+	// F090 — the tool set this server's TYPE starts with. Resolved from the
+	// registry the REST layer sent, so the UI cannot drift from the server's
+	// own answer. Falls back to the protocol slugs when the type is
+	// unrecognised, matching ServerTypes::tools_for().
+	const typeTools = useMemo( () => {
+		const entry = serverTypes.find( ( t ) => t.slug === serverType );
+		if ( ! entry || ! Array.isArray( entry.tools ) ) {
+			return PROTOCOL_TOOL_SLUGS;
+		}
+		return entry.tools;
+	}, [ serverTypes, serverType ] );
+
+	// F090 — the pool comes from the SERVER (`type_pool`), not a subtraction
+	// recomputed here. One definition of "available to this server" means the
+	// picker can never offer a tool the write path would reject, and the
+	// `expose` rule exposes exactly what the picker showed.
+	const poolAbilities = useMemo( () => {
+		const pool = new Set( typePool );
+		return abilities.filter(
+			( a ) =>
+				added.has( a.name ) ||
+				( pool.size > 0 ? pool.has( a.name ) : toolSlugs.has( a.name ) ),
+		);
+	}, [ abilities, toolSlugs, added, typePool ] );
 
 	// Initial mount: GET /tools?include_abilities=1
 	useEffect( () => {
@@ -428,6 +421,7 @@ function ToolsApp( { serverId } ) {
 				setTypeAvailable( response.type_available !== false );
 				setTypeLabel( response.type_label || '' );
 				setEffectiveTools( response.effective_tools || [] );
+				setTypePool( response.type_pool || [] );
 				setToolsPolicy( response.tools_default_policy || 'per-tool' );
 				if ( Array.isArray( response.abilities ) ) {
 					setAbilitiesFromRest( response.abilities );
@@ -441,10 +435,17 @@ function ToolsApp( { serverId } ) {
 			} );
 	}, [ config.namespace, serverId ] );
 
+	// F090 — what the server ACTUALLY serves, which is what both columns show.
+	// The Abilities tab does the same thing: each row renders from
+	// `ExposureResolver::resolve_effective()`, not from the raw override rows,
+	// which is why "Disable All" visibly empties it. Rendering the CONFIGURED
+	// set instead is what made "Remove All" look inert here.
+	const shown = useMemo( () => new Set( effectiveTools ), [ effectiveTools ] );
+
 	const visibleAvailable = useMemo( () => {
 		const q = search.trim().toLowerCase();
 		return poolAbilities.filter( ( a ) => {
-			if ( added.has( a.name ) ) {
+			if ( shown.has( a.name ) ) {
 				return false;
 			}
 			if ( ! q ) {
@@ -457,7 +458,7 @@ function ToolsApp( { serverId } ) {
 				( a.category || '' ).toLowerCase().includes( q )
 			);
 		} );
-	}, [ poolAbilities, added, search ] );
+	}, [ poolAbilities, shown, search ] );
 
 	const addedRows = useMemo( () => {
 		const byName = Object.fromEntries( abilities.map( ( a ) => [ a.name, a ] ) );
@@ -482,9 +483,9 @@ function ToolsApp( { serverId } ) {
 		// PHP-side ToolPolicy::COLUMN_MAP iteration), then curated in
 		// insertion order returned by the server.
 		const protocolAdded = PROTOCOL_TOOL_SLUGS.filter( ( slug ) =>
-			added.has( slug ),
+			shown.has( slug ),
 		);
-		const curatedAdded = Array.from( added ).filter(
+		const curatedAdded = Array.from( shown ).filter(
 			( slug ) => ! PROTOCOL_TOOL_SLUGS.includes( slug ),
 		);
 		return [ ...protocolAdded, ...curatedAdded ].map(
@@ -501,7 +502,7 @@ function ToolsApp( { serverId } ) {
 					category: '',
 				},
 		);
-	}, [ abilities, added ] );
+	}, [ abilities, shown ] );
 
 	/**
 	 * Persist the given tool set to the server. Optimistically updates local
@@ -539,6 +540,14 @@ function ToolsApp( { serverId } ) {
 					setTypeLabel( response.type_label || '' );
 				}
 				setEffectiveTools( response.effective_tools || [] );
+				// The pool is type-dependent: after a switch the picker must
+				// reflect the NEW type's tools, not the previous one's.
+				if ( Array.isArray( response.type_pool ) ) {
+					setTypePool( response.type_pool );
+				}
+				if ( Array.isArray( response.server_types ) ) {
+					setServerTypes( response.server_types );
+				}
 				if ( response.tools_default_policy ) {
 					setToolsPolicy( response.tools_default_policy );
 				}
@@ -554,21 +563,11 @@ function ToolsApp( { serverId } ) {
 			} );
 	};
 
-	const addAbility = ( name ) => {
-		const prev = new Set( added );
-		const next = new Set( added );
-		next.add( name );
-		persistSet( next, prev );
-	};
+	const addAbility = ( name ) => editIndividually( ( set ) => set.add( name ) );
 	// F025 US2: internal helper that actually applies a removal. Called
 	// directly for non-protocol slugs; gated behind the ConfirmDialog for
 	// protocol slugs.
-	const applyRemove = ( name ) => {
-		const prev = new Set( added );
-		const next = new Set( added );
-		next.delete( name );
-		persistSet( next, prev );
-	};
+	const applyRemove = ( name ) => editIndividually( ( set ) => set.delete( name ) );
 	const removeAbility = ( name ) => {
 		if ( PROTOCOL_TOOL_SLUGS.includes( name ) ) {
 			// Gate through the ConfirmDialog (FR-003 / SEC-025-INFO-1).
@@ -578,18 +577,6 @@ function ToolsApp( { serverId } ) {
 		// FR-006: non-protocol removals bypass the dialog.
 		applyRemove( name );
 	};
-	// F090 — the tool set this server's TYPE starts with. Resolved from the
-	// registry the REST layer sent, so the UI cannot drift from the server's
-	// own answer. Falls back to the protocol slugs when the type is
-	// unrecognised, matching ServerTypes::tools_for().
-	const typeTools = useMemo( () => {
-		const entry = serverTypes.find( ( t ) => t.slug === serverType );
-		if ( ! entry || ! Array.isArray( entry.tools ) ) {
-			return PROTOCOL_TOOL_SLUGS;
-		}
-		return entry.tools;
-	}, [ serverTypes, serverType ] );
-
 	// F090 (T025) — THE DEFECT FIX.
 	//
 	// Reset previously restored exactly PROTOCOL_TOOL_SLUGS on EVERY server,
@@ -599,37 +586,76 @@ function ToolsApp( { serverId } ) {
 	const applyReset = () => {
 		const prev = new Set( added );
 
-		// Restoring a type's defaults means the server ACTUALLY serves them.
-		// If a coarse rule is in force it would override the set we just wrote,
-		// so Reset clears the rule first — otherwise the operator presses
-		// "Reset to Type Defaults" and nothing they can see changes, which is
-		// the same class of bug FR-012a fixes for a type switch.
+		// Mirrors "Reset to Ability Defaults": return the rule to its per-item
+		// default AND restore this type's set. Without the first half the new
+		// set is written but a standing rule still overrides it, so the operator
+		// presses Reset and sees nothing change.
+		//
+		// SEQUENCED, not fired together: issued concurrently, the policy write's
+		// re-read can land before the tool-set write commits.
 		if ( toolsPolicy !== 'per-tool' ) {
-			persistPolicy( 'per-tool' );
+			persistPolicy( 'per-tool' ).then( () =>
+				persistSet( new Set( typeTools ), prev ),
+			);
+			return;
 		}
 
 		persistSet( new Set( typeTools ), prev );
 	};
 	const openResetDialog = () => setPendingReset( true );
 
-	// F090 (T049) — write the standing rule. Deliberately does NOT touch curated
-	// rows: switching back to 'per-tool' must restore exactly the prior
-	// selection, so 'all'/'none' is a lens over the stored set, never a rewrite.
+	// F090 — the pill reports the standing RULE, exactly as the Abilities tab's
+	// does ("Default policy: Expose every ability by default"). The rule is the
+	// thing the three buttons change, so it is the thing the pill must show.
+	const membership = useMemo( () => {
+		if ( toolsPolicy === 'expose' ) {
+			return {
+				state: 'expose',
+				label: __( 'Tool rule: expose every tool', 'acrossai-mcp-manager' ),
+				description: __(
+					'Every available tool is exposed, including ones registered later by plugins you install in future.',
+					'acrossai-mcp-manager',
+				),
+			};
+		}
+
+		if ( toolsPolicy === 'hide' ) {
+			return {
+				state: 'hide',
+				label: __( 'Tool rule: expose no tools', 'acrossai-mcp-manager' ),
+				description: __(
+					'No tools are exposed. AI clients will see nothing on this server.',
+					'acrossai-mcp-manager',
+				),
+			};
+		}
+
+		return {
+			state: 'per-tool',
+			label: __( 'Tool rule: choose tools individually', 'acrossai-mcp-manager' ),
+			description: sprintf(
+				/* translators: 1: tools exposed, 2: tools available. */
+				__( '%1$d of %2$d available tools are added to this server.', 'acrossai-mcp-manager' ),
+				effectiveTools.length,
+				poolAbilities.length,
+			),
+		};
+	}, [ toolsPolicy, effectiveTools, poolAbilities ] );
+
+	// F090 — write the standing rule. Same model as the Abilities tab: the
+	// COLUMN holds the logic, the server computes the effective set from it, and
+	// the UI renders that result — which is what makes "Remove All" visibly
+	// empty the Added column while the curated rows survive underneath.
 	const persistPolicy = ( nextPolicy ) => {
 		setSaving( true );
 		setError( null );
-		apiFetch( {
+		return apiFetch( {
 			path: `/${ config.namespace }/servers/${ serverId }/tools/policy`,
 			method: 'POST',
 			data: { policy: nextPolicy },
 		} )
-			// Re-READ after the write rather than trusting the write's own
-			// response. A POST response is a claim about state; a GET is the
-			// state. Observed: the policy write reported the PREVIOUS effective
-			// tool list, so the tab showed "serving 26 while 3 are configured"
-			// until the operator reloaded — storage was correct throughout, only
-			// the response disagreed. One extra request is a cheap price for the
-			// tab never showing numbers the server does not agree with.
+			// Re-READ rather than trusting the write's own response: a POST
+			// response is a claim about state, a GET is the state.
 			.then( () =>
 				apiFetch( {
 					path: `/${ config.namespace }/servers/${ serverId }/tools`,
@@ -639,6 +665,9 @@ function ToolsApp( { serverId } ) {
 				setToolsPolicy( fresh.tools_default_policy || nextPolicy );
 				setAdded( new Set( fresh.tools || [] ) );
 				setEffectiveTools( fresh.effective_tools || [] );
+				if ( Array.isArray( fresh.type_pool ) ) {
+					setTypePool( fresh.type_pool );
+				}
 			} )
 			.catch( ( err ) => {
 				setError(
@@ -647,6 +676,32 @@ function ToolsApp( { serverId } ) {
 				);
 			} )
 			.finally( () => setSaving( false ) );
+	};
+
+	const applyBulk = ( which ) => persistPolicy( which === 'all' ? 'expose' : 'hide' );
+
+	// Individual add/remove while a coarse rule is in force.
+	//
+	// Tool storage is presence-based (DEC-TOOL-SELECTION-PRESENCE-MODEL): a row
+	// means yes, no row means no, and there is deliberately no third state. So
+	// unlike the Abilities tab — where a per-ability override row can contradict
+	// the policy — a single tool cannot be excepted from `expose`.
+	//
+	// Rather than disable the per-row buttons, the first individual edit after a
+	// bulk action MATERIALISES: it writes what is currently shown as the curated
+	// set and returns the rule to per-tool, then applies the change. The operator
+	// gets exactly the list they were looking at, now editable.
+	const editIndividually = ( mutate ) => {
+		const base = new Set( shown );
+		const prev = new Set( added );
+		mutate( base );
+
+		if ( toolsPolicy !== 'per-tool' ) {
+			persistPolicy( 'per-tool' ).then( () => persistSet( base, prev ) );
+			return;
+		}
+
+		persistSet( base, prev );
 	};
 
 	// F090 (T026) — switching type replaces the tool set AND resets a coarse
@@ -672,7 +727,7 @@ function ToolsApp( { serverId } ) {
 
 	// F090 — tools this server's type provides that it does not currently have.
 	// Drives the Apply prompt; never applied without the operator asking.
-	const missingFromType = typeTools.filter( ( slug ) => ! added.has( slug ) );
+	const missingFromType = typeTools.filter( ( slug ) => ! shown.has( slug ) );
 
 	return createElement(
 		Fragment,
@@ -785,25 +840,17 @@ function ToolsApp( { serverId } ) {
 					'span',
 					{
 						className:
-							'acrossai-mcp-tools-policy__pill is-policy-' + toolsPolicy,
+							'acrossai-mcp-tools-policy__pill is-policy-' +
+							membership.state,
 						role: 'status',
 						'aria-live': 'polite',
 					},
-					POLICY_PILL_LABEL[ toolsPolicy ] || POLICY_PILL_LABEL[ 'per-tool' ],
+					membership.label,
 				),
 				createElement(
 					'p',
 					{ className: 'description acrossai-mcp-tools-policy__counter' },
-					POLICY_PILL_DESCRIPTION[ toolsPolicy ] ||
-						sprintf(
-							/* translators: 1: tools added, 2: tools available. */
-							__(
-								'%1$d of %2$d tools added — rule: choose individually.',
-								'acrossai-mcp-manager',
-							),
-							added.size,
-							totalPool,
-						),
+					membership.description,
 				),
 			),
 			createElement(
@@ -814,20 +861,22 @@ function ToolsApp( { serverId } ) {
 					{
 						variant: 'secondary',
 						size: 'compact',
-						disabled: saving || toolsPolicy === 'all',
+						// Nothing left to move across.
+						disabled: saving || toolsPolicy === 'expose',
 						onClick: () => setPendingBulk( 'all' ),
 					},
-					__( 'Add All', 'acrossai-mcp-manager' ),
+					__( 'Enable All', 'acrossai-mcp-manager' ),
 				),
 				createElement(
 					Button,
 					{
 						variant: 'secondary',
 						size: 'compact',
-						disabled: saving || toolsPolicy === 'none',
+						isDestructive: true,
+						disabled: saving || toolsPolicy === 'hide',
 						onClick: () => setPendingBulk( 'none' ),
 					},
-					__( 'Remove All', 'acrossai-mcp-manager' ),
+					__( 'Disable All', 'acrossai-mcp-manager' ),
 				),
 				createElement(
 					Button,
@@ -848,27 +897,13 @@ function ToolsApp( { serverId } ) {
 			),
 		),
 
-		// F090 — when what the server SERVES differs from what is CONFIGURED,
-		// say so. Silently showing one while serving the other is the exact
-		// divergence ARCH-2 exists to prevent.
-		typeAvailable && effectiveTools.length !== added.size
-			? createElement(
-				Notice,
-				{ status: 'info', isDismissible: false },
-				sprintf(
-					/* translators: 1: number of tools served, 2: number configured. */
-					__(
-						'This server is currently serving %1$d tool(s), while %2$d are configured below. A bulk tool rule is overriding the individual selection.',
-						'acrossai-mcp-manager',
-					),
-					effectiveTools.length,
-					added.size,
-				),
-			)
-			: null,
+		// NOTE there is deliberately no "serving X while Y configured" notice
+		// here. Under `expose` or `hide` that difference is the RULE WORKING, not
+		// a fault, and the pill in the panel above already says which rule is in
+		// force. Reporting it again as an anomaly made a correct state look broken.
 
 		// F090 (T027) — offer the type's missing tools; never auto-apply.
-		typeAvailable && missingFromType.length > 0
+		typeAvailable && toolsPolicy === 'per-tool' && missingFromType.length > 0
 			? createElement(
 				Notice,
 				{ status: 'info', isDismissible: false },
@@ -926,7 +961,7 @@ function ToolsApp( { serverId } ) {
 						'%1$d of %2$d tools added to this server',
 						'acrossai-mcp-manager',
 					),
-					added.size,
+					shown.size,
 					totalPool,
 				),
 			),
@@ -1074,7 +1109,7 @@ function ToolsApp( { serverId } ) {
 									'acrossai-mcp-manager',
 								),
 							},
-							String( added.size ),
+							String( shown.size ),
 						),
 					),
 				),
@@ -1187,21 +1222,21 @@ function ToolsApp( { serverId } ) {
 				onConfirm: () => {
 					const next = pendingBulk;
 					setPendingBulk( null );
-					persistPolicy( next );
+					applyBulk( next );
 				},
 				onCancel: () => setPendingBulk( null ),
 				confirmButtonText:
 						pendingBulk === 'all'
-							? __( 'Expose every tool', 'acrossai-mcp-manager' )
-							: __( 'Expose no tools', 'acrossai-mcp-manager' ),
+							? __( 'Enable all tools', 'acrossai-mcp-manager' )
+							: __( 'Disable all tools', 'acrossai-mcp-manager' ),
 			},
 			pendingBulk === 'all'
 				? __(
-					'Expose every tool-level ability on this server, including ones registered later by plugins you install in future? Your individual selection is kept and takes effect again if you return to choosing individually.',
+					'Expose every available tool on this server, including ones registered later by plugins you install in future? Your individual selection is kept.',
 					'acrossai-mcp-manager',
 				)
 				: __(
-					'Expose no tools on this server? AI clients will see nothing. Your individual selection is kept and takes effect again if you return to choosing individually.',
+					'Expose no tools on this server? AI clients will see nothing. Your individual selection is kept and returns when you reset to defaults.',
 					'acrossai-mcp-manager',
 				),
 			)
@@ -1250,7 +1285,7 @@ function ToolsApp( { serverId } ) {
 					),
 				},
 				__(
-					'Reset the tools for this server to only the three built-in defaults? All curated picks will be removed.',
+					'Reset this server to its type\'s default tools? Your current selection will be replaced, and any bulk tool rule returns to choosing tools individually.',
 					'acrossai-mcp-manager',
 				),
 			)

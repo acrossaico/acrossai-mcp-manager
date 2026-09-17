@@ -248,6 +248,10 @@ final class ToolsController {
 			// itself marked unavailable, rather than blank (FR-010).
 			'type_label'           => self::type_label( $server_type ),
 			'server_types'         => self::types_payload(),
+			// F090 — the pool this server may offer, computed server-side so the
+			// picker and the `expose` rule cannot disagree about what "every
+			// available tool" means.
+			'type_pool'            => ServerTypes::pool_for( $server_type ),
 		);
 
 		$include_abilities = (bool) $request->get_param( 'include_abilities' );
@@ -486,6 +490,11 @@ final class ToolsController {
 					'tools_default_policy' => (string) $refreshed->tools_default_policy,
 					'type_available'       => ServerTypes::is_available( (string) $refreshed->server_type ),
 					'type_label'           => self::type_label( (string) $refreshed->server_type ),
+					// The pool is TYPE-DEPENDENT, so a switch must return the new
+					// one. Without it the picker keeps offering the previous
+					// type's tools until the operator reloads.
+					'type_pool'            => ServerTypes::pool_for( (string) $refreshed->server_type ),
+					'server_types'         => self::types_payload(),
 				)
 			)
 		);
@@ -587,10 +596,10 @@ final class ToolsController {
 				// The actual slugs, not just a count — the Tools tab resolves
 				// Reset and a type switch from this, so the UI can never drift
 				// from what ServerTypes::tools_for() would return.
-				// Resolved through tools_for() so the UI applies the SAME empty
-				// and unknown fallbacks the server does — a raw $type['tools']
-				// here would let Reset wipe a server whose type is a
-				// not-yet-replaced placeholder.
+				// Resolved through tools_for(), which applies the same empty,
+				// unknown and not-registered narrowing every server-side
+				// consumer gets — so the picker cannot offer a tool the write
+				// path would then reject.
 				'tools'       => ServerTypes::tools_for( (string) $slug ),
 			);
 		}
@@ -618,7 +627,7 @@ final class ToolsController {
 	 * POST /servers/{id}/tools/policy — set the standing tool rule.
 	 *
 	 * Does NOT touch curated presence rows. Switching back to `per-tool` must
-	 * restore exactly the prior selection, so `all`/`none` can only ever be a
+	 * restore exactly the prior selection, so `expose`/`hide` can only ever be a
 	 * lens over the stored set, never a rewrite of it.
 	 *
 	 * @since 0.1.0 (Feature 090)
@@ -671,6 +680,7 @@ final class ToolsController {
 					'server_type'          => (string) $server_row->server_type,
 					'type_available'       => ServerTypes::is_available( (string) $server_row->server_type ),
 					'type_label'           => self::type_label( (string) $server_row->server_type ),
+					'type_pool'            => ServerTypes::pool_for( (string) $server_row->server_type ),
 				)
 			)
 		);

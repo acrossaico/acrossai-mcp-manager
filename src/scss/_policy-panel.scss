@@ -51,18 +51,17 @@
 		font-weight: 600;
 		line-height: 1.6;
 
-		// "everything on" — green. `is-policy-expose` (abilities) and
-		// `is-policy-all` (tools) are the same state in two vocabularies.
-		&.is-policy-expose,
-		&.is-policy-all {
+		// "everything on" — green. Both screens store `expose`, so one selector
+		// serves both; an earlier pass needed an `is-policy-all` alias because
+		// the Tools column used a different vocabulary.
+		&.is-policy-expose {
 			background: #edfaef;
 			border-color: #68de7c;
 			color: #007017;
 		}
 
 		// "everything off" — red.
-		&.is-policy-hide,
-		&.is-policy-none {
+		&.is-policy-hide {
 			background: #fcf0f1;
 			border-color: #ffabaf;
 			color: #8a2424;

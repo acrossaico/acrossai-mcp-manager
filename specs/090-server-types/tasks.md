@@ -49,10 +49,10 @@ attributes (they are inert under 9.6). See `research.md` R7.
 - [x] T010 In `includes/Database/MCPServer/DefaultServerSeeder.php`, add `server_type` to `definitions()` — `'mcp-adapter'` in the Default server's **`managed`** bucket, `'acrossai'` in the AcrossAI server's **`initial`** bucket (NOT managed). Add `tools_default_policy` to neither bucket
 - [ ] T011 [P] PHPUnit: migration adds both columns; pre-existing rows read `mcp-adapter`; the AcrossAI row reads `acrossai`; re-running `maybe_upgrade()` is a no-op — in `tests/phpunit/Database/MCPServer/TableMigration116Test.php`. Restore schema explicitly in teardown; DDL escapes `WP_UnitTestCase` rollback (B53)
 - [ ] T012 [P] PHPUnit **regression for T007**: set the AcrossAI row to `mcp-adapter`, delete the version option, re-run the upgrade, assert the row is STILL `mcp-adapter` — in `tests/phpunit/Database/MCPServer/TableMigration116Test.php`
-- [ ] T013 [P] PHPUnit for the registry: seed shape, filter add, last-wins override of the `acrossai` placeholder (D41), `default_slug()` skipping an unmet requirement, unknown slug degrading without fatal — in `tests/phpunit/Database/MCPServer/ServerTypesTest.php`
+- [x] T013 [P] PHPUnit for the registry: seed shape, filter add, last-wins override of the `acrossai` placeholder (D41), `default_slug()` skipping an unmet requirement, unknown slug degrading without fatal — in `tests/phpunit/Database/MCPServer/ServerTypesTest.php`
 - [x] T014 **[ARCH-1]** Create `includes/Database/MCPServer/ServerEnablement.php` with `set( int $server_id, bool $enabled ): true|WP_Error` as the ONLY sanctioned `is_enabled` writer; it consults `ServerTypes::enablement_error()` on off→on and returns the `WP_Error` unchanged  *(moved from US2 per SEC-005 — the boundary must exist before any story can enable a server)*
 - [x] T015 **[ARCH-1]** Add a grep gate to `bin/verify-f021-gates.sh` failing CI on any `'is_enabled' =>` write outside `ServerEnablement` and `DefaultServerSeeder`, so a future fourth path is caught by CI rather than by review
-- [ ] T016 [P] PHPUnit: `POST /servers/{id}/tools` rejects an unregistered `server_type` with `acrossai_mcp_invalid_server_type` (400) and leaves the stored value unchanged; `POST /servers/{id}/tools/policy` rejects a value outside `all|none|per-tool`. Include a forged-value case — a well-formed slug that is not a registered type — in `tests/phpunit/REST/ToolsControllerValidationTest.php`  *(added per SEC-006)*
+- [ ] T016 [P] PHPUnit: `POST /servers/{id}/tools` rejects an unregistered `server_type` with `acrossai_mcp_invalid_server_type` (400) and leaves the stored value unchanged; `POST /servers/{id}/tools/policy` rejects a value outside `expose|hide|per-tool`. Include a forged-value case — a well-formed slug that is not a registered type — in `tests/phpunit/REST/ToolsControllerValidationTest.php`  *(added per SEC-006)*
 - [x] T017 Load a real wp-admin page and confirm `wp-content/debug.log` gains no fatal. **Not optional** — PHPCS and PHPStan both passed on code that white-screened the site during pre-planning (`research.md` R4)
 
 **Checkpoint**: schema, registry and seeder exist and are proven. User stories may now proceed.
@@ -77,7 +77,7 @@ restored set matches that server's type rather than a fixed list.
 - [x] T020 [US1] **[ARCH-2]** Implement the precedence chain INSIDE `ToolPolicy::compose_effective_tools_for_row()` in `includes/Database/MCPServer/ToolPolicy.php` — unmet requirement > standing policy > per-tool composition. Leave `compose_for_row()` returning the CONFIGURED set only; this ends their passthrough relationship
 - [x] T021 [US1] Expose `server_type`, `tools_default_policy`, `type_available`, `type_label` and `effective_tools` on `GET /servers/{id}/tools` in `includes/REST/ToolsController.php` per `contracts/rest-tools.md`
 - [x] T022 [US1] Accept an optional validated `server_type` on `POST /servers/{id}/tools` in `includes/REST/ToolsController.php` so a type switch and its tool set are ONE atomic write; reject unknown slugs with `acrossai_mcp_invalid_server_type` (400)
-- [x] T023 [US1] In `includes/REST/ToolsController.php`, reset `tools_default_policy` to `'per-tool'` in that same write whenever `server_type` changes and the policy was `all`/`none` (FR-012a)
+- [x] T023 [US1] In `includes/REST/ToolsController.php`, reset `tools_default_policy` to `'per-tool'` in that same write whenever `server_type` changes and the policy was `expose`/`hide` (FR-012a)
 - [x] T024 [US1] Add the type selector to the top of the Tools tab in `src/js/tools.js`, offering only available types and showing the raw slug marked unavailable for an unrecognised value
 - [x] T025 [US1] **Rewire `applyReset()` in `src/js/tools.js`** to use the resolved type's tools instead of `PROTOCOL_TOOL_SLUGS`. *This single change is the defect the feature exists to fix.*
 - [x] T026 [US1] Add a ConfirmDialog on type switch in `src/js/tools.js` naming BOTH effects — the tool selection is replaced AND the standing rule returns to "choose individually" — reusing the existing `pendingReset` pattern
@@ -151,14 +151,14 @@ confirm it is included with no further action.
 
 ### Tests for User Story 4
 
-- [ ] T046 [P] [US4] PHPUnit: policy `all` includes a tool-level ability registered AFTER the policy was set; `none` yields an empty set; `per-tool` reproduces today's behaviour exactly — in `tests/phpunit/Database/MCPServer/ToolsDefaultPolicyTest.php`
-- [ ] T047 [P] [US4] PHPUnit: switching `server_type` while the policy is `all`/`none` resets it to `per-tool` (FR-012a) — in `tests/phpunit/Database/MCPServer/ToolsDefaultPolicyTest.php`
+- [ ] T046 [P] [US4] PHPUnit: policy `expose` includes a tool-level ability registered AFTER the policy was set; `hide` yields an empty set; `per-tool` reproduces today's behaviour exactly — in `tests/phpunit/Database/MCPServer/ToolsDefaultPolicyTest.php`
+- [ ] T047 [P] [US4] PHPUnit: switching `server_type` while the policy is `expose`/`hide` resets it to `per-tool` (FR-012a) — in `tests/phpunit/Database/MCPServer/ToolsDefaultPolicyTest.php`
 
 ### Implementation for User Story 4
 
 - [x] T048 [US4] Add `POST /servers/{id}/tools/policy` to `includes/REST/ToolsController.php` with enum validation and an explicit `manage_options` `permission_callback`
-- [x] T049 [US4] Add the bulk bar to `src/js/tools.js` — **Add All / Remove All / Reset to Type Defaults** — reusing the existing ConfirmDialog for the two destructive actions
-- [x] T050 [US4] Add the status pill to `src/js/tools.js` stating the current rule and override count, mirroring the Abilities tab, and stating BOTH: that `all`/`none` overrides the type's set until the rule returns to `per-tool`, AND that `all` automatically includes tool-level abilities registered **after** the choice was made (SEC-008 — forward consent, not just precedence)
+- [x] T049 [US4] Add the bulk bar to `src/js/tools.js` — **Enable All / Disable All / Reset to Type Defaults** — reusing the existing ConfirmDialog for the two destructive actions
+- [x] T050 [US4] Add the status pill to `src/js/tools.js` stating the current rule and override count, mirroring the Abilities tab, and stating BOTH: that `expose`/`hide` overrides the type's set until the rule returns to `per-tool`, AND that `expose` automatically includes tool-level abilities registered **after** the choice was made (SEC-008 — forward consent, not just precedence)
 
 **Checkpoint**: tool curation reaches parity with ability curation.
 
@@ -357,3 +357,33 @@ A21's safety layer working, not a regression.
 T056 (`/speckit-analyze` after implementation) remains — it is the drift audit WORKLOG
 2026-07-04 recommends for exactly this shape of feature: four clarifications and two
 architecture-review pivots.
+
+### Architecture-review remediation — 2026-09-17 (post-T056)
+
+`/speckit-architecture-guard-architecture-review` found the boundaries sound (ARCH-1 and
+ARCH-2 both verified) and the drift entirely in the EXTENSION POINT, invisible from inside
+because only the two shipped types exercise it.
+
+- **V1/V3** — `ServerTypes::plugin_is_active()` assumed `slug/slug.php`. Three plugins active
+  on the dev site break that (`insert-headers-and-footers/ihaf.php`, `sfwd-lms/sfwd_lms.php`,
+  `wp-mail-smtp/wp_mail_smtp.php`), so a third-party type naming one was permanently
+  unavailable ON A SITE WHERE ITS DEPENDENCY WAS RUNNING. Now prefix-matches `active_plugins`
+  (+ `active_sitewide_plugins` on multisite), which also drops the `wp-admin/includes/plugin.php`
+  load out of the MCP/REST path (A3).
+- **V2** — `AbilitiesManagerPromoCard::resolve_state()` was a second implementation of the same
+  question, with the CORRECT algorithm. It now delegates the boolean and keeps only
+  missing-vs-inactive, which is genuinely its own concern.
+- **Third site, found while fixing the first two** — `QuickConnectController::handle_install_plugin()`
+  carried the same assumption behind a two-slug allow-list. Convention guess removed entirely;
+  unresolvable is now an error, not a guess.
+- **V4/V5** — `contracts/rest-tools.md`, `contracts/server-types-filter.md` and `data-model.md`
+  brought back in step with the shipped API (`type_pool`, `server_types`, `pool_for()`,
+  `registered_only()`, `tools`-as-exclusivity-claim, `requires`-by-directory).
+- **T013 done** — `tests/phpunit/Database/MCPServer/ServerTypesTest.php`, whose
+  `provideRealWorldPluginFiles()` is the case that would have caught V1: real `active_plugins`
+  values rather than invented ones.
+- **Gates** — two added to `bin/verify-f021-gates.sh`; one of them then REMOVED for flagging
+  correct code. Gate the defect, not the function.
+- **Memory** — BUGS.md B60, DECISIONS.md D58, both routed in INDEX.md.
+
+Remaining: 13 test tasks (T011, T012, T016, T018-T019, T028-T029, T036, T039-T040, T045-T047).

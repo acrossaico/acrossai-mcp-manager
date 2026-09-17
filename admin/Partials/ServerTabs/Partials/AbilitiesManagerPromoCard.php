@@ -35,6 +35,7 @@ declare( strict_types = 1 );
 namespace AcrossAI_MCP_Manager\Admin\Partials\ServerTabs\Partials;
 
 use AcrossAI_MCP_Manager\Includes\Abilities\PermissionOverrideProcessor;
+use AcrossAI_MCP_Manager\Includes\Database\MCPServer\ServerTypes;
 
 // Exit if accessed directly.
 defined( 'ABSPATH' ) || exit;
@@ -214,26 +215,25 @@ final class AbilitiesManagerPromoCard {
 	 * @return string
 	 */
 	public function resolve_state(): string {
-		if ( ! function_exists( 'is_plugin_active' ) ) {
-			require_once ABSPATH . 'wp-admin/includes/plugin.php';
+		// ACTIVE is resolved by ServerTypes, never re-derived here (B32). That
+		// class owns the one implementation the enablement gate and the runtime
+		// composer both consult, so this notice cannot tell the operator the
+		// add-on is missing while the gate considers the requirement satisfied.
+		// The two used to disagree: this card matched by DIRECTORY while
+		// ServerTypes assumed `slug/slug.php`, and they agreed only because the
+		// sibling's filename happens to match its folder.
+		if ( ServerTypes::plugin_is_active( self::SIBLING_SLUG ) ) {
+			return 'active';
 		}
+
+		// Only the MISSING-vs-INACTIVE distinction is this card's own business,
+		// because only the admin has to word the remedy differently ("install"
+		// versus "activate"). Both are equally unmet to the gate.
 		if ( ! function_exists( 'get_plugins' ) ) {
 			require_once ABSPATH . 'wp-admin/includes/plugin.php';
 		}
 
-		// Reuse main-menu's find_plugin_file when available (it handles the
-		// install_folder edge case per DEC-CONSUMER-SELF-EXCLUSION-VIA-VENDOR-
-		// FILTER cousin — folder-name matching, not slug substring). Fall
-		// back to a minimal manual scan when the vendor class is absent so
-		// this card degrades gracefully.
-		$plugin_file = $this->find_sibling_plugin_file();
-		if ( null === $plugin_file ) {
-			return 'missing';
-		}
-		if ( is_plugin_active( $plugin_file ) ) {
-			return 'active';
-		}
-		return 'inactive';
+		return null === $this->find_sibling_plugin_file() ? 'missing' : 'inactive';
 	}
 
 	/**

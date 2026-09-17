@@ -268,9 +268,12 @@ tool, and confirm the new tool is included without further action.
 - **FR-026**: "Everything" MUST be a standing rule covering tools that become available
   later, not a one-time sweep.
 - **FR-027**: "Everything" and "nothing" MUST take precedence over individual selection.
-  While either is in force AND the administrator has not just changed the type, the screen
-  MUST state that the type's set has no visible effect. (A type change resets the rule — see
-  FR-012a — so that message must not appear immediately after one.)
+  While either is in force, the screen MUST state which rule is in effect and what it does,
+  so the administrator can see why the individual selection is not what the server serves.
+  *(Amended post-implementation — the original wording required a separate notice stating the
+  type's set has "no visible effect". Built, then removed: under a standing rule that
+  difference IS the rule working, and reporting it as an anomaly made a correct state read as
+  broken. Deviation recorded in `plan.md` § Complexity Tracking.)*
 
 **Documentation and internal consistency**
 

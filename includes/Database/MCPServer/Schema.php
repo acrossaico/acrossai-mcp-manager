@@ -182,12 +182,13 @@ class Schema extends \BerlinDB\Database\Kern\Schema {
 		// `abilities_default_policy` above and deliberately the same shape:
 		// 'per-tool' → compose from the tool_* columns + curated rows (today's
 		// behaviour, and what a server type's preset fills in)
-		// 'all'      → every tool-level ability, INCLUDING ones registered later
-		// (a STANDING rule, not a snapshot — reactivating a companion plugin
-		// must not require re-adding its toolsets by hand)
-		// 'none'     → expose no tools
+		// 'expose'   → every tool-level ability in this server's POOL, INCLUDING
+		// ones registered later (a STANDING rule, not a snapshot — reactivating
+		// a companion plugin must not require re-adding its toolsets by hand).
+		// The pool is ServerTypes::pool_for(), not the type's own list.
+		// 'hide'     → expose no tools
 		//
-		// 'all'/'none' sit ABOVE the type preset and win over it, exactly as
+		// 'expose'/'hide' sit ABOVE the type preset and win over it, exactly as
 		// abilities_default_policy wins over per-ability override rows.
 		array(
 			'name'    => 'tools_default_policy',
