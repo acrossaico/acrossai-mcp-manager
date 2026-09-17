@@ -52,7 +52,7 @@ attributes (they are inert under 9.6). See `research.md` R7.
 - [x] T013 [P] PHPUnit for the registry: seed shape, filter add, last-wins override of the `acrossai` placeholder (D41), `default_slug()` skipping an unmet requirement, unknown slug degrading without fatal — in `tests/phpunit/Database/MCPServer/ServerTypesTest.php`
 - [x] T014 **[ARCH-1]** Create `includes/Database/MCPServer/ServerEnablement.php` with `set( int $server_id, bool $enabled ): true|WP_Error` as the ONLY sanctioned `is_enabled` writer; it consults `ServerTypes::enablement_error()` on off→on and returns the `WP_Error` unchanged  *(moved from US2 per SEC-005 — the boundary must exist before any story can enable a server)*
 - [x] T015 **[ARCH-1]** Add a grep gate to `bin/verify-f021-gates.sh` failing CI on any `'is_enabled' =>` write outside `ServerEnablement` and `DefaultServerSeeder`, so a future fourth path is caught by CI rather than by review
-- [ ] T016 [P] PHPUnit: `POST /servers/{id}/tools` rejects an unregistered `server_type` with `acrossai_mcp_invalid_server_type` (400) and leaves the stored value unchanged; `POST /servers/{id}/tools/policy` rejects a value outside `expose|hide|per-tool`. Include a forged-value case — a well-formed slug that is not a registered type — in `tests/phpunit/REST/ToolsControllerValidationTest.php`  *(added per SEC-006)*
+- [x] T016 [P] PHPUnit: `POST /servers/{id}/tools` rejects an unregistered `server_type` with `acrossai_mcp_invalid_server_type` (400) and leaves the stored value unchanged; `POST /servers/{id}/tools/policy` rejects a value outside `expose|hide|per-tool`. Include a forged-value case — a well-formed slug that is not a registered type — in `tests/phpunit/REST/ToolsControllerValidationTest.php`  *(added per SEC-006)*
 - [x] T017 Load a real wp-admin page and confirm `wp-content/debug.log` gains no fatal. **Not optional** — PHPCS and PHPStan both passed on code that white-screened the site during pre-planning (`research.md` R4)
 
 **Checkpoint**: schema, registry and seeder exist and are proven. User stories may now proceed.
@@ -97,7 +97,7 @@ every route and confirm each refuses; then switch its type and confirm it enable
 
 ### Tests for User Story 2
 
-- [ ] T028 [P] [US2] PHPUnit: `ServerEnablement::set()` refuses off→on for an unmet requirement, ALWAYS permits on→off, and never auto-disables — in `tests/phpunit/Database/MCPServer/ServerEnablementTest.php`
+- [x] T028 [P] [US2] PHPUnit: `ServerEnablement::set()` refuses off→on for an unmet requirement, ALWAYS permits on→off, and never auto-disables — in `tests/phpunit/Database/MCPServer/ServerEnablementTest.php`
 - [ ] T029 [P] [US2] PHPUnit: bulk enable over a mixed selection enables every eligible server and reports every skipped one with a reason (FR-016a) — in `tests/phpunit/Admin/SettingsBulkEnableTest.php`
 
 ### Implementation for User Story 2
@@ -386,7 +386,7 @@ because only the two shipped types exercise it.
   correct code. Gate the defect, not the function.
 - **Memory** — BUGS.md B60, DECISIONS.md D58, both routed in INDEX.md.
 
-Remaining: 11 test tasks (T016, T018-T019, T028-T029, T036, T039-T040, T045-T047).
+Remaining: 9 test tasks (T018-T019, T029, T036, T039-T040, T045-T047).
 
 ### T011 + T012 — 2026-09-17
 
@@ -404,3 +404,24 @@ Two harness traps the test has to dodge, or it passes while proving nothing:
 
 A mirror test asserts an untouched AcrossAI row STAYS corrected, so the gate cannot be
 "satisfied" by disabling the UPDATE outright.
+
+### T016 + T028 — 2026-09-17
+
+The two security boundaries, tested before the convenience ones.
+
+**T028** — `ServerEnablementTest`. The invariant is ASYMMETRIC and the asymmetry IS the safety
+property: off->on is gated, on->off is unconditional. Every refusal assertion is paired with one
+proving the opposite direction still works, because a facade that refused everything would pass a
+one-sided suite while stranding any server whose dependency broke underneath it. Also covers
+FR-016a partial-success bulk, the D19 refusal action, the redundant-call no-op, and FR-018 (a
+running server is never auto-disabled — reading the gate must never write).
+
+**T016** — `ToolsControllerValidationTest`. The case SEC-006 asks for is the FORGED one: a
+well-formed, plausible slug that simply is not registered. `sanitize_key()` passes it happily;
+only the registry lookup rejects it. Every rejection is paired with an assertion that the stored
+value is UNCHANGED — a 400 that still wrote would be worse than no validation, since the caller
+believes it failed and the row disagrees. Positive cases included deliberately: a validator that
+rejects everything passes every negative test. Policy cases are driven from
+`ToolPolicy::POLICIES` so adding a value cannot leave the test behind (B48), and the retired
+`all`/`none` are asserted to be REJECTED now — a stale client must fail loudly rather than store
+a value no branch of the precedence chain matches.
