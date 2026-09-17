@@ -22,6 +22,7 @@ import {
 	useState,
 	useEffect,
 	useMemo,
+	useRef,
 } from '@wordpress/element';
 import {
 	Button,
@@ -321,6 +322,18 @@ function ToolsApp( { serverId } ) {
 	const [ typePool, setTypePool ] = useState( [] );
 	const [ pendingTypeSwitch, setPendingTypeSwitch ] = useState( null );
 	const [ pendingBulk, setPendingBulk ] = useState( null );
+	// #129 — an MCP client caches `tools/list` when it CONNECTS. Nothing the
+	// server can do reaches an already-connected one: the adapter advertises
+	// `tools.listChanged: false` and its GET/SSE channel is unimplemented, and a
+	// spike against a real client confirmed it ignores the notification even
+	// when both are corrected. So the honest thing is to say so, once, when the
+	// served set actually moves — not to leave the operator believing a number
+	// that is not yet true for anyone connected.
+	//
+	// Tracks whether THIS page load changed what the server serves. Not "is a
+	// client stale" — that is unknowable from here, and claiming it would be
+	// worse than saying nothing.
+	const [ servedSetChanged, setServedSetChanged ] = useState( false );
 	const [ search, setSearch ] = useState( '' );
 	const [ loading, setLoading ] = useState( true );
 	const [ saving, setSaving ] = useState( false );
@@ -417,6 +430,7 @@ function ToolsApp( { serverId } ) {
 				setTypeAvailable( response.type_available !== false );
 				setTypeLabel( response.type_label || '' );
 				setEffectiveTools( response.effective_tools || [] );
+				servedAtLoad.current = response.effective_tools || [];
 				setTypePool( response.type_pool || [] );
 				if ( Array.isArray( response.abilities ) ) {
 					setAbilitiesFromRest( response.abilities );
@@ -499,6 +513,23 @@ function ToolsApp( { serverId } ) {
 		);
 	}, [ abilities, shown ] );
 
+	// #129 — the served set as it was when this page loaded. The notice compares
+	// against THIS, not against the previous write, so a set that is edited and
+	// then edited back does not keep claiming a change that no longer exists.
+	const servedAtLoad = useRef( null );
+
+	const noteServedSetChange = ( next ) => {
+		const baseline = servedAtLoad.current;
+		if ( null === baseline ) {
+			return;
+		}
+
+		const a = [ ...baseline ].sort().join( '\u0000' );
+		const b = [ ...( next || [] ) ].sort().join( '\u0000' );
+
+		setServedSetChanged( a !== b );
+	};
+
 	/**
 	 * Persist the given tool set to the server. Optimistically updates local
 	 * state before the POST; on error, rolls back to the previous state and
@@ -534,6 +565,7 @@ function ToolsApp( { serverId } ) {
 					setTypeAvailable( response.type_available !== false );
 					setTypeLabel( response.type_label || '' );
 				}
+				noteServedSetChange( response.effective_tools || [] );
 				setEffectiveTools( response.effective_tools || [] );
 				// The pool is type-dependent: after a switch the picker must
 				// reflect the NEW type's tools, not the previous one's.
@@ -821,6 +853,41 @@ function ToolsApp( { serverId } ) {
 		// here. With curation the only layer, the count above already IS what
 		// the server serves; a second reading of the same number could only
 		// disagree by being stale.
+
+		// #129 — say it once, when the served set has actually moved.
+		//
+		// Deliberately NOT phrased as "go and reconnect". At product scale that
+		// is not an instruction anyone should be given repeatedly; it is a
+		// limitation of how MCP clients cache `tools/list`, and the operator
+		// deserves the fact rather than a chore.
+		//
+		// The companion fix has shipped: the sibling's `toolset/integrations`
+		// keeps new capability reachable through a tool the client ALREADY
+		// holds, so a stale list no longer BLOCKS anything. This notice is the
+		// other half — a stale list is now harmless, but it is still stale, and
+		// silence here would leave the operator believing a count that is not
+		// yet true for anyone connected.
+		//
+		// Dismissible, because it is information rather than a fault, and it
+		// must not compete with the warnings that are.
+		servedSetChanged
+			? createElement(
+				Notice,
+				{
+					status: 'info',
+					isDismissible: true,
+					onRemove: () => setServedSetChanged( false ),
+				},
+				createElement(
+					'p',
+					null,
+					__(
+						'Saved. AI clients that are already connected keep the tool list they loaded when they connected, so they will see this change on their next session. New connections get it immediately.',
+						'acrossai-mcp-manager',
+					),
+				),
+			)
+			: null,
 
 		// F090 (T027) — offer the type's missing tools; never auto-apply.
 		typeAvailable && missingFromType.length > 0
