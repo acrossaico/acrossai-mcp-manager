@@ -47,8 +47,8 @@ attributes (they are inert under 9.6). See `research.md` R7.
 - [x] T008 [P] Create `includes/Database/MCPServer/ServerTypes.php` — stateless static registry (A11): constant seed (`mcp-adapter`, `acrossai`), the `acrossai_mcp_server_types` filter, and its own small normalizer. Do NOT use `Utilities\RegistryEntryNormalizer` (it drops entries lacking a callable `render_callback`)
 - [x] T009 [P] Implement `ServerTypes::all()`, `get()`, `tools_for()`, `is_available()`, `default_slug()` and `enablement_error()` per `contracts/server-types-filter.md`; `default_slug()` MUST skip types whose `requires` is unmet, with `mcp-adapter` as the always-registered floor
 - [x] T010 In `includes/Database/MCPServer/DefaultServerSeeder.php`, add `server_type` to `definitions()` — `'mcp-adapter'` in the Default server's **`managed`** bucket, `'acrossai'` in the AcrossAI server's **`initial`** bucket (NOT managed). Add `tools_default_policy` to neither bucket
-- [ ] T011 [P] PHPUnit: migration adds both columns; pre-existing rows read `mcp-adapter`; the AcrossAI row reads `acrossai`; re-running `maybe_upgrade()` is a no-op — in `tests/phpunit/Database/MCPServer/TableMigration116Test.php`. Restore schema explicitly in teardown; DDL escapes `WP_UnitTestCase` rollback (B53)
-- [ ] T012 [P] PHPUnit **regression for T007**: set the AcrossAI row to `mcp-adapter`, delete the version option, re-run the upgrade, assert the row is STILL `mcp-adapter` — in `tests/phpunit/Database/MCPServer/TableMigration116Test.php`
+- [x] T011 [P] PHPUnit: migration adds both columns; pre-existing rows read `mcp-adapter`; the AcrossAI row reads `acrossai`; re-running `maybe_upgrade()` is a no-op — in `tests/phpunit/Database/MCPServer/TableMigration116Test.php`. Restore schema explicitly in teardown; DDL escapes `WP_UnitTestCase` rollback (B53)
+- [x] T012 [P] PHPUnit **regression for T007**: set the AcrossAI row to `mcp-adapter`, delete the version option, re-run the upgrade, assert the row is STILL `mcp-adapter` — in `tests/phpunit/Database/MCPServer/TableMigration116Test.php`
 - [x] T013 [P] PHPUnit for the registry: seed shape, filter add, last-wins override of the `acrossai` placeholder (D41), `default_slug()` skipping an unmet requirement, unknown slug degrading without fatal — in `tests/phpunit/Database/MCPServer/ServerTypesTest.php`
 - [x] T014 **[ARCH-1]** Create `includes/Database/MCPServer/ServerEnablement.php` with `set( int $server_id, bool $enabled ): true|WP_Error` as the ONLY sanctioned `is_enabled` writer; it consults `ServerTypes::enablement_error()` on off→on and returns the `WP_Error` unchanged  *(moved from US2 per SEC-005 — the boundary must exist before any story can enable a server)*
 - [x] T015 **[ARCH-1]** Add a grep gate to `bin/verify-f021-gates.sh` failing CI on any `'is_enabled' =>` write outside `ServerEnablement` and `DefaultServerSeeder`, so a future fourth path is caught by CI rather than by review
@@ -386,4 +386,21 @@ because only the two shipped types exercise it.
   correct code. Gate the defect, not the function.
 - **Memory** — BUGS.md B60, DECISIONS.md D58, both routed in INDEX.md.
 
-Remaining: 13 test tasks (T011, T012, T016, T018-T019, T028-T029, T036, T039-T040, T045-T047).
+Remaining: 11 test tasks (T016, T018-T019, T028-T029, T036, T039-T040, T045-T047).
+
+### T011 + T012 — 2026-09-17
+
+`tests/phpunit/Database/MCPServer/TableMigration116Test.php`. T012 is the regression for T007,
+the task this file calls the feature's highest-risk: the corrective UPDATE is gated on having
+just CREATED the column, and ungated it silently reverts an operator who used the switch-type
+escape hatch. Until now it had only ever been checked by hand against the live database.
+
+Two harness traps the test has to dodge, or it passes while proving nothing:
+
+- **Rewind the stored version, never delete the option.** Deleting sends BerlinDB down its
+  FRESH-INSTALL path, which never calls the upgrade callback at all.
+- **Clear `*_upgrade_lock` first.** BerlinDB v3's 900-second concurrency guard is left set by
+  any earlier upgrade in the suite, and `maybe_upgrade()` then returns immediately.
+
+A mirror test asserts an untouched AcrossAI row STAYS corrected, so the gate cannot be
+"satisfied" by disabling the UPDATE outright.
