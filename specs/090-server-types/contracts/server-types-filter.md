@@ -36,31 +36,35 @@ could query the database — callbacks MUST be cheap and side-effect free.
 
 Array key = the type slug, passed through `sanitize_key()`; empty → dropped.
 
-## Exclusivity — `tools` claims, it does not merely seed
+## `tools` is a template, not a claim
 
-Declaring a slug in `tools` does two things:
+`tools` decides one thing: what **Reset** and **Switch** write into a server's tool storage.
 
-1. **Reset and Switch** write those slugs into the server's tool storage.
-2. Those slugs are **removed from every other type's pool** — the set a server of that type
-   may be offered, and the set its `expose` rule exposes.
+It does NOT restrict what the operator may add by hand. The picker offers every tool-level
+ability registered on the site, on every server type, so an AcrossAI server can still be given
+a protocol tool and an MCP Adapter server a toolset.
 
-The subtraction keeps an AcrossAI server from being offered the three `mcp-adapter/*`
-protocol tools, and vice versa. A slug NO type claims belongs to every type, because nothing
-has asserted where it goes.
+```
+Reset on `acrossai`      -> that type's toolsets only
+Reset on `mcp-adapter`   -> the three protocol tools only
+The picker, on either    -> everything registered
+```
 
-**Claim only slugs your own plugin registers.** Naming another plugin's slug removes it from
-every type but yours.
+Naming a slug in your `tools` affects only what Reset writes for servers of YOUR type. It takes
+nothing away from any other type.
 
 ## API beyond the accessors
 
 | Method | Answers |
 |---|---|
-| `pool_for( $slug )` | every tool a server of this type may offer (the subtraction above) |
+| `pool()` | every tool-level ability on the site — what the picker offers and what `expose` exposes |
 | `registered_only( $slugs )` | narrows declared or curated slugs to abilities that EXIST here |
 | `plugin_is_active( $slug )` | THE single resolver for "is this required plugin running" (B32) |
 
-`registered_only()` returns its input unchanged when the ability registry is empty —
-"not registered yet" is not "invalid", and returning `[]` would make Reset wipe the server.
+`registered_only()` returns its input unchanged when the ability registry is empty — "not
+registered yet" is not "invalid", and returning `[]` would make Reset wipe the server. It also
+exempts `ToolPolicy::PROTOCOL_TOOLS`, which `wp_get_abilities()` cannot see in a REST context
+(B62).
 
 ## Guarantees
 

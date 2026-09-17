@@ -51,7 +51,7 @@ admin page load into extra round-trips.
 |---|---|---|---|---|
 | `label` | `string` | **yes** | — | Missing → entry dropped, with `_doing_it_wrong()` under `WP_DEBUG` |
 | `description` | `string` | no | `''` | Shown beneath the selector |
-| `tools` | `string[]` | no | `[]` | Ability slugs this type starts with — **and claims**. See §2.1 |
+| `tools` | `string[]` | no | `[]` | Ability slugs this type starts with — what **Reset** writes. See §2.1 |
 | `requires` | `?string` | no | `null` | Plugin folder slug; `null` = always available |
 | `is_default` | `bool` | no | `false` | Preselected for new servers, **if available** |
 
@@ -70,26 +70,30 @@ The array KEY is the slug, passed through `sanitize_key()`. An empty key drops t
 - **Throw safety** — throws propagate. Standard WordPress filter behaviour; callback authors
   own it.
 
-### 2.1 `tools` is also an exclusivity claim
+### 2.1 `tools` is a template, not a claim
 
-Declaring a slug in `tools` does two things, not one:
+`tools` decides one thing: what **Reset** and **Switch** write into a server's tool storage.
 
-1. **Reset and Switch** write those slugs into the server's tool storage.
-2. Those slugs are **removed from every other type's pool** — the set of tools a server of
-   that type may be offered in the picker, and the set its `expose` rule exposes.
+It does **not** restrict what the operator may add by hand. The picker offers every
+tool-level ability registered on the site, on every server type — so an AcrossAI server can
+still be given one of the three `mcp-adapter/*` protocol tools if that is what the site needs,
+and an MCP Adapter server can be given a toolset.
 
-The subtraction is what stops an AcrossAI server being offered the three `mcp-adapter/*`
-protocol tools, and vice versa. A slug that NO type claims belongs to every type, because
-nothing has asserted where it goes — so a third-party tool-level ability is offered
-everywhere until some type claims it.
+That is the §1 table in practice: a type is a named template, never a runtime filter.
 
-**Practical consequence**: claim only slugs your own plugin registers. Naming another
-plugin's slug in your `tools` removes it from every type except yours. If you want a tool
-available to servers of all types, do not name it in any type.
+```
+Reset on an `acrossai` server      -> that type's toolsets only
+Reset on an `mcp-adapter` server   -> the three protocol tools only
+The picker, on either              -> everything registered
+```
 
-The pool is computed server-side by `ServerTypes::pool_for()` and the Tools tab renders from
-that, rather than recomputing the subtraction in JavaScript — so a picker can never offer
-something the write path would reject.
+An earlier iteration subtracted any tool claimed by a different type from the pool. It made
+the two questions — *what does Reset write?* and *what may the operator add?* — into one, and
+the answer to the second was wrong: an operator who wanted a single protocol tool on an
+AcrossAI server simply could not have it.
+
+**Practical consequence for contributors**: naming a slug in your `tools` affects only what
+Reset writes for servers of *your* type. It takes nothing away from anyone else.
 
 ## 3. The placeholder → companion override pattern
 
@@ -170,7 +174,7 @@ ServerTypes::tools_for( 'acrossai' );   // its tools, with the legacy fallback
 ServerTypes::is_available( 'acrossai' );// THE single resolver for "requirement met"
 ServerTypes::default_slug();            // preselected type for new servers
 ServerTypes::enablement_error( $slug ); // ?WP_Error — why it may not be enabled
-ServerTypes::pool_for( 'acrossai' );    // every tool this type may offer — see §2.1
+ServerTypes::pool();                    // every tool the picker offers — see §2.1
 ServerTypes::registered_only( $slugs ); // narrow declared slugs to abilities that exist here
 ```
 

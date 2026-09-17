@@ -131,26 +131,24 @@ Registry entries resolved per request from `ServerTypes::all()`. No table, no op
 
 ---
 
-## Derived set: the server's tool POOL
+## Derived set: the tool POOL
 
-Not persisted, resolved per request by `ServerTypes::pool_for( $server_type )`:
+Not persisted, resolved per request by `ServerTypes::pool()`:
 
 ```
-pool(T) = every tool-level ability registered on this site
-          MINUS every slug claimed by a type OTHER than T
+pool = every tool-level ability registered on this site
 ```
 
-A slug no type claims belongs to every type — nothing has asserted where it goes — so a
-third-party tool-level ability is offered on every server until some type claims it.
+Deliberately NOT scoped by server type. A type is a template for Reset, never a filter over
+what the operator may add — so the picker offers the same set on every server, and an operator
+can put a protocol tool on an AcrossAI server if the site needs it.
 
-The pool is the definition `expose` uses, which is what makes that rule STANDING rather than
-a snapshot: an ability registered tomorrow by a plugin installed tomorrow lands in the pool
-and is exposed with no admin action. Scoping `expose` to the type's own declared list would
-silently exclude everything the type does not already name.
+The pool is the definition `expose` uses, which is what makes that rule STANDING rather than a
+snapshot: an ability registered tomorrow by a plugin installed tomorrow lands in the pool and is
+exposed with no admin action.
 
-It is also what the picker renders (returned as `type_pool`), so the UI cannot offer a tool
-the write path would reject. The pool is TYPE-DEPENDENT: it must be recomputed on every type
-change, which is why both write responses return it.
+It is also what the picker renders (returned as `type_pool`), so the UI cannot offer a tool the
+write path would reject.
 
 ## Derived set: registered-only narrowing
 

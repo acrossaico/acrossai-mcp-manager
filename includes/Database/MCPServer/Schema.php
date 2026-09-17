@@ -185,7 +185,9 @@ class Schema extends \BerlinDB\Database\Kern\Schema {
 		// 'expose'   → every tool-level ability in this server's POOL, INCLUDING
 		// ones registered later (a STANDING rule, not a snapshot — reactivating
 		// a companion plugin must not require re-adding its toolsets by hand).
-		// The pool is ServerTypes::pool_for(), not the type's own list.
+		// The pool is ServerTypes::pool() — every tool-level ability on the
+		// site, NOT the type's own list. A type is a template for Reset, never
+		// a filter over what may be added.
 		// 'hide'     → expose no tools
 		//
 		// 'expose'/'hide' sit ABOVE the type preset and win over it, exactly as

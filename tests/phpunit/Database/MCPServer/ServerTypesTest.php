@@ -24,6 +24,7 @@
 namespace AcrossAI_MCP_Manager\Tests\Database\MCPServer;
 
 use AcrossAI_MCP_Manager\Includes\Database\MCPServer\ServerTypes;
+use AcrossAI_MCP_Manager\Includes\Database\MCPServer\ToolPolicy;
 use WP_UnitTestCase;
 
 // phpcs:disable Squiz.Commenting.FunctionComment.Missing -- descriptive names.
@@ -222,6 +223,58 @@ class ServerTypesTest extends WP_UnitTestCase {
 
 	public function test_empty_slug_is_never_active(): void {
 		$this->assertFalse( ServerTypes::plugin_is_active( '' ) );
+	}
+
+	// ------------------------------------------------------- pool vs Reset --
+
+	public function test_pool_is_not_scoped_by_server_type(): void {
+		// A type is a TEMPLATE for Reset, never a filter over what an operator
+		// may add. An earlier iteration subtracted tools claimed by other types,
+		// so an AcrossAI server could not be given a protocol tool even when the
+		// site needed one. The picker offers the same set on every type.
+		$pool = ServerTypes::pool();
+
+		foreach ( ToolPolicy::PROTOCOL_TOOLS as $protocol_tool ) {
+			$this->assertContains(
+				$protocol_tool,
+				$pool,
+				'The three built-in tools are offered on every server type, AcrossAI included.'
+			);
+		}
+	}
+
+	public function test_pool_survives_the_registry_being_blind_to_protocol_tools(): void {
+		// B62: `wp_get_abilities()` cannot see the three `mcp-adapter/*` slugs in
+		// the Tools tab's REST context, because the vendor attaches its
+		// registration listener after `wp_abilities_api_init` has fired. Without
+		// the exemption inside registered_only() the picker would silently lose
+		// its three built-ins here.
+		$this->assertNotEmpty( ServerTypes::pool() );
+	}
+
+	public function test_reset_stays_scoped_to_the_type(): void {
+		// The counterpart to the two above: the POOL is shared, the TEMPLATE is
+		// not. Reset on an mcp-adapter server writes the protocol tools and
+		// nothing else.
+		$this->assertSame(
+			ToolPolicy::PROTOCOL_TOOLS,
+			ServerTypes::tools_for( ServerTypes::LEGACY )
+		);
+
+		add_filter(
+			ServerTypes::FILTER,
+			static function ( array $types ): array {
+				$types['scoped'] = array(
+					'label' => 'Scoped',
+					'tools' => ToolPolicy::PROTOCOL_TOOLS,
+				);
+				return $types;
+			}
+		);
+
+		$template = ServerTypes::tools_for( 'scoped' );
+
+		$this->assertNotContains( 'toolset/content', $template, 'Reset writes the type template, not the pool.' );
 	}
 
 	public function test_is_available_uses_the_same_resolver(): void {

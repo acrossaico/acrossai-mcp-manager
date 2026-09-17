@@ -163,58 +163,44 @@ final class ServerTypes {
 
 
 	/**
-	 * Every tool this server may offer — the picker's pool, server-side.
+	 * Every tool a server may offer — the picker's pool, server-side.
 	 *
-	 * "Everything available to THIS server" is:
+	 * ALL tool-level abilities registered on this site, narrowed only to those
+	 * that actually exist. Deliberately NOT scoped by server type.
 	 *
-	 *   every tool-level ability registered on the site
-	 *   MINUS any claimed exclusively by a DIFFERENT server type
+	 * An earlier version subtracted any tool claimed by a DIFFERENT type, so an
+	 * AcrossAI server was never offered the three `mcp-adapter/*` protocol tools
+	 * and an MCP Adapter server was never offered the toolsets. That made a type
+	 * behave as a FILTER over the picker, which contradicts what a type is:
 	 *
-	 * The subtraction is what keeps an AcrossAI server from being offered the
-	 * three `mcp-adapter/*` protocol tools, and vice versa. A tool that NO type
-	 * claims — a third-party tool-level ability — belongs to every server,
-	 * because nothing has asserted where it goes.
+	 *   > A type IS a named template — "start this server with these tools".
+	 *   > A type is NOT a runtime filter over what the server serves.
+	 *   > — docs/extending-server-types.md §1
+	 *
+	 * The type still decides what **Reset** writes (`tools_for()`), which is the
+	 * whole feature. It does not decide what the operator is allowed to add by
+	 * hand. Those are different questions, and conflating them meant an operator
+	 * who wanted one protocol tool on an AcrossAI server simply could not have it.
 	 *
 	 * This is the definition the `expose` policy uses, so that rule keeps its
-	 * promise: a tool registered LATER by a plugin installed tomorrow lands in
-	 * this pool and is exposed with no admin action. Scoping `expose` to the
-	 * type's own list instead would silently exclude anything the type does not
-	 * already name.
+	 * promise: a tool registered tomorrow by a plugin installed tomorrow lands in
+	 * this pool and is exposed with no admin action.
 	 *
-	 * Single source of truth for the pool: the Tools tab renders from this
-	 * rather than recomputing the subtraction in JavaScript, so the picker can
-	 * never offer something the write path would reject.
+	 * Single source of truth for the pool: the Tools tab renders from this rather
+	 * than recomputing anything in JavaScript, so the picker can never offer
+	 * something the write path would reject.
+	 *
+	 * NOTE `registered_only()` exempts `ToolPolicy::PROTOCOL_TOOLS` (B62). Without
+	 * that the three built-ins would be filtered straight back out here, because
+	 * `wp_get_abilities()` cannot see them in the Tools tab's REST context.
 	 *
 	 * @since 0.1.0
-	 * @param string $slug The server's type slug.
 	 * @return string[]
 	 */
-	public static function pool_for( string $slug ): array {
-		$all  = self::all();
-		$mine = isset( $all[ $slug ]['tools'] ) ? (array) $all[ $slug ]['tools'] : array();
-		$mine = array_flip( $mine );
-
-		$foreign = array();
-		foreach ( $all as $type_slug => $type ) {
-			if ( $type_slug === $slug ) {
-				continue;
-			}
-			foreach ( (array) $type['tools'] as $tool ) {
-				if ( ! isset( $mine[ $tool ] ) ) {
-					$foreign[ $tool ] = true;
-				}
-			}
-		}
-
-		$pool = array_filter(
-			ToolAbilities::get_slugs(),
-			static function ( string $tool ) use ( $foreign ): bool {
-				return ! isset( $foreign[ $tool ] );
-			}
-		);
-
-		return self::registered_only( array_values( $pool ) );
+	public static function pool(): array {
+		return self::registered_only( ToolAbilities::get_slugs() );
 	}
+
 	/**
 	 * Narrow declared tools to abilities that actually exist on this site.
 	 *

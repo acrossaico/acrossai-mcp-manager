@@ -15,18 +15,18 @@ Existing route. Response gains two fields.
   "tools_default_policy": "per-tool",// NEW: expose | hide | per-tool
   "type_available": false,           // NEW: ServerTypes::is_available() for this row
   "type_label": "AcrossAI",          // NEW: or the raw slug when unrecognised
-  "type_pool": ["…"],                // NEW: ServerTypes::pool_for() — every tool THIS
-                                     //      server may offer; drives the picker
+  "type_pool": ["…"],                // NEW: ServerTypes::pool() — every tool-level
+                                     //      ability on the site; drives the picker
   "server_types": [                  // NEW: the registry, for the type selector
     { "slug": "acrossai", "label": "AcrossAI", "available": true }
   ]
 }
 ```
 
-**`type_pool` is not optional for a correct client.** The pool is type-dependent, so a
-client that keeps its own copy across a type switch renders the previous type's tools and
-counts against the wrong denominator. Both WRITE responses return it for the same reason —
-see below.
+**`type_pool` is not optional for a correct client** — it is the denominator the header
+counts against ("N of M tools added") and the set the picker renders. The field keeps its
+`type_` name for continuity with the shipped client; the pool itself is NOT type-scoped, since
+a type is a template for Reset rather than a filter over what may be added.
 
 **`tools` vs `effective_tools` is the architecture-review fix.** `tools` comes from
 `ToolPolicy::compose_for_row()` (configured); `effective_tools` from
@@ -51,9 +51,9 @@ tool set are **one atomic write** — the two can never end up disagreeing.
 
 - `server_type` validated against `ServerTypes::all()`; unknown → `400` with
   `acrossai_mcp_invalid_server_type`.
-- The response repeats `type_pool` and `server_types` **recomputed for the type actually
-  written**, so the client never has to infer the new pool. Omitting them left the tab
-  showing "3 of 17" with the previous type's tools still listed until a page reload.
+- The response repeats `type_pool` and `server_types`, so the client never has to infer
+  state after a write. `server_types` carries each type's `tools`, which is what the client
+  uses to scope Reset; omitting them left the tab showing stale counts until a page reload.
 - When `server_type` changes and `tools_default_policy` is `expose` or `hide`, the policy is
   reset to `per-tool` in the same write (FR-012a).
 
