@@ -2924,3 +2924,48 @@ keeps `has_more` honest.
 `includes/Abilities/Discover.php::execute()`,
 `tests/phpunit/Abilities/DiscoverSchemaTest.php` (schema shape, merge, idempotency),
 `docs/planings-tasks/089-discover-abilities-search-pagination.md`, PR #125.
+
+---
+
+### 2026-09-17 — D58 / DEC-SINGLE-RESOLVER-MEANS-ONE-IMPLEMENTATION
+
+**Status**: Active
+
+**Context**
+
+F090's plan states that `ServerTypes::is_available()` is *"the single resolver for 'requirement
+met'; selection, enablement and runtime all call it — no partial re-derivation (B32)"*. That was
+true of the call graph: every consumer did route through it.
+
+It was false of the code. A second implementation of the same question —
+"is the sibling add-on active?" — lived in `AbilitiesManagerPromoCard::resolve_state()`, matching
+by DIRECTORY prefix while `ServerTypes` assumed `slug/slug.php`. The two returned different
+answers for most real plugins and agreed only because the sibling's filename happens to match its
+folder. The admin notice could have told an operator the add-on was missing while the enablement
+gate considered the requirement satisfied.
+
+**Decision**
+
+B32's "canonical resolver" requires **one implementation**, not one entry point. When auditing
+it, ask "how many pieces of code compute this answer?" — never "do all callers go through the
+same function?" The second implementation is usually in a different layer, which is exactly why a
+call-graph audit misses it.
+
+The lower layer owns the computation; the upper layer keeps only what is genuinely its own.
+Here: `ServerTypes::plugin_is_active()` owns the boolean, and the admin card keeps only the
+missing-versus-inactive distinction, because only the admin has to word "install" differently
+from "activate". Both are equally unmet to the gate.
+
+**Consequences**
+
+- A duplicate resolver in another layer is invisible to call-graph review. Grep for the
+  *underlying primitive* (`is_plugin_active`, `get_option( 'active_plugins' )`), not the resolver
+  name.
+- Divergence between duplicates is silent while their inputs happen to agree. The F090 pair were
+  consistent for the entire life of the feature because one plugin's filename matched its folder.
+- Prefer delegation over extraction when the upper layer has a legitimate extra state to model.
+  The card did not need to lose `resolve_state()`; it needed to stop computing `active` itself.
+
+**Related**: `B32` (canonical resolver), `D41` (last-wins registry dedup), the 2026-09-17 BUGS
+entry on conventions that hold only for shipped cases — same fix, other half.
+

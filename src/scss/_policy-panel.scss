@@ -1,0 +1,84 @@
+/**
+ * Shared "default policy" panel — pill + counter on the left, policy-level
+ * actions on the right, in a bordered strip above the list it governs.
+ *
+ * Extracted from `abilities.scss` at its second use (Constitution §VI). The
+ * Abilities tab (F082) and the Tools tab (F090) present the SAME idea — a
+ * standing rule that overrides individual selection — and an operator who has
+ * learned one must recognise the other instantly. Two hand-maintained copies is
+ * precisely how that recognition erodes.
+ *
+ * Exposed as a mixin rather than a class so each screen keeps its own BEM root
+ * (`…-abilities-policy`, `…-tools-policy`) and no existing markup has to change.
+ *
+ * @since 0.1.0
+ * @package AcrossAI_MCP_Manager
+ */
+
+@use 'sass:color';
+@import 'tokens';
+
+@mixin acmcp-policy-panel {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px 16px;
+	margin: 0 4px 16px;
+	padding: 12px 16px;
+	background: #f6f7f7;
+	border: 1px solid $acmcp-border;
+	border-radius: 4px;
+
+	&__status {
+		display: flex;
+		flex-direction: column;
+		gap: 4px;
+		min-width: 240px;
+	}
+
+	// The policy badge. Neutral gray for the per-item default; modifier
+	// classes recolor it per policy (WP admin notice palette family).
+	&__pill {
+		display: inline-block;
+		align-self: flex-start;
+		padding: 2px 10px;
+		border: 1px solid $acmcp-border;
+		border-radius: 999px;
+		background: #f0f0f1;
+		color: $acmcp-text-secondary;
+		font-size: 12px;
+		font-weight: 600;
+		line-height: 1.6;
+
+		// "everything on" — green. Both screens store `expose`, so one selector
+		// serves both; an earlier pass needed an `is-policy-all` alias because
+		// the Tools column used a different vocabulary.
+		&.is-policy-expose {
+			background: #edfaef;
+			border-color: #68de7c;
+			color: #007017;
+		}
+
+		// "everything off" — red.
+		&.is-policy-hide {
+			background: #fcf0f1;
+			border-color: #ffabaf;
+			color: #8a2424;
+		}
+	}
+
+	&__counter {
+		margin: 0;
+		color: $acmcp-text-secondary;
+		font-size: 13px;
+		line-height: 1.4;
+	}
+
+	&__actions {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 8px;
+	}
+}

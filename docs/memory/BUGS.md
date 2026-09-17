@@ -2608,3 +2608,185 @@ back-compat guard that would have caught this.
 **Related**
 - `D25` — the callback-swap pattern this extends.
 - `D57` — the decision that schema contribution belongs on the same filter.
+
+---
+
+### 2026-09-17 — Chained writes let a panel render the first write's settled state as if it were the second's
+
+**Status**
+Active (cosmetic; accepted in F090, not fixed)
+
+**What happened**
+F090's Tools tab persists some operations as TWO sequential REST writes: `editIndividually()`
+issues `persistPolicy( 'per-tool' )` and, in its `.then()`, `persistSet( … )`
+(`src/js/tools.js:696`). Each write reconciles component state from its own response. When a
+second operation is started before the first pair has settled — faster than a human clicks, so
+reachable by double-click or scripted input — the optimistic state of the later write can paint
+before the earlier read resolves, and the panel briefly shows a mixed state. Steady state on
+load is always correct, and storage was never wrong.
+
+This is the benign sibling of the F090 stale-read bug fixed the same day, where BerlinDB's
+singleton `Query` served a memoized PRE-write row so the RESPONSE disagreed with storage. That
+one was a real defect with the same symptom, which is why the distinction matters: *response
+computed from stale state* is a bug; *two in-flight writes racing to paint* is a UI nicety.
+
+**Prevention rule**
+When a UI action expands into more than one write, decide explicitly which of the two the panel
+renders from, and prefer collapsing them into one atomic endpoint. F090 already did this for the
+important case — `POST /servers/{id}/tools` accepts an optional `server_type` precisely so a type
+switch and its tool set cannot disagree. The remaining chain (`policy` then `set`) was left as two
+calls because the second is conditional on the first succeeding.
+
+Diagnostic heuristic: a panel that is wrong immediately after an action but correct after reload
+is a RESPONSE/ordering problem, never a storage one — query the endpoint directly before
+theorising about caches. Doing that settled the F090 stale-read bug in one call after a long
+detour through opcache, HTTP cache and object cache.
+
+**Related**
+- D28-adjacent: no schema involvement — this is purely client-side ordering.
+- The F090 stale-read fix: both write handlers now reflect written columns onto the row in hand
+  rather than re-reading through the singleton `Query`.
+
+---
+
+### 2026-09-17 — A convention that holds for every case you ship is not a contract
+
+**Status**
+Retired (F090 — fixed, plus a CI gate)
+
+**What happened**
+`ServerTypes::plugin_is_active()` resolved a type's `requires` as
+`is_plugin_active( $slug . '/' . $slug . '.php' )`. Both contracts document `requires` as a
+plugin **folder** slug, and WordPress stores active plugins as `folder/file.php` where the file
+is frequently NOT named after the folder. Three plugins active on the dev site break the
+assumption:
+
+```
+insert-headers-and-footers/ihaf.php     (WPCode)
+sfwd-lms/sfwd_lms.php                   (LearnDash)
+wp-mail-smtp/wp_mail_smtp.php
+```
+
+Any third-party type declaring one of those as `requires` was reported **permanently
+unavailable on a site where the plugin was running**: never selectable, never enablable, and at
+runtime the diagnostic ability told the operator to install a plugin they already had.
+
+It survived PHPCS, PHPStan level 8, a plan security review AND a pre-implementation architecture
+review — because the only two types exercising the code path are the two the plugin ships, and
+both happen to satisfy the convention. The extension point was never tested against a case we
+did not write.
+
+Two related findings in the same sweep: the CORRECT algorithm (match by directory prefix)
+already existed in this repo at `AbilitiesManagerPromoCard::find_sibling_plugin_file()` and was
+never reused; and `QuickConnectController::handle_install_plugin()` carried the same assumption,
+harmless only because its allow-list contains two plugins we ship.
+
+**Prevention rule**
+For any published extension point, test at least one case **you did not author**. A fixture
+drawn from real `active_plugins` values beats a hand-written one, because the defect is
+precisely that real values differ from the convention in your head.
+
+Never derive `folder/file.php` from a slug. Resolve it: prefix-match `active_plugins` (and
+`active_sitewide_plugins` on multisite) or `get_plugins()` with `$slug . '/'` — the trailing
+slash is what stops `acf` matching `acf-pro`. When nothing resolves, that is an error, not a
+reason to guess.
+
+**Grep gate**
+`bin/verify-f021-gates.sh` → *F090 no slug/slug.php assumption*, matching
+`$x . '/' . $y . '.php'` across `includes/ admin/ public/`.
+
+Written narrowly on purpose. The first draft gated `is_plugin_active(` outside one class and
+flagged two CORRECT callers that resolve a real file first; a gate whose allow-list grows for
+every legitimate use becomes noise people learn to ignore. Gate the defect, not the function.
+
+**Related**
+- `D58` — one resolver means one implementation, not one entry point.
+- The 2026-08-24 entry on retired-symbol names in comments: the first draft of this gate hit the
+  same false-positive class and needed a comment-line filter.
+
+---
+
+### 2026-09-17 — A CI gate that flags your own fix is evidence, not an obstacle
+
+**Status**
+Active
+
+**What happened**
+F090's staged security review found a LOW — `find_installed_plugin_file()` returned the FIRST
+`get_plugins()` directory match, and a plugin directory can hold more than one file carrying a
+plugin header, so `activate_plugin()` could have activated a secondary file. The fix expressed a
+preference for the conventionally-named file by building `$slug . '/' . $slug . '.php'` and
+guarding it with `isset( $plugins[ $conventional ] )`. Safe in itself — a lookup, not an
+assumption — and the grep gate added twenty minutes earlier failed it. Correctly: the gate
+matches the SHAPE, and the shape had returned.
+
+Two escapes were available and both were wrong. `phpcs:ignore` does not suppress a grep gate.
+`sprintf( '%1$s/%1$s.php', $slug )` produces the identical string and passes — that one is the
+dangerous escape: it reads as innocent, reports green, and silently restores the exact defect the
+gate exists to catch.
+
+**Prevention rule**
+When a gate you wrote fails a change you believe is correct, treat it as a description of a shape
+you should not be in, and restructure rather than argue. Here the preference was re-expressed by
+INSPECTING what exists — `basename( $candidate, '.php' ) === $slug` while iterating
+`get_plugins()` — instead of constructing a path and hoping. Identical behaviour, no constructed
+path, gate stays meaningful.
+
+Never re-spell a pattern to dodge a grep. An evaded gate is worse than no gate: it reports green
+while the invariant is gone, so the next reader gets a false signal instead of no signal.
+
+**Related**
+- `B60` — the defect this gate protects. Its prevention section carries the companion rule: gate
+  the DEFECT, not the function, or the allow-list grows until people ignore the gate.
+
+---
+
+### 2026-09-17 — A narrowing filter silently defeated the fallback it was added beside
+
+**Status**
+Retired (F090 — fixed; regression locked by ServerTypesTest)
+
+**What happened**
+`ServerTypes::tools_for()` falls back to the legacy tool set for an unknown type slug or an empty
+template, specifically so **Reset cannot wipe a server**. The same feature later added
+`registered_only()`, narrowing declared slugs to abilities that actually exist, and wrapped the
+fallback in it:
+
+```php
+return self::registered_only( $all[ self::LEGACY ]['tools'] ?? array() );
+```
+
+The legacy set IS the three `mcp-adapter/*` protocol tools — and `wp_get_abilities()` is blind to
+those in most contexts, because the vendor attaches its `wp_abilities_api_init` listener inside
+`Controller::initialize_adapter()` (rest_api_init), after that hook has already fired. So the
+fallback resolved to an EMPTY array in exactly the REST context the Tools tab runs in, and Reset
+on an unknown or empty-template type wiped the server: the precise failure the fallback existed to
+prevent, defeated by the narrowing added alongside it.
+
+`registered_only()`'s own bail-out (`empty( $registered )`) never covered this. The registry is
+POPULATED — just not with these three. The guard protected against "abilities not registered yet"
+and missed "these particular abilities are structurally invisible here".
+
+Both authored in the same feature, by the same hand, each correct in isolation. PHPCS, PHPStan L8
+and every manual UI pass were green; `ToolPolicy::PROTOCOL_TOOL_METADATA` already documented the
+vendor blindness a few files away and was not connected to it.
+
+**Prevention rule**
+When you add a filter over a value that some OTHER code path relies on being non-empty, check that
+path explicitly — a fallback and a narrowing filter compose into "fall back to nothing" unless
+something exempts the fallback. Prefer making the exemption structural: here, treat
+`ToolPolicy::PROTOCOL_TOOLS` as always-registered inside `registered_only()`, so no caller has to
+remember.
+
+Detection: any `array_filter()` applied to a constant or a hard-coded fallback set is suspect. The
+fallback is chosen precisely because it is meant to be unconditional.
+
+**Evidence**
+`ServerTypesTest::test_unknown_slug_degrades_without_fatal` and
+`::test_empty_template_falls_back_to_the_legacy_set` — both failed "asserting that an array is not
+empty" on the suite's FIRST CI run, before the test had ever been run locally.
+
+**Related**
+- `B60` — the review that produced this test. Its rule (test an extension point against a case you
+  did not author) is what put the test in place to catch this.
+

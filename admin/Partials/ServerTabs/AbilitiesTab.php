@@ -17,6 +17,8 @@
 
 namespace AcrossAI_MCP_Manager\Admin\Partials\ServerTabs;
 
+use AcrossAI_MCP_Manager\Admin\Partials\ServerTabs\Partials\AbilitiesManagerPromoCard;
+
 // Exit if accessed directly.
 defined( 'ABSPATH' ) || exit;
 
@@ -90,24 +92,12 @@ final class AbilitiesTab extends AbstractServerTab {
 			// disabled so the operator can prepare the exposure set in advance.
 		}
 
-		// Nudge the operator toward the sibling AcrossAI Abilities Manager
-		// plugin when it's not active — the add-on registers a rich library
-		// of built-in WordPress abilities that would populate the picker
-		// below. Same message + link for both "not installed" and
-		// "installed-but-off" states (single is_plugin_active check); the
-		// shared Add-ons page handles the install/activate transition.
-		if ( ! function_exists( 'is_plugin_active' ) ) {
-			require_once ABSPATH . 'wp-admin/includes/plugin.php';
-		}
-		if ( ! is_plugin_active( 'acrossai-abilities-manager/acrossai-abilities-manager.php' ) ) {
-			printf(
-				'<div class="notice notice-info inline"><p><strong>%1$s</strong> %2$s <a href="%3$s">%4$s</a></p></div>',
-				esc_html__( 'AcrossAI Abilities Manager', 'acrossai-mcp-manager' ),
-				esc_html__( '— the add-on ships a rich library of built-in WordPress abilities you can expose here, a big head start for developing and building sites.', 'acrossai-mcp-manager' ),
-				esc_url( admin_url( 'admin.php?page=acrossai-addons' ) ),
-				esc_html__( 'Get it from the Add-ons page →', 'acrossai-mcp-manager' )
-			);
-		}
+		// §VI — ONE implementation, owned by the card that already resolves the
+		// sibling's three-state status. This was previously a copy of the markup
+		// plus its own hardcoded plugin-path literal.
+		AbilitiesManagerPromoCard::instance()->render_inline_notice(
+			__( '— the add-on ships a rich library of built-in WordPress abilities you can expose here, a big head start for developing and building sites.', 'acrossai-mcp-manager' )
+		);
 
 		if ( ! function_exists( 'wp_get_abilities' ) ) {
 			printf(

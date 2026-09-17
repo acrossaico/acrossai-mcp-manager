@@ -100,6 +100,69 @@ run_gate 'T118d Partial/Repository/$wpdb layering' \
 	"$GATE_PARTIAL_HITS"
 
 # ---------------------------------------------------------------------------
+# F090 — `is_enabled` has exactly ONE sanctioned WRITER.
+# ServerEnablement::set() enforces the server type's requirement on off -> on.
+# A guard applied at each call site is a convention, not a boundary: F090's
+# call-site list was built by grep and the security review then found a path it
+# had missed. This gate makes the boundary self-maintaining — a future fourth
+# writer fails CI instead of relying on review memory.
+#
+# Scoped to `update_item` deliberately. `'is_enabled' => N` ALSO appears
+# legitimately in (a) query filters (`query( array( 'is_enabled' => 1 ) )`, a
+# READ) and (b) creation arrays (`add_item`, which seeds 0 per A21's
+# disabled-by-default rule). Matching the bare key flags all of those and the
+# gate becomes noise people learn to ignore.
+# ---------------------------------------------------------------------------
+GATE_ENABLED_WRITER_HITS="$(
+	grep -rEn -A2 "update_item\(" \
+		--include='*.php' \
+		includes/ admin/ public/ \
+	2>/dev/null \
+		| grep -E "'is_enabled'[[:space:]]*=>" \
+		| grep -v 'ServerEnablement.php' || true
+)"
+run_gate 'F090 single is_enabled writer' \
+	'Route every enable/disable through ServerEnablement::set() — it enforces the server type requirement on off -> on, and a direct update_item() bypasses it.' \
+	"$GATE_ENABLED_WRITER_HITS"
+
+# ---------------------------------------------------------------------------
+# F090 — plugin presence has exactly ONE resolver, and it matches by DIRECTORY.
+#
+# Two failures this catches, both found by the post-implementation architecture
+# review after PHPCS, PHPStan, a security review AND an earlier architecture
+# review had all passed:
+#
+#   1. `slug/slug.php` is NOT a rule WordPress enforces. Three plugins active on
+#      the dev site break it — insert-headers-and-footers/ihaf.php (WPCode),
+#      sfwd-lms/sfwd_lms.php, wp-mail-smtp/wp_mail_smtp.php. A type whose
+#      `requires` named any of them resolved as permanently unavailable ON A SITE
+#      WHERE THE PLUGIN WAS RUNNING.
+#   2. "One resolver" was satisfied on paper — every caller went through
+#      ServerTypes::is_available() — while a SECOND implementation of the same
+#      question lived in the admin card with different (correct) semantics. They
+#      agreed only because the sibling's filename happens to match its folder.
+#
+# QuickConnectController is allow-listed: its install flow holds a REAL resolved
+# plugin file, which is what is_plugin_active() is actually for.
+# ---------------------------------------------------------------------------
+# Gate deliberately NOT written as "no is_plugin_active() outside one class".
+# That was tried and flagged CORRECT code: AIConnectorsPromoTab and
+# AbilitiesManagerPromoCard both resolve the REAL plugin file first and then ask
+# whether it is active, which is exactly what the function is for. A gate whose
+# allow-list must grow for every legitimate caller becomes noise people learn to
+# ignore — the same trap the is_enabled gate above documents. The defect is the
+# CONVENTION, so that is what is gated.
+GATE_PLUGIN_FILE_CONVENTION_HITS="$(
+	grep -rEn "\\\$[a-z_]+ \. '/' \. \\\$[a-z_]+ \. '\.php'" \
+		--include='*.php' \
+		includes/ admin/ public/ \
+	2>/dev/null || true
+)"
+run_gate 'F090 no slug/slug.php assumption' \
+	'A plugin main file is frequently NOT named after its folder (acf.php, wp-seo.php, ihaf.php). Resolve the real file by directory prefix over get_plugins()/active_plugins.' \
+	"$GATE_PLUGIN_FILE_CONVENTION_HITS"
+
+# ---------------------------------------------------------------------------
 # T119 — FR-040 column-width invariants.
 # hash columns MUST be char(64); PKCE challenge MUST be char(43);
 # token_family_id MUST be char(36). No narrowing.

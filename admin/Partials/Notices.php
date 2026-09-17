@@ -81,6 +81,18 @@ class Notices {
 			'db_error'         => array( 'error', __( 'Database write failed.', 'acrossai-mcp-manager' ) ),
 			'server_not_found' => array( 'error', __( 'Server not found.', 'acrossai-mcp-manager' ) ),
 			'server_protected' => array( 'error', __( 'This server is managed by the plugin and cannot be edited or deleted.', 'acrossai-mcp-manager' ) ),
+			// F090 — a refused enable MUST say what is missing (FR-015).
+			// Silently doing nothing is the failure mode this feature exists to
+			// remove, so the refusal gets its own notice rather than sharing a
+			// generic one.
+			'type_unavailable' => array(
+				'error',
+				__( 'That server could not be enabled: its server type requires the AcrossAI Abilities Manager plugin to be installed and activated. Install it, or change the server type on the Tools tab.', 'acrossai-mcp-manager' ),
+			),
+			'bulk_partial'     => array(
+				'warning',
+				__( 'Some servers were skipped: their server type requires the AcrossAI Abilities Manager plugin to be installed and activated.', 'acrossai-mcp-manager' ),
+			),
 		);
 
 		if ( ! isset( $messages[ $notice ] ) ) {

@@ -35,6 +35,7 @@ declare( strict_types = 1 );
 namespace AcrossAI_MCP_Manager\Admin\Partials\ServerTabs\Partials;
 
 use AcrossAI_MCP_Manager\Includes\Abilities\PermissionOverrideProcessor;
+use AcrossAI_MCP_Manager\Includes\Database\MCPServer\ServerTypes;
 
 // Exit if accessed directly.
 defined( 'ABSPATH' ) || exit;
@@ -214,26 +215,25 @@ final class AbilitiesManagerPromoCard {
 	 * @return string
 	 */
 	public function resolve_state(): string {
-		if ( ! function_exists( 'is_plugin_active' ) ) {
-			require_once ABSPATH . 'wp-admin/includes/plugin.php';
+		// ACTIVE is resolved by ServerTypes, never re-derived here (B32). That
+		// class owns the one implementation the enablement gate and the runtime
+		// composer both consult, so this notice cannot tell the operator the
+		// add-on is missing while the gate considers the requirement satisfied.
+		// The two used to disagree: this card matched by DIRECTORY while
+		// ServerTypes assumed `slug/slug.php`, and they agreed only because the
+		// sibling's filename happens to match its folder.
+		if ( ServerTypes::plugin_is_active( self::SIBLING_SLUG ) ) {
+			return 'active';
 		}
+
+		// Only the MISSING-vs-INACTIVE distinction is this card's own business,
+		// because only the admin has to word the remedy differently ("install"
+		// versus "activate"). Both are equally unmet to the gate.
 		if ( ! function_exists( 'get_plugins' ) ) {
 			require_once ABSPATH . 'wp-admin/includes/plugin.php';
 		}
 
-		// Reuse main-menu's find_plugin_file when available (it handles the
-		// install_folder edge case per DEC-CONSUMER-SELF-EXCLUSION-VIA-VENDOR-
-		// FILTER cousin — folder-name matching, not slug substring). Fall
-		// back to a minimal manual scan when the vendor class is absent so
-		// this card degrades gracefully.
-		$plugin_file = $this->find_sibling_plugin_file();
-		if ( null === $plugin_file ) {
-			return 'missing';
-		}
-		if ( is_plugin_active( $plugin_file ) ) {
-			return 'active';
-		}
-		return 'inactive';
+		return null === $this->find_sibling_plugin_file() ? 'missing' : 'inactive';
 	}
 
 	/**
@@ -258,5 +258,44 @@ final class AbilitiesManagerPromoCard {
 			}
 		}
 		return null;
+	}
+
+	/**
+	 * Render the slim inline "add-on missing" notice.
+	 *
+	 * Extracted per Constitution §VI — this markup was ALREADY duplicated in
+	 * `AbilitiesTab` and `ToolsTab`, each with its own hardcoded
+	 * `is_plugin_active()` path literal, while this class already owned
+	 * `SIBLING_SLUG` and the three-state `resolve_state()`. F090 would have made
+	 * it a third copy.
+	 *
+	 * Lives here rather than in `includes/Utilities/` despite §VI naming that
+	 * directory: the unit renders admin HTML and links to an admin page, and A3
+	 * forbids admin-specific logic in `includes/`. A3 is the harder rule, and
+	 * §VI's intent — one source of truth, no duplication — is satisfied either
+	 * way. Documented as a deviation in `specs/090-server-types/plan.md`.
+	 *
+	 * Renders nothing when the sibling is active. "Not installed" and
+	 * "installed but deactivated" deliberately share one message: the Add-ons
+	 * page handles both transitions, so splitting the copy would add words
+	 * without adding a decision.
+	 *
+	 * @since 0.1.0 (Feature 090)
+	 * @param string $message Context sentence, already translated. Rendered
+	 *                        after the bolded plugin name.
+	 * @return void
+	 */
+	public function render_inline_notice( string $message ): void {
+		if ( 'active' === $this->resolve_state() ) {
+			return;
+		}
+
+		printf(
+			'<div class="notice notice-info inline"><p><strong>%1$s</strong> %2$s <a href="%3$s">%4$s</a></p></div>',
+			esc_html__( 'AcrossAI Abilities Manager', 'acrossai-mcp-manager' ),
+			esc_html( $message ),
+			esc_url( add_query_arg( array( 'page' => self::ADDONS_PAGE_SLUG ), admin_url( 'admin.php' ) ) ),
+			esc_html__( 'Get it from the Add-ons page →', 'acrossai-mcp-manager' )
+		);
 	}
 }

@@ -38,6 +38,8 @@ namespace AcrossAI_MCP_Manager\Includes\REST;
 
 use AcrossAI_MCP_Manager\Includes\Database\MCPServer\PolicyTransition;
 use AcrossAI_MCP_Manager\Includes\Database\MCPServer\Query as MCPServerQuery;
+use AcrossAI_MCP_Manager\Includes\Database\MCPServer\ServerEnablement;
+use AcrossAI_MCP_Manager\Includes\Database\MCPServer\ServerTypes;
 use AcrossAI_MCP_Manager\Includes\Database\MCPServerAbility\ExposureResolver as MCPServerAbilityExposureResolver;
 use AcrossAI_MCP_Manager\Includes\Utilities\MCPServerFieldSanitizer;
 use AcrossAI_MCP_Manager\Public\Discovery\ConnectionMethodRegistry;
@@ -446,6 +448,50 @@ final class QuickConnectController {
 	// ─────────────────────────────────────────────────────────────────────
 
 	/**
+	 * Resolve an installed plugin's main file from its FOLDER slug.
+	 *
+	 * Matches by directory prefix rather than assuming `slug/slug.php` — see the
+	 * caller for why that convention cannot be trusted. The trailing slash on the
+	 * prefix is what stops `acf` matching `acf-pro`.
+	 *
+	 * @since 0.1.0
+	 * @param string $slug Plugin folder slug.
+	 * @return string|null `folder/file.php`, or null when not installed.
+	 */
+	private function find_installed_plugin_file( string $slug ): ?string {
+		$fallback = null;
+
+		// A plugin DIRECTORY can hold more than one file carrying a plugin
+		// header, and `get_plugins()` lists each. Taking whichever comes first
+		// could activate a secondary file, so prefer the conventionally-named
+		// one when the directory actually contains it — that keeps the previous
+		// behaviour everywhere it was already correct — and fall back to the
+		// first directory match, which is what makes `ihaf.php` and
+		// `wp_mail_smtp.php` resolvable at all.
+		//
+		// The preference is expressed by INSPECTING what exists, never by
+		// building `slug/slug.php` and hoping. That distinction is the whole
+		// point, and `bin/verify-f021-gates.sh` enforces it.
+		foreach ( array_keys( (array) get_plugins() ) as $candidate ) {
+			$candidate = (string) $candidate;
+
+			if ( 0 !== strpos( $candidate, $slug . '/' ) ) {
+				continue;
+			}
+
+			if ( basename( $candidate, '.php' ) === $slug ) {
+				return $candidate;
+			}
+
+			if ( null === $fallback ) {
+				$fallback = $candidate;
+			}
+		}
+
+		return $fallback;
+	}
+
+	/**
 	 * Install (if missing) and activate a whitelisted plugin from WordPress.org.
 	 *
 	 * Only accepts slugs on `INSTALLABLE_PLUGIN_SLUGS`. If the plugin is
@@ -475,10 +521,18 @@ final class QuickConnectController {
 		require_once ABSPATH . 'wp-admin/includes/misc.php';
 		require_once ABSPATH . 'wp-admin/includes/class-wp-upgrader.php';
 
-		$plugin_file = $slug . '/' . $slug . '.php';
-		$installed   = get_plugins();
+		// Resolve the plugin's REAL main file by DIRECTORY. The `slug/slug.php`
+		// convention is not a rule WordPress enforces: three plugins active on
+		// the dev site break it (`insert-headers-and-footers/ihaf.php`,
+		// `sfwd-lms/sfwd_lms.php`, `wp-mail-smtp/wp_mail_smtp.php`). It happens
+		// to hold for both allow-listed slugs today, so guessing would work
+		// until someone adds a third — at which point Quick Connect would
+		// reinstall a plugin that is already present and then fail to activate
+		// it. Deliberately NO convention fallback: an unresolvable file is an
+		// error, not a guess.
+		$plugin_file = $this->find_installed_plugin_file( $slug );
 
-		if ( ! isset( $installed[ $plugin_file ] ) ) {
+		if ( null === $plugin_file ) {
 			$api = plugins_api(
 				'plugin_information',
 				array(
@@ -512,6 +566,21 @@ final class QuickConnectController {
 					array( 'status' => 500 )
 				);
 			}
+
+			// Re-resolve: the plugin was not installed when we looked, so there
+			// was no file to name. WordPress caches the plugin list, so clear it
+			// or the freshly installed plugin stays invisible.
+			wp_clean_plugins_cache();
+			$plugin_file = $this->find_installed_plugin_file( $slug );
+		}
+
+		if ( null === $plugin_file ) {
+			error_log( sprintf( '[acrossai-mcp-manager] could not resolve a plugin file for %s after install', $slug ) ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- Deliberate diagnostics per file-header error-hygiene policy (internal log only, never surfaced to the client).
+			return new WP_Error(
+				'acrossai_mcp_quick_connect_install_failed',
+				esc_html__( 'Installation failed. Try installing manually from Plugins → Add New.', 'acrossai-mcp-manager' ),
+				array( 'status' => 500 )
+			);
 		}
 
 		if ( ! is_plugin_active( $plugin_file ) ) {
@@ -628,6 +697,19 @@ final class QuickConnectController {
 			);
 		}
 
+		// Read from the wizard's `new_server` payload, where step 2's fields live.
+		// Deliberately NOT routed through MCPServerFieldSanitizer: that helper
+		// enforces a hard-coded 6-key whitelist as a B7 mass-assignment defence,
+		// and widening it would weaken that guarantee for every caller. Validated
+		// against the registry instead — an unregistered value degrades to the
+		// registry default and never persists.
+		$submitted_type = isset( $data['new_server']['server_type'] )
+			? sanitize_key( (string) $data['new_server']['server_type'] )
+			: '';
+		$server_type    = ( '' !== $submitted_type && null !== ServerTypes::get( $submitted_type ) )
+			? $submitted_type
+			: ServerTypes::default_slug();
+
 		$new_id = $query->add_item(
 			array(
 				'server_name'            => $sanitized['server_name'],
@@ -638,6 +720,12 @@ final class QuickConnectController {
 				'server_route_namespace' => $sanitized['server_route_namespace'],
 				'server_route'           => $sanitized['server_route'],
 				'server_version'         => $sanitized['server_version'],
+				// F090 (SEC-001) — the SECOND creation path. The first draft of
+				// the plan listed only the classic admin form; the security
+				// review found this one. Unwritten here, the row takes the
+				// column default and the gate evaluates a type the operator
+				// never chose.
+				'server_type'            => $server_type,
 			)
 		);
 		if ( ! $new_id ) {
@@ -726,14 +814,18 @@ final class QuickConnectController {
 		}
 
 		$enabled = ! empty( $data['enabled'] );
-		$updated = MCPServerQuery::instance()->update_item( $server_id, array( 'is_enabled' => $enabled ? 1 : 0 ) );
-		if ( false === $updated ) {
-			return new WP_Error(
-				'acrossai_mcp_quick_connect_persist_failed',
-				esc_html__( 'Failed to update the server. Try again.', 'acrossai-mcp-manager' ),
-				array( 'status' => 500 )
-			);
+
+		// F090 (ARCH-1): route through ServerEnablement, the sole sanctioned
+		// writer of `is_enabled`. Quick Connect never touches the servers list
+		// table, so a UI-only guard would not cover this path at all.
+		$result = ServerEnablement::set( $server_id, $enabled );
+
+		if ( is_wp_error( $result ) ) {
+			return $result;
 		}
+
+		// ServerEnablement returns its own WP_Error on a failed write, handled
+		// above — no second persistence check is needed here.
 		$scratchpad['enabled'] = $enabled;
 		return $scratchpad;
 	}
@@ -768,6 +860,12 @@ final class QuickConnectController {
 				'route'           => $route,
 				'route_full'      => $route_full,
 				'enabled'         => ! empty( $row->is_enabled ),
+				// F090 (T038) — the wizard needs these so step 4 can refuse to be
+				// skipped for a server that step 6 would then be unable to
+				// enable. Discovering the requirement five steps in, at a dead
+				// end, is the worst possible place to learn about it.
+				'server_type'     => isset( $row->server_type ) ? (string) $row->server_type : '',
+				'type_available'  => ServerTypes::is_available( isset( $row->server_type ) ? (string) $row->server_type : '' ),
 			);
 		}
 		return $dtos;
