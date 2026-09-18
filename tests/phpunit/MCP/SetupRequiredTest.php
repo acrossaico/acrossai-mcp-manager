@@ -196,7 +196,6 @@ class SetupRequiredTest extends WP_UnitTestCase {
 				'description'             => 'Seeded by SetupRequiredTest',
 				'is_enabled'              => 0,
 				'server_type'             => $server_type,
-				'tools_default_policy'    => ToolPolicy::POLICY_PER_TOOL,
 				'tool_discover_abilities' => 0,
 				'tool_get_ability_info'   => 0,
 				'tool_execute_ability'    => 0,

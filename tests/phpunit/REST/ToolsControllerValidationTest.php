@@ -2,11 +2,13 @@
 /**
  * Feature 090 — write-path validation on the Tools REST routes (T016, per SEC-006).
  *
- * Both new inputs are ENUM-CONSTRAINED and both are stored on a server row that
- * downstream layers trust: `server_type` decides whether the enablement gate lets
- * the server run at all, and `tools_default_policy` decides whether the operator's
- * curation is consulted. A forged value reaching either column is not a cosmetic
- * bug — it is a row whose behaviour nobody chose.
+ * `server_type` is ENUM-CONSTRAINED and is stored on a server row that downstream
+ * layers trust: it decides whether the enablement gate lets the server run at all.
+ * A forged value reaching that column is not a cosmetic bug — it is a row whose
+ * behaviour nobody chose.
+ *
+ * `tools_default_policy` was validated here too until schema 1.1.7 dropped it
+ * along with the route that wrote it.
  *
  * The case that matters most here is the FORGED one: a well-formed, plausible slug
  * that simply is not registered. `sanitize_key()` passes it happily — sanitisation
@@ -137,91 +139,23 @@ class ToolsControllerValidationTest extends WP_UnitTestCase {
 		$this->assertSame( 'mycorp', $this->stored( 'server_type' ) );
 	}
 
-	// ------------------------------------------------ policy validation ----
-
-	/**
-	 * @dataProvider provideRejectedPolicies
-	 *
-	 * @param string $policy A value outside the enum.
-	 */
-	public function test_policy_route_rejects_a_value_outside_the_enum( string $policy ): void {
-		wp_set_current_user( $this->admin_id );
-		$before = $this->stored( 'tools_default_policy' );
-
-		$req = new WP_REST_Request( 'POST', self::ROUTE . $this->server_id . '/tools/policy' );
-		$req->set_param( 'policy', $policy );
-		$res = rest_do_request( $req );
-
-		$this->assertSame( 400, $res->get_status() );
-		$this->assertSame( $before, $this->stored( 'tools_default_policy' ) );
-	}
-
-	/**
-	 * @return array<string, array{0: string}>
-	 */
-	public static function provideRejectedPolicies(): array {
-		return array(
-			// 'all' and 'none' were the vocabulary during development, before it
-			// was aligned with abilities_default_policy. They must now be
-			// rejected like any other unknown value — a stale client sending the
-			// old words must fail loudly rather than write a value no branch of
-			// the precedence chain matches.
-			'the retired all'  => array( 'all' ),
-			'the retired none' => array( 'none' ),
-			'nonsense'         => array( 'whatever' ),
-			'empty'            => array( '' ),
-		);
-	}
-
-	/**
-	 * @dataProvider providePolicies
-	 *
-	 * @param string $policy A value inside the enum.
-	 */
-	public function test_policy_route_accepts_every_enum_member( string $policy ): void {
-		wp_set_current_user( $this->admin_id );
-
-		$req = new WP_REST_Request( 'POST', self::ROUTE . $this->server_id . '/tools/policy' );
-		$req->set_param( 'policy', $policy );
-		$res = rest_do_request( $req );
-
-		$this->assertSame( 200, $res->get_status() );
-		$this->assertSame( $policy, $this->stored( 'tools_default_policy' ) );
-	}
-
-	/**
-	 * Driven from the constant, so adding a policy cannot leave this test behind
-	 * (B48 — count- and list-based assertions drift from the source of truth).
-	 *
-	 * @return array<string, array{0: string}>
-	 */
-	public static function providePolicies(): array {
-		$cases = array();
-
-		foreach ( ToolPolicy::POLICIES as $policy ) {
-			$cases[ $policy ] = array( $policy );
-		}
-
-		return $cases;
-	}
-
 	// ------------------------------------------------------ permissions ----
 
-	public function test_policy_route_refuses_an_editor(): void {
+	public function test_tools_route_refuses_an_editor(): void {
 		wp_set_current_user( $this->editor_id );
 
-		$req = new WP_REST_Request( 'POST', self::ROUTE . $this->server_id . '/tools/policy' );
-		$req->set_param( 'policy', ToolPolicy::POLICY_HIDE );
+		$req = new WP_REST_Request( 'POST', self::ROUTE . $this->server_id . '/tools' );
+		$req->set_param( 'tools', array() );
 		$res = rest_do_request( $req );
 
 		$this->assertSame( 403, $res->get_status() );
 	}
 
-	public function test_policy_route_refuses_a_logged_out_caller(): void {
+	public function test_tools_route_refuses_a_logged_out_caller(): void {
 		wp_set_current_user( 0 );
 
-		$req = new WP_REST_Request( 'POST', self::ROUTE . $this->server_id . '/tools/policy' );
-		$req->set_param( 'policy', ToolPolicy::POLICY_HIDE );
+		$req = new WP_REST_Request( 'POST', self::ROUTE . $this->server_id . '/tools' );
+		$req->set_param( 'tools', array() );
 		$res = rest_do_request( $req );
 
 		$this->assertSame( 401, $res->get_status() );

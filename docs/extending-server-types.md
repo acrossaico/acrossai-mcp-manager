@@ -184,12 +184,18 @@ rule**, or the three layers will disagree.
 
 ## 7. Storage
 
-Two columns on `{$wpdb->prefix}acrossai_mcp_servers`, both added by migration `1.1.6`:
+One column on `{$wpdb->prefix}acrossai_mcp_servers`, added by migration `1.1.6`:
 
 | Column | Values | Notes |
 |---|---|---|
 | `server_type` | a registered slug | Default `'mcp-adapter'` — the value every pre-090 row was backfilled to |
-| `tools_default_policy` | `expose` \| `hide` \| `per-tool` | Standing rule; deliberately the same vocabulary as `abilities_default_policy` |
+
+A second column, `tools_default_policy`, was added alongside it and DROPped again by
+migration `1.1.7`. It backed a coarse `expose`/`hide` rule above the operator's curation;
+`MCP\ToolExposureGate` gates `tools/call` on curated rows alone and never read it, so an
+`expose` server advertised tools that it then refused. What a server serves is now decided
+by its curated selection and nothing else. (`abilities_default_policy` is F082, a different
+feature on the same table, and is unaffected.)
 
 An unrecognised stored `server_type` **must never fatal**: `get()` returns `null`, tool
 resolution falls back to the legacy set, and the admin shows the raw slug marked unavailable.

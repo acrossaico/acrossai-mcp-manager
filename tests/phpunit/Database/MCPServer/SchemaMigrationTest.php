@@ -31,7 +31,9 @@ class SchemaMigrationTest extends WP_UnitTestCase {
 		// WILDCARD, so the original `'tool_%'` also matched F090's
 		// `tools_default_policy` (tool + s + _default_policy) and this test
 		// failed with "actual size 4" on a change that added no tool_ column at
-		// all. Escaping makes the pattern mean what it always intended.
+		// all. That column was dropped again in 1.1.7, but the escape STAYS: it
+		// is what the pattern always meant, and the next `tools_*` column would
+		// otherwise reintroduce the same false positive.
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared
 		$rows = $wpdb->get_results( "SHOW COLUMNS FROM `{$table}` LIKE 'tool\\_%'" );
 

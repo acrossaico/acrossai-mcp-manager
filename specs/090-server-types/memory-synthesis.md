@@ -1,5 +1,17 @@
 # Memory Synthesis
 
+> **Retracted, 2026-09-18 — the coarse tool rule is gone.** Anything below that
+> describes `tools_default_policy` (the `expose` / `hide` standing rule, its
+> column, and `POST /servers/{id}/tools/policy`) was built, merged to `main` in
+> schema `1.1.6`, then removed again in schema `1.1.7` before any release.
+> `MCP\ToolExposureGate` gates `tools/call` on curated presence rows alone and
+> never read the column, so an `expose` server advertised tools it then refused.
+> What a server serves is now decided by its curated selection alone; the Tools
+> tab's **Enable All** / **Disable All** write that selection directly. The
+> `server_type` half of this feature stands as specified. `abilities_default_policy`
+> (F082, Abilities tab) is a different feature and is unaffected.
+
+
 ## Current Scope
 
 Feature 090 — server types. Two columns (`server_type`, `tools_default_policy`) in one

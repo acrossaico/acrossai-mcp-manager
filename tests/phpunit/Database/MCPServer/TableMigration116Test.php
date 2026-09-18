@@ -3,6 +3,10 @@
  * Feature 090 — schema `1.1.6` migration coverage (T011) and the corrective-UPDATE
  * regression (T012).
  *
+ * 1.1.6 also added `tools_default_policy`, which schema 1.1.7 drops again; that
+ * column's coverage lives in `TableMigration117Test` and is deliberately not
+ * duplicated here.
+ *
  * T012 is why this file exists. `upgrade_to_1_1_6()` stamps the F088 AcrossAI row
  * to `server_type = 'acrossai'` ONLY when it just created the column. Ungated, a
  * later re-run silently reverts an operator who used the switch-type escape hatch —
@@ -54,6 +58,25 @@ class TableMigration116Test extends WP_UnitTestCase {
 	public function set_up(): void {
 		parent::set_up();
 		DefaultServerSeeder::seed();
+
+		// Force the T012 precondition rather than trusting the previous test's
+		// rollback to have restored it.
+		//
+		// Seeding alone cannot: F090 puts `server_type` in the AcrossAI row's
+		// `initial` bucket, which only writes at INSERT, so a row that already
+		// exists keeps whatever type it has. And the rollback is not guaranteed
+		// — `rerun_migration()` may execute DDL, DDL implicitly COMMITs, and a
+		// commit mid-test strands the deliberate 'mcp-adapter' UPDATE that T012
+		// performs (B53). Asserting a precondition is cheap; establishing it is
+		// what makes these tests order-independent.
+		global $wpdb;
+		$wpdb->update(
+			$this->table(),
+			array( 'server_type' => 'acrossai' ),
+			array( 'server_slug' => DefaultServerSeeder::ACROSSAI_SLUG ),
+			array( '%s' ),
+			array( '%s' )
+		);
 	}
 
 	/**
@@ -82,36 +105,17 @@ class TableMigration116Test extends WP_UnitTestCase {
 
 	// ------------------------------------------------------------- T011 ----
 
-	public function test_migration_adds_both_columns(): void {
-		$columns = $this->column_names();
-
-		$this->assertContains( 'server_type', $columns );
-		$this->assertContains( 'tools_default_policy', $columns );
+	public function test_migration_adds_the_server_type_column(): void {
+		$this->assertContains( 'server_type', $this->column_names() );
 	}
 
-	/**
-	 * @dataProvider provideColumnDefaults
-	 *
-	 * @param string $column   Column added by the 1.1.6 migration.
-	 * @param string $expected The DEFAULT it must carry.
-	 */
-	public function test_column_defaults_are_the_backfill_values( string $column, string $expected ): void {
+	public function test_the_server_type_default_is_the_backfill_value(): void {
 		// The column DEFAULT is not cosmetic — it is what backfills every
 		// pre-existing row during the ALTER, which is why the migration writes no
-		// backfill pass. `server_type` defaulting to 'acrossai' instead would
-		// stamp every pre-090 server as an AcrossAI server and change what each
-		// one advertises, breaking SC-002.
-		$this->assertSame( $expected, $this->column_default( $column ) );
-	}
-
-	/**
-	 * @return array<string, array{0: string, 1: string}>
-	 */
-	public static function provideColumnDefaults(): array {
-		return array(
-			'server_type backfills to the legacy type' => array( 'server_type', 'mcp-adapter' ),
-			'policy preserves today behaviour'         => array( 'tools_default_policy', 'per-tool' ),
-		);
+		// backfill pass. Defaulting to 'acrossai' instead would stamp every
+		// pre-090 server as an AcrossAI server and change what each one
+		// advertises, breaking SC-002.
+		$this->assertSame( 'mcp-adapter', $this->column_default( 'server_type' ) );
 	}
 
 	public function test_a_row_created_without_a_type_reads_the_legacy_type(): void {
@@ -131,7 +135,6 @@ class TableMigration116Test extends WP_UnitTestCase {
 		$row = MCPServerQuery::instance()->query( array( 'id' => $server_id, 'number' => 1 ) )[0];
 
 		$this->assertSame( 'mcp-adapter', (string) $row->server_type );
-		$this->assertSame( 'per-tool', (string) $row->tools_default_policy );
 
 		global $wpdb;
 		$wpdb->delete( $this->table(), array( 'id' => $server_id ), array( '%d' ) );
