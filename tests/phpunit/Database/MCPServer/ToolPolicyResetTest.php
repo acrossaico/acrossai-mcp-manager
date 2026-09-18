@@ -15,6 +15,7 @@
 
 namespace AcrossAI_MCP_Manager\Tests\Database\MCPServer;
 
+use AcrossAI_MCP_Manager\Includes\Abilities\ServerGuide;
 use AcrossAI_MCP_Manager\Includes\Database\MCPServer\ServerTypes;
 use AcrossAI_MCP_Manager\Includes\Database\MCPServer\ToolPolicy;
 use WP_UnitTestCase;
@@ -28,8 +29,14 @@ class ToolPolicyResetTest extends WP_UnitTestCase {
 		parent::tear_down();
 	}
 
-	public function test_reset_on_the_legacy_type_restores_the_protocol_tools(): void {
-		$this->assertSame( ToolPolicy::PROTOCOL_TOOLS, ServerTypes::tools_for( ServerTypes::LEGACY ) );
+	public function test_reset_on_the_legacy_type_restores_its_own_tools(): void {
+		// The protocol tools plus the server guide — composed from the parts the
+		// type declares, never a literal list, so adding a tool to the type does
+		// not fail a test that is about Reset following the registry (B48).
+		$this->assertSame(
+			array_merge( ToolPolicy::PROTOCOL_TOOLS, array( ServerGuide::SLUG ) ),
+			ServerTypes::tools_for( ServerTypes::LEGACY )
+		);
 	}
 
 	public function test_reset_on_a_contributed_type_restores_that_type_tools(): void {

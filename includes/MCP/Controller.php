@@ -29,9 +29,12 @@
 
 namespace AcrossAI_MCP_Manager\Includes\MCP;
 
+use AcrossAI_MCP_Manager\Includes\Abilities\ServerGuide;
 use AcrossAI_MCP_Manager\Includes\Database\MCPServer\AbilityDiscovery;
 use AcrossAI_MCP_Manager\Includes\Database\MCPServer\DefaultServerSeeder;
 use AcrossAI_MCP_Manager\Includes\Database\MCPServer\Query as MCPServerQuery;
+use AcrossAI_MCP_Manager\Includes\Database\MCPServer\Row;
+use AcrossAI_MCP_Manager\Includes\Database\MCPServer\ServerTypes;
 use AcrossAI_MCP_Manager\Includes\Database\MCPServer\ToolPolicy;
 use WP\MCP\Infrastructure\ErrorHandling\ErrorLogMcpErrorHandler;
 use WP\MCP\Infrastructure\Observability\NullMcpObservabilityHandler;
@@ -218,7 +221,7 @@ final class Controller {
 				$namespace,
 				$route,
 				$server->server_name,
-				$server->description,
+				self::instructions_for( $server ),
 				$version,
 				array( HttpTransport::class ),
 				ErrorLogMcpErrorHandler::class,
@@ -375,5 +378,64 @@ final class Controller {
 				'registered_from' => 'database',
 			)
 		);
+	}
+
+	/**
+	 * What a connecting client is told before it calls anything.
+	 *
+	 * The adapter passes a server's description straight through as the MCP
+	 * `instructions` field (`InitializeHandler.php:81`), which is the ONLY thing
+	 * an assistant reads without first deciding to call a tool. Everything else
+	 * we publish — the guides, the tool descriptions — depends on it choosing
+	 * to look. This is the one place we can be sure lands.
+	 *
+	 * Until now it carried the operator's one-line label from the servers list
+	 * ("Recommended AcrossAI MCP server, managed by the plugin."), written for
+	 * an admin screen and useless to an agent.
+	 *
+	 * The stored description is NOT changed — it is still what the admin shows,
+	 * and still the first line here. Guidance is appended for the connection
+	 * only.
+	 *
+	 * @since  0.1.0
+	 * @param  Row $server The server row being registered.
+	 * @return string
+	 */
+	private static function instructions_for( Row $server ): string {
+		$description = trim( (string) $server->description );
+		$type        = (string) $server->server_type;
+
+		$guidance = ServerTypes::LEGACY === $type
+			? sprintf(
+				/* translators: %s: the server guide's ability name. */
+				__( 'This server exposes WordPress abilities through three tools: discover-abilities to find them, get-ability-info to read one\'s parameters, and execute-ability to run it. Call %s first — it reports every category, namespace and group on this site with a count for each, so you can narrow on the first attempt instead of guessing a filter value.', 'acrossai-mcp-manager' ),
+				ServerGuide::SLUG
+			)
+			: '';
+
+		/**
+		 * Filter the instructions a connecting MCP client receives.
+		 *
+		 * Fired per server, so guidance can be specific to what that server
+		 * actually exposes. A companion plugin contributing a server type should
+		 * hook this to describe ITS surface — this plugin names only its own
+		 * tools, and never another plugin's vocabulary.
+		 *
+		 * The operator's description is already the first line of `$instructions`;
+		 * append rather than replace, or their text is lost from the connection.
+		 *
+		 * @since 0.1.0
+		 *
+		 * @param string $instructions Instructions built so far.
+		 * @param string $server_type  The server row's type slug.
+		 * @param Row    $server       The server row being registered.
+		 */
+		$guidance = (string) apply_filters( 'acrossai_mcp_server_instructions', $guidance, $type, $server );
+
+		if ( '' === trim( $guidance ) ) {
+			return $description;
+		}
+
+		return '' === $description ? trim( $guidance ) : $description . "\n\n" . trim( $guidance );
 	}
 }

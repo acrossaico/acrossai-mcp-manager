@@ -38,6 +38,7 @@ declare( strict_types = 1 );
 
 namespace AcrossAI_MCP_Manager\Includes\Database\MCPServer;
 
+use AcrossAI_MCP_Manager\Includes\Abilities\ServerGuide;
 use AcrossAI_MCP_Manager\Includes\Abilities\ToolAbilities;
 use WP_Error;
 
@@ -382,7 +383,14 @@ final class ServerTypes {
 			self::LEGACY   => array(
 				'label'       => __( 'MCP Adapter', 'acrossai-mcp-manager' ),
 				'description' => __( 'The three built-in MCP tools. AI clients discover and run abilities through them.', 'acrossai-mcp-manager' ),
-				'tools'       => ToolPolicy::PROTOCOL_TOOLS,
+				// The three protocol tools PLUS the guide. Deliberately an array_merge
+				// rather than a fourth PROTOCOL_TOOLS entry: that constant is
+				// column-backed storage, and `ToolPolicy::split_payload()` diffs
+				// against it while building columns from COLUMN_MAP alone — so a
+				// fourth member with no `tool_*` column would be stripped from the
+				// curated set AND have nowhere to be stored, silently dropping the
+				// operator's pick on every save.
+				'tools'       => array_merge( ToolPolicy::PROTOCOL_TOOLS, array( ServerGuide::SLUG ) ),
 			),
 			self::ACROSSAI => array(
 				'label'       => __( 'AcrossAI', 'acrossai-mcp-manager' ),

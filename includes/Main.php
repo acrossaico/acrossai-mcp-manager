@@ -663,6 +663,16 @@ final class Main {
 			20
 		);
 
+		// The MCP Adapter server type's guide. Priority 20 for the same reason
+		// as SetupRequired: after CallbackReplacer (10) has finished rebinding
+		// the vendor meta-tools, so nothing it describes is still in flux.
+		$this->loader->add_action(
+			'wp_abilities_api_init',
+			\AcrossAI_MCP_Manager\Includes\Abilities\ServerGuide::class,
+			'register',
+			20
+		);
+
 		/**
 		 * Feature 030 — per-server ability permission_callback override.
 		 *
@@ -697,6 +707,15 @@ final class Main {
 		 */
 		$toolset_exposure = \AcrossAI_MCP_Manager\Includes\Abilities\ToolsetExposureBridge::instance();
 		$this->loader->add_filter( 'acrossai_toolset_member_visible', $toolset_exposure, 'filter_member_visible', 10, 4 );
+
+		// Keep our transport abilities out of the sibling's Toolsets entirely.
+		// They belong to no group, and without this its tagger files them in the
+		// catch-all — `toolset/other` was observed listing the server guide.
+		$this->loader->add_filter(
+			'acrossai_abilities_manager_protected_slugs',
+			\AcrossAI_MCP_Manager\Includes\Abilities\ToolAbilities::class,
+			'protect_from_toolsets'
+		);
 
 		$current_server_holder = \AcrossAI_MCP_Manager\Includes\Abilities\CurrentServerHolder::instance();
 		// `rest_pre_dispatch` is a filter that returns $result; priority 5 to

@@ -85,7 +85,10 @@ final class ToolAbilities {
 		 *
 		 * @param string[] $slugs Ability slugs treated as tool-level entries.
 		 */
-		$slugs = apply_filters( 'acrossai_mcp_manager_tool_abilities', ToolPolicy::PROTOCOL_TOOLS );
+		$slugs = apply_filters(
+			'acrossai_mcp_manager_tool_abilities',
+			array_merge( ToolPolicy::PROTOCOL_TOOLS, array( ServerGuide::SLUG ) )
+		);
 
 		// Same normalization the server-registration filters get in
 		// Controller::register_database_servers() — a callback returning null or
@@ -99,5 +102,51 @@ final class ToolAbilities {
 		);
 
 		return array_values( array_unique( $slugs ) );
+	}
+
+	/**
+	 * Keep this plugin's transport abilities out of the sibling's Toolsets.
+	 *
+	 * A Toolset dispatches to the abilities in one group. Ours belong to no
+	 * group: they ARE the transport — the three protocol tools, the setup
+	 * diagnostic, the server guide. The sibling's group tagger does not know
+	 * that, finds no `meta.acrossai.tab_group`, and files them in its catch-all,
+	 * so `toolset/other` ends up listing the very things that describe how to
+	 * call a Toolset.
+	 *
+	 * Observed on a live server: `toolset/other` returned the server guide and
+	 * the setup diagnostic as members. The guide is worse than odd there — it
+	 * describes the MCP Adapter server type's surface, and was being advertised
+	 * inside an AcrossAI-type server.
+	 *
+	 * The sibling publishes `acrossai_abilities_manager_protected_slugs` for
+	 * exactly this, and its `AcrossAI_Ability_Group::resolve()` drops protected
+	 * slugs before grouping — so they leave the counts as well as the listings,
+	 * which `member_visible` alone would not have achieved.
+	 *
+	 * Contributes the whole tool-level list rather than naming slugs, so a
+	 * future transport ability is excluded the moment it is declared.
+	 *
+	 * Filtering a hook the sibling may never fire costs nothing; the same
+	 * unconditional-registration reasoning as `ToolsetExposureBridge`.
+	 *
+	 * @since  0.1.0
+	 * @param  mixed $slugs Slugs collected so far.
+	 * @return mixed
+	 */
+	public static function protect_from_toolsets( $slugs ) {
+		if ( ! is_array( $slugs ) ) {
+			return $slugs;
+		}
+
+		// `SetupRequired` is named separately because it is deliberately NOT in
+		// `get_slugs()`: it is not a tool an operator curates, it is substituted
+		// into the served list by `ToolPolicy` when a server type's requirement
+		// is unmet. Transport all the same, and just as wrong inside a Toolset.
+		return array_values(
+			array_unique(
+				array_merge( $slugs, self::get_slugs(), array( SetupRequired::SLUG ) )
+			)
+		);
 	}
 }
