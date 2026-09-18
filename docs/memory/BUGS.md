@@ -2790,3 +2790,61 @@ empty" on the suite's FIRST CI run, before the test had ever been run locally.
 - `B60` — the review that produced this test. Its rule (test an extension point against a case you
   did not author) is what put the test in place to catch this.
 
+---
+
+### 2026-09-18 — Adding DDL to a migration breaks every test that rewinds across it
+
+**Status**
+Active (F090)
+
+**What happened**
+The F090 retraction dropped `tools_default_policy` in schema `1.1.7`. Following the
+`embeds_enabled` precedent (added by `1.1.3`, dropped by `1.1.4`), `upgrade_to_1_1_6()` was left
+adding the column that `upgrade_to_1_1_7()` would immediately remove — churn, but apparently
+harmless.
+
+It was not harmless. On a fresh CI database the table is built from `Schema.php`, which no longer
+declares the column. `TableMigration116Test::rerun_migration()` rewinds the stored version to
+`1.1.5` to re-exercise `1.1.6` — so it now ran **ADD** (1.1.6) then **DROP** (1.1.7) where it
+previously ran no DDL at all, because both columns already existed.
+
+DDL implicitly COMMITs. That committed the deliberate `server_type = 'mcp-adapter'` UPDATE made
+earlier in `test_the_acrossai_row_is_corrected_by_the_migration`. `tear_down()`'s restore then ran
+inside a fresh transaction and was rolled back by `parent::tear_down()`. The row stayed
+`mcp-adapter`, and the **next** test failed its own `setup` precondition — pointing nowhere near
+the migration that had changed.
+
+**Why this is not B53**
+`B53` is about a **test** issuing DDL and needing to self-heal. Here the DDL is in **production
+migration code** and the test was untouched — it had been passing since F090 shipped. The blast
+radius of adding a DDL statement to any `upgrade_to_*` callback includes every test that rewinds
+the version below it, none of which mentions the column you are adding or dropping.
+
+**Prevention rule**
+Two rules, cause then symptom:
+
+1. **Never leave an ADD in place for a column the next migration drops.** Remove it from the
+   earlier callback. No install should create a column the next migration deletes, and a migration
+   that performs no DDL when there is nothing to change keeps the per-test rollback intact.
+   Installs already past that version still get the DROP — that is what the later callback is for.
+2. **A precondition worth asserting is worth establishing.** A test that asserts state it inherited
+   from another test's teardown is betting on the rollback. `set_up()` should create it. Seeding
+   alone may not suffice: F090 puts `server_type` in the AcrossAI row's `initial` bucket, which
+   only writes at INSERT, so a row that already exists keeps whatever type it has.
+
+Detection: when adding or removing DDL in any `upgrade_to_*` callback, grep the test suite for
+rewinds below that version — `update_option( <version_key>, '<lower>' )` — and check what DML those
+tests perform before the rewind.
+
+**Evidence**
+`TableMigration116Test::test_a_rerun_leaves_an_untouched_acrossai_row_alone` failed on PR #133's
+first CI run with `'acrossai'` expected, `'mcp-adapter'` actual — on a branch whose diff did not
+touch that test, that row, or `server_type`. Nothing local could have caught it: this plugin's
+local harness has no `WP_UnitTestCase`, so CI is the only gate that sees the integration suite.
+
+**Related**
+- `B53` — the same COMMIT mechanic, reached from the test side rather than the migration side.
+- `D28` — the 3-part contract this DROP followed; the contract says nothing about what an added
+  DDL statement does to existing tests, which is how this got through.
+- `B34` — why the column was dropped rather than left in place: a column `Schema.php` no longer
+  declares but the live table still has is exactly that drift.
