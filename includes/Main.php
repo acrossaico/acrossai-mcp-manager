@@ -708,6 +708,15 @@ final class Main {
 		$toolset_exposure = \AcrossAI_MCP_Manager\Includes\Abilities\ToolsetExposureBridge::instance();
 		$this->loader->add_filter( 'acrossai_toolset_member_visible', $toolset_exposure, 'filter_member_visible', 10, 4 );
 
+		// Keep our transport abilities out of the sibling's Toolsets entirely.
+		// They belong to no group, and without this its tagger files them in the
+		// catch-all — `toolset/other` was observed listing the server guide.
+		$this->loader->add_filter(
+			'acrossai_abilities_manager_protected_slugs',
+			\AcrossAI_MCP_Manager\Includes\Abilities\ToolAbilities::class,
+			'protect_from_toolsets'
+		);
+
 		$current_server_holder = \AcrossAI_MCP_Manager\Includes\Abilities\CurrentServerHolder::instance();
 		// `rest_pre_dispatch` is a filter that returns $result; priority 5 to
 		// fire before any short-circuiting handlers at default 10.
