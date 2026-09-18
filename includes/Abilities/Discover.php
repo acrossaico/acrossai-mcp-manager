@@ -123,9 +123,15 @@ final class Discover {
 	 * Extracted from `execute()` unchanged — the two gates below are the
 	 * security boundary and must run before any caller-supplied filtering.
 	 *
+	 * PUBLIC so `ServerGuide` can build its inventory from the same list this
+	 * tool paginates. A guide that counted the registry directly would report
+	 * abilities the caller cannot actually reach, which is worse than no
+	 * inventory: it would send a model looking for something the exposure gate
+	 * will refuse.
+	 *
 	 * @return array<int, array<string, string>>
 	 */
-	private static function collect_visible_abilities(): array {
+	public static function collect_visible_abilities(): array {
 		$abilities    = function_exists( 'wp_get_abilities' ) ? \wp_get_abilities() : array();
 		$ability_list = array();
 
@@ -146,6 +152,7 @@ final class Discover {
 				// using the `category` filter, and gives `search` a fourth
 				// field to match on.
 				'category'    => $ability->get_category(),
+				'tab_group'   => self::tab_group( $ability ),
 			);
 		}
 
@@ -153,7 +160,43 @@ final class Discover {
 	}
 
 	/**
-	 * Apply `search`, `category` and `namespace`. Criteria AND together;
+	 * The ability's toolset group, or '' when it declares none.
+	 *
+	 * `meta.acrossai.tab_group` is how the AcrossAI Abilities Manager organises
+	 * its library: one string that is simultaneously the group, the admin tab,
+	 * that plugin's REST `?tab_group=` filter and the second half of its
+	 * `toolset/<group>` tool name. It is the axis a model most often wants to
+	 * slice on, and until now this tool could not.
+	 *
+	 * **This is the one place this plugin reads `meta.acrossai.*`.** Reading a
+	 * generic meta KEY is not the same thing as hardcoding another plugin's
+	 * vocabulary — no group name appears here, and the rule at
+	 * `ToolAbilities.php:15` still holds. Do not read this as licence to name
+	 * `toolset/*` slugs anywhere in this plugin.
+	 *
+	 * Returns '' when the sibling is absent, so every ability is ungrouped and
+	 * a `tab_group` filter matches nothing. That is the honest answer: there
+	 * are no groups on such a site.
+	 *
+	 * @param  \WP_Ability $ability Ability to read.
+	 * @return string
+	 */
+	private static function tab_group( $ability ): string {
+		if ( ! method_exists( $ability, 'get_meta' ) ) {
+			return '';
+		}
+
+		$meta = $ability->get_meta();
+
+		if ( ! is_array( $meta ) || ! isset( $meta['acrossai']['tab_group'] ) ) {
+			return '';
+		}
+
+		return (string) $meta['acrossai']['tab_group'];
+	}
+
+	/**
+	 * Apply `search`, `category`, `namespace` and `tab_group`. Criteria AND together;
 	 * an absent or empty criterion is a no-op.
 	 *
 	 * @param array<int, array<string, string>> $entries  Visible abilities.
@@ -164,13 +207,17 @@ final class Discover {
 		$search    = isset( $criteria['search'] ) ? strtolower( trim( (string) $criteria['search'] ) ) : '';
 		$category  = isset( $criteria['category'] ) ? trim( (string) $criteria['category'] ) : '';
 		$namespace = isset( $criteria['namespace'] ) ? trim( (string) $criteria['namespace'], " \t\n\r\0\x0B/" ) : '';
+		$tab_group = isset( $criteria['tab_group'] ) ? trim( (string) $criteria['tab_group'] ) : '';
 
-		if ( '' === $search && '' === $category && '' === $namespace ) {
+		if ( '' === $search && '' === $category && '' === $namespace && '' === $tab_group ) {
 			return $entries;
 		}
 
 		$matches = array();
 		foreach ( $entries as $entry ) {
+			if ( '' !== $tab_group && ( $entry['tab_group'] ?? '' ) !== $tab_group ) {
+				continue;
+			}
 			if ( '' !== $category && $entry['category'] !== $category ) {
 				continue;
 			}

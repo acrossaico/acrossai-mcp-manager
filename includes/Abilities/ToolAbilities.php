@@ -85,7 +85,10 @@ final class ToolAbilities {
 		 *
 		 * @param string[] $slugs Ability slugs treated as tool-level entries.
 		 */
-		$slugs = apply_filters( 'acrossai_mcp_manager_tool_abilities', ToolPolicy::PROTOCOL_TOOLS );
+		$slugs = apply_filters(
+			'acrossai_mcp_manager_tool_abilities',
+			array_merge( ToolPolicy::PROTOCOL_TOOLS, array( ServerGuide::SLUG ) )
+		);
 
 		// Same normalization the server-registration filters get in
 		// Controller::register_database_servers() — a callback returning null or

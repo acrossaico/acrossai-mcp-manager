@@ -153,6 +153,13 @@ final class CallbackReplacer {
 						'acrossai-mcp-manager'
 					),
 				),
+				'tab_group' => array(
+					'type'        => 'string',
+					'description' => __(
+						'Return only abilities in this toolset group, e.g. "content" or "elementor". This is the axis the ability library is organised on, so it narrows further than category usually does. Every returned ability carries its tab_group, so call once without filters to see which exist. Empty on sites where no plugin groups its abilities.',
+						'acrossai-mcp-manager'
+					),
+				),
 				'page'      => array(
 					'type'        => 'integer',
 					'minimum'     => 1,
@@ -168,7 +175,7 @@ final class CallbackReplacer {
 					'maximum'     => Discover::PER_PAGE_MAXIMUM,
 					'default'     => Discover::PER_PAGE_DEFAULT,
 					'description' => __(
-						'How many abilities to return per page. Defaults to 60, maximum 200. Prefer narrowing with search/category/namespace over raising this.',
+						'How many abilities to return per page. Defaults to 60, maximum 200. Prefer narrowing with search/category/namespace/tab_group over raising this.',
 						'acrossai-mcp-manager'
 					),
 				),
@@ -195,7 +202,8 @@ final class CallbackReplacer {
 		// F089 also adds `category` to each ability entry, so the item schema
 		// the vendor declared needs it too.
 		if ( isset( $properties['abilities']['items']['properties'] ) && is_array( $properties['abilities']['items']['properties'] ) ) {
-			$properties['abilities']['items']['properties']['category'] = array( 'type' => 'string' );
+			$properties['abilities']['items']['properties']['category']  = array( 'type' => 'string' );
+			$properties['abilities']['items']['properties']['tab_group'] = array( 'type' => 'string' );
 		}
 
 		$properties['total']    = array(
@@ -235,7 +243,7 @@ final class CallbackReplacer {
 	 */
 	private function discover_description(): string {
 		return __(
-			'Discover the WordPress abilities available on this site. Returns up to 60 abilities per call, each with its name, label, description and category. Narrow the list with search, category or namespace rather than paging through everything. When has_more is true, request the next page with page. Once you have a name, call mcp-adapter/get-ability-info for that ability\'s full input schema.',
+			'Discover the WordPress abilities available on this site. Returns up to 60 abilities per call, each with its name, label, description, category and tab_group. Narrow the list with search, category, namespace or tab_group rather than paging through everything — tab_group is the axis the library is organised on and usually the sharpest cut. When has_more is true, request the next page with page. Once you have a name, call mcp-adapter/get-ability-info for that ability\'s full input schema.',
 			'acrossai-mcp-manager'
 		);
 	}

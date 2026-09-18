@@ -663,6 +663,16 @@ final class Main {
 			20
 		);
 
+		// The MCP Adapter server type's guide. Priority 20 for the same reason
+		// as SetupRequired: after CallbackReplacer (10) has finished rebinding
+		// the vendor meta-tools, so nothing it describes is still in flux.
+		$this->loader->add_action(
+			'wp_abilities_api_init',
+			\AcrossAI_MCP_Manager\Includes\Abilities\ServerGuide::class,
+			'register',
+			20
+		);
+
 		/**
 		 * Feature 030 — per-server ability permission_callback override.
 		 *
