@@ -23,6 +23,7 @@
 
 namespace AcrossAI_MCP_Manager\Tests\Database\MCPServer;
 
+use AcrossAI_MCP_Manager\Includes\Abilities\ServerGuide;
 use AcrossAI_MCP_Manager\Includes\Database\MCPServer\ServerTypes;
 use AcrossAI_MCP_Manager\Includes\Database\MCPServer\ToolPolicy;
 use WP_UnitTestCase;
@@ -254,10 +255,14 @@ class ServerTypesTest extends WP_UnitTestCase {
 
 	public function test_reset_stays_scoped_to_the_type(): void {
 		// The counterpart to the two above: the POOL is shared, the TEMPLATE is
-		// not. Reset on an mcp-adapter server writes the protocol tools and
-		// nothing else.
+		// not. Reset on an mcp-adapter server writes that type's own tools —
+		// the protocol tools plus the server guide — and nothing else.
+		//
+		// Composed from the same parts the type declares rather than listed as
+		// literals, so adding a tool to the type does not fail this test, which
+		// is about SCOPE (B48).
 		$this->assertSame(
-			ToolPolicy::PROTOCOL_TOOLS,
+			array_merge( ToolPolicy::PROTOCOL_TOOLS, array( ServerGuide::SLUG ) ),
 			ServerTypes::tools_for( ServerTypes::LEGACY )
 		);
 
