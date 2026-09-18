@@ -33,11 +33,15 @@ final class ProtectedServers {
 	/**
 	 * Slugs of every plugin-managed server row.
 	 *
+	 * `ACROSSAI_SLUG` was here until its row stopped being seeded. Protection
+	 * has to follow ownership: the plugin no longer creates or reconciles that
+	 * row, so keeping the guard would leave a site that already has one unable
+	 * to delete it — a lock with nothing behind it.
+	 *
 	 * @return array<int, string>
 	 */
 	public static function slugs(): array {
 		return array(
-			DefaultServerSeeder::ACROSSAI_SLUG,
 			DefaultServerSeeder::SLUG,
 		);
 	}

@@ -40,6 +40,7 @@ use AcrossAI_MCP_Manager\Includes\Database\MCPServer\PolicyTransition;
 use AcrossAI_MCP_Manager\Includes\Database\MCPServer\Query as MCPServerQuery;
 use AcrossAI_MCP_Manager\Includes\Database\MCPServer\ServerEnablement;
 use AcrossAI_MCP_Manager\Includes\Database\MCPServer\ServerTypes;
+use AcrossAI_MCP_Manager\Includes\Database\MCPServer\ToolPolicy;
 use AcrossAI_MCP_Manager\Includes\Database\MCPServerAbility\ExposureResolver as MCPServerAbilityExposureResolver;
 use AcrossAI_MCP_Manager\Includes\Utilities\MCPServerFieldSanitizer;
 use AcrossAI_MCP_Manager\Public\Discovery\ConnectionMethodRegistry;
@@ -735,6 +736,12 @@ final class QuickConnectController {
 				array( 'status' => 500 )
 			);
 		}
+
+		// The SECOND creation path again — same reason the `server_type` write
+		// above carries that note. A server created through the wizard needs
+		// its type's tools as much as one created from the classic form, and
+		// this is the path an operator is most likely to take.
+		ToolPolicy::apply_type_defaults( (int) $new_id, $server_type );
 
 		$scratchpad['server_id']     = (int) $new_id;
 		$scratchpad['create_intent'] = false;

@@ -699,73 +699,86 @@ function ToolsApp( { serverId } ) {
 		// F090 (T024) — the server type selector. Unavailable types are listed
 		// but disabled, so an operator can see the option exists and why it is
 		// not usable rather than wondering where it went.
-		createElement(
-			'div',
-			{ className: 'acrossai-mcp-tools-type' },
-			createElement(
-				'label',
-				{
-					className: 'acrossai-mcp-tools-type__label',
-					htmlFor: 'acrossai-mcp-server-type',
-				},
-				__( 'Server type', 'acrossai-mcp-manager' ),
-			),
-			createElement(
-				'select',
-				{
-					className: 'acrossai-mcp-tools-type__select',
-					id: 'acrossai-mcp-server-type',
-					value: serverType,
-					disabled: saving,
-					onChange: ( e ) => {
-						const next = e.target.value;
-						if ( next && next !== serverType ) {
-							setPendingTypeSwitch( next );
-						}
+		// Only rendered when there is a choice to make.
+		//
+		// AVAILABLE, not merely registered: the transport always ships an
+		// `acrossai` placeholder so the type has a label and a stated
+		// requirement even with no add-on installed, which means the raw count
+		// never drops below two and the control never hid. `available` is the
+		// same `is_available()` the options use to disable themselves — a
+		// select whose only other option is disabled is not a choice.
+		//
+		// Counted rather than checking for the add-on by name, so a type from
+		// any plugin brings the control back.
+		serverTypes.filter( ( t ) => t.available ).length > 1
+			? createElement(
+				'div',
+				{ className: 'acrossai-mcp-tools-type' },
+				createElement(
+					'label',
+					{
+						className: 'acrossai-mcp-tools-type__label',
+						htmlFor: 'acrossai-mcp-server-type',
 					},
-				},
-				// An unrecognised stored type still renders as itself, marked
-				// unavailable, rather than silently snapping to another value
-				// (FR-010).
-				serverTypes.some( ( t ) => t.slug === serverType )
-					? null
-					: createElement(
-						'option',
-						{ key: serverType, value: serverType },
-						sprintf(
+					__( 'Server type', 'acrossai-mcp-manager' ),
+				),
+				createElement(
+					'select',
+					{
+						className: 'acrossai-mcp-tools-type__select',
+						id: 'acrossai-mcp-server-type',
+						value: serverType,
+						disabled: saving,
+						onChange: ( e ) => {
+							const next = e.target.value;
+							if ( next && next !== serverType ) {
+								setPendingTypeSwitch( next );
+							}
+						},
+					},
+					// An unrecognised stored type still renders as itself, marked
+					// unavailable, rather than silently snapping to another value
+					// (FR-010).
+					serverTypes.some( ( t ) => t.slug === serverType )
+						? null
+						: createElement(
+							'option',
+							{ key: serverType, value: serverType },
+							sprintf(
 							/* translators: %s: the stored server type slug. */
-							__( '%s (unavailable)', 'acrossai-mcp-manager' ),
-							typeLabel || serverType,
+								__( '%s (unavailable)', 'acrossai-mcp-manager' ),
+								typeLabel || serverType,
+							),
+						),
+					serverTypes.map( ( t ) =>
+						createElement(
+							'option',
+							{ key: t.slug, value: t.slug, disabled: ! t.available },
+							t.available
+								? t.label
+								: sprintf(
+								/* translators: %s: server type label. */
+									__( '%s (requires add-on)', 'acrossai-mcp-manager' ),
+									t.label,
+								),
 						),
 					),
-				serverTypes.map( ( t ) =>
-					createElement(
-						'option',
-						{ key: t.slug, value: t.slug, disabled: ! t.available },
-						t.available
-							? t.label
-							: sprintf(
-								/* translators: %s: server type label. */
-								__( '%s (requires add-on)', 'acrossai-mcp-manager' ),
-								t.label,
-							),
+				),
+				// What the control actually does, next to the control. The type is
+				// a TEMPLATE for Reset, not a filter: it decides what "Reset to
+				// Type Defaults" writes, and never restricts what may be added by
+				// hand. Saying so here is what stops an operator reading the
+				// selector as a restriction on the picker below.
+				createElement(
+					'p',
+					{ className: 'acrossai-mcp-tools-type__help' },
+					__(
+						'Sets what “Reset to Type Defaults” restores. Any tool below can still be added by hand.',
+						'acrossai-mcp-manager',
 					),
 				),
-			),
-			// What the control actually does, next to the control. The type is
-			// a TEMPLATE for Reset, not a filter: it decides what "Reset to
-			// Type Defaults" writes, and never restricts what may be added by
-			// hand. Saying so here is what stops an operator reading the
-			// selector as a restriction on the picker below.
-			createElement(
-				'p',
-				{ className: 'acrossai-mcp-tools-type__help' },
-				__(
-					'Sets what “Reset to Type Defaults” restores. Any tool below can still be added by hand.',
-					'acrossai-mcp-manager',
-				),
-			),
-		),
+			)
+			: null,
 
 		// F090 — requirement unmet: state it plainly and offer BOTH remedies.
 		! typeAvailable

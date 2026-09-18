@@ -31,9 +31,19 @@ class ProtectedServersTest extends WP_UnitTestCase {
 		DefaultServerSeeder::seed();
 	}
 
-	public function test_both_seeded_slugs_are_protected(): void {
+	public function test_the_seeded_slug_is_protected(): void {
 		$this->assertTrue( ProtectedServers::is_protected( DefaultServerSeeder::SLUG ) );
-		$this->assertTrue( ProtectedServers::is_protected( DefaultServerSeeder::ACROSSAI_SLUG ) );
+	}
+
+	/**
+	 * Protection follows OWNERSHIP, not history.
+	 *
+	 * The AcrossAI row is no longer seeded or reconciled, so the plugin has no
+	 * business guarding it. Left protected, a site that already has one could
+	 * never delete it — a lock with nothing behind it.
+	 */
+	public function test_the_withdrawn_acrossai_slug_is_not_protected(): void {
+		$this->assertFalse( ProtectedServers::is_protected( DefaultServerSeeder::ACROSSAI_SLUG ) );
 	}
 
 	public function test_operator_created_and_empty_slugs_are_not_protected(): void {
@@ -48,10 +58,10 @@ class ProtectedServersTest extends WP_UnitTestCase {
 	 */
 	public function test_is_protected_server_accepts_both_key_shapes(): void {
 		$this->assertTrue(
-			ProtectedServers::is_protected_server( array( 'server_slug' => DefaultServerSeeder::ACROSSAI_SLUG ) )
+			ProtectedServers::is_protected_server( array( 'server_slug' => DefaultServerSeeder::SLUG ) )
 		);
 		$this->assertTrue(
-			ProtectedServers::is_protected_server( array( 'slug' => DefaultServerSeeder::ACROSSAI_SLUG ) )
+			ProtectedServers::is_protected_server( array( 'slug' => DefaultServerSeeder::SLUG ) )
 		);
 		$this->assertFalse(
 			ProtectedServers::is_protected_server( array( 'slug' => 'my-own-server' ) )
@@ -64,11 +74,11 @@ class ProtectedServersTest extends WP_UnitTestCase {
 
 		$seeded = $query->query(
 			array(
-				'server_slug' => DefaultServerSeeder::ACROSSAI_SLUG,
+				'server_slug' => DefaultServerSeeder::SLUG,
 				'number'      => 1,
 			)
 		);
-		$this->assertNotEmpty( $seeded, 'Activation must seed the AcrossAI row.' );
+		$this->assertNotEmpty( $seeded, 'Activation must seed the default row.' );
 		$this->assertTrue( ProtectedServers::is_protected_id( (int) $seeded[0]->id ) );
 
 		$own_id = (int) $query->add_item(
@@ -97,13 +107,9 @@ class ProtectedServersTest extends WP_UnitTestCase {
 	 * Protection is NOT prominence.
 	 *
 	 * `is_recommended()` / `recommended_badge()` lived beside `is_protected()`
-	 * and were removed with the AcrossAI promotion. This asserts the surviving
-	 * predicate did not inherit their behaviour: BOTH seeded rows are equally
-	 * protected, so nothing here singles one out.
+	 * and were removed with the AcrossAI promotion. Its premise — that BOTH
+	 * seeded rows are equally protected — retired with the AcrossAI row itself;
+	 * `test_the_withdrawn_acrossai_slug_is_not_protected()` above now holds the
+	 * relevant half, that the surviving predicate did not inherit a promotion.
 	 */
-	public function test_protection_does_not_single_out_the_acrossai_row(): void {
-		$this->assertTrue( ProtectedServers::is_protected( DefaultServerSeeder::ACROSSAI_SLUG ) );
-		$this->assertTrue( ProtectedServers::is_protected( DefaultServerSeeder::SLUG ) );
-		$this->assertFalse( ProtectedServers::is_protected( 'my-own-server' ) );
-	}
 }

@@ -14,6 +14,7 @@ use AcrossAI_MCP_Manager\Includes\Database\MCPServer\ProtectedServers;
 use AcrossAI_MCP_Manager\Includes\Database\MCPServer\Query;
 use AcrossAI_MCP_Manager\Includes\Database\MCPServer\ServerEnablement;
 use AcrossAI_MCP_Manager\Includes\Database\MCPServer\ServerTypes;
+use AcrossAI_MCP_Manager\Includes\Database\MCPServer\ToolPolicy;
 use AcrossAI_MCP_Manager\Includes\Utilities\AdminPageSlugs;
 use AcrossAI_MCP_Manager\Includes\Utilities\MCPServerFieldSanitizer;
 
@@ -409,6 +410,12 @@ class Settings {
 			$this->redirect_to_create( 'db_error' );
 		}
 
+		// Give the server the tools its TYPE declares. Without this it carries
+		// whatever the `tool_*` column defaults give it — the three protocol
+		// tools — whichever type was chosen, so an AcrossAI server arrived with
+		// mcp-adapter's set and an mcp-adapter one arrived without its guide.
+		ToolPolicy::apply_type_defaults( (int) $new_id, $server_type );
+
 		wp_safe_redirect(
 			esc_url_raw(
 				add_query_arg(
@@ -765,6 +772,33 @@ class Settings {
 						<th scope="row"><label for="server_version"><?php esc_html_e( 'Version', 'acrossai-mcp-manager' ); ?></label></th>
 						<td><input type="text" id="server_version" name="server_version" value="v1.0.0" class="regular-text" /></td>
 					</tr>
+					<?php
+					// Only worth asking when there is something to choose between.
+					// With one SELECTABLE type the control is a select whose
+					// other options are disabled — it reads as a decision the
+					// operator has to make, while offering nothing. The handler
+					// already falls back to ServerTypes::default_slug() when the
+					// field is absent.
+					//
+					// AVAILABLE, not merely registered: `all()` always carries
+					// the `acrossai` placeholder so the type has a label and a
+					// stated requirement even with no add-on installed. Counting
+					// registrations therefore never drops below two, and the
+					// control never hid. Counting what `is_available()` admits
+					// is what "something to choose between" actually means.
+					//
+					// Counted rather than testing for the add-on by name: any
+					// plugin may contribute a type, and this one does not name
+					// the sibling's vocabulary (see ToolAbilities).
+					$selectable_types = array_filter(
+						array_keys( ServerTypes::all() ),
+						static function ( $type_slug ): bool {
+							return ServerTypes::is_available( (string) $type_slug );
+						}
+					);
+
+					if ( count( $selectable_types ) > 1 ) :
+						?>
 					<tr>
 						<th scope="row"><label for="server_type"><?php esc_html_e( 'Server Type', 'acrossai-mcp-manager' ); ?></label></th>
 						<td>
@@ -801,6 +835,7 @@ class Settings {
 							<p class="description"><?php esc_html_e( 'Decides which tools this server starts with, and what Reset restores.', 'acrossai-mcp-manager' ); ?></p>
 						</td>
 					</tr>
+					<?php endif; ?>
 				</table>
 				<?php submit_button( __( 'Create Server', 'acrossai-mcp-manager' ) ); ?>
 			</form>

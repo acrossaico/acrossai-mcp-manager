@@ -52,8 +52,8 @@ final class ManagedServerTabVisibilityTest extends WP_UnitTestCase {
 		$this->assertTrue( ( new DangerZoneTab() )->visible_for( $server ) );
 	}
 
-	public function test_tabs_are_hidden_for_the_acrossai_managed_server(): void {
-		$server = $this->server( DefaultServerSeeder::ACROSSAI_SLUG );
+	public function test_tabs_are_hidden_for_the_default_managed_server(): void {
+		$server = $this->server( DefaultServerSeeder::SLUG, 'plugin' );
 
 		$this->assertFalse(
 			( new UpdateServerTab() )->visible_for( $server ),
@@ -62,11 +62,16 @@ final class ManagedServerTabVisibilityTest extends WP_UnitTestCase {
 		$this->assertFalse( ( new DangerZoneTab() )->visible_for( $server ) );
 	}
 
-	public function test_tabs_are_hidden_for_the_default_managed_server(): void {
-		$server = $this->server( DefaultServerSeeder::SLUG, 'plugin' );
+	/**
+	 * The AcrossAI row is no longer seeded, reconciled or protected, so it is
+	 * an ordinary server and both tabs must be OFFERED — otherwise a site that
+	 * already has one could neither edit nor delete it.
+	 */
+	public function test_tabs_are_offered_for_the_withdrawn_acrossai_server(): void {
+		$server = $this->server( DefaultServerSeeder::ACROSSAI_SLUG );
 
-		$this->assertFalse( ( new UpdateServerTab() )->visible_for( $server ) );
-		$this->assertFalse( ( new DangerZoneTab() )->visible_for( $server ) );
+		$this->assertTrue( ( new UpdateServerTab() )->visible_for( $server ) );
+		$this->assertTrue( ( new DangerZoneTab() )->visible_for( $server ) );
 	}
 
 	/**
@@ -75,7 +80,7 @@ final class ManagedServerTabVisibilityTest extends WP_UnitTestCase {
 	public function test_registry_omits_both_tabs_for_managed_servers(): void {
 		$slugs = array_map(
 			static fn( $tab ) => $tab->slug(),
-			Registry::instance()->visible_tabs( $this->server( DefaultServerSeeder::ACROSSAI_SLUG ) )
+			Registry::instance()->visible_tabs( $this->server( DefaultServerSeeder::SLUG, 'plugin' ) )
 		);
 
 		$this->assertNotContains( 'update-server', $slugs );
