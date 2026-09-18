@@ -20,3 +20,57 @@
 
 	@include acmcp-policy-panel;
 }
+
+// The server-type selector.
+//
+// Sits directly above the panel, so it takes the SAME border, radius and
+// horizontal inset — unaligned edges were most of why the bare row read as
+// unfinished. It keeps a white background rather than the panel's grey,
+// because this strip is an INPUT and the panel below it is a STATUS: matching
+// them exactly would suggest the two do the same kind of thing.
+.acrossai-mcp-tools-type {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 8px 12px;
+	margin: 0 4px 12px;
+	padding: 12px 16px;
+	background: $acmcp-inner-bg;
+	border: 1px solid $acmcp-border;
+	border-radius: 4px;
+
+	&__label {
+		margin: 0;
+		color: $acmcp-text-primary;
+		font-weight: 600;
+	}
+
+	// `min-width: 0` lets the select shrink inside the flex row instead of
+	// forcing the help text to wrap on a narrow admin column.
+	&__select {
+		min-width: 0;
+		max-width: 100%;
+	}
+
+	// Pushed to the far end while it fits beside the select.
+	&__help {
+		margin: 0;
+		margin-left: auto;
+		color: $acmcp-text-tertiary;
+		font-size: 12px;
+		font-style: italic;
+	}
+
+	// Once it wraps onto its own line, drop the auto margin so it starts at the
+	// left edge. Without this it stays hugging the right while the panel below
+	// wraps ITS actions to the left — two stacked strips wrapping in opposite
+	// directions reads as an accident rather than a layout. 782px is WordPress
+	// admin's own small breakpoint, so this flips at the same width the rest of
+	// the screen reflows at.
+	@media screen and (max-width: 782px) {
+
+		&__help {
+			margin-left: 0;
+		}
+	}
+}
