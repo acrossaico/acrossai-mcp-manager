@@ -14,6 +14,7 @@
 namespace AcrossAI_MCP_Manager\Tests\Database\MCPServer;
 
 use AcrossAI_MCP_Manager\Includes\Database\MCPServer\DefaultServerSeeder;
+use ReflectionMethod;
 use WP_UnitTestCase;
 
 // phpcs:disable Squiz.Commenting.FunctionComment.Missing -- descriptive names.
@@ -204,8 +205,15 @@ class DefaultServerSeederTest extends WP_UnitTestCase {
 		$before = $wpdb->num_queries;
 		DefaultServerSeeder::seed();
 
+		// Counted from the definitions themselves. A literal here said "2" and
+		// went stale the moment a definition was removed, failing a test that
+		// is about query CHURN and has nothing to say about how many servers
+		// the plugin seeds (B48).
+		$definitions = new ReflectionMethod( DefaultServerSeeder::class, 'definitions' );
+		$definitions->setAccessible( true );
+
 		$this->assertSame(
-			2,
+			count( (array) $definitions->invoke( null ) ),
 			$wpdb->num_queries - $before,
 			'A converged seeder run must issue exactly one SELECT per managed definition.'
 		);

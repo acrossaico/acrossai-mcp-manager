@@ -59,23 +59,37 @@ class TableMigration116Test extends WP_UnitTestCase {
 		parent::set_up();
 		DefaultServerSeeder::seed();
 
-		// Force the T012 precondition rather than trusting the previous test's
-		// rollback to have restored it.
+		// Establish the T012 precondition: an AcrossAI row at type 'acrossai'.
 		//
-		// Seeding alone cannot: F090 puts `server_type` in the AcrossAI row's
-		// `initial` bucket, which only writes at INSERT, so a row that already
-		// exists keeps whatever type it has. And the rollback is not guaranteed
-		// — `rerun_migration()` may execute DDL, DDL implicitly COMMITs, and a
+		// This file INSERTS that row itself rather than leaning on the seeder,
+		// which no longer creates it — the migration under test exists for
+		// installs that already have one, so the fixture is the whole point and
+		// must not depend on what a current install seeds.
+		//
+		// Written unconditionally rather than asserted, for two reasons: the
+		// row's `server_type` is in the `initial` bucket, which only writes at
+		// INSERT, so a row that already exists keeps whatever type it has; and
+		// `rerun_migration()` may execute DDL, DDL implicitly COMMITs, and a
 		// commit mid-test strands the deliberate 'mcp-adapter' UPDATE that T012
-		// performs (B53). Asserting a precondition is cheap; establishing it is
-		// what makes these tests order-independent.
+		// performs (B53). Establishing a precondition is what makes these tests
+		// order-independent.
 		global $wpdb;
-		$wpdb->update(
+
+		$wpdb->delete( $this->table(), array( 'server_slug' => DefaultServerSeeder::ACROSSAI_SLUG ), array( '%s' ) );
+		$wpdb->insert(
 			$this->table(),
-			array( 'server_type' => 'acrossai' ),
-			array( 'server_slug' => DefaultServerSeeder::ACROSSAI_SLUG ),
-			array( '%s' ),
-			array( '%s' )
+			array(
+				'server_name'            => 'AcrossAI',
+				'server_slug'            => DefaultServerSeeder::ACROSSAI_SLUG,
+				'description'            => 'Fixture for TableMigration116Test',
+				'is_enabled'             => 0,
+				'registered_from'        => 'database',
+				'server_route_namespace' => 'acrossai',
+				'server_route'           => 'mcp',
+				'server_version'         => 'v1.0.0',
+				'server_type'            => 'acrossai',
+			),
+			array( '%s', '%s', '%s', '%d', '%s', '%s', '%s', '%s', '%s' )
 		);
 	}
 
