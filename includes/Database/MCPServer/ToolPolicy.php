@@ -295,7 +295,7 @@ final class ToolPolicy {
 	 * Extracted rather than inlined because both create paths need it — the
 	 * classic form and the Quick Connect wizard (Constitution VI).
 	 *
-	 * @since 0.1.0
+	 * @since 0.3.5
 	 * @param int    $server_id   The newly created server.
 	 * @param string $server_type Its stored type slug.
 	 * @return void
