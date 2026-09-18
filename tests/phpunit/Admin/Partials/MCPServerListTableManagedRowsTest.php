@@ -49,8 +49,13 @@ final class MCPServerListTableManagedRowsTest extends WP_UnitTestCase {
 	public function test_managed_rows_render_no_bulk_checkbox(): void {
 		$table = new MCPServerListTable();
 
-		$this->assertSame( '', $table->column_cb( $this->item( DefaultServerSeeder::ACROSSAI_SLUG ) ) );
 		$this->assertSame( '', $table->column_cb( $this->item( DefaultServerSeeder::SLUG, 'plugin' ) ) );
+
+		// The AcrossAI row is no longer managed, so it behaves like any other.
+		$this->assertStringContainsString(
+			'type="checkbox"',
+			$table->column_cb( $this->item( DefaultServerSeeder::ACROSSAI_SLUG ) )
+		);
 		$this->assertStringContainsString(
 			'type="checkbox"',
 			$table->column_cb( $this->item( 'operator-server' ) )
@@ -60,7 +65,7 @@ final class MCPServerListTableManagedRowsTest extends WP_UnitTestCase {
 	public function test_managed_rows_render_no_delete_row_action(): void {
 		$table = new MCPServerListTable();
 
-		$managed = $table->column_name( $this->item( DefaultServerSeeder::ACROSSAI_SLUG ) );
+		$managed = $table->column_name( $this->item( DefaultServerSeeder::SLUG, 'plugin' ) );
 		$this->assertStringNotContainsString( 'action=delete', $managed );
 
 		$operator = $table->column_name( $this->item( 'operator-server' ) );

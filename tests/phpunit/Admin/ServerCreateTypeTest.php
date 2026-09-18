@@ -26,6 +26,8 @@ namespace AcrossAI_MCP_Manager\Tests\PHPUnit\Admin;
 
 use AcrossAI_MCP_Manager\Includes\Database\MCPServer\Query as MCPServerQuery;
 use AcrossAI_MCP_Manager\Includes\Database\MCPServer\ServerTypes;
+use AcrossAI_MCP_Manager\Includes\Database\MCPServer\ToolPolicy;
+use AcrossAI_MCP_Manager\Includes\Abilities\ServerGuide;
 use ReflectionMethod;
 use WP_UnitTestCase;
 
@@ -153,6 +155,77 @@ class ServerCreateTypeTest extends WP_UnitTestCase {
 		);
 	}
 
+
+	// ------------------------------------------- the type's tools (F090) ----
+
+	/**
+	 * A new server must carry the tools its TYPE declares.
+	 *
+	 * This is the assertion whose absence let the bug ship. Every creation test
+	 * above checks the `server_type` COLUMN; none checked what the server then
+	 * SERVES. The three `tool_*` columns default to 1, so a new row looked
+	 * plausible — three protocol tools — while being wrong for every type that
+	 * is not exactly those three.
+	 *
+	 * Asserted through `compose_for_row()` rather than by reading columns, so
+	 * it covers BOTH storage layers: the tool_* columns and the curated rows.
+	 */
+	public function test_creating_a_server_writes_its_types_tools(): void {
+		$id = $this->create_with_type( ServerTypes::LEGACY );
+
+		ToolPolicy::apply_type_defaults( $id, ServerTypes::LEGACY );
+
+		$this->assertSame(
+			ServerTypes::tools_for( ServerTypes::LEGACY ),
+			ToolPolicy::compose_for_row( $this->row( $id ) )
+		);
+	}
+
+	/**
+	 * The concrete symptom: `mcp-adapter/server-guide` has no `tool_*` column,
+	 * so it can only arrive as a curated row. Left unwritten, a brand-new
+	 * MCP Adapter server opened on "1 tool is available for the MCP Adapter
+	 * server type but is not added here".
+	 */
+	public function test_a_new_mcp_adapter_server_gets_the_server_guide(): void {
+		$id = $this->create_with_type( ServerTypes::LEGACY );
+
+		ToolPolicy::apply_type_defaults( $id, ServerTypes::LEGACY );
+
+		$this->assertContains(
+			ServerGuide::SLUG,
+			ToolPolicy::compose_for_row( $this->row( $id ) ),
+			'The guide is curated-only — nothing else would put it there.'
+		);
+	}
+
+	/**
+	 * Guards the opposite failure: a type contributing tools this site does not
+	 * have must not write them. `tools_for()` narrows through
+	 * `registered_only()`, and this asserts the creation path inherits that
+	 * rather than storing slugs the server could never serve.
+	 */
+	public function test_creation_never_writes_a_tool_that_does_not_exist(): void {
+		add_filter(
+			ServerTypes::FILTER,
+			static function ( array $types ): array {
+				$types['ghosts'] = array(
+					'label' => 'Ghosts',
+					'tools' => array( 'nobody/registered-this' ),
+				);
+				return $types;
+			}
+		);
+
+		$id = $this->create_with_type( 'ghosts' );
+		ToolPolicy::apply_type_defaults( $id, 'ghosts' );
+
+		$this->assertNotContains(
+			'nobody/registered-this',
+			ToolPolicy::compose_for_row( $this->row( $id ) )
+		);
+	}
+
 	// ---------------------------------------------------------- helpers ----
 
 	private function method_source( string $class, string $method ): string {
@@ -196,5 +269,14 @@ class ServerCreateTypeTest extends WP_UnitTestCase {
 		$this->created[] = $id;
 
 		return $id;
+	}
+
+	private function row( int $id ) {
+		return MCPServerQuery::instance()->query(
+			array(
+				'id'     => $id,
+				'number' => 1,
+			)
+		)[0];
 	}
 }

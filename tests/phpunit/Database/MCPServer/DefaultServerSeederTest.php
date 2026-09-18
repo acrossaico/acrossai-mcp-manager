@@ -14,6 +14,7 @@
 namespace AcrossAI_MCP_Manager\Tests\Database\MCPServer;
 
 use AcrossAI_MCP_Manager\Includes\Database\MCPServer\DefaultServerSeeder;
+use ReflectionMethod;
 use WP_UnitTestCase;
 
 // phpcs:disable Squiz.Commenting.FunctionComment.Missing -- descriptive names.
@@ -72,32 +73,39 @@ class DefaultServerSeederTest extends WP_UnitTestCase {
 		);
 	}
 
-	public function test_seeds_both_managed_rows_on_an_empty_table(): void {
+	public function test_seeds_exactly_one_row_on_an_empty_table(): void {
 		global $wpdb;
 		$wpdb->query( $wpdb->prepare( 'DELETE FROM %i', $this->table() ) );
 
 		DefaultServerSeeder::seed();
 
 		$this->assertSame( 1, $this->count_rows( DefaultServerSeeder::SLUG ) );
-		$this->assertSame( 1, $this->count_rows( DefaultServerSeeder::ACROSSAI_SLUG ) );
+
+		// The whole table, not just the slugs this suite knows about: a second
+		// managed row would take id 1 and lead every list, which is how the
+		// withdrawn AcrossAI row came to sort above the default one.
+		$this->assertSame(
+			1,
+			(int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM %i', $this->table() ) ),
+			'Seeding must create ONE server. Adding a second is a product decision, not a detail.'
+		);
 	}
 
-	public function test_acrossai_row_ships_the_expected_identity(): void {
-		$row = $this->row( DefaultServerSeeder::ACROSSAI_SLUG );
+	/**
+	 * The AcrossAI row was withdrawn before 0.3.4 reached any site.
+	 *
+	 * A second MCP server appearing unasked is a surprise the plugin should not
+	 * spring; the `acrossai` server TYPE already covers the case. This asserts
+	 * the seeder does not bring it back — the constant survives only because
+	 * `Table::upgrade_to_1_1_6()` still names it for installs that have one.
+	 */
+	public function test_does_not_seed_the_withdrawn_acrossai_row(): void {
+		global $wpdb;
+		$wpdb->query( $wpdb->prepare( 'DELETE FROM %i', $this->table() ) );
 
-		$this->assertNotNull( $row, 'Activation must seed the AcrossAI managed row.' );
-		$this->assertSame( 'AcrossAI', $row['server_name'] );
-		$this->assertSame( 'acrossai', $row['server_route_namespace'] );
-		$this->assertSame( 'mcp', $row['server_route'] );
-		$this->assertSame( 'v1.0.0', $row['server_version'] );
+		DefaultServerSeeder::seed();
 
-		// Must be 'database', not 'plugin' — MCP\Controller only registers
-		// database-sourced rows, so a 'plugin' row would be a dead endpoint.
-		$this->assertSame( 'database', $row['registered_from'] );
-
-		// Seeded inactive: an in-place plugin update must not bring an MCP
-		// endpoint live without an operator click.
-		$this->assertSame( '0', (string) $row['is_enabled'] );
+		$this->assertSame( 0, $this->count_rows( DefaultServerSeeder::ACROSSAI_SLUG ) );
 	}
 
 	public function test_default_row_identity_is_unchanged_by_f088(): void {
@@ -115,31 +123,23 @@ class DefaultServerSeederTest extends WP_UnitTestCase {
 		DefaultServerSeeder::seed();
 
 		$this->assertSame( 1, $this->count_rows( DefaultServerSeeder::SLUG ) );
-		$this->assertSame( 1, $this->count_rows( DefaultServerSeeder::ACROSSAI_SLUG ) );
 	}
 
-	public function test_restores_only_the_row_that_was_deleted(): void {
+	public function test_restores_the_row_when_it_is_deleted(): void {
 		global $wpdb;
-
-		$default_id = (int) $this->row( DefaultServerSeeder::SLUG )['id'];
 
 		$wpdb->query(
 			$wpdb->prepare(
 				'DELETE FROM %i WHERE server_slug = %s',
 				$this->table(),
-				DefaultServerSeeder::ACROSSAI_SLUG
+				DefaultServerSeeder::SLUG
 			)
 		);
-		$this->assertSame( 0, $this->count_rows( DefaultServerSeeder::ACROSSAI_SLUG ) );
+		$this->assertSame( 0, $this->count_rows( DefaultServerSeeder::SLUG ) );
 
 		DefaultServerSeeder::seed();
 
-		$this->assertSame( 1, $this->count_rows( DefaultServerSeeder::ACROSSAI_SLUG ) );
-		$this->assertSame(
-			$default_id,
-			(int) $this->row( DefaultServerSeeder::SLUG )['id'],
-			'Re-seeding must leave the untouched managed row alone.'
-		);
+		$this->assertSame( 1, $this->count_rows( DefaultServerSeeder::SLUG ) );
 	}
 
 	/**
@@ -156,16 +156,16 @@ class DefaultServerSeederTest extends WP_UnitTestCase {
 				'server_name'  => 'Tampered',
 				'server_route' => 'tampered',
 			),
-			array( 'server_slug' => DefaultServerSeeder::ACROSSAI_SLUG ),
+			array( 'server_slug' => DefaultServerSeeder::SLUG ),
 			array( '%s', '%s' ),
 			array( '%s' )
 		);
 
 		DefaultServerSeeder::seed();
 
-		$row = $this->row( DefaultServerSeeder::ACROSSAI_SLUG );
-		$this->assertSame( 'AcrossAI', $row['server_name'] );
-		$this->assertSame( 'mcp', $row['server_route'] );
+		$row = $this->row( DefaultServerSeeder::SLUG );
+		$this->assertSame( 'Default MCP Server', $row['server_name'] );
+		$this->assertSame( DefaultServerSeeder::SLUG, $row['server_route'] );
 	}
 
 	/**
@@ -178,7 +178,7 @@ class DefaultServerSeederTest extends WP_UnitTestCase {
 		$wpdb->update(
 			$this->table(),
 			array( 'is_enabled' => 1 ),
-			array( 'server_slug' => DefaultServerSeeder::ACROSSAI_SLUG ),
+			array( 'server_slug' => DefaultServerSeeder::SLUG ),
 			array( '%d' ),
 			array( '%s' )
 		);
@@ -187,7 +187,7 @@ class DefaultServerSeederTest extends WP_UnitTestCase {
 
 		$this->assertSame(
 			'1',
-			(string) $this->row( DefaultServerSeeder::ACROSSAI_SLUG )['is_enabled'],
+			(string) $this->row( DefaultServerSeeder::SLUG )['is_enabled'],
 			'is_enabled is operator-owned and must never be re-forced by the seeder.'
 		);
 	}
@@ -205,8 +205,15 @@ class DefaultServerSeederTest extends WP_UnitTestCase {
 		$before = $wpdb->num_queries;
 		DefaultServerSeeder::seed();
 
+		// Counted from the definitions themselves. A literal here said "2" and
+		// went stale the moment a definition was removed, failing a test that
+		// is about query CHURN and has nothing to say about how many servers
+		// the plugin seeds (B48).
+		$definitions = new ReflectionMethod( DefaultServerSeeder::class, 'definitions' );
+		$definitions->setAccessible( true );
+
 		$this->assertSame(
-			2,
+			count( (array) $definitions->invoke( null ) ),
 			$wpdb->num_queries - $before,
 			'A converged seeder run must issue exactly one SELECT per managed definition.'
 		);

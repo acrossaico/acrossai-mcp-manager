@@ -27,6 +27,7 @@ namespace AcrossAI_MCP_Manager\Includes\Database\MCPServer;
 
 use AcrossAI_MCP_Manager\Includes\Abilities\SetupRequired;
 
+use AcrossAI_MCP_Manager\Includes\Database\MCPServer\Query as MCPServerQuery;
 use AcrossAI_MCP_Manager\Includes\Database\MCPServerTool\Query as MCPServerToolQuery;
 
 defined( 'ABSPATH' ) || exit;
@@ -272,5 +273,41 @@ final class ToolPolicy {
 			'columns' => $columns,
 			'curated' => $curated,
 		);
+	}
+
+	/**
+	 * Write a server type's tool set onto a freshly created server.
+	 *
+	 * Without this a new server carries whatever the `tool_*` column defaults
+	 * give it — the three protocol tools — no matter which type was chosen. An
+	 * AcrossAI server arrived with mcp-adapter's tools, and an mcp-adapter one
+	 * arrived without `mcp-adapter/server-guide`, because the type's list was
+	 * only ever written when the operator pressed Reset to Type Defaults.
+	 *
+	 * This does NOT make the type a runtime fallback — see the precedence
+	 * docblock above, which is deliberate and unchanged. The type is still a
+	 * template that WRITES; creation is simply the other moment it should
+	 * write, alongside Reset and a type switch.
+	 *
+	 * Call AFTER the row exists: curated rows are keyed by server id, so they
+	 * cannot be folded into the INSERT the way the columns could.
+	 *
+	 * Extracted rather than inlined because both create paths need it — the
+	 * classic form and the Quick Connect wizard (Constitution VI).
+	 *
+	 * @since 0.1.0
+	 * @param int    $server_id   The newly created server.
+	 * @param string $server_type Its stored type slug.
+	 * @return void
+	 */
+	public static function apply_type_defaults( int $server_id, string $server_type ): void {
+		if ( $server_id <= 0 ) {
+			return;
+		}
+
+		$split = self::split_payload( ServerTypes::tools_for( $server_type ) );
+
+		MCPServerQuery::instance()->update_item( $server_id, $split['columns'] );
+		MCPServerToolQuery::instance()->replace_set( $server_id, $split['curated'] );
 	}
 }

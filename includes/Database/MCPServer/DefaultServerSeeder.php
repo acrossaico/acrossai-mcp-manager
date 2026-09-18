@@ -63,18 +63,20 @@ final class DefaultServerSeeder {
 	public const SLUG = 'mcp-adapter-default-server';
 
 	/**
-	 * Feature 088 — the AcrossAI-branded managed server slug.
+	 * Feature 088 — the AcrossAI-branded server slug. NO LONGER SEEDED.
 	 *
-	 * No longer surfaced as "Recommended": the badge and the row pinning that
-	 * went with it are gone, and with them the JS mirror of these constants in
-	 * Step1_ServerPick.jsx that this docblock used to point at.
+	 * The row was withdrawn before 0.3.4 reached any site: a second MCP server
+	 * appearing unasked is a surprise the plugin should not spring, and the
+	 * `acrossai` server TYPE already covers the case — an operator who wants
+	 * one creates it and picks the type.
 	 *
-	 * NOTE: this row is deliberately `registered_from = 'database'`, not
-	 * 'plugin'. MCP\Controller::register_database_servers() only registers
-	 * rows whose registered_from is 'database'; the single 'plugin' row is
-	 * registered by the vendor's DefaultServerFactory under its own hard-coded
-	 * slug, so a second 'plugin' row would be a dead endpoint. Edit/delete
-	 * protection therefore rides on ProtectedServers, not on registered_from.
+	 * The constant stays because `Table::upgrade_to_1_1_6()` still names it.
+	 * That migration corrects the row's type on installs that already have one,
+	 * and simply matches nothing on installs that never did.
+	 *
+	 * Deliberately NOT protected any more (see ProtectedServers): a row the
+	 * plugin no longer manages must not keep the plugin's deletion guard, or a
+	 * site that already has one could never remove it.
 	 */
 	public const ACROSSAI_SLUG = 'acrossai-mcp-server';
 
@@ -85,35 +87,7 @@ final class DefaultServerSeeder {
 	 */
 	private static function definitions(): array {
 		return array(
-			self::ACROSSAI_SLUG => array(
-				'managed' => array(
-					'server_name'            => 'AcrossAI',
-					'server_slug'            => self::ACROSSAI_SLUG,
-					'description'            => __( 'Recommended AcrossAI MCP server, managed by the plugin.', 'acrossai-mcp-manager' ),
-					'registered_from'        => 'database',
-					'server_route_namespace' => 'acrossai',
-					// Route only — the slug stays `acrossai-mcp-server`. This lives in
-					// the `managed` bucket, so changing it here IS the migration: seed()
-					// diffs it against the stored row and issues the UPDATE on the next
-					// admin request. No schema change, no Table::$version bump.
-					'server_route'           => 'mcp',
-					'server_version'         => 'v1.0.0',
-				),
-				'initial' => array(
-					'is_enabled'  => 0,
-					// Feature 090 — deliberately `initial`, NOT `managed`. The
-					// operator must be able to switch this server's type as the
-					// escape hatch when the sibling plugin is deactivated;
-					// `managed` would revert them on the next admin request.
-					// Its name, route and description stay plugin-owned above.
-					//
-					// `initial` only writes at INSERT, so an install that
-					// already has the F088 row receives its correct value from
-					// the 1.1.6 migration's targeted UPDATE instead.
-					'server_type' => 'acrossai',
-				),
-			),
-			self::SLUG          => array(
+			self::SLUG => array(
 				'managed' => array(
 					'server_name'            => 'Default MCP Server',
 					'server_slug'            => self::SLUG,
