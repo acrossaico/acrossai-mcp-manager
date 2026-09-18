@@ -1,5 +1,18 @@
 # Planning: Server types (Feature 090)
 
+> **Retracted, 2026-09-18 — the coarse tool rule is gone.** Everything below that
+> describes `tools_default_policy` (the `expose` / `hide` standing rule, its
+> column, and the `POST /servers/{id}/tools/policy` route) was built, shipped to
+> `main` in schema `1.1.6`, and then removed again in schema `1.1.7` before any
+> release. `MCP\ToolExposureGate` gates `tools/call` on curated presence rows
+> alone and never read the column, so an `expose` server advertised tools in
+> `tools/list` that it then refused with `acrossai_mcp_tool_not_added`. What a
+> server serves is now decided by its curated selection and nothing else; the
+> Tools tab's **Enable All** / **Disable All** are one-time writes to that
+> selection. The `server_type` half of this document stands as written.
+> `abilities_default_policy` (F082, Abilities tab) is a different feature and is
+> unaffected.
+
 Give every MCP server row a **type** — a starting point plus a label — and make
 `Reset` on the Tools tab restore that type's tool set instead of the three
 hardcoded `mcp-adapter/*` protocol slugs it restores today for every server

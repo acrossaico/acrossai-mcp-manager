@@ -39,30 +39,6 @@ defined( 'ABSPATH' ) || exit;
 final class ToolPolicy {
 
 	/**
-	 * `tools_default_policy` values — deliberately the SAME vocabulary as the
-	 * sibling `abilities_default_policy` column (`expose` | `hide` |
-	 * `per-ability`). An operator reading either column should not have to learn
-	 * two words for one idea; only the per-item value differs, because the item
-	 * differs.
-	 *
-	 * @var string
-	 */
-	public const POLICY_PER_TOOL = 'per-tool';
-
-	/** @var string */
-	public const POLICY_EXPOSE = 'expose';
-
-	/** @var string */
-	public const POLICY_HIDE = 'hide';
-
-	/**
-	 * Every accepted `tools_default_policy` value.
-	 *
-	 * @var string[]
-	 */
-	public const POLICIES = array( self::POLICY_PER_TOOL, self::POLICY_EXPOSE, self::POLICY_HIDE );
-
-	/**
 	 * The three MCP protocol tools registered by the vendored mcp-adapter package.
 	 * Single canonical PHP source — the JS mirror in `src/js/tools.js` is kept in
 	 * step by hand at build time.
@@ -179,13 +155,13 @@ final class ToolPolicy {
 	 * surface.
 	 *
 	 * **F090 ended the straight-passthrough relationship with
-	 * `compose_for_row()`.** The two now answer genuinely different questions:
+	 * `compose_for_row()`.** The two still answer different questions:
 	 *
 	 *   - `compose_for_row()`             — what the operator CONFIGURED
 	 *   - `compose_effective_tools_for_row()` — what this server ACTUALLY SERVES
 	 *
-	 * Both F090 precedence layers live HERE, and nowhere else. Architecture
-	 * review rated splitting them across `ToolPolicy` and `MCP\Controller`
+	 * The requirement swap lives HERE, and nowhere else. Architecture review
+	 * rated splitting precedence across `ToolPolicy` and `MCP\Controller`
 	 * High: REST reads `compose_for_row()` while MCP registration reads this
 	 * method, so a rule implemented in only one place would let the Tools tab
 	 * show the operator a list the server is not serving.
@@ -195,14 +171,18 @@ final class ToolPolicy {
 	 *   1. Type requirement UNMET -> exactly the diagnostic slug. A server
 	 *      cannot advertise tools whose abilities are not registered, and the
 	 *      client must be told why rather than handed an empty list.
-	 *   2. `tools_default_policy` `expose` / `hide` -> a STANDING rule that wins
-	 *      over individual curation, exactly as `abilities_default_policy` wins
-	 *      over per-ability override rows.
-	 *   3. `per-tool` -> the configured set (columns + curated rows).
+	 *   2. The configured set (columns + curated rows), narrowed to abilities
+	 *      that still exist and minus the diagnostic.
 	 *
-	 * The server TYPE's own tool list is deliberately NOT in this chain. A type
-	 * is a template that WRITES into layer 3 when Reset or a switch runs; it is
-	 * never a runtime filter.
+	 * There is deliberately no coarse `expose` / `hide` rule above curation.
+	 * One briefly existed (`tools_default_policy`, dropped in schema 1.1.7) and
+	 * `ToolExposureGate` never honoured it, so `expose` advertised tools that
+	 * `tools/call` then refused. What the operator curates is what the server
+	 * serves — one layer, checkable against the Tools tab by eye.
+	 *
+	 * The server TYPE's own tool list is deliberately NOT in this chain either.
+	 * A type is a template that WRITES into layer 2 when Reset or a switch
+	 * runs; it is never a runtime filter.
 	 *
 	 * Writes nothing. An unmet requirement must leave curated rows untouched so
 	 * they return intact when the sibling plugin is reactivated.
@@ -220,28 +200,7 @@ final class ToolPolicy {
 			return array( SetupRequired::SLUG );
 		}
 
-		// Layer 2 — the coarse standing rule.
-		$policy = (string) $row->tools_default_policy;
-
-		if ( self::POLICY_HIDE === $policy ) {
-			return array();
-		}
-
-		if ( self::POLICY_EXPOSE === $policy ) {
-			// The site's POOL, not the type's declared list. Resolved live on
-			// every request, which is what makes this a STANDING rule rather
-			// than a snapshot: a tool-level ability registered tomorrow by a
-			// plugin installed tomorrow lands in the pool and is exposed with no
-			// admin action. That is the whole reason this is a column and not a
-			// one-time write.
-			//
-			// Scoping it to the type's own list would silently exclude anything
-			// the type does not already name — including third-party tools no
-			// type claims.
-			return ServerTypes::pool();
-		}
-
-		// Layer 3 — the configured set, narrowed to abilities that still exist,
+		// Layer 2 — the configured set, narrowed to abilities that still exist,
 		// minus the diagnostic.
 		//
 		// `SetupRequired` IS a registered ability, so without the subtraction a

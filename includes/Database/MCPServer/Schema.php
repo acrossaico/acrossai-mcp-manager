@@ -178,26 +178,16 @@ class Schema extends \BerlinDB\Database\Kern\Schema {
 			'default' => 'mcp-adapter',
 		),
 
-		// Feature 090 — coarse tool policy, the Tools-tab sibling of
-		// `abilities_default_policy` above and deliberately the same shape:
-		// 'per-tool' → compose from the tool_* columns + curated rows (today's
-		// behaviour, and what a server type's preset fills in)
-		// 'expose'   → every tool-level ability in this server's POOL, INCLUDING
-		// ones registered later (a STANDING rule, not a snapshot — reactivating
-		// a companion plugin must not require re-adding its toolsets by hand).
-		// The pool is ServerTypes::pool() — every tool-level ability on the
-		// site, NOT the type's own list. A type is a template for Reset, never
-		// a filter over what may be added.
-		// 'hide'     → expose no tools
-		//
-		// 'expose'/'hide' sit ABOVE the type preset and win over it, exactly as
-		// abilities_default_policy wins over per-ability override rows.
-		array(
-			'name'    => 'tools_default_policy',
-			'type'    => 'varchar',
-			'length'  => '16',
-			'default' => 'per-tool',
-		),
+		// Feature 090 — the `tools_default_policy` column was briefly added by
+		// upgrade_to_1_1_6 during initial development but retracted per user
+		// redesign 2026-09-18: a coarse 'expose'/'hide' rule sitting above the
+		// operator's curation was never honoured by MCP\ToolExposureGate, so an
+		// 'expose' server advertised tools that `tools/call` then refused with
+		// acrossai_mcp_tool_not_added. What a server serves is now decided in
+		// exactly one place — the curated rows — and the Tools tab's bulk
+		// buttons write them directly. Column is DROPped by upgrade_to_1_1_7 on
+		// the next admin_init. NOTE this is the tools column only;
+		// `abilities_default_policy` above is F082 and is unaffected.
 
 		// F037 — the `embeds_enabled` column was briefly added by
 		// upgrade_to_1_1_3 during initial development but retracted

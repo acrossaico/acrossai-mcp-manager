@@ -9,6 +9,10 @@
  * one of them lets the Tools tab show the operator a list the server is not
  * serving.
  *
+ * Since schema 1.1.7 the only thing that separates them is the unmet-requirement
+ * swap (plus registration narrowing). The coarse `tools_default_policy` rule that
+ * used to be the other source of divergence is gone.
+ *
  *   compose_for_row()                 -> what the operator CONFIGURED
  *   compose_effective_tools_for_row() -> what the server ACTUALLY SERVES
  *
@@ -45,44 +49,17 @@ class ToolPolicyComposerTest extends WP_UnitTestCase {
 		parent::tear_down();
 	}
 
-	public function test_under_per_tool_the_two_composers_agree(): void {
-		$row = $this->row( ServerTypes::LEGACY, ToolPolicy::POLICY_PER_TOOL );
+	public function test_on_a_healthy_server_the_two_composers_agree(): void {
+		$row = $this->row( ServerTypes::LEGACY );
 
 		$this->assertSame(
 			ToolPolicy::compose_for_row( $row ),
 			ToolPolicy::compose_effective_tools_for_row( $row ),
-			'per-tool is the pass-through case — configured IS served.'
+			'With no rule above curation, configured IS served.'
 		);
 	}
 
-	public function test_hide_makes_served_diverge_from_configured(): void {
-		$row = $this->row( ServerTypes::LEGACY, ToolPolicy::POLICY_HIDE );
-
-		$this->assertNotEmpty( ToolPolicy::compose_for_row( $row ), 'The configuration is untouched…' );
-		$this->assertSame( array(), ToolPolicy::compose_effective_tools_for_row( $row ), '…but nothing is served.' );
-	}
-
-	public function test_expose_makes_served_diverge_from_configured(): void {
-		// Configure NOTHING — all three protocol columns off, no curated rows —
-		// so the divergence is deterministic. An earlier version of this test
-		// assumed the pool was a superset of a default row's configuration, which
-		// is true on a populated site and FALSE in CI, where no companion plugin
-		// contributes toolsets and the pool is exactly the three protocol tools.
-		$row = $this->row(
-			ServerTypes::LEGACY,
-			ToolPolicy::POLICY_EXPOSE,
-			array(
-				'tool_discover_abilities' => 0,
-				'tool_get_ability_info'   => 0,
-				'tool_execute_ability'    => 0,
-			)
-		);
-
-		$this->assertSame( array(), ToolPolicy::compose_for_row( $row ), 'nothing configured…' );
-		$this->assertNotEmpty( ToolPolicy::compose_effective_tools_for_row( $row ), '…yet the rule serves the pool.' );
-	}
-
-	public function test_an_unmet_requirement_outranks_every_policy(): void {
+	public function test_an_unmet_requirement_makes_served_diverge_from_configured(): void {
 		add_filter(
 			ServerTypes::FILTER,
 			static function ( array $types ): array {
@@ -94,14 +71,16 @@ class ToolPolicyComposerTest extends WP_UnitTestCase {
 			}
 		);
 
-		// Layer 1 beats layer 2: `expose` cannot advertise tools whose abilities
-		// are not registered, so the client is told what is wrong instead of
-		// being handed a list that cannot work.
-		$row = $this->row( 'blocked', ToolPolicy::POLICY_EXPOSE );
+		// The ONE remaining source of divergence. A server cannot advertise
+		// tools whose abilities are not registered, so the client is told what
+		// is wrong instead of being handed a list that cannot work.
+		$row = $this->row( 'blocked' );
 
+		$this->assertNotEmpty( ToolPolicy::compose_for_row( $row ), 'The configuration is untouched…' );
 		$this->assertSame(
 			array( SetupRequired::SLUG ),
-			ToolPolicy::compose_effective_tools_for_row( $row )
+			ToolPolicy::compose_effective_tools_for_row( $row ),
+			'…but only the diagnostic is served.'
 		);
 	}
 
@@ -117,7 +96,7 @@ class ToolPolicyComposerTest extends WP_UnitTestCase {
 			}
 		);
 
-		$row = $this->row( 'blocked', ToolPolicy::POLICY_PER_TOOL );
+		$row = $this->row( 'blocked' );
 
 		// FR-023: the diagnostic swap is a READ-TIME substitution. The operator's
 		// curation must still be there to come back to.
@@ -126,10 +105,9 @@ class ToolPolicyComposerTest extends WP_UnitTestCase {
 
 	/**
 	 * @param string               $server_type Type slug to store.
-	 * @param string               $policy      Standing rule to store.
 	 * @param array<string, mixed> $columns     Extra columns, e.g. the tool_* flags.
 	 */
-	private function row( string $server_type, string $policy, array $columns = array() ) {
+	private function row( string $server_type, array $columns = array() ) {
 		$slug = 'composer-' . uniqid();
 		$id   = (int) MCPServerQuery::instance()->add_item(
 			array_merge(
@@ -139,7 +117,6 @@ class ToolPolicyComposerTest extends WP_UnitTestCase {
 					'description'            => 'Seeded by ToolPolicyComposerTest',
 					'is_enabled'             => 0,
 					'server_type'            => $server_type,
-					'tools_default_policy'   => $policy,
 					'registered_from'        => 'database',
 					'server_route_namespace' => 'mcp',
 					'server_route'           => $slug,

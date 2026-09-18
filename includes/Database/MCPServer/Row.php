@@ -34,7 +34,6 @@ class Row extends \BerlinDB\Database\Kern\Row {
 	/** @var int */    public $override_abilities_permission = 0;
 	/** @var string */ public $abilities_default_policy      = 'per-ability';
 	/** @var string */ public $server_type                   = 'mcp-adapter';
-	/** @var string */ public $tools_default_policy          = 'per-tool';
 	/** @var string */ public $created_at                    = '';
 
 	/**
@@ -79,7 +78,6 @@ class Row extends \BerlinDB\Database\Kern\Row {
 			'override_abilities_permission' => $this->override_abilities_permission,
 			'abilities_default_policy'      => $this->abilities_default_policy,
 			'server_type'                   => $this->server_type,
-			'tools_default_policy'          => $this->tools_default_policy,
 			'created_at'                    => $this->created_at,
 		);
 	}

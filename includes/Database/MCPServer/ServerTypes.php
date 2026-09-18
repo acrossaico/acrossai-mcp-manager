@@ -182,9 +182,10 @@ final class ServerTypes {
 	 * hand. Those are different questions, and conflating them meant an operator
 	 * who wanted one protocol tool on an AcrossAI server simply could not have it.
 	 *
-	 * This is the definition the `expose` policy uses, so that rule keeps its
-	 * promise: a tool registered tomorrow by a plugin installed tomorrow lands in
-	 * this pool and is exposed with no admin action.
+	 * This is what the Tools tab's picker offers on the left, and what its
+	 * "Enable All" writes: a tool registered by a plugin installed tomorrow
+	 * appears in the pool, ready to be added. It is offered, not auto-added —
+	 * the operator's curated rows are the only thing a server serves.
 	 *
 	 * Single source of truth for the pool: the Tools tab renders from this rather
 	 * than recomputing anything in JavaScript, so the picker can never offer
@@ -211,7 +212,7 @@ final class ServerTypes {
 	 *
 	 * Left unfiltered this breaks two things: the Tools tab's write is refused
 	 * with "One or more submitted ability slugs are not registered on this site",
-	 * and the `expose` policy advertises tools that do not exist.
+	 * and Reset writes slugs whose abilities no longer exist.
 	 *
 	 * Filtering belongs HERE rather than in the contributing plugin. A
 	 * contributor declares its slugs while abilities are still being assembled
