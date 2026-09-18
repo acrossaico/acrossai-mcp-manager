@@ -278,7 +278,7 @@ class SettingsMenu {
 	 * Explains what the page size buys, in the terms that actually matter to
 	 * the operator — context tokens spent on the agent's first orientation call.
 	 *
-	 * @since 0.3.5
+	 * @since 0.3.4
 	 * @return void
 	 */
 	public function render_discovery_section_description(): void {
@@ -294,7 +294,7 @@ class SettingsMenu {
 	/**
 	 * Number input for the discover-abilities page size.
 	 *
-	 * @since 0.3.5
+	 * @since 0.3.4
 	 * @return void
 	 */
 	public function render_discover_per_page_field(): void {
@@ -343,7 +343,7 @@ class SettingsMenu {
 	 * advertises. An out-of-range default would be rejected by core at call
 	 * time, which the operator would only discover through a failing agent.
 	 *
-	 * @since 0.3.5
+	 * @since 0.3.4
 	 * @param mixed $value Raw submitted value.
 	 * @return int
 	 */
