@@ -243,7 +243,7 @@ final class CallbackReplacer {
 	 */
 	private function discover_description(): string {
 		return __(
-			'Discover the WordPress abilities available on this site. Returns up to 60 abilities per call, each with its name, label, description, category and tab_group. Narrow the list with search, category, namespace or tab_group rather than paging through everything — tab_group is the axis the library is organised on and usually the sharpest cut. When has_more is true, request the next page with page. Once you have a name, call mcp-adapter/get-ability-info for that ability\'s full input schema.',
+			'Discover the WordPress abilities available on this site. Returns up to 60 abilities per call, each with its name, label, description, category and tab_group. Narrow the list with search, category, namespace or tab_group rather than paging through everything — tab_group is the axis the library is organised on and usually the sharpest cut. When has_more is true, request the next page with page. Once you have a name, call mcp-adapter/get-ability-info for that ability\'s full input schema. If you are unsure how to search this site, or what it contains, call mcp-adapter/server-guide first — it reports every category, namespace and tab_group present with a count for each, which is what lets you narrow on the first attempt instead of guessing a filter value.',
 			'acrossai-mcp-manager'
 		);
 	}

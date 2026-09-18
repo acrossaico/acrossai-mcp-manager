@@ -114,10 +114,10 @@ final class ToolAbilities {
 	 * so `toolset/other` ends up listing the very things that describe how to
 	 * call a Toolset.
 	 *
-	 * Observed on a live server: `toolset/other` returned `acrossai/server-guide`
-	 * and `acrossai/setup-required` as members. The guide is worse than odd
-	 * there — it describes the MCP Adapter server type's surface, and was being
-	 * advertised inside an AcrossAI-type server.
+	 * Observed on a live server: `toolset/other` returned the server guide and
+	 * the setup diagnostic as members. The guide is worse than odd there — it
+	 * describes the MCP Adapter server type's surface, and was being advertised
+	 * inside an AcrossAI-type server.
 	 *
 	 * The sibling publishes `acrossai_abilities_manager_protected_slugs` for
 	 * exactly this, and its `AcrossAI_Ability_Group::resolve()` drops protected

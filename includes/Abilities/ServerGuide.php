@@ -40,10 +40,20 @@ final class ServerGuide {
 	/**
 	 * This ability's slug.
 	 *
+	 * In the `mcp-adapter/` namespace deliberately, beside the three tools it
+	 * describes. A model scanning its tool list sees one coherent set rather
+	 * than three protocol tools and an unrelated `acrossai/` entry it has no
+	 * reason to connect to them.
+	 *
+	 * The namespace is a naming convention, not a registry the vendor owns —
+	 * nothing in the adapter or this plugin prefix-matches `mcp-adapter/`, every
+	 * comparison is against an exact slug. The CATEGORY still stays ours
+	 * (see below), which is the part that would actually break.
+	 *
 	 * @since 0.1.0
 	 * @var   string
 	 */
-	public const SLUG = 'acrossai/server-guide';
+	public const SLUG = 'mcp-adapter/server-guide';
 
 	/**
 	 * Registered under this plugin's own category, never the vendor's.
