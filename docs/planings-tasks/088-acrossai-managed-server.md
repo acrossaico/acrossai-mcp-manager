@@ -1,5 +1,22 @@
 # Planning: Ship a second plugin-managed "AcrossAI" MCP server (Feature 088)
 
+> **Partly retracted, 2026-09-18 — the server stays, the promotion does not.**
+> Everything below describing the **"Recommended"** treatment is no longer true:
+> the green pill (servers list, Overview tab, Quick Connect Step 1), the rule
+> pinning that row to the top of both pickers, and `ProtectedServers::is_recommended()`
+> / `recommended_badge()` have all been removed. Servers now list in plain `id`
+> order and the wizard auto-selects whichever is first.
+>
+> Separately, `acrossai` is no longer the **default server type** for newly
+> created servers — that is `mcp-adapter` again, declared by `is_default` in
+> `ServerTypes::seed()` and resolved through `ServerTypes::default_slug()`. The
+> add-on used to force this from its own `acrossai_mcp_server_types` callback,
+> overriding the transport; it no longer does.
+>
+> **The server itself is unchanged** — same slug, same `acrossai/mcp` route,
+> same `server_type = 'acrossai'`, same seeding and the same edit/delete
+> protection via `ProtectedServers::is_protected()`. Only its prominence went.
+
 Add an AcrossAI-branded MCP server at route `acrossai/mcp` that every
 install gets automatically — fresh activations **and** in-place plugin updates —
 seeded Inactive, badged **Recommended**, pinned first in the servers list and in
