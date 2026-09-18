@@ -59,13 +59,15 @@ final class DefaultServerSeeder {
 
 	/**
 	 * Default MCP server slug — relocated here from MCPServer\Table in Feature 011 (FR-022).
-	 *
-	 * Mirrored in src/js/quick-connect/steps/Step1_ServerPick.jsx; keep in sync.
 	 */
 	public const SLUG = 'mcp-adapter-default-server';
 
 	/**
-	 * Feature 088 — the recommended, AcrossAI-branded managed server slug.
+	 * Feature 088 — the AcrossAI-branded managed server slug.
+	 *
+	 * No longer surfaced as "Recommended": the badge and the row pinning that
+	 * went with it are gone, and with them the JS mirror of these constants in
+	 * Step1_ServerPick.jsx that this docblock used to point at.
 	 *
 	 * NOTE: this row is deliberately `registered_from = 'database'`, not
 	 * 'plugin'. MCP\Controller::register_database_servers() only registers
@@ -73,8 +75,6 @@ final class DefaultServerSeeder {
 	 * registered by the vendor's DefaultServerFactory under its own hard-coded
 	 * slug, so a second 'plugin' row would be a dead endpoint. Edit/delete
 	 * protection therefore rides on ProtectedServers, not on registered_from.
-	 *
-	 * Mirrored in src/js/quick-connect/steps/Step1_ServerPick.jsx; keep in sync.
 	 */
 	public const ACROSSAI_SLUG = 'acrossai-mcp-server';
 

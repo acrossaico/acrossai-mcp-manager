@@ -1,8 +1,13 @@
 <?php
 /**
- * Feature 088 — servers list table behaviour for plugin-managed rows:
- * the Recommended row is pinned first and badged, and managed rows expose
- * no delete affordance (row action or bulk checkbox).
+ * Feature 088 — servers list table behaviour for plugin-managed rows: they
+ * expose no delete affordance (row action or bulk checkbox), and every row
+ * comes back in plain id order.
+ *
+ * The Recommended badge and the pin that put the AcrossAI row first were
+ * removed; `test_rows_come_back_in_plain_id_order()` below is what replaced
+ * the pinning test, because "no special ordering" is itself a contract worth
+ * holding — a reintroduced sort would otherwise pass unnoticed.
  *
  * @package AcrossAI_MCP_Manager\Tests\Admin\Partials
  */
@@ -62,25 +67,28 @@ final class MCPServerListTableManagedRowsTest extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'action=delete', $operator );
 	}
 
-	public function test_only_the_recommended_row_is_badged(): void {
+	public function test_no_row_carries_a_promotional_badge(): void {
 		$table = new MCPServerListTable();
 
-		$this->assertStringContainsString(
-			'acrossai-recommended-badge',
-			$table->column_name( $this->item( DefaultServerSeeder::ACROSSAI_SLUG ) )
-		);
-		$this->assertStringNotContainsString(
-			'acrossai-recommended-badge',
-			$table->column_name( $this->item( DefaultServerSeeder::SLUG, 'plugin' ) )
-		);
+		foreach ( array( DefaultServerSeeder::ACROSSAI_SLUG, DefaultServerSeeder::SLUG ) as $slug ) {
+			$this->assertStringNotContainsString(
+				'acrossai-recommended-badge',
+				$table->column_name( $this->item( $slug ) ),
+				'No server is promoted in the Name column any more.'
+			);
+		}
 	}
 
 	/**
-	 * The recommended row is seeded first but an operator row could hold a
-	 * lower id on a pre-F088 install, so ordering must be explicit rather
-	 * than relying on insertion order.
+	 * Ordering is whatever the query asked for, and nothing else.
+	 *
+	 * `prepare_items()` used to re-sort so the AcrossAI row led the list. That
+	 * pass is gone, so the rows must arrive in the `id ASC` the query already
+	 * requests. Asserted against a freshly inserted operator row, which holds
+	 * the HIGHEST id and therefore must come LAST — under the old pin it would
+	 * have been second regardless.
 	 */
-	public function test_recommended_row_is_pinned_first_regardless_of_id(): void {
+	public function test_rows_come_back_in_plain_id_order(): void {
 		MCPServerQuery::instance()->add_item(
 			array(
 				'server_name'            => 'Operator Server',
@@ -97,15 +105,19 @@ final class MCPServerListTableManagedRowsTest extends WP_UnitTestCase {
 		$table = new MCPServerListTable();
 		$table->prepare_items();
 
-		$slugs = array_column( $table->items, 'slug' );
+		$ids = array_map( 'intval', array_column( $table->items, 'id' ) );
 
-		$this->assertNotEmpty( $slugs );
+		$this->assertNotEmpty( $ids );
+
+		$sorted = $ids;
+		sort( $sorted );
+		$this->assertSame( $sorted, $ids, 'Rows must be in ascending id order.' );
+
+		$slugs = array_column( $table->items, 'slug' );
 		$this->assertSame(
-			DefaultServerSeeder::ACROSSAI_SLUG,
-			$slugs[0],
-			'The Recommended managed server must lead the list.'
+			'operator-server',
+			end( $slugs ),
+			'The newest row holds the highest id, so it must come last.'
 		);
-		$this->assertContains( 'operator-server', $slugs );
-		$this->assertContains( DefaultServerSeeder::SLUG, $slugs );
 	}
 }

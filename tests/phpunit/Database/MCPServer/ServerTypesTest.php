@@ -132,6 +132,34 @@ class ServerTypesTest extends WP_UnitTestCase {
 
 	// --------------------------------------------------------- default_slug --
 
+	/**
+	 * The type this plugin SHIPS as preferred, asserted with no filters in play.
+	 *
+	 * The two tests below cover the MECHANISM — that an unmet requirement is
+	 * skipped and a met one is honoured — using throwaway filter-registered
+	 * types. Neither says anything about which type a stock install actually
+	 * lands on, which is exactly how the shipped default could drift back to
+	 * `acrossai` unnoticed.
+	 *
+	 * Asserted against `ServerTypes::LEGACY` rather than the literal
+	 * 'mcp-adapter': a literal restates the constant instead of checking it,
+	 * and goes stale the day the constant moves (B48).
+	 *
+	 * Deliberately runs WITH the sibling plugin treated as active. Before this
+	 * change `acrossai` carried `is_default` and was available on such a site,
+	 * so this is the case that would have failed — a site without the sibling
+	 * already resolved to LEGACY via the requirement check and proves nothing.
+	 */
+	public function test_a_stock_install_defaults_to_the_mcp_adapter_type(): void {
+		update_option( 'active_plugins', array( 'acrossai-abilities-manager/acrossai-abilities-manager.php' ) );
+
+		$this->assertTrue(
+			ServerTypes::is_available( ServerTypes::ACROSSAI ),
+			'setup: the AcrossAI type must be AVAILABLE, or this asserts nothing.'
+		);
+		$this->assertSame( ServerTypes::LEGACY, ServerTypes::default_slug() );
+	}
+
 	public function test_default_slug_skips_a_type_whose_requirement_is_unmet(): void {
 		update_option( 'active_plugins', array() );
 

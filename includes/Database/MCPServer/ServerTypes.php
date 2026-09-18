@@ -391,6 +391,17 @@ final class ServerTypes {
 				// curated set AND have nowhere to be stored, silently dropping the
 				// operator's pick on every save.
 				'tools'       => array_merge( ToolPolicy::PROTOCOL_TOOLS, array( ServerGuide::SLUG ) ),
+				// The type a new server gets unless the operator picks another.
+				//
+				// DECLARED here rather than left to `default_slug()`'s LEGACY
+				// floor, which would produce the same answer by absence. An
+				// absence is invisible at the point the decision is made and is
+				// reintroduced by accident the next time someone adds a type;
+				// a key you can see is a key you can move. Moving it IS how the
+				// preferred type changes — nothing else needs editing, because
+				// both create paths and the create form all resolve through
+				// `default_slug()`.
+				'is_default'  => true,
 			),
 			self::ACROSSAI => array(
 				'label'       => __( 'AcrossAI', 'acrossai-mcp-manager' ),
@@ -400,7 +411,6 @@ final class ServerTypes {
 				// replaces (D41 last-wins).
 				'tools'       => array(),
 				'requires'    => self::ACROSSAI_REQUIRES,
-				'is_default'  => true,
 			),
 		);
 	}
