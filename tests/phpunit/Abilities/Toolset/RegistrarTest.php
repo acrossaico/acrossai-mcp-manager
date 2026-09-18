@@ -51,9 +51,39 @@ class RegistrarTest extends WP_UnitTestCase {
 		return is_array( $constant ) ? $constant : array();
 	}
 
+	/**
+	 * Abilities this test registers, which must not outlive it.
+	 *
+	 * The abilities registry is a static singleton and the bootstrap does not
+	 * reset it, so a registration leaks into every later test in the process —
+	 * and two of the tests below assert that NOTHING is registered. Cleaning up
+	 * at both ends keeps them independent of run order rather than merely
+	 * passing today.
+	 *
+	 * @var string[]
+	 */
+	private const SCRATCH = array( 'toolset/stub', Guide::SLUG );
+
+	public function set_up(): void {
+		parent::set_up();
+		$this->forget_scratch_abilities();
+	}
+
 	public function tear_down(): void {
+		$this->forget_scratch_abilities();
 		remove_all_actions( self::COLLISION );
 		parent::tear_down();
+	}
+
+	/**
+	 * @return void
+	 */
+	private function forget_scratch_abilities(): void {
+		foreach ( self::SCRATCH as $slug ) {
+			if ( wp_has_ability( $slug ) ) {
+				wp_unregister_ability( $slug );
+			}
+		}
 	}
 
 	/**
@@ -178,21 +208,75 @@ class RegistrarTest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * The guide stands down rather than clobbering a slug the add-on holds, and
-	 * says so through the same action the dispatchers use.
+	 * A guide to nothing is not published.
+	 *
+	 * Same rule the dispatchers apply to themselves — a Toolset for a group
+	 * with no abilities advertises a subject area that does not exist. Taken to
+	 * its limit, a guide with no Toolsets to describe is a table of contents
+	 * for an empty book, and it would sit in the admin's tool list one line
+	 * under `mcp-adapter/server-guide`, which is the guide that does apply.
+	 *
+	 * This is what keeps a site running this plugin ALONE unchanged, so it is
+	 * the assertion standing between us and the regression that prompted it.
 	 */
-	public function test_the_guide_stands_down_when_its_slug_is_already_claimed() {
+	public function test_the_guide_declines_when_there_is_nothing_to_describe() {
 		Category_Registrar::instance()->register();
 
-		// Establish the precondition rather than assume it. Whether the slug is
-		// already taken here depends on whether anything resolved the abilities
-		// registry during boot — which is exactly the lazy timing this layer
-		// has to tolerate, so the test must not depend on it either.
-		if ( ! wp_has_ability( Guide::SLUG ) ) {
-			( new Guide() )->register();
-		}
+		$this->assertSame(
+			array(),
+			$this->registered_toolsets(),
+			'Precondition: no Toolset registers in the test environment.'
+		);
 
-		$this->assertTrue( wp_has_ability( Guide::SLUG ) );
+		( new Guide() )->register();
+
+		$this->assertFalse( wp_has_ability( Guide::SLUG ) );
+	}
+
+	/**
+	 * Having declined, it must not offer itself as a tool either.
+	 *
+	 * The admin's tool pool and the protected-slug list both answer "which
+	 * slugs are Toolsets on this site?", so a slug naming nothing belongs on
+	 * neither — offering it would put a tool in the picker that cannot be
+	 * added.
+	 */
+	public function test_a_guide_that_declined_contributes_no_slug() {
+		Category_Registrar::instance()->register();
+
+		$guide = new Guide();
+		$guide->register();
+
+		$this->assertSame( array(), $guide->declare_tool_level_ability( array() ) );
+		$this->assertSame( array(), $guide->protect_own_slug( array() ) );
+	}
+
+	/**
+	 * Given something to describe, it publishes — and a second copy stands down
+	 * rather than clobbering the first, saying so through the same action the
+	 * dispatchers use.
+	 */
+	public function test_a_second_guide_stands_down_rather_than_replacing_the_first() {
+		Category_Registrar::instance()->register();
+
+		// The guide needs a Toolset to describe before it will publish at all,
+		// so give it one. Registering a real dispatcher is not an option here:
+		// each declines unless its ability group has members, which is the very
+		// thing a bare test site does not have.
+		acrossai_test_register_ability(
+			'toolset/stub',
+			array(
+				'label'            => 'Stub',
+				'description'      => 'Stands in for a dispatcher.',
+				'category'         => Base_Toolset_Ability::CATEGORY,
+				'input_schema'     => array( 'type' => 'object', 'properties' => array() ),
+				'output_schema'    => array( 'type' => 'object', 'properties' => array() ),
+				'execute_callback' => static fn () => array(),
+			)
+		);
+
+		( new Guide() )->register();
+		$this->assertTrue( wp_has_ability( Guide::SLUG ), 'With a Toolset present the guide publishes.' );
 
 		$incumbent  = wp_get_ability( Guide::SLUG );
 		$collisions = array();
@@ -211,6 +295,22 @@ class RegistrarTest extends WP_UnitTestCase {
 			$incumbent,
 			wp_get_ability( Guide::SLUG ),
 			'Whoever holds the slug keeps it — a second copy must never replace the incumbent.'
+		);
+	}
+
+	/**
+	 * Every registered `toolset/*` ability except the guide itself.
+	 *
+	 * @return string[]
+	 */
+	private function registered_toolsets(): array {
+		return array_values(
+			array_filter(
+				array_keys( wp_get_abilities() ),
+				static function ( $slug ): bool {
+					return Guide::SLUG !== $slug && 0 === strpos( (string) $slug, 'toolset/' );
+				}
+			)
 		);
 	}
 }
