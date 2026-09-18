@@ -686,6 +686,41 @@ final class Main {
 			20
 		);
 
+		// The Toolset dispatchers this plugin owns. `register()` only CONSTRUCTS
+		// them — each constructor attaches its own `wp_abilities_api_init` hook
+		// at 20 — so what matters here is running before the abilities registry
+		// first resolves. That is NOT a fixed moment: core fires
+		// `wp_abilities_api_init` from WP_Abilities_Registry::get_instance(),
+		// so any plugin touching the registry during `plugins_loaded` brings it
+		// forward. `init` would be too late in that case and the dispatchers
+		// would silently never attach.
+		//
+		// Priority 21 is also what orders the changeover. The add-on may still
+		// carry these same Toolsets; it constructs its copies at
+		// `plugins_loaded` 20, so running at 21 means its hooks are always
+		// attached first, its copies always register first, and ours always
+		// stand down — without depending on which plugin WordPress happens to
+		// load first. See Toolset\Registrar for why both shipping at once is
+		// deliberate.
+		$this->loader->add_action(
+			'plugins_loaded',
+			\AcrossAI_MCP_Manager\Includes\Abilities\Toolset\Registrar::class,
+			'register',
+			21
+		);
+
+		// The `toolset` ability CATEGORY every dispatcher above assigns itself
+		// to. It must exist before any of them registers, or each registration
+		// is rejected as referring to an unknown category — which is why this
+		// is a separate hook rather than something Registrar does: core fires
+		// `wp_abilities_api_categories_init` first, by design, for exactly this.
+		// The registrar no-ops when the add-on already declared the category.
+		$this->loader->add_action(
+			'wp_abilities_api_categories_init',
+			\AcrossAI_MCP_Manager\Includes\Abilities\Toolset\Category_Registrar::instance(),
+			'register'
+		);
+
 		/**
 		 * Feature 030 — per-server ability permission_callback override.
 		 *
