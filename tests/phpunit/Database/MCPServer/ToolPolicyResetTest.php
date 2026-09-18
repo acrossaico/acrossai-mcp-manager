@@ -96,4 +96,23 @@ class ToolPolicyResetTest extends WP_UnitTestCase {
 		$this->assertNotEmpty( ServerTypes::tools_for( 'hollow' ) );
 		$this->assertNotEmpty( ServerTypes::tools_for( 'never-registered' ) );
 	}
+
+	/**
+	 * The MCP Adapter type's CURATED remainder is exactly the server guide.
+	 *
+	 * `ServerGuideBackfill` writes `ServerGuide::SLUG` directly rather than
+	 * resolving it through `tools_for()`, because that path depends on the
+	 * abilities registry and on a third-party filter — see that class's
+	 * docblock. The cost of holding the slug in two places is that they can
+	 * drift, so this converts a silent drift into a failing test: if the legacy
+	 * type ever declares a SECOND curated tool, the backfill needs updating too,
+	 * and this is what says so.
+	 */
+	public function test_the_legacy_types_curated_remainder_is_only_the_server_guide(): void {
+		$this->assertSame(
+			array( ServerGuide::SLUG ),
+			ToolPolicy::split_payload( ServerTypes::tools_for( ServerTypes::LEGACY ) )['curated'],
+			'A second curated tool here means ServerGuideBackfill must write it too.'
+		);
+	}
 }
