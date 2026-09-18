@@ -20,6 +20,7 @@ declare( strict_types = 1 );
 
 namespace AcrossAI_MCP_Manager\Tests\PHPUnit\Abilities;
 
+use AcrossAI_MCP_Manager\Includes\Abilities\ServerGuide;
 use AcrossAI_MCP_Manager\Includes\Abilities\ToolAbilities;
 use AcrossAI_MCP_Manager\Includes\Database\MCPServer\ToolPolicy;
 use WP_UnitTestCase;
@@ -40,22 +41,26 @@ class ToolAbilitiesTest extends WP_UnitTestCase {
 		parent::tear_down();
 	}
 
-	public function test_defaults_are_exactly_the_three_protocol_slugs() {
+	public function test_defaults_are_the_protocol_slugs_plus_the_server_guide() {
 		$this->assertSame(
-			array(
-				'mcp-adapter/discover-abilities',
-				'mcp-adapter/get-ability-info',
-				'mcp-adapter/execute-ability',
-			),
+			array_merge( ToolPolicy::PROTOCOL_TOOLS, array( ServerGuide::SLUG ) ),
 			ToolAbilities::get_slugs()
 		);
 	}
 
 	/**
-	 * The seed is ToolPolicy's canonical list, not a fourth copy of the slugs.
+	 * The seed COMPOSES ToolPolicy's canonical list; it never copies the slugs.
+	 *
+	 * Asserted as a subset rather than an identity because the guide is a
+	 * deliberate fourth member. It is NOT in `PROTOCOL_TOOLS` — that constant is
+	 * column-backed storage, and a fourth entry with no `tool_*` column is
+	 * stripped by `split_payload()`'s array_diff and has nowhere to be stored,
+	 * silently dropping the operator's pick on every save.
 	 */
 	public function test_defaults_track_tool_policy() {
-		$this->assertSame( ToolPolicy::PROTOCOL_TOOLS, ToolAbilities::get_slugs() );
+		foreach ( ToolPolicy::PROTOCOL_TOOLS as $slug ) {
+			$this->assertContains( $slug, ToolAbilities::get_slugs() );
+		}
 	}
 
 	/**
@@ -77,7 +82,11 @@ class ToolAbilitiesTest extends WP_UnitTestCase {
 		$this->assertContains( 'toolset/content', $slugs );
 		$this->assertContains( 'toolset/cron', $slugs );
 		$this->assertContains( 'mcp-adapter/execute-ability', $slugs );
-		$this->assertCount( 5, $slugs );
+
+		// Counted from the seed, never a literal: a hardcoded total goes stale
+		// the next time a default is added and fails a test that has nothing to
+		// do with the change (B48).
+		$this->assertCount( count( self::seed() ) + 2, $slugs );
 	}
 
 	/**
@@ -121,7 +130,7 @@ class ToolAbilitiesTest extends WP_UnitTestCase {
 
 		$this->assertSame( array_values( $slugs ), $slugs, 'Keys must be a 0..n list for wp_localize_script to emit a JS array.' );
 		$this->assertSame( 1, count( array_keys( $slugs, 'toolset/content', true ) ) );
-		$this->assertCount( 4, $slugs );
+		$this->assertCount( count( self::seed() ) + 1, $slugs );
 	}
 
 	/**
@@ -151,5 +160,14 @@ class ToolAbilitiesTest extends WP_UnitTestCase {
 			'ints and empties' => array( array( 1, '', 'toolset/cron', 0 ), array( '1', 'toolset/cron', '0' ) ),
 			'an assoc array'   => array( array( 'a' => 'toolset/files' ), array( 'toolset/files' ) ),
 		);
+	}
+
+	/**
+	 * The unfiltered seed — the one source of truth for every count above.
+	 *
+	 * @return string[]
+	 */
+	private static function seed(): array {
+		return array_merge( ToolPolicy::PROTOCOL_TOOLS, array( ServerGuide::SLUG ) );
 	}
 }
