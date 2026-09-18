@@ -393,6 +393,19 @@ final class Main {
 		$this->loader->add_action( 'admin_init', $settings, 'maybe_seed_default_server', 4 );
 		$this->loader->add_action( 'admin_init', $settings, 'handle_actions', 5 );
 
+		// One-shot: give every MCP Adapter server the `mcp-adapter/server-guide`
+		// curated row it should have had. Priority 6 is load-bearing — it must
+		// run AFTER maybe_seed_default_server (4) so a freshly seeded row is
+		// included, and after handle_actions (5) so it never races a create or
+		// delete in the same request. At 3, alongside the schema reconciler, it
+		// would miss the seeded row and still record itself as done.
+		$this->loader->add_action(
+			'admin_init',
+			\AcrossAI_MCP_Manager\Includes\Database\MCPServer\ServerGuideBackfill::class,
+			'maybe_backfill',
+			6
+		);
+
 		// F069 T015/T024 — Quick Connect via AcrossAI wizard activation redirect. Fires at
 		// admin_init @ 5 (same slot as handle_actions but different handler);
 		// on the very next admin page load after plugin activation, the
