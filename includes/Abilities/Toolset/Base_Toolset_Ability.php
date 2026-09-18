@@ -102,6 +102,19 @@ abstract class Base_Toolset_Ability {
 	private bool $slug_taken_by_other = false;
 
 	/**
+	 * Whether this Toolset actually ended up registered.
+	 *
+	 * Distinct from {@see self::$slug_taken_by_other}, which covers only one of
+	 * the two ways registration is skipped. The other is an empty group, and
+	 * until this plugin carried the Toolsets it could not happen in practice —
+	 * the add-on always brought the abilities along with the dispatchers. It
+	 * happens on every site that has this plugin and not the add-on.
+	 *
+	 * @var bool
+	 */
+	private bool $registered = false;
+
+	/**
 	 * Wire registration. Mirrors Ability_Definition, which also hooks here.
 	 *
 	 * Priority 20 — after the Library processor (5) and DB abilities (10), so
@@ -227,7 +240,16 @@ abstract class Base_Toolset_Ability {
 			return $types;
 		}
 
-		if ( $this->slug_taken_by_other ) {
+		// Registration gates this for the same reason it gates the tool lists,
+		// but the stakes are higher here. `tools_for()` narrows a type's tools
+		// to those actually registered, and falls back to the legacy set only
+		// when the DECLARATION is empty. So a Toolset that declares itself
+		// without registering produces a non-empty declaration that narrows to
+		// nothing — and "Reset to Type Defaults" writes that nothing over the
+		// operator's curated tools. Declaring only what exists keeps the
+		// declaration empty on a site without the abilities, which is the
+		// condition that fallback is looking for.
+		if ( ! $this->registered ) {
 			return $types;
 		}
 
@@ -369,7 +391,13 @@ abstract class Base_Toolset_Ability {
 		// down with it. Both hooks' owners normalise the same way.
 		$slugs = is_array( $slugs ) ? $slugs : array();
 
-		if ( $this->slug_taken_by_other ) {
+		// Both lists answer "which slugs are Toolsets ON THIS SITE?", so a
+		// Toolset that did not register belongs on neither — whether because
+		// another plugin holds the slug (protecting or tool-listing it would
+		// act on THEIR ability) or because its group is empty, in which case
+		// the slug names nothing at all and the admin would offer a tool that
+		// cannot be added.
+		if ( ! $this->registered ) {
 			return $slugs;
 		}
 
@@ -497,6 +525,8 @@ abstract class Base_Toolset_Ability {
 		}
 
 		wp_register_ability( $slug, $this->args() );
+
+		$this->registered = true;
 	}
 
 	/**

@@ -47,6 +47,18 @@ final class Guide {
 	private const CATCH_ALL_GROUP = 'other';
 
 	/**
+	 * Whether this copy ended up registering the guide.
+	 *
+	 * False both when another plugin already held the slug and when there was
+	 * nothing to describe. Either way this copy must stop contributing its slug
+	 * to the admin's tool pool, or the Tools tab would offer a tool that does
+	 * not exist on this site.
+	 *
+	 * @var bool
+	 */
+	private bool $registered = false;
+
+	/**
 	 * This ability's slug.
 	 *
 	 * Named to match the transport's guide for the other server type, which is
@@ -143,6 +155,20 @@ final class Guide {
 			return;
 		}
 
+		// Same rule the dispatchers apply to themselves: a Toolset for a group
+		// with no abilities "would advertise a subject area that does not
+		// exist, so it is not created at all". A guide is that case taken to
+		// its limit — with no Toolsets registered it is a table of contents for
+		// an empty book, and it would sit in the admin's tool list one line
+		// under `mcp-adapter/server-guide`, which is the guide that DOES apply.
+		//
+		// This is what keeps a site with only this plugin unchanged. The guide
+		// appears the moment any Toolset does, which is when the AcrossAI
+		// Abilities Manager add-on arrives.
+		if ( ! $this->describes_anything() ) {
+			return;
+		}
+
 		wp_register_ability(
 			self::SLUG,
 			array(
@@ -189,6 +215,29 @@ final class Guide {
 				},
 			)
 		);
+
+		$this->registered = true;
+	}
+
+	/**
+	 * Whether any Toolset exists for this guide to describe.
+	 *
+	 * Checked at registration time, by which point every dispatcher has already
+	 * had its turn — they attach to `wp_abilities_api_init` at the same
+	 * priority and Registrar constructs this one last, deliberately, so that
+	 * the others have declared themselves before it describes them.
+	 *
+	 * @since  0.3.6
+	 * @return bool
+	 */
+	private function describes_anything(): bool {
+		foreach ( array_keys( wp_get_abilities() ) as $slug ) {
+			if ( self::SLUG !== $slug && 0 === strpos( (string) $slug, 'toolset/' ) ) {
+				return true;
+			}
+		}
+
+		return false;
 	}
 
 	/**
@@ -437,7 +486,12 @@ final class Guide {
 	 * @return array<int, string>
 	 */
 	private function contribute_own_slug( $slugs ): array {
-		$slugs   = is_array( $slugs ) ? $slugs : array();
+		$slugs = is_array( $slugs ) ? $slugs : array();
+
+		if ( ! $this->registered ) {
+			return array_values( $slugs );
+		}
+
 		$slugs[] = self::SLUG;
 
 		return array_values( array_unique( $slugs ) );
@@ -457,6 +511,11 @@ final class Guide {
 	 */
 	public function declare_server_type_tool( $types ) {
 		if ( ! is_array( $types ) || ! isset( $types['acrossai'] ) || ! is_array( $types['acrossai'] ) ) {
+			return $types;
+		}
+
+		/** This guard is explained in includes/Abilities/Toolset/Base_Toolset_Ability.php */
+		if ( ! $this->registered ) {
 			return $types;
 		}
 

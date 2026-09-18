@@ -159,7 +159,22 @@ final class ServerTypes {
 			return self::registered_only( $all[ self::LEGACY ]['tools'] ?? array() );
 		}
 
-		return self::registered_only( $type['tools'] );
+		$tools = self::registered_only( $type['tools'] );
+
+		// The same wipe, reached the other way. A type can declare tools that
+		// are all unregistered — every `toolset/*` slug on a site without the
+		// AcrossAI Abilities Manager add-on, for instance — and the declaration
+		// check above sees a healthy list while the narrowing leaves nothing.
+		// Reset would then write that nothing over the operator's curation.
+		//
+		// Guarding the RESULT rather than only the declaration closes both
+		// routes at once, and closes them against a third-party type too. An
+		// empty template is never a useful one, however it got that way.
+		if ( array() === $tools ) {
+			return self::registered_only( $all[ self::LEGACY ]['tools'] ?? array() );
+		}
+
+		return $tools;
 	}
 
 
