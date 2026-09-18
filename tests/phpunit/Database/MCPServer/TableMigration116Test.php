@@ -58,6 +58,25 @@ class TableMigration116Test extends WP_UnitTestCase {
 	public function set_up(): void {
 		parent::set_up();
 		DefaultServerSeeder::seed();
+
+		// Force the T012 precondition rather than trusting the previous test's
+		// rollback to have restored it.
+		//
+		// Seeding alone cannot: F090 puts `server_type` in the AcrossAI row's
+		// `initial` bucket, which only writes at INSERT, so a row that already
+		// exists keeps whatever type it has. And the rollback is not guaranteed
+		// — `rerun_migration()` may execute DDL, DDL implicitly COMMITs, and a
+		// commit mid-test strands the deliberate 'mcp-adapter' UPDATE that T012
+		// performs (B53). Asserting a precondition is cheap; establishing it is
+		// what makes these tests order-independent.
+		global $wpdb;
+		$wpdb->update(
+			$this->table(),
+			array( 'server_type' => 'acrossai' ),
+			array( 'server_slug' => DefaultServerSeeder::ACROSSAI_SLUG ),
+			array( '%s' ),
+			array( '%s' )
+		);
 	}
 
 	/**

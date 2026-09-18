@@ -64,11 +64,10 @@ class Table extends \BerlinDB\Database\Kern\Table {
 	 * semantics they already had.
 	 *
 	 * `1.1.6` (F090): forces the paired `upgrade_to_1_1_6()` callback to ADD
-	 * two columns in one pass — `server_type` and `tools_default_policy` —
-	 * plus one targeted backfill. Two columns in one version rather than
-	 * 1.1.6 + 1.1.7 a week apart: same table, same feature, and every extra
-	 * migration is another chance for a half-upgraded install. Same D28
-	 * 3-part contract.
+	 * `server_type`, plus one targeted backfill. Same D28 3-part contract. It
+	 * originally added `tools_default_policy` in the same pass; 1.1.7 retracted
+	 * that column and the ADD has been removed from the callback, so the
+	 * churn never reaches a fresh install.
 	 *
 	 * `server_type`'s column default `'mcp-adapter'` deliberately backfills
 	 * every pre-existing row inside the ALTER — correct for all of them
@@ -391,12 +390,13 @@ class Table extends \BerlinDB\Database\Kern\Table {
 	}
 
 	/**
-	 * Feature 090 — ADD `server_type` + `tools_default_policy`, and correct the
-	 * one row the column default gets wrong.
+	 * Feature 090 — ADD `server_type` and correct the one row the column default
+	 * gets wrong. (It also ADDed `tools_default_policy`; 1.1.7 retracted that
+	 * column and this callback no longer creates it — see below.)
 	 *
-	 * Each of the three steps is independently idempotent, so a partially
-	 * applied upgrade (fatal between statements, hosting timeout) heals on the
-	 * next run rather than erroring or double-applying.
+	 * Each step is independently idempotent, so a partially applied upgrade
+	 * (fatal between statements, hosting timeout) heals on the next run rather
+	 * than erroring or double-applying.
 	 *
 	 * Uses BerlinDB's INHERITED PUBLIC `column_exists()` rather than the
 	 * INFORMATION_SCHEMA query the 1.1.1-1.1.5 callbacks each hand-rolled. The
@@ -422,12 +422,19 @@ class Table extends \BerlinDB\Database\Kern\Table {
 			$added_server_type = true;
 		}
 
-		// `tools_default_policy`. Default 'per-tool' preserves today's behaviour
-		// on every existing row; the coarse 'all'/'none' rules are opt-in.
-		if ( ! $this->column_exists( 'tools_default_policy' ) ) {
-			// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching,WordPress.DB.DirectDatabaseQuery.SchemaChange -- As above.
-			$wpdb->query( "ALTER TABLE `{$table}` ADD COLUMN `tools_default_policy` varchar(16) NOT NULL DEFAULT 'per-tool'" );
-		}
+		// `tools_default_policy` was ADDed here until 1.1.7 retracted it. The ADD
+		// is REMOVED rather than left to be undone one version later, so no
+		// install ever creates a column the next migration immediately deletes.
+		//
+		// Not merely tidiness. Leaving it made a 1.1.5 rewind run ADD then DROP,
+		// and DDL implicitly COMMITs (B53) — which committed the deliberate
+		// `server_type` UPDATE in this file's own T012 test, so `tear_down()`'s
+		// restore was rolled back and the NEXT test's precondition failed. A
+		// migration that does no DDL when there is nothing to change keeps the
+		// per-test rollback intact.
+		//
+		// Installs that already ran the original 1.1.6 still have the column;
+		// `upgrade_to_1_1_7()` is what removes it for them.
 
 		// Correct the one row the column default gets wrong. The F088 AcrossAI
 		// row is an AcrossAI-type server, but the ALTER just stamped it
