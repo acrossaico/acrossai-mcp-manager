@@ -231,7 +231,18 @@ final class Guide {
 	 * @return bool
 	 */
 	private function describes_anything(): bool {
-		foreach ( array_keys( wp_get_abilities() ) as $slug ) {
+		// Deliberately the registry and not `wp_get_abilities()`. That helper
+		// runs `wp_get_abilities_item_include`, which any plugin may use to
+		// narrow the list per request or per caller — and whether this ability
+		// EXISTS must not depend on a view someone else can filter. It is the
+		// same registry `wp_has_ability()` consults two lines above.
+		$registry = \WP_Abilities_Registry::get_instance();
+
+		if ( null === $registry ) {
+			return false;
+		}
+
+		foreach ( array_keys( $registry->get_all_registered() ) as $slug ) {
 			if ( self::SLUG !== $slug && 0 === strpos( (string) $slug, 'toolset/' ) ) {
 				return true;
 			}

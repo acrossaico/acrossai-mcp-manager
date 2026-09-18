@@ -275,6 +275,8 @@ class RegistrarTest extends WP_UnitTestCase {
 			)
 		);
 
+		$this->assertTrue( wp_has_ability( 'toolset/stub' ), 'Precondition: the stub Toolset registered.' );
+
 		( new Guide() )->register();
 		$this->assertTrue( wp_has_ability( Guide::SLUG ), 'With a Toolset present the guide publishes.' );
 
@@ -304,9 +306,11 @@ class RegistrarTest extends WP_UnitTestCase {
 	 * @return string[]
 	 */
 	private function registered_toolsets(): array {
+		$registry = \WP_Abilities_Registry::get_instance();
+
 		return array_values(
 			array_filter(
-				array_keys( wp_get_abilities() ),
+				null === $registry ? array() : array_keys( $registry->get_all_registered() ),
 				static function ( $slug ): bool {
 					return Guide::SLUG !== $slug && 0 === strpos( (string) $slug, 'toolset/' );
 				}
