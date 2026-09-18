@@ -184,6 +184,17 @@ class RegistrarTest extends WP_UnitTestCase {
 	public function test_the_guide_stands_down_when_its_slug_is_already_claimed() {
 		Category_Registrar::instance()->register();
 
+		// Establish the precondition rather than assume it. Whether the slug is
+		// already taken here depends on whether anything resolved the abilities
+		// registry during boot — which is exactly the lazy timing this layer
+		// has to tolerate, so the test must not depend on it either.
+		if ( ! wp_has_ability( Guide::SLUG ) ) {
+			( new Guide() )->register();
+		}
+
+		$this->assertTrue( wp_has_ability( Guide::SLUG ) );
+
+		$incumbent  = wp_get_ability( Guide::SLUG );
 		$collisions = array();
 
 		add_action(
@@ -194,9 +205,12 @@ class RegistrarTest extends WP_UnitTestCase {
 		);
 
 		( new Guide() )->register();
-		$this->assertSame( array(), $collisions, 'Nothing held the slug, so nothing should collide.' );
 
-		( new Guide() )->register();
-		$this->assertSame( array( Guide::SLUG ), $collisions );
+		$this->assertSame( array( Guide::SLUG ), $collisions, 'Standing down must be reported.' );
+		$this->assertSame(
+			$incumbent,
+			wp_get_ability( Guide::SLUG ),
+			'Whoever holds the slug keeps it — a second copy must never replace the incumbent.'
+		);
 	}
 }
