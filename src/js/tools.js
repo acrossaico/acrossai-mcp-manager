@@ -386,9 +386,9 @@ function ToolsApp( { serverId } ) {
 	// The left pool is an ALLOW list — only tool-level slugs — unioned with
 	// whatever is already curated on this server. That union is load-bearing:
 	// an install that picked individual abilities before F087 keeps seeing and
-	// managing them (they just can't be re-added once removed), and `totalPool`
-	// stays coherent with `added.size`. `visibleAvailable` drops the added ones
-	// from the left pane anyway via its own `added.has()` check.
+	// managing them (they just can't be re-added once removed), and the panel's
+	// "N of M" stays coherent with `added.size`. `visibleAvailable` drops the
+	// added ones from the left pane anyway via its own `added.has()` check.
 	//
 	// `abilities` itself is left unfiltered because `addedRows` needs it for the
 	// byName metadata lookup — that's what makes a curated non-tool-level slug
@@ -681,8 +681,6 @@ function ToolsApp( { serverId } ) {
 		);
 	}
 
-	const totalPool = poolAbilities.length;
-
 	// F090 — tools this server's type provides that it does not currently have.
 	// Drives the Apply prompt; never applied without the operator asking.
 	const missingFromType = typeTools.filter( ( slug ) => ! shown.has( slug ) );
@@ -703,23 +701,19 @@ function ToolsApp( { serverId } ) {
 		// not usable rather than wondering where it went.
 		createElement(
 			'div',
-			{
-				style: {
-					display: 'flex',
-					alignItems: 'center',
-					gap: '10px',
-					margin: '0 0 12px',
-					flexWrap: 'wrap',
-				},
-			},
+			{ className: 'acrossai-mcp-tools-type' },
 			createElement(
 				'label',
-				{ htmlFor: 'acrossai-mcp-server-type', style: { fontWeight: 600 } },
+				{
+					className: 'acrossai-mcp-tools-type__label',
+					htmlFor: 'acrossai-mcp-server-type',
+				},
 				__( 'Server type', 'acrossai-mcp-manager' ),
 			),
 			createElement(
 				'select',
 				{
+					className: 'acrossai-mcp-tools-type__select',
 					id: 'acrossai-mcp-server-type',
 					value: serverType,
 					disabled: saving,
@@ -756,6 +750,19 @@ function ToolsApp( { serverId } ) {
 								t.label,
 							),
 					),
+				),
+			),
+			// What the control actually does, next to the control. The type is
+			// a TEMPLATE for Reset, not a filter: it decides what "Reset to
+			// Type Defaults" writes, and never restricts what may be added by
+			// hand. Saying so here is what stops an operator reading the
+			// selector as a restriction on the picker below.
+			createElement(
+				'p',
+				{ className: 'acrossai-mcp-tools-type__help' },
+				__(
+					'Sets what “Reset to Type Defaults” restores. Any tool below can still be added by hand.',
+					'acrossai-mcp-manager',
 				),
 			),
 		),
@@ -927,32 +934,12 @@ function ToolsApp( { serverId } ) {
 				),
 			)
 			: null,
-		createElement(
-			'div',
-			{
-				style: {
-					display: 'flex',
-					alignItems: 'baseline',
-					justifyContent: 'space-between',
-					flexWrap: 'wrap',
-					gap: '10px',
-					marginBottom: '6px',
-				},
-			},
-			createElement(
-				'span',
-				null,
-				sprintf(
-					/* translators: 1: added count, 2: total available count */
-					__(
-						'%1$d of %2$d tools added to this server',
-						'acrossai-mcp-manager',
-					),
-					shown.size,
-					totalPool,
-				),
-			),
-		),
+		// NOTE no counter row here. One lived here from before the panel above
+		// existed and reported the SAME two numbers from the same sources
+		// (`shown` is `new Set( effectiveTools )`, and both counted
+		// `poolAbilities`), so the tab stated its own status twice, four
+		// lines apart, in two different wordings. Two readings of one number can
+		// only ever agree or be a bug.
 		createElement(
 			'div',
 			{
