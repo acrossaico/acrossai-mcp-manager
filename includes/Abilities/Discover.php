@@ -273,7 +273,7 @@ final class Discover {
 		 * Receives the operator's saved setting, not the constant, so a
 		 * callback can adjust relative to what the site chose.
 		 *
-		 * @since 0.3.5 (Feature 089)
+		 * @since 0.3.4 (Feature 089)
 		 *
 		 * @param int $per_page Default page size.
 		 */
@@ -282,7 +282,7 @@ final class Discover {
 		/**
 		 * Filter the maximum page size for `discover-abilities`.
 		 *
-		 * @since 0.3.5 (Feature 089)
+		 * @since 0.3.4 (Feature 089)
 		 *
 		 * @param int $maximum Maximum page size.
 		 */
