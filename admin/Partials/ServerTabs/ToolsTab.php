@@ -18,6 +18,8 @@
 
 namespace AcrossAI_MCP_Manager\Admin\Partials\ServerTabs;
 
+use AcrossAI_MCP_Manager\Admin\Partials\ServerTabs\Partials\TypeRequirementNotice;
+
 // Exit if accessed directly.
 defined( 'ABSPATH' ) || exit;
 
@@ -85,12 +87,14 @@ final class ToolsTab extends AbstractServerTab {
 
 		// The add-on promo that used to sit here is gone. It appeared on every
 		// server whatever its type, said nothing specific to the screen it was
-		// on, and stacked under the notices that DO carry information — so the
-		// one line an operator needed to read arrived third.
+		// on, and stacked above the notices that DO carry information.
 		//
-		// Nothing is lost: the Add-ons page is in the menu, and an AcrossAI
-		// server that actually needs the add-on says so precisely, naming the
-		// plugin, once it is enabled.
+		// This is what replaced it: the same notice the Overview tab shows, so
+		// the tab displaying the tools that are not being served explains why
+		// and offers the fix, instead of the bare sentence it used to render
+		// from JavaScript. `current_tab` drops the "Change the server type"
+		// button here, because that control is already on this page.
+		TypeRequirementNotice::instance()->render( $server, 'tools' );
 
 		if ( ! function_exists( 'wp_get_abilities' ) ) {
 			printf(

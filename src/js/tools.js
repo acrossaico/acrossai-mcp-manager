@@ -888,31 +888,13 @@ function ToolsApp( { serverId } ) {
 			)
 			: null,
 
-		// F090 — requirement unmet: state it plainly and offer BOTH remedies.
-		//
-		// Only while the server is ENABLED. Until then it serves nobody, so
-		// there is nothing to warn about, and the warning sat directly under
-		// the "Server is disabled" banner saying a milder version of the same
-		// thing. Enabling is what makes the gap real, and the notice appears
-		// at that moment.
-		serverEnabled && ! typeAvailable
-			? createElement(
-				Notice,
-				{ status: 'warning', isDismissible: false },
-				createElement(
-					'p',
-					null,
-					sprintf(
-						/* translators: %s: server type label. */
-						__(
-							'The %s server type requires the AcrossAI Abilities Manager add-on. Until it is installed and activated this server advertises a single notice to AI clients instead of tools. Install the add-on, or change this server\'s type above.',
-							'acrossai-mcp-manager',
-						),
-						typeLabel || serverType,
-					),
-				),
-			)
-			: null,
+		// The requirement notice that used to sit here is rendered in PHP now, by
+		// `Partials\TypeRequirementNotice`, which the Overview tab already used.
+		// This copy was the weaker of the two — one bare sentence where the
+		// other had a headline and the two buttons that actually resolve it —
+		// and it appeared on the tab where the operator is already looking at
+		// the tools that are not being served, which is where the better one
+		// belongs. One implementation now, above with the other notices.
 
 		// F090 (T050) — the bulk-actions panel. Deliberately the SAME markup and
 		// styling as the Abilities tab's default-policy panel
