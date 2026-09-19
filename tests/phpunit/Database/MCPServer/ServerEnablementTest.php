@@ -107,7 +107,17 @@ class ServerEnablementTest extends WP_UnitTestCase {
 
 		$this->assertInstanceOf( WP_Error::class, $notice );
 		$this->assertSame( 'acrossai_mcp_server_type_unavailable', $notice->get_error_code() );
-		$this->assertStringContainsString( 'Abilities Manager', $notice->get_error_message() );
+
+		// Names THIS type's requirement, not a hardcoded one. The previous
+		// message said "AcrossAI Abilities Manager" unconditionally, which told
+		// the operator of a third-party type to install the wrong plugin —
+		// this fixture's type needs something else entirely, and the notice
+		// has to say so. Not installed here, so the folder slug is the answer:
+		// a name the operator can search for beats a confident lie.
+		$this->assertStringContainsString(
+			'a-plugin-that-is-not-installed-here',
+			$notice->get_error_message()
+		);
 	}
 
 	/**
