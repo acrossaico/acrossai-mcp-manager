@@ -35,6 +35,13 @@ use WP_UnitTestCase;
 
 class SettingsBulkEnableTest extends WP_UnitTestCase {
 
+	/**
+	 * A type slug nothing registers — the only refusal that survives 0.3.6.
+	 *
+	 * @var string
+	 */
+	private const UNKNOWN_TYPE = 'a-type-nobody-registered';
+
 	/** @var int[] */
 	private $created = array();
 
@@ -52,24 +59,40 @@ class SettingsBulkEnableTest extends WP_UnitTestCase {
 
 	// ---------------------------------------------------- the behaviour ----
 
+	/**
+	 * FR-016a is unchanged; only which row counts as ineligible has moved.
+	 *
+	 * Since 0.3.6 a type whose required plugin is merely inactive DOES enable —
+	 * `is_enabled` records intent, and a separate condition decides whether it
+	 * takes effect. The rows that still cannot be enabled are the ones with a
+	 * type nothing recognises, because no install makes those work.
+	 *
+	 * Three rows rather than two, so the middle one proves the distinction:
+	 * eligible, waiting-for-a-plugin, and unrecognised.
+	 */
 	public function test_a_mixed_selection_enables_the_eligible_and_names_the_rest(): void {
 		$ok      = $this->server( ServerTypes::LEGACY, false );
-		$blocked = $this->server( 'blocked', false );
+		$waiting = $this->server( 'blocked', false );
+		$unknown = $this->server( self::UNKNOWN_TYPE, false );
 
-		$result = ServerEnablement::set_many( array( $ok, $blocked ), true );
+		$result = ServerEnablement::set_many( array( $ok, $waiting, $unknown ), true );
 
-		// FR-016a names all three properties explicitly, because each failure
-		// mode strands the operator differently: a wholesale failure hides the
-		// servers that could have been enabled, and a silent skip hides the ones
-		// that could not.
-		$this->assertSame( array( $ok ), $result['changed'], 'eligible rows are enabled' );
-		$this->assertArrayHasKey( $blocked, $result['skipped'], 'ineligible rows are reported' );
-		$this->assertNotEmpty( $result['skipped'][ $blocked ], 'and each carries a reason' );
+		// Each failure mode strands the operator differently: a wholesale
+		// failure hides the servers that could have been enabled, and a silent
+		// skip hides the ones that could not.
+		$this->assertSame( array( $ok, $waiting ), $result['changed'], 'eligible rows are enabled' );
+		$this->assertArrayHasKey( $unknown, $result['skipped'], 'ineligible rows are reported' );
+		$this->assertNotEmpty( $result['skipped'][ $unknown ], 'and each carries a reason' );
+		$this->assertArrayNotHasKey(
+			$waiting,
+			$result['skipped'],
+			'Waiting for a plugin is not a skip — installing it must not also require re-enabling.'
+		);
 	}
 
 	public function test_an_all_blocked_selection_is_not_a_wholesale_failure(): void {
-		$a = $this->server( 'blocked', false );
-		$b = $this->server( 'blocked', false );
+		$a = $this->server( self::UNKNOWN_TYPE, false );
+		$b = $this->server( self::UNKNOWN_TYPE, false );
 
 		$result = ServerEnablement::set_many( array( $a, $b ), true );
 
@@ -88,12 +111,13 @@ class SettingsBulkEnableTest extends WP_UnitTestCase {
 	}
 
 	public function test_the_reported_skip_reason_is_operator_readable(): void {
-		$blocked = $this->server( 'blocked', false );
-		$result  = ServerEnablement::set_many( array( $blocked ), true );
+		$unknown = $this->server( self::UNKNOWN_TYPE, false );
+		$result  = ServerEnablement::set_many( array( $unknown ), true );
 
 		// The admin renders this verbatim, so it has to be a sentence an operator
-		// can act on rather than an error code.
-		$this->assertStringContainsString( 'Abilities Manager', $result['skipped'][ $blocked ] );
+		// can act on rather than an error code. It names the offending slug,
+		// which is the only actionable detail when nothing recognises the type.
+		$this->assertStringContainsString( self::UNKNOWN_TYPE, $result['skipped'][ $unknown ] );
 	}
 
 	// ------------------------------------------------------ the boundary ----
