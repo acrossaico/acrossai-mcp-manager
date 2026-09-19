@@ -76,6 +76,40 @@ class RegistrarTest extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Run one callback inside a real `wp_abilities_api_init`.
+	 *
+	 * `wp_register_ability()` refuses outright unless
+	 * `doing_action( 'wp_abilities_api_init' )`, so calling a Toolset's
+	 * `register()` straight from a test can never register anything — it fails
+	 * silently and the test passes or fails for the wrong reason. (The
+	 * bootstrap's `acrossai_test_register_ability()` exists to dodge the same
+	 * gate for plain abilities; a Toolset has to go through its own
+	 * `register()`, so it needs the context rather than a bypass.)
+	 *
+	 * Everything else attached to the action is lifted out for the duration,
+	 * because re-firing it would re-run every other plugin registration in the
+	 * process and trip core's duplicate-registration notice.
+	 *
+	 * @param  callable $callback What to run in that context.
+	 * @return void
+	 */
+	private function inside_abilities_init( callable $callback ): void {
+		global $wp_filter;
+
+		$saved = $wp_filter['wp_abilities_api_init'] ?? null;
+		unset( $wp_filter['wp_abilities_api_init'] );
+
+		add_action( 'wp_abilities_api_init', $callback );
+		do_action( 'wp_abilities_api_init', \WP_Abilities_Registry::get_instance() );
+
+		unset( $wp_filter['wp_abilities_api_init'] );
+
+		if ( null !== $saved ) {
+			$wp_filter['wp_abilities_api_init'] = $saved;
+		}
+	}
+
+	/**
 	 * @return void
 	 */
 	private function forget_scratch_abilities(): void {
@@ -228,7 +262,7 @@ class RegistrarTest extends WP_UnitTestCase {
 			'Precondition: no Toolset registers in the test environment.'
 		);
 
-		( new Guide() )->register();
+		$this->inside_abilities_init( array( new Guide(), 'register' ) );
 
 		$this->assertFalse( wp_has_ability( Guide::SLUG ) );
 	}
@@ -245,8 +279,9 @@ class RegistrarTest extends WP_UnitTestCase {
 		Category_Registrar::instance()->register();
 
 		$guide = new Guide();
-		$guide->register();
+		$this->inside_abilities_init( array( $guide, 'register' ) );
 
+		$this->assertFalse( wp_has_ability( Guide::SLUG ), 'Precondition: it declined.' );
 		$this->assertSame( array(), $guide->declare_tool_level_ability( array() ) );
 		$this->assertSame( array(), $guide->protect_own_slug( array() ) );
 	}
@@ -277,7 +312,7 @@ class RegistrarTest extends WP_UnitTestCase {
 
 		$this->assertTrue( wp_has_ability( 'toolset/stub' ), 'Precondition: the stub Toolset registered.' );
 
-		( new Guide() )->register();
+		$this->inside_abilities_init( array( new Guide(), 'register' ) );
 		$this->assertTrue( wp_has_ability( Guide::SLUG ), 'With a Toolset present the guide publishes.' );
 
 		$incumbent  = wp_get_ability( Guide::SLUG );
@@ -290,7 +325,7 @@ class RegistrarTest extends WP_UnitTestCase {
 			}
 		);
 
-		( new Guide() )->register();
+		$this->inside_abilities_init( array( new Guide(), 'register' ) );
 
 		$this->assertSame( array( Guide::SLUG ), $collisions, 'Standing down must be reported.' );
 		$this->assertSame(
