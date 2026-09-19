@@ -15,15 +15,7 @@
  * @package
  */
 
-import {
-	createElement,
-	createRoot,
-	Fragment,
-	useState,
-	useEffect,
-	useMemo,
-	useRef,
-} from '@wordpress/element';
+import { createElement, createRoot, Fragment, useState, useEffect, useMemo, useRef, useCallback } from '@wordpress/element';
 import {
 	Button,
 	SearchControl,
@@ -423,14 +415,60 @@ function ToolsApp( { serverId } ) {
 	// recomputed here. One definition of "available to this server" means the
 	// picker can never offer a tool the write path would reject, and the
 	// `expose` rule exposes exactly what the picker showed.
+	// Metadata for one slug: the live catalogue, then the protocol stubs, then a
+	// pending placeholder. Shared by both panes so a tool reads the same on
+	// either side of the screen.
+	//
+	// The placeholder is not a rare edge. Since the plugin began seeding an
+	// AcrossAI server with its Toolsets declared in advance, every one of them
+	// lands here until the add-on is installed — which is the state this tab
+	// exists to explain.
+	const resolveAbility = useCallback(
+		( name ) => {
+			const found = abilities.find( ( a ) => a.name === name );
+			if ( found ) {
+				return found;
+			}
+
+			const builtin = BUILTIN_ABILITIES.find( ( b ) => b.name === name );
+			if ( builtin ) {
+				return {
+					name: builtin.name,
+					label: builtin.getLabel(),
+					description: builtin.getDescription(),
+					type: builtin.type,
+					category: '',
+				};
+			}
+
+			return {
+				name,
+				label: name,
+				description: __(
+					'(not available on this site yet — the plugin that provides it is not active)',
+					'acrossai-mcp-manager',
+				),
+				type: '',
+				category: '',
+			};
+		},
+		[ abilities ],
+	);
+
 	const poolAbilities = useMemo( () => {
-		const pool = new Set( typePool );
-		return abilities.filter(
-			( a ) =>
-				added.has( a.name ) ||
-				( pool.size > 0 ? pool.has( a.name ) : toolSlugs.has( a.name ) ),
-		);
-	}, [ abilities, toolSlugs, added, typePool ] );
+		// Built from the pool the SERVER sent, not by filtering the ability
+		// catalogue. Filtering silently dropped every declared-but-dormant tool
+		// — so an AcrossAI server counted its fifteen configured tools against
+		// a denominator of four ("15 of 4"), and a dormant tool the operator
+		// removed could never be added back.
+		//
+		// Still unioned with what is already curated: an install that picked
+		// individual abilities before F087 keeps seeing and managing them, and
+		// the "N of M" stays coherent with the pane beside it.
+		const names = typePool.length > 0 ? typePool : Array.from( toolSlugs );
+
+		return Array.from( new Set( [ ...names, ...added ] ) ).map( resolveAbility );
+	}, [ toolSlugs, added, typePool, resolveAbility ] );
 
 	// Initial mount: GET /tools?include_abilities=1
 	useEffect( () => {
@@ -507,61 +545,25 @@ function ToolsApp( { serverId } ) {
 	}, [ poolAbilities, shown, search ] );
 
 	const addedRows = useMemo( () => {
-		const byName = Object.fromEntries( abilities.map( ( a ) => [ a.name, a ] ) );
-		// F025: build a BUILTIN_ABILITIES metadata fallback for the three
-		// protocol slugs — the vendor registers them via wp_register_ability
-		// so they should appear in the abilities pool, but the fallback keeps
-		// the UI correct if the pool is briefly empty (e.g., during initial
-		// load or if the abilities data store is unavailable).
-		const builtinByName = Object.fromEntries(
-			BUILTIN_ABILITIES.map( ( b ) => [
-				b.name,
-				{
-					name: b.name,
-					label: b.getLabel(),
-					description: b.getDescription(),
-					type: b.type,
-					category: '',
-				},
-			] ),
-		);
 		// Order: protocol slugs first (in PROTOCOL_TOOL_SLUGS order — matches
-		// PHP-side ToolPolicy::COLUMN_MAP iteration), then curated in
-		// insertion order returned by the server.
+		// PHP-side ToolPolicy::COLUMN_MAP iteration), then curated in insertion
+		// order returned by the server.
 		const protocolAdded = PROTOCOL_TOOL_SLUGS.filter( ( slug ) =>
 			shown.has( slug ),
 		);
 		const curatedAdded = Array.from( shown ).filter(
 			( slug ) => ! PROTOCOL_TOOL_SLUGS.includes( slug ),
 		);
-		const resolve = ( name ) =>
-			byName[ name ] ||
-			builtinByName[ name ] || {
-				name,
-				label: name,
-				// Reworded in 0.3.6. "No longer registered" reads as breakage,
-				// and since this plugin began seeding an AcrossAI server with
-				// its Toolsets declared up front, the usual reason a row lands
-				// here is that the ability has not arrived YET — the add-on is
-				// not installed. Same row, two opposite stories, and the
-				// alarming one was wrong far more often than it was right.
-				description: __(
-					'(not available on this site yet — the plugin that provides it is not active)',
-					'acrossai-mcp-manager',
-				),
-				type: '',
-				category: '',
-			};
 
 		return [ ...protocolAdded, ...curatedAdded ].map( ( name ) => ( {
-			...resolve( name ),
+			...resolveAbility( name ),
 			// Rendered visibly inactive rather than hidden. A configured tool
 			// the site cannot serve yet is not an error and not a lie — it is
 			// the promise the operator is waiting on, and hiding it is what
 			// made this look broken.
 			isWaiting: ! served.has( name ),
 		} ) );
-	}, [ abilities, shown, served ] );
+	}, [ shown, served, resolveAbility ] );
 
 	// #129 — the served set as it was when this page loaded. The notice compares
 	// against THIS, not against the previous write, so a set that is edited and
@@ -853,7 +855,7 @@ function ToolsApp( { serverId } ) {
 					'p',
 					{ className: 'acrossai-mcp-tools-type__help' },
 					__(
-						'Sets what “Reset to Type Defaults” restores. Any tool below can still be added by hand.',
+						'Sets which tools this server offers, and what “Reset to Type Defaults” restores.',
 						'acrossai-mcp-manager',
 					),
 				),

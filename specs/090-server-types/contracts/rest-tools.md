@@ -36,9 +36,24 @@ Existing route. Response gains two fields.
 ```
 
 **`type_pool` is not optional for a correct client** — it is the denominator the header
-counts against ("N of M tools added") and the set the picker renders. The field keeps its
-`type_` name for continuity with the shipped client; the pool itself is NOT type-scoped, since
-a type is a template for Reset rather than a filter over what may be added.
+counts against ("N of M tools added") and the set the picker renders.
+
+> **Amended 0.3.6 — the pool IS type-scoped now.** This originally said the opposite: a type is
+> a template for Reset rather than a filter over what may be added, so the pool was every
+> tool-level ability on the site. Defensible in the abstract, wrong on screen. An AcrossAI
+> server offered the four `mcp-adapter/*` tools — another server's entire vocabulary, under a
+> heading naming this one — and the header counted its configured set against a pool that
+> excluded it, reading **"15 of 4"**.
+>
+> `ServerTypes::pool( $type_slug )` now returns the type's declared tools plus any tool-level
+> ability **no type claims**, so the `acrossai_mcp_manager_tool_abilities` filter still works
+> for a plugin contributing a tool of its own. Only vocabulary another type has claimed is
+> withheld. A plugin wanting its tool on a given type declares it via
+> `acrossai_mcp_server_types`; on a given server, via `acrossai_mcp_manager_server_tools`.
+>
+> The type's own tools are deliberately **not** narrowed to what is registered — a declared tool
+> whose plugin is not installed yet belongs in the pool, shown as pending. Unclaimed third-party
+> slugs still are narrowed: with no type vouching for one, an unregistered slug is junk.
 
 **`tools` vs `effective_tools` is the architecture-review fix.** `tools` comes from
 `ToolPolicy::compose_for_row()` (configured); `effective_tools` from

@@ -224,8 +224,9 @@ final class ToolsController {
 			'server_types'    => self::types_payload(),
 			// F090 — the pool this server may offer, computed server-side so the
 			// picker and "Enable All" cannot disagree about what "every
-			// available tool" means.
-			'type_pool'       => ServerTypes::pool(),
+			// available tool" means. Scoped to the server's TYPE since 0.3.6,
+			// so an AcrossAI server stops offering mcp-adapter's vocabulary.
+			'type_pool'       => ServerTypes::pool( (string) $server_row->server_type ),
 		);
 
 		$include_abilities = (bool) $request->get_param( 'include_abilities' );
@@ -492,7 +493,7 @@ final class ToolsController {
 					// The pool is TYPE-DEPENDENT, so a switch must return the new
 					// one. Without it the picker keeps offering the previous
 					// type's tools until the operator reloads.
-					'type_pool'       => ServerTypes::pool(),
+					'type_pool'       => ServerTypes::pool( (string) $refreshed->server_type ),
 					'server_types'    => self::types_payload(),
 				)
 			)
