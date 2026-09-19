@@ -120,6 +120,12 @@ class DefaultServerSeederTest extends WP_UnitTestCase {
 		$this->assertSame( ServerTypes::ACROSSAI, $row['server_type'] );
 		$this->assertSame( '0', (string) $row['is_enabled'], 'A server appearing unasked must not also be live.' );
 
+		// `/acrossai/mcp`. Pinned because both halves are MANAGED columns: the
+		// reconciler rewrites them on every admin request, so a change here
+		// silently moves the endpoint of every install on the next page load.
+		$this->assertSame( 'acrossai', $row['server_route_namespace'] );
+		$this->assertSame( 'mcp', $row['server_route'] );
+
 		$curated = $wpdb->get_col(
 			$wpdb->prepare(
 				'SELECT ability_slug FROM %i WHERE server_id = %d ORDER BY ability_slug ASC',

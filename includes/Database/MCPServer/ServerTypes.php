@@ -591,12 +591,19 @@ final class ServerTypes {
 					'server_name'            => 'AcrossAI',
 					'server_slug'            => DefaultServerSeeder::ACROSSAI_SLUG,
 					'description'            => __( 'Recommended AcrossAI MCP server, managed by the plugin.', 'acrossai-mcp-manager' ),
-					// Byte-identical to the values F088 shipped in 0.3.4 and
-					// F090 withdrew, so the handful of sites that briefly had
-					// this row adopt it without a drift UPDATE.
 					'registered_from'        => 'database',
+					// `/acrossai/mcp`. The namespace already says whose server
+					// this is, so repeating it in the route — `/acrossai/
+					// mcp-server` — only made the URL longer to type and read.
+					//
+					// Both halves are MANAGED columns, so a row created before
+					// this change is corrected by the reconciler on the next
+					// admin request rather than being left on the old address.
+					// Safe to move because 0.3.6 is unreleased: the only rows
+					// carrying the old route are test installs, and the server
+					// ships disabled, so nothing was connected to it.
 					'server_route_namespace' => 'acrossai',
-					'server_route'           => 'mcp-server',
+					'server_route'           => 'mcp',
 					'server_version'         => 'v1.0.0',
 				),
 			),
