@@ -804,21 +804,25 @@ function ToolsApp( { serverId } ) {
 			)
 			: null,
 
-		// F090 (T024) — the server type selector. Unavailable types are listed
-		// but disabled, so an operator can see the option exists and why it is
-		// not usable rather than wondering where it went.
-		// Only rendered when there is a choice to make.
+		// F090 (T024) — the server type selector, shown whenever there is more
+		// than one type to choose between.
 		//
-		// AVAILABLE, not merely registered: the transport always ships an
-		// `acrossai` placeholder so the type has a label and a stated
-		// requirement even with no add-on installed, which means the raw count
-		// never drops below two and the control never hid. `available` is the
-		// same `is_available()` the options use to disable themselves — a
-		// select whose only other option is disabled is not a choice.
+		// This counted AVAILABLE types until 0.3.6, which hid the control on
+		// every site without the add-on — and hid it hardest exactly where it
+		// was needed. The unmet-requirement notice offers two remedies, one of
+		// them "change the server type", and the control that does it was not
+		// on the page. A dead end presented as a choice.
+		//
+		// The reasoning behind the old gate has also expired. It called a
+		// select whose only other option is disabled "not a choice", and it was
+		// right while `acrossai` was an empty placeholder you could neither
+		// populate nor enable. That type now declares its own fifteen tools and
+		// its server can be enabled before the add-on arrives, so picking it is
+		// a real choice with a real result — see the Enabled/Ready split.
 		//
 		// Counted rather than checking for the add-on by name, so a type from
 		// any plugin brings the control back.
-		serverTypes.filter( ( t ) => t.available ).length > 1
+		serverTypes.length > 1
 			? createElement(
 				'div',
 				{ className: 'acrossai-mcp-tools-type' },
@@ -858,10 +862,19 @@ function ToolsApp( { serverId } ) {
 								typeLabel || serverType,
 							),
 						),
+					// Every registered type is SELECTABLE, including one whose
+					// plugin is missing. That is the same rule enabling
+					// follows: the operator states the intent, the admin says
+					// what is still needed, and installing the plugin completes
+					// it with nothing further to click. Disabling the option
+					// would put the one documented remedy for an unmet
+					// requirement permanently out of reach.
+					//
+					// The suffix stays. It is information, not a barrier.
 					serverTypes.map( ( t ) =>
 						createElement(
 							'option',
-							{ key: t.slug, value: t.slug, disabled: ! t.available },
+							{ key: t.slug, value: t.slug },
 							t.available
 								? t.label
 								: sprintf(
