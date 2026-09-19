@@ -140,6 +140,23 @@ export function safeApplyFilters( hookName, defaultValue, ...args ) {
  * @param {?boolean}  props.busy        When true, the action button is disabled
  *                                      to prevent double-clicks during a POST.
  */
+/**
+ * A readable label for a slug whose ability is not registered here.
+ *
+ * `toolset/server-guide` -> `Server guide`. Without it the row printed the raw
+ * slug as its title and again as its code chip, which read like a fault rather
+ * than a tool that has not arrived yet.
+ *
+ * @param {string} name Ability slug.
+ * @return {string} Human-readable label.
+ */
+function humanizeSlug( name ) {
+	const tail = String( name ).split( '/' ).pop() || String( name );
+	const words = tail.replace( /[-_]+/g, ' ' ).trim();
+
+	return words ? words.charAt( 0 ).toUpperCase() + words.slice( 1 ) : String( name );
+}
+
 function AbilityRow( { ability, side, onAction, actionLabel, busy } ) {
 	// Configured, but the site cannot serve it yet — the plugin providing it is
 	// not active. Shown greyed rather than hidden: it is what the operator is
@@ -322,6 +339,7 @@ function ToolsApp( { serverId } ) {
 	const [ serverType, setServerType ] = useState( '' );
 	const [ serverTypes, setServerTypes ] = useState( [] );
 	const [ typeAvailable, setTypeAvailable ] = useState( true );
+	const [ serverEnabled, setServerEnabled ] = useState( false );
 	const [ typeLabel, setTypeLabel ] = useState( '' );
 	const [ effectiveTools, setEffectiveTools ] = useState( [] );
 	const [ typePool, setTypePool ] = useState( [] );
@@ -441,13 +459,20 @@ function ToolsApp( { serverId } ) {
 				};
 			}
 
+			// A tool whose ability is not registered here — usually one this
+			// server's type declared in advance, waiting on the plugin that
+			// provides it.
+			//
+			// Rendered as the ordinary row it is about to become, not as a
+			// problem. It previously carried "(not available on this site yet
+			// …)" under every entry, which turned a server that is working
+			// exactly as intended into a screen of fifteen apologies. The
+			// label is derived from the slug so the row reads like its
+			// registered neighbours instead of printing the slug twice.
 			return {
 				name,
-				label: name,
-				description: __(
-					'(not available on this site yet — the plugin that provides it is not active)',
-					'acrossai-mcp-manager',
-				),
+				label: humanizeSlug( name ),
+				description: '',
 				type: '',
 				category: '',
 			};
@@ -479,6 +504,7 @@ function ToolsApp( { serverId } ) {
 				setServerType( response.server_type || '' );
 				setServerTypes( response.server_types || [] );
 				setTypeAvailable( response.type_available !== false );
+				setServerEnabled( response.server_enabled === true );
 				setTypeLabel( response.type_label || '' );
 				setEffectiveTools( response.effective_tools || [] );
 				servedAtLoad.current = response.effective_tools || [];
@@ -557,13 +583,13 @@ function ToolsApp( { serverId } ) {
 
 		return [ ...protocolAdded, ...curatedAdded ].map( ( name ) => ( {
 			...resolveAbility( name ),
-			// Rendered visibly inactive rather than hidden. A configured tool
-			// the site cannot serve yet is not an error and not a lie — it is
-			// the promise the operator is waiting on, and hiding it is what
-			// made this look broken.
-			isWaiting: ! served.has( name ),
+			// Only flagged once the server is ON. A disabled server serves
+			// nobody, so "configured but not served" describes every row on it
+			// and singling some out says nothing. Enable it and the distinction
+			// starts to matter, so that is when it appears.
+			isWaiting: serverEnabled && ! served.has( name ),
 		} ) );
-	}, [ shown, served, resolveAbility ] );
+	}, [ shown, served, resolveAbility, serverEnabled ] );
 
 	// #129 — the served set as it was when this page loaded. The notice compares
 	// against THIS, not against the previous write, so a set that is edited and
@@ -683,7 +709,7 @@ function ToolsApp( { serverId } ) {
 				poolAbilities.length,
 			);
 
-			if ( waiting.length === 0 ) {
+			if ( ! serverEnabled || waiting.length === 0 ) {
 				return { description };
 			}
 
@@ -703,7 +729,7 @@ function ToolsApp( { serverId } ) {
 				),
 			};
 		},
-		[ shown, waiting, poolAbilities ],
+		[ shown, waiting, poolAbilities, serverEnabled ],
 	);
 
 	// F090 — the bulk buttons are ONE-TIME writes, not a standing rule.
@@ -863,7 +889,13 @@ function ToolsApp( { serverId } ) {
 			: null,
 
 		// F090 — requirement unmet: state it plainly and offer BOTH remedies.
-		! typeAvailable
+		//
+		// Only while the server is ENABLED. Until then it serves nobody, so
+		// there is nothing to warn about, and the warning sat directly under
+		// the "Server is disabled" banner saying a milder version of the same
+		// thing. Enabling is what makes the gap real, and the notice appears
+		// at that moment.
+		serverEnabled && ! typeAvailable
 			? createElement(
 				Notice,
 				{ status: 'warning', isDismissible: false },

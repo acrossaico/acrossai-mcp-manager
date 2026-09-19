@@ -217,6 +217,12 @@ final class ToolsController {
 			'tools'           => ToolPolicy::compose_for_row( $server_row ),
 			'effective_tools' => ToolPolicy::compose_effective_tools_for_row( $server_row ),
 			'server_type'     => $server_type,
+			// Whether the operator has switched this server ON. The tab uses it
+			// to decide whether an unmet requirement is worth mentioning: a
+			// disabled server serves nobody, so warning that it would serve
+			// only a setup notice is noise stacked on top of the "Server is
+			// disabled" banner already above it.
+			'server_enabled'  => ! empty( $server_row->is_enabled ),
 			'type_available'  => ServerTypes::is_available( $server_type ),
 			// Falls back to the raw slug so an unrecognised type renders as
 			// itself marked unavailable, rather than blank (FR-010).
@@ -488,6 +494,7 @@ final class ToolsController {
 					// unverified.
 					'effective_tools' => ToolPolicy::compose_effective_tools_for_row( $refreshed ),
 					'server_type'     => (string) $refreshed->server_type,
+					'server_enabled'  => ! empty( $refreshed->is_enabled ),
 					'type_available'  => ServerTypes::is_available( (string) $refreshed->server_type ),
 					'type_label'      => self::type_label( (string) $refreshed->server_type ),
 					// The pool is TYPE-DEPENDENT, so a switch must return the new

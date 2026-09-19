@@ -329,6 +329,15 @@ final class OverviewTab extends AbstractServerTab {
 			return;
 		}
 
+		// Only once the operator has switched the server ON. A disabled server
+		// serves nobody, so an unmet requirement is not yet a problem — and
+		// saying so on a screen that already reads "Inactive" turns a plugin
+		// working exactly as intended into two warnings about nothing. Enabling
+		// is what makes the gap real, and the notice appears at that moment.
+		if ( empty( $server['is_enabled'] ) ) {
+			return;
+		}
+
 		// The SOFT notice, not the hard refusal. Since 0.3.6 a server of this
 		// type CAN be enabled without its plugin — it simply is not Ready, and
 		// says so. `enablement_error()` now covers only an unrecognised slug,
