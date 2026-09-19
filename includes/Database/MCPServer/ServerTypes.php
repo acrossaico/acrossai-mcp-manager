@@ -40,6 +40,7 @@ namespace AcrossAI_MCP_Manager\Includes\Database\MCPServer;
 
 use AcrossAI_MCP_Manager\Includes\Abilities\ServerGuide;
 use AcrossAI_MCP_Manager\Includes\Abilities\ToolAbilities;
+use AcrossAI_MCP_Manager\Includes\Abilities\Toolset\Registrar as ToolsetRegistrar;
 use WP_Error;
 
 defined( 'ABSPATH' ) || exit;
@@ -417,17 +418,90 @@ final class ServerTypes {
 				// both create paths and the create form all resolve through
 				// `default_slug()`.
 				'is_default'  => true,
+				// The server this plugin seeds for this type. Optional: a type
+				// without it is selectable but seeds nothing. Adding a type AND
+				// its server is now one entry in one place — see
+				// `seeded_servers()` for why this key never reaches `all()`.
+				'server'      => array(
+					'server_name'            => 'Default MCP Server',
+					'server_slug'            => DefaultServerSeeder::SLUG,
+					'description'            => __( 'Default MCP server registered by the plugin.', 'acrossai-mcp-manager' ),
+					'registered_from'        => 'plugin',
+					'server_route_namespace' => 'mcp',
+					'server_route'           => DefaultServerSeeder::SLUG,
+					'server_version'         => 'v1.0.0',
+				),
 			),
 			self::ACROSSAI => array(
 				'label'       => __( 'AcrossAI', 'acrossai-mcp-manager' ),
 				'description' => __( 'Abilities grouped into toolsets, supplied by the AcrossAI Abilities Manager add-on.', 'acrossai-mcp-manager' ),
-				// Intentionally EMPTY. The sibling plugin re-registers this slug
-				// with its own toolsets; this entry is the placeholder it
-				// replaces (D41 last-wins).
-				'tools'       => array(),
+				// DECLARED here since 0.3.6, where it used to be deliberately
+				// empty for the sibling to fill in (D41 last-wins).
+				//
+				// The placeholder was correct while this plugin did not own the
+				// vocabulary, and it produced the bug this release exists to
+				// fix: a server created before the add-on arrived got an empty
+				// menu, and only a type switch followed by "Reset to Type
+				// Defaults" — four undocumented steps — ever filled it. Now the
+				// Toolset layer lives here, so the list can be written down in
+				// advance and the slugs sit dormant until the add-on arrives.
+				//
+				// Still NOT hardcoded vocabulary: `Toolset\Registrar` owns
+				// these names, and this reads them. The sibling may still
+				// re-register the slug and win (D41 unchanged).
+				'tools'       => ToolsetRegistrar::tool_slugs(),
 				'requires'    => self::ACROSSAI_REQUIRES,
+				'server'      => array(
+					'server_name'            => 'AcrossAI',
+					'server_slug'            => DefaultServerSeeder::ACROSSAI_SLUG,
+					'description'            => __( 'Recommended AcrossAI MCP server, managed by the plugin.', 'acrossai-mcp-manager' ),
+					// Byte-identical to the values F088 shipped in 0.3.4 and
+					// F090 withdrew, so the handful of sites that briefly had
+					// this row adopt it without a drift UPDATE.
+					'registered_from'        => 'database',
+					'server_route_namespace' => 'acrossai',
+					'server_route'           => 'mcp-server',
+					'server_version'         => 'v1.0.0',
+				),
 			),
 		);
+	}
+
+	/**
+	 * The built-in types that ask this plugin to seed a server, keyed by slug.
+	 *
+	 * Reads `seed()` directly and NOT `all()`, which is the security property
+	 * and not an oversight. `normalize()` emits a fixed five-key shape and
+	 * drops everything else, so the `server` key survives inside `seed()` but
+	 * never leaves `all()` — meaning a third-party plugin filtering
+	 * {@see self::FILTER} can contribute a server TYPE but can never make this
+	 * plugin create server ROWS. Do not "fix" that by widening `normalize()`.
+	 *
+	 * @since  0.3.6
+	 * @return array<string, array{type: string, server: array<string, mixed>, tools: string[]}>
+	 */
+	public static function seeded_servers(): array {
+		$seeded = array();
+
+		foreach ( self::seed() as $type => $entry ) {
+			if ( empty( $entry['server'] ) || ! is_array( $entry['server'] ) ) {
+				continue;
+			}
+
+			$slug = isset( $entry['server']['server_slug'] ) ? (string) $entry['server']['server_slug'] : '';
+
+			if ( '' === $slug ) {
+				continue;
+			}
+
+			$seeded[ $slug ] = array(
+				'type'   => (string) $type,
+				'server' => $entry['server'],
+				'tools'  => isset( $entry['tools'] ) ? array_values( (array) $entry['tools'] ) : array(),
+			);
+		}
+
+		return $seeded;
 	}
 
 	/**

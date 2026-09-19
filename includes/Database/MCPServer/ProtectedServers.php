@@ -43,6 +43,11 @@ final class ProtectedServers {
 	public static function slugs(): array {
 		return array(
 			DefaultServerSeeder::SLUG,
+			// Back under protection since 0.3.6, having been dropped in F090
+			// when the row stopped being seeded. The plugin manages it again,
+			// so the guard applies again — a protected row the seeder would
+			// only recreate on the next admin request is a confusing delete.
+			DefaultServerSeeder::ACROSSAI_SLUG,
 		);
 	}
 
