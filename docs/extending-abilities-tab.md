@@ -115,7 +115,7 @@ add_filter( 'acrossai_mcp_ability_row', function ( $row, $server_id, $ability ) 
 
 ### `acrossai_mcp_manager_tool_abilities` — declare tool-level abilities
 
-**Feature 087.** Not every registered ability is an operator-facing choice. A handful are *tool-level*: they are what an MCP server advertises in `tools/list`, and every other ability reaches a client through one of them. Two families exist today — the three `mcp-adapter/*` protocol tools, whose plugin-owned callbacks enumerate and run the ability catalogue, and the sibling `acrossai-abilities-manager` plugin's `toolset/*` dispatchers, each of which takes `action=discover|info|execute` and routes to the abilities in one `meta.acrossai.tab_group`.
+**Feature 087.** Not every registered ability is an operator-facing choice. A handful are *tool-level*: they are what an MCP server advertises in `tools/list`, and every other ability reaches a client through one of them. Two families exist today — the three `mcp-adapter/*` protocol tools, whose plugin-owned callbacks enumerate and run the ability catalogue, and the `toolset/*` dispatchers, each of which takes `action=discover|info|execute` and routes to the abilities in one `meta.acrossai.tab_group`. Since 0.3.6 the twelve WordPress dispatchers, the server guide and the integrations directory ship **here** — a Toolset is a tool, and tools are a server concern — while the abilities they route to, and the per-plugin Toolsets (`toolset/elementor` and the rest), stay in `acrossai-abilities-manager` and whichever plugin owns that integration. During the changeover both plugins carry the twelve; the first to claim a slug keeps it and the other stands down, firing `acrossai_toolset_slug_collision`.
 
 One list drives two opposite behaviours:
 

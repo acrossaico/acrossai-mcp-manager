@@ -89,6 +89,30 @@ class ServerTypesTest extends WP_UnitTestCase {
 		$this->assertNotEmpty( ServerTypes::tools_for( 'hollow' ) );
 	}
 
+	public function test_a_template_of_unregistered_tools_falls_back_too(): void {
+		add_filter(
+			ServerTypes::FILTER,
+			static function ( array $types ): array {
+				$types['ghosts'] = array(
+					'label' => 'Ghosts',
+					'tools' => array( 'toolset/nothing-here', 'toolset/nor-here' ),
+				);
+				return $types;
+			}
+		);
+
+		// The same wipe reached the other way, and the reason the declaration
+		// check above is not sufficient on its own: this template looks healthy
+		// and only narrows to nothing, because `tools_for()` keeps just the
+		// tools actually registered on this site. That is the ordinary state of
+		// every `toolset/*` slug on a site without the abilities add-on, so it
+		// is reachable by accident rather than only by a hostile filter.
+		$this->assertNotEmpty(
+			ServerTypes::tools_for( 'ghosts' ),
+			'A template whose tools are all unregistered must not make Reset erase the server.'
+		);
+	}
+
 	// ------------------------------------------------------------ last-wins --
 
 	public function test_filter_can_add_a_type(): void {
