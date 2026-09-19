@@ -336,18 +336,28 @@ class RegistrarTest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Every registered `toolset/*` ability except the guide itself.
+	 * Every registered `toolset/*` ability the guide would have to describe.
+	 *
+	 * The exclusion list is read out of `Guide`'s own private constant rather
+	 * than restated, so the test and the rule it checks cannot drift apart
+	 * (B48). It matters here: `toolset/setup-required` took the prefix in
+	 * 0.3.6 and registers unconditionally, so a test counting the prefix alone
+	 * would find a Toolset on every bare site and assert the opposite of the
+	 * rule — that a guide to nothing still publishes.
 	 *
 	 * @return string[]
 	 */
 	private function registered_toolsets(): array {
 		$registry = \WP_Abilities_Registry::get_instance();
+		$ignored  = ( new ReflectionClass( Guide::class ) )->getConstant( 'NOT_A_SUBJECT' );
+		$ignored  = is_array( $ignored ) ? $ignored : array( Guide::SLUG );
 
 		return array_values(
 			array_filter(
 				null === $registry ? array() : array_keys( $registry->get_all_registered() ),
-				static function ( $slug ): bool {
-					return Guide::SLUG !== $slug && 0 === strpos( (string) $slug, 'toolset/' );
+				static function ( $slug ) use ( $ignored ): bool {
+					return ! in_array( $slug, $ignored, true )
+						&& 0 === strpos( (string) $slug, 'toolset/' );
 				}
 			)
 		);
