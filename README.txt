@@ -4,7 +4,7 @@ Tags: ai assistant, chatgpt, claude, mcp, mcp-server
 Requires at least: 7.0
 Requires PHP: 8.1
 Tested up to: 7.1
-Stable tag: 0.3.5
+Stable tag: 0.3.6
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -126,6 +126,15 @@ Only if you want the one-click hosted-OAuth flow for Claude, ChatGPT, Grok, Gemi
 4. Per-provider configuration file locations and top-level keys
 
 == Changelog ==
+
+= 0.3.6 =
+* **Fixed — installing the AcrossAI Abilities Manager add-on now just works.** Before this release, installing the add-on after this plugin changed nothing you could see: your server still offered the same few tools and nothing told you the larger set had arrived. Getting it took four undocumented steps — open **Tools**, change **Server type** to AcrossAI, confirm, then press **Reset to Type Defaults**. The cause was that the AcrossAI type shipped with an empty tool list, because this plugin did not know what belonged on it until the add-on turned up and said so. It knows now, so the list is written down in advance and the tools start working the moment the add-on is activated. No type change, no Reset, nothing to read.
+* **New — the plugin creates a second server, **AcrossAI**, alongside the default one.** It arrives **disabled**, listed after **Default MCP Server**, and carries the AcrossAI toolsets from the start. Nothing is served until you enable it, and enabling it is your decision. If you do not want it, disable or delete it. (0.3.4 briefly added a similar server and 0.3.5 withdrew it — the row was never the problem, the tools it carried were. It returns with the right ones.)
+* **Changed — a server can be enabled before its add-on is installed, and says what it is waiting for.** Previously such a server could not be switched on at all, which broke the **Quick Connect** wizard for exactly the person who had not installed the add-on yet. Now enabling records your intent, the admin shows which plugin is still missing, and installing that plugin makes the server live with no further clicks. Quick Connect will still not hand over a client configuration until then, and says why — a configuration pasted into Claude or Cursor too early connects and looks broken, and because AI clients cache their tool list when they connect, it would keep looking broken afterwards. A server whose type is **unrecognised** still cannot be enabled: no install fixes that one.
+* **Changed — every existing server gains **Server guide**.** A one-time addition to servers created before it existed, so they get the tool that explains what the site actually contains. Your own tool selections are untouched.
+* **Changed — clearer wording on the Tools tab.** A tool whose plugin is not active read "(ability no longer registered)", which sounds like breakage. It now says it is not available on this site yet, which is almost always what is actually true.
+* **Internal — this plugin now owns the Toolset layer** (the dispatchers behind `toolset/content`, `toolset/users` and the rest) instead of the add-on. **Nothing changes for you:** on a site running both plugins the add-on's copies still win and this plugin's stand down, verified by comparing the two side by side. The abilities themselves have not moved and stay in the add-on.
+* **No database change.** Schema stays at `1.1.7`; nothing is added, altered or removed. The new server is an ordinary row, written on the first wp-admin page load after updating.
 
 = 0.3.5 =
 * **Changed — a new server now arrives with its type's tools already selected.** Creating a server, from either the classic form or the Quick Connect wizard, used to hand it the same three `mcp-adapter/*` protocol tools whatever type you picked, because that is what the database columns default to. A type's tool set was only ever written when you pressed **Reset to Type Defaults**. A new MCP Adapter server now includes **Server guide** from the start, and a new AcrossAI server starts with the AcrossAI toolsets rather than the wrong three. Existing servers are untouched — where a type has tools a server does not, the Tools tab still offers them with a one-click **Apply**, and your own selection is never overwritten.
