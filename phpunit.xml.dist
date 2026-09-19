@@ -152,10 +152,6 @@
             routine, utility helpers that call WP functions).
         -->
         <testsuite name="remaining">
-            <!-- Activation-order contract. Lives at the root of tests/phpunit
-                 because its subject is Activator, not one DB module, so it
-                 needs naming here rather than being swept up by a directory. -->
-            <file>tests/phpunit/ActivationOrderTest.php</file>
             <directory>tests/phpunit/REST</directory>
             <directory>tests/phpunit/Utilities</directory>
             <directory>tests/phpunit/Includes/Utilities</directory>

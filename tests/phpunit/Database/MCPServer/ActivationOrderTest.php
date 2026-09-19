@@ -22,12 +22,17 @@
  * runtime cannot express (see the F080 rename gate and
  * `SettingsBulkEnableTest`'s boundary assertions).
  *
- * @package AcrossAI_MCP_Manager\Tests\PHPUnit
+ * Filed under the MCPServer database tests rather than at the root of
+ * `tests/phpunit`: a CI guard requires every test file to sit inside a
+ * directory some `<testsuite>` names, and both assertions here concern
+ * database table creation order and a database Query's return contract.
+ *
+ * @package AcrossAI_MCP_Manager\Tests\PHPUnit\Database\MCPServer
  */
 
 declare( strict_types = 1 );
 
-namespace AcrossAI_MCP_Manager\Tests\PHPUnit;
+namespace AcrossAI_MCP_Manager\Tests\PHPUnit\Database\MCPServer;
 
 use WP_UnitTestCase;
 
@@ -41,7 +46,7 @@ class ActivationOrderTest extends WP_UnitTestCase {
 	 * @return string
 	 */
 	private function source(): string {
-		$path = dirname( __DIR__, 2 ) . '/includes/Activator.php';
+		$path = dirname( __DIR__, 4 ) . '/includes/Activator.php';
 
 		$this->assertFileExists( $path );
 
@@ -101,7 +106,7 @@ class ActivationOrderTest extends WP_UnitTestCase {
 	 * failure path cannot be exercised.
 	 */
 	public function test_replace_set_reports_only_rows_it_actually_inserted(): void {
-		$path = dirname( __DIR__, 2 ) . '/includes/Database/MCPServerTool/Query.php';
+		$path = dirname( __DIR__, 4 ) . '/includes/Database/MCPServerTool/Query.php';
 		$this->assertFileExists( $path );
 
 		$source = (string) file_get_contents( $path );
