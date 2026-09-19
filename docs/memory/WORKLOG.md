@@ -10,6 +10,26 @@ This is not a changelog. Do not record routine releases, version bumps, or imple
 - why this is durable
 - what future mistake it prevents
 - evidence
+
+---
+
+### 2026-09-19 - Phase B: the core Toolset layer moved to the transport, as a deliberate no-op
+
+- **Why durable**: the pattern for moving code between two independently-updated plugins. It cannot
+  be remove-then-add — a site updating the add-on first loses the feature until it updates the other
+  — so the receiving plugin ships FIRST and stands down while the origin still has its copies
+  (`wp_has_ability()` guard + `acrossai_toolset_slug_collision`). The origin drops its copies a
+  release later. Ordering is made deterministic by priority (`plugins_loaded` 21 vs the add-on's
+  20), never by plugin load order.
+- **What it prevents**: proving "this changes nothing" on only ONE of the configurations it ships
+  into. The first proof ran on a site with both plugins, where every dispatcher registers and the
+  entire class of defect was invisible. Installing the plugin ALONE surfaced a server-wiping bug
+  within minutes (`B64`). A no-op claim must be demonstrated in every configuration, and the
+  cheapest demonstration is a diffable snapshot, not a screenshot.
+- **Evidence**: `bin/verify-toolset-noop.sh` — snapshots server types, the tool-level ability list
+  and the live `toolset/*` set, re-snapshots with the copies unhooked, and diffs. Identical with the
+  add-on active and with it absent. Abilities did NOT move (~163k lines stay in the add-on); only
+  the ~3,200-line dispatch layer did.
 - where future contributors should look
 
 ## Example

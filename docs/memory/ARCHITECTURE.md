@@ -720,3 +720,48 @@ coupling.
   grep gate. Same boundary, PHP-import dimension; this entry covers the asset/styling dimension.
 - `D54` — the graded navigation family whose level-3 tier this constraint shapes.
 - `D51` — duplicate-over-shared-partial across a boundary, same trade-off at the plugin boundary.
+
+---
+
+### A23 — A contributor declares only what it actually registered, and reads existence from the registry
+
+**Status**
+Active (Phase B)
+
+**Constraint**
+A class that both registers something and contributes its slug to shared lists MUST gate every
+contribution on the registration having SUCCEEDED — not merely on the absence of one known
+obstacle. In this plugin that is `Base_Toolset_Ability` / `Toolset\Guide` and three published
+surfaces: `acrossai_mcp_manager_tool_abilities` (the admin's tool pool),
+`acrossai_abilities_manager_protected_slugs`, and `acrossai_mcp_server_types` (a type's default
+tool set).
+
+Registration can be skipped for more than one reason, and a guard written for the first reason will
+not cover the second. Here the original guard covered "another plugin already holds this slug" —
+correct, and blind to "this group has no abilities, so there is nothing to dispatch". The second
+case could not arise while the add-on always shipped the abilities alongside the dispatchers; it
+became the ordinary case the moment the dispatchers moved into this plugin.
+
+The consequences are graded, and the worst one is not the visible one:
+
+- tool pool → the admin offers a tool that cannot be added
+- protected slugs → protection is claimed over a slug naming nothing
+- server types → a non-empty template that narrows to nothing, which makes **Reset erase the
+  server** (see `B64`)
+
+**Second half — read existence from the registry, not a filtered view.** Deciding whether to
+register MUST NOT consult `wp_get_abilities()`. That helper runs the
+`wp_get_abilities_item_include` filter, so any plugin can reshape it per request or per caller, and
+whether an ability EXISTS would then vary with who is asking. Use
+`WP_Abilities_Registry::get_instance()->get_all_registered()` — the same source `wp_has_ability()`
+consults. Safe to call inside `wp_abilities_api_init`, because core assigns the instance before
+firing the action.
+
+**Reviewer gate**
+For any class contributing to a cross-plugin registry: list every `return` in its `register()`, then
+confirm each contribution method is gated on success rather than on one specific failure.
+
+**Related**
+- `B64` — the data loss this prevents, and why guarding the consumer alone was not enough.
+- `A20`, `D40` — the cross-plugin boundary family this belongs to.
+- `D56` — the one-list-two-readings rule governing `acrossai_mcp_manager_tool_abilities`.

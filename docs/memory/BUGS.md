@@ -2848,3 +2848,89 @@ local harness has no `WP_UnitTestCase`, so CI is the only gate that sees the int
   DDL statement does to existing tests, which is how this got through.
 - `B34` — why the column was dropped rather than left in place: a column `Schema.php` no longer
   declares but the live table still has is exactly that drift.
+
+---
+
+### 2026-09-19 — The same wipe B62 fixed, reached by the path B62 does not guard
+
+**Status**
+Active (Phase B — fixed; regression locked by `ServerTypesTest`)
+
+**What happened**
+`ServerTypes::tools_for()` falls back to the legacy tool set when a type's template is empty,
+specifically so **Reset cannot wipe a server**. B62 fixed one way that fallback failed. This is the
+other way, and it never reaches the fallback at all:
+
+```php
+if ( null === $type || empty( $type['tools'] ) ) {   // checks the DECLARATION
+    return self::registered_only( $legacy );
+}
+return self::registered_only( $type['tools'] );       // ...but returns the NARROWED RESULT
+```
+
+A type can declare a long, healthy-looking list whose every entry then narrows away. Moving the
+Toolsets into this plugin made that the ORDINARY state: on a site without the abilities add-on, the
+twelve dispatchers decline to register (empty group) but still declared themselves onto the
+`acrossai` type. Measured live — **declared 14, Reset would have written 0**.
+
+So the guard passed on a non-empty declaration and handed back an empty result. B62 hardened the
+fallback branch; this went down the primary branch, where nothing checked the outcome.
+
+**Prevention rule**
+Guard the RESULT, not only the input that produced it. A check on "did the caller declare anything?"
+is not a check on "is there anything to return?" whenever a filter sits between them. Both branches
+of a fallback must satisfy the same post-condition, and the cheapest way to guarantee that is to
+assert it once, after the narrowing, rather than to reason about each branch.
+
+Second rule, at the producer end: **declare only what you actually registered.** A contributor that
+publishes a slug it did not register manufactures exactly this shape — a full declaration that
+resolves to nothing. See `A23`.
+
+Detection: a function with an `empty( $input )` guard that returns `filter( $input )` on the other
+path. The guard's presence proves the author knew empty output was dangerous.
+
+**Evidence**
+`ServerTypesTest::test_a_template_of_unregistered_tools_falls_back_too`. Found not by a test but by
+installing the plugin alone and reading the Tools tab — the one configuration the "this is a no-op"
+proof had not covered, because that proof ran only on a site with both plugins.
+
+**Related**
+- `B62` — same wipe, same function, the fallback branch. Read both; each is invisible from the other.
+- `A23` — the producer-side rule that stops this shape being created.
+
+---
+
+### 2026-09-19 — A registration a gate refuses makes the test assert the harness
+
+**Status**
+Active (Phase B — fixed)
+
+**What happened**
+`wp_register_ability()` refuses unless `doing_action( 'wp_abilities_api_init' )`: it emits
+`_doing_it_wrong` and returns null. Tests calling a Toolset's `register()` directly therefore
+registered NOTHING, ever.
+
+Two of those tests asserted that a Toolset **declines** to register. They passed. They would have
+passed against any implementation whatsoever, including one with the rule deleted, because nothing
+can register in that context. The one test asserting the opposite failed — which is the only reason
+the whole set was looked at.
+
+The failure took three CI rounds to read correctly, because each round's message pointed at the
+production code (`the guide did not publish`) when the harness was at fault.
+
+**Prevention rule**
+For any test asserting a **negative** ("declines", "is not registered", "contributes nothing"),
+first prove the positive is reachable in that exact context. If the same test file cannot make the
+thing happen, the negative assertion is vacuous.
+
+WordPress-specific: `wp_register_ability()`, `wp_register_ability_category()` and their kin are
+gated on their own `do_action`. `tests/bootstrap-wp.php` provides `acrossai_test_register_ability()`
+to bypass the gate for plain abilities — but a class that registers ITSELF must be run inside a real
+firing of the action, not handed a bypass. Lift the other callbacks off the hook for the duration,
+or re-firing it re-runs every other registration and trips core's duplicate notice.
+
+**Evidence**
+`RegistrarTest::inside_abilities_init()` and the three guide tests that use it.
+
+**Related**
+- `B52` — tests that never ran at all. Cousin: this is tests that run and cannot fail.
