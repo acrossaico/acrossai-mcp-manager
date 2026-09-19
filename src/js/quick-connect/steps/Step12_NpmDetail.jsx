@@ -15,6 +15,7 @@ import { useMemo } from '@wordpress/element';
 import { __ } from '@wordpress/i18n';
 import CodeBlock from '../components/CodeBlock.jsx';
 import Notice from '../components/Notice.jsx';
+import SetupRequiredGate from '../components/SetupRequiredGate.jsx';
 import useWizardState from '../hooks/useWizardState.js';
 
 const Step12_NpmDetail = () => {
@@ -46,6 +47,7 @@ const Step12_NpmDetail = () => {
 
 	return (
 		<div>
+			<SetupRequiredGate />
 			<span
 				style={ {
 					display: 'block',

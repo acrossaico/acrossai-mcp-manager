@@ -28,6 +28,7 @@ import { useCopyToClipboard } from '@wordpress/compose';
 import apiFetch from '@wordpress/api-fetch';
 import CodeBlock from '../components/CodeBlock.jsx';
 import Notice from '../components/Notice.jsx';
+import SetupRequiredGate from '../components/SetupRequiredGate.jsx';
 import useWizardState from '../hooks/useWizardState.js';
 
 const Step11_ClientDetail = () => {
@@ -155,6 +156,7 @@ const Step11_ClientDetail = () => {
 
 	return (
 		<div>
+			<SetupRequiredGate />
 			<div style={ { marginBottom: 12 } }>
 				<span
 					style={ {

@@ -30,6 +30,7 @@ import { useState, useMemo } from '@wordpress/element';
 import { __ } from '@wordpress/i18n';
 import CodeBlock from '../components/CodeBlock.jsx';
 import Notice from '../components/Notice.jsx';
+import SetupRequiredGate from '../components/SetupRequiredGate.jsx';
 import useWizardState from '../hooks/useWizardState.js';
 import { useBelowFooter } from '../hooks/useAdvanceGuard.js';
 
@@ -128,6 +129,7 @@ const Step10_ConnectorsDetail = () => {
 
 	return (
 		<div>
+			<SetupRequiredGate />
 			<div
 				role="tablist"
 				aria-label={ __( 'Connector providers', 'acrossai-mcp-manager' ) }

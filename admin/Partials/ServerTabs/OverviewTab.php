@@ -329,7 +329,12 @@ final class OverviewTab extends AbstractServerTab {
 			return;
 		}
 
-		$error = ServerTypes::enablement_error( $server_type );
+		// The SOFT notice, not the hard refusal. Since 0.3.6 a server of this
+		// type CAN be enabled without its plugin — it simply is not Ready, and
+		// says so. `enablement_error()` now covers only an unrecognised slug,
+		// which this method's `is_available()` guard above has already let
+		// through.
+		$error = ServerTypes::requirement_notice( $server_type );
 
 		if ( null === $error ) {
 			return;

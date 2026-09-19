@@ -257,6 +257,8 @@ final class QuickConnectController {
 		// JSON for the wizard's active server. Mirrors the Clients tab, which
 		// resolves the same URL in MCPClientsBlock:224-226. Falls back to the
 		// generic list (no `config` field) when no server is selected yet.
+		$setup_required = null;
+
 		if ( $server_id > 0 ) {
 			$rows = MCPServerQuery::instance()->query(
 				array(
@@ -265,9 +267,36 @@ final class QuickConnectController {
 				)
 			);
 			if ( ! empty( $rows ) ) {
-				$methods['clients'] = ConnectionMethodRegistry::instance()->get_clients(
-					$rows[0]->to_array()
-				);
+				// The handover gate. Since 0.3.6 the wizard may select, create
+				// AND enable a server whose type needs a plugin that is not
+				// active — that permissiveness is deliberate, because refusing
+				// to enable would strand the wizard for exactly the operator
+				// who has not installed the add-on yet.
+				//
+				// Handing over a client configuration is the step that must
+				// still wait. Such a server answers with one tool,
+				// `acrossai/setup-required`, so a config pasted into Claude or
+				// Cursor now would connect and appear broken — and the client
+				// caches its tool list at connect time, so it would keep
+				// appearing broken after the plugin was installed.
+				//
+				// Withholding `config` rather than blocking the step keeps the
+				// wizard walkable: the operator can read what is missing,
+				// install it, and carry on. Re-evaluated on every /state call,
+				// so deactivating the plugin later re-blocks the handover.
+				$notice = ServerTypes::requirement_notice( (string) $rows[0]->server_type );
+
+				if ( null !== $notice ) {
+					$setup_required = array(
+						'code'    => $notice->get_error_code(),
+						'message' => $notice->get_error_message(),
+						'plugin'  => ServerTypes::required_plugin_slug( (string) $rows[0]->server_type ),
+					);
+				} else {
+					$methods['clients'] = ConnectionMethodRegistry::instance()->get_clients(
+						$rows[0]->to_array()
+					);
+				}
 			}
 		}
 
@@ -280,11 +309,14 @@ final class QuickConnectController {
 
 		return rest_ensure_response(
 			array(
-				'servers'     => $servers,
-				'abilities'   => $abilities,
-				'plugins'     => $plugins,
-				'methods'     => $methods,
-				'wizardState' => $wizard_state,
+				'servers'       => $servers,
+				'abilities'     => $abilities,
+				'plugins'       => $plugins,
+				'methods'       => $methods,
+				'wizardState'   => $wizard_state,
+				// Null when the selected server is Ready. Non-null means no
+				// client configuration was emitted above, and this says why.
+				'setupRequired' => $setup_required,
 			)
 		);
 	}

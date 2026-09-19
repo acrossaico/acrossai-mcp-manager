@@ -15,6 +15,7 @@ import { useMemo } from '@wordpress/element';
 import { __ } from '@wordpress/i18n';
 import CodeBlock from '../components/CodeBlock.jsx';
 import Notice from '../components/Notice.jsx';
+import SetupRequiredGate from '../components/SetupRequiredGate.jsx';
 import useWizardState from '../hooks/useWizardState.js';
 
 const Step13_WpCliDetail = () => {
@@ -36,6 +37,7 @@ const Step13_WpCliDetail = () => {
 
 	return (
 		<div>
+			<SetupRequiredGate />
 			<h3 style={ { margin: '0 0 6px', fontSize: 16 } }>
 				{ __(
 					'STDIO Transport (Local / Subprocess Mode)',

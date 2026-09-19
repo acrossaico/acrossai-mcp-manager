@@ -71,14 +71,52 @@ class ServerEnablementTest extends WP_UnitTestCase {
 
 	// ------------------------------------------------ the gate, off->on ----
 
-	public function test_enabling_is_refused_when_the_type_requirement_is_unmet(): void {
+	/**
+	 * INVERTED in 0.3.6. Enabling is now ALLOWED; connecting is what waits.
+	 *
+	 * The refusal broke the main setup path for exactly the person it was
+	 * written for. Quick Connect cannot complete against a server it is
+	 * forbidden to switch on, so the operator who has not installed the add-on
+	 * yet — the overwhelmingly common case — hit a wall inside the wizard.
+	 *
+	 * `is_enabled` is the operator's INTENT and is always writable. Whether the
+	 * type's plugin is active is a separate condition deciding whether that
+	 * intent takes effect. Install the plugin and the server runs with no
+	 * further action, because the intent was already recorded.
+	 *
+	 * Nothing is lost at runtime: `ToolPolicy` resolves such a server to
+	 * exactly `acrossai/setup-required`, so a connected client is told what to
+	 * install rather than handed a broken tool list.
+	 */
+	public function test_enabling_is_allowed_when_the_type_requirement_is_unmet(): void {
 		$id     = $this->make_server( 'needs-absent-plugin', false );
 		$result = ServerEnablement::set( $id, true );
 
-		$this->assertInstanceOf( WP_Error::class, $result );
-		$this->assertFalse( $this->is_enabled( $id ), 'A refused enable must not write.' );
+		$this->assertTrue( $result );
+		$this->assertTrue( $this->is_enabled( $id ), 'The operator\'s intent must be recorded.' );
 	}
 
+	/**
+	 * The server is Enabled but NOT Ready, and says which.
+	 */
+	public function test_an_enabled_server_still_reports_what_it_is_waiting_for(): void {
+		$id = $this->make_server( 'needs-absent-plugin', false );
+		ServerEnablement::set( $id, true );
+
+		$notice = ServerTypes::requirement_notice( 'needs-absent-plugin' );
+
+		$this->assertInstanceOf( WP_Error::class, $notice );
+		$this->assertSame( 'acrossai_mcp_server_type_unavailable', $notice->get_error_code() );
+		$this->assertStringContainsString( 'Abilities Manager', $notice->get_error_message() );
+	}
+
+	/**
+	 * The hard refusal SURVIVES, and is now the gate's whole job.
+	 *
+	 * Without this the split would have turned the gate into one that never
+	 * says no. An unrecognised slug cannot be made to work by installing
+	 * anything, so there is nothing to wait for.
+	 */
 	public function test_an_unrecognised_type_cannot_be_enabled(): void {
 		// FR-010: an unknown slug must never fatal — but it must not be a way to
 		// bypass the gate either. Unrecognised means unavailable.
@@ -90,15 +128,18 @@ class ServerEnablementTest extends WP_UnitTestCase {
 		$this->assertFalse( $this->is_enabled( $id ) );
 	}
 
-	public function test_the_refusal_names_what_is_missing(): void {
-		$id     = $this->make_server( 'needs-absent-plugin', false );
+	/**
+	 * SC-003 still holds — it just applies to the surviving refusal.
+	 *
+	 * A bare "not allowed" leaves the operator with no next step, which is the
+	 * failure mode the whole design exists to avoid.
+	 */
+	public function test_the_refusal_names_what_is_wrong(): void {
+		$id     = $this->make_server( 'a-type-nobody-registered', false );
 		$result = ServerEnablement::set( $id, true );
 
-		// SC-003: every refusal names the missing add-on. A bare "not allowed"
-		// leaves the operator with no next step, which is the failure mode the
-		// whole three-layer design exists to avoid.
 		$this->assertNotEmpty( $result->get_error_message() );
-		$this->assertStringContainsString( 'Abilities Manager', $result->get_error_message() );
+		$this->assertStringContainsString( 'a-type-nobody-registered', $result->get_error_message() );
 	}
 
 	public function test_a_refusal_fires_the_observability_action(): void {
@@ -112,12 +153,33 @@ class ServerEnablementTest extends WP_UnitTestCase {
 			3
 		);
 
-		$id = $this->make_server( 'needs-absent-plugin', false );
+		$id = $this->make_server( 'a-type-nobody-registered', false );
 		ServerEnablement::set( $id, true );
 
 		$this->assertCount( 1, $seen, 'D19 fire-and-forget observability — a refusal must be auditable.' );
 		$this->assertSame( $id, $seen[0][0] );
-		$this->assertSame( 'needs-absent-plugin', $seen[0][1] );
+		$this->assertSame( 'a-type-nobody-registered', $seen[0][1] );
+	}
+
+	/**
+	 * A permitted enable must NOT fire the refusal action.
+	 *
+	 * Guards the inversion from the other side: an observability hook that
+	 * fires on success would turn an operator's refusal audit into noise, and
+	 * nothing else would notice.
+	 */
+	public function test_an_allowed_enable_fires_no_refusal(): void {
+		$seen = 0;
+		add_action(
+			'acrossai_mcp_server_enable_refused',
+			static function () use ( &$seen ): void {
+				++$seen;
+			}
+		);
+
+		ServerEnablement::set( $this->make_server( 'needs-absent-plugin', false ), true );
+
+		$this->assertSame( 0, $seen );
 	}
 
 	// ------------------------------------- the asymmetry, on->off always ----
@@ -172,19 +234,32 @@ class ServerEnablementTest extends WP_UnitTestCase {
 
 	// ------------------------------------------ FR-016a: partial success ----
 
+	/**
+	 * Relabelled with the inversion: the skipped one is the UNRECOGNISED type.
+	 *
+	 * FR-016a's two requirements are unchanged and still what this asserts — a
+	 * bulk enable must not fail wholesale, and must not skip silently. Only the
+	 * membership moved: a server merely waiting for its plugin now enables with
+	 * the rest, and the one that cannot ever work is the one named.
+	 */
 	public function test_bulk_enable_partially_succeeds_and_names_every_skip(): void {
 		$ok      = $this->make_server( ServerTypes::LEGACY, false );
-		$blocked = $this->make_server( 'needs-absent-plugin', false );
+		$waiting = $this->make_server( 'needs-absent-plugin', false );
+		$blocked = $this->make_server( 'a-type-nobody-registered', false );
 
-		$result = ServerEnablement::set_many( array( $ok, $blocked ), true );
+		$result = ServerEnablement::set_many( array( $ok, $waiting, $blocked ), true );
 
-		// It must NOT fail wholesale, and must NOT skip silently — both are
-		// named explicitly in FR-016a because either one strands the operator.
-		$this->assertSame( array( $ok ), $result['changed'] );
+		$this->assertSame( array( $ok, $waiting ), $result['changed'] );
 		$this->assertArrayHasKey( $blocked, $result['skipped'] );
 		$this->assertNotEmpty( $result['skipped'][ $blocked ], 'Every skip carries its reason.' );
+		$this->assertArrayNotHasKey(
+			$waiting,
+			$result['skipped'],
+			'Waiting for a plugin is not a reason to skip — the intent is recorded either way.'
+		);
 
 		$this->assertTrue( $this->is_enabled( $ok ) );
+		$this->assertTrue( $this->is_enabled( $waiting ) );
 		$this->assertFalse( $this->is_enabled( $blocked ) );
 	}
 
