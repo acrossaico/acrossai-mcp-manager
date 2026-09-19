@@ -200,12 +200,29 @@ class ServerCreateTypeTest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Guards the opposite failure: a type contributing tools this site does not
-	 * have must not write them. `tools_for()` narrows through
-	 * `registered_only()`, and this asserts the creation path inherits that
-	 * rather than storing slugs the server could never serve.
+	 * INVERTED in 0.3.6: creation writes the type's DECLARATION, dormant slugs
+	 * and all.
+	 *
+	 * This used to assert the opposite, and the premise was reasonable when it
+	 * was written — an unregistered slug could only be junk from a careless
+	 * filter, so narrowing through `registered_only()` was pure protection.
+	 *
+	 * Then this plugin started shipping a type whose tools are supplied by an
+	 * add-on, and the same narrowing became the bug: on a site without the
+	 * add-on every `toolset/*` slug disappeared and the fallback stamped an
+	 * AcrossAI server with mcp-adapter's four tools. That is the original
+	 * report — "installing the add-on changes nothing" — and it survived in the
+	 * create path after the seeder had been corrected.
+	 *
+	 * A dormant slug is safe and is the point: never advertised to a client
+	 * (`compose_effective_tools_for_row()` still narrows), shown as pending in
+	 * the admin, and live the moment its plugin registers it. No type switch,
+	 * no Reset.
+	 *
+	 * What is still guarded is that creation writes the declaration and nothing
+	 * else — a type cannot smuggle in a tool it never declared.
 	 */
-	public function test_creation_never_writes_a_tool_that_does_not_exist(): void {
+	public function test_creation_writes_the_types_declaration_including_dormant_tools(): void {
 		add_filter(
 			ServerTypes::FILTER,
 			static function ( array $types ): array {
@@ -220,9 +237,25 @@ class ServerCreateTypeTest extends WP_UnitTestCase {
 		$id = $this->create_with_type( 'ghosts' );
 		ToolPolicy::apply_type_defaults( $id, 'ghosts' );
 
+		$configured = ToolPolicy::compose_for_row( $this->row( $id ) );
+
+		$this->assertContains( 'nobody/registered-this', $configured );
+		$this->assertFalse(
+			wp_has_ability( 'nobody/registered-this' ),
+			'Precondition: it is NOT registered, and was stored anyway.'
+		);
+
+		$this->assertSame(
+			ServerTypes::declared_tools( 'ghosts' ),
+			array_values( array_diff( $configured, ToolPolicy::PROTOCOL_TOOLS ) ),
+			'Creation writes the declaration — no more, no less.'
+		);
+
+		// Stored, but never served: the narrowing that used to run at write
+		// time still runs at read time, which is where it belongs.
 		$this->assertNotContains(
 			'nobody/registered-this',
-			ToolPolicy::compose_for_row( $this->row( $id ) )
+			ToolPolicy::compose_effective_tools_for_row( $this->row( $id ) )
 		);
 	}
 
