@@ -41,16 +41,37 @@ use WP_UnitTestCase;
 class ActivationOrderTest extends WP_UnitTestCase {
 
 	/**
-	 * The activator's source, once.
+	 * A file's source with every comment removed.
 	 *
+	 * Stripping is not fussiness. The first version of this test searched the
+	 * raw file and failed on its own explanatory comment — the block above the
+	 * calls NAMES `DefaultServerSeeder::seed()`, so the seeder appeared to come
+	 * first and a correctly-ordered activator was reported as broken. A test
+	 * that reads source has to read the code, not the prose about the code.
+	 *
+	 * @param  string $relative Path relative to the plugin root.
 	 * @return string
 	 */
-	private function source(): string {
-		$path = dirname( __DIR__, 4 ) . '/includes/Activator.php';
+	private function code( string $relative ): string {
+		$path = dirname( __DIR__, 4 ) . '/' . $relative;
 
 		$this->assertFileExists( $path );
 
-		return (string) file_get_contents( $path );
+		$stripped = '';
+
+		foreach ( token_get_all( (string) file_get_contents( $path ) ) as $token ) {
+			if ( is_array( $token ) ) {
+				if ( in_array( $token[0], array( T_COMMENT, T_DOC_COMMENT ), true ) ) {
+					continue;
+				}
+				$stripped .= $token[1];
+				continue;
+			}
+
+			$stripped .= $token;
+		}
+
+		return $stripped;
 	}
 
 	/**
@@ -77,7 +98,7 @@ class ActivationOrderTest extends WP_UnitTestCase {
 	 * has no DDL of its own, and nothing raises.
 	 */
 	public function test_both_tables_the_seeder_writes_to_exist_before_it_runs(): void {
-		$source = $this->source();
+		$source = $this->code( 'includes/Activator.php' );
 
 		$servers = $this->position( $source, 'MCPServerTable::instance()->maybe_upgrade()' );
 		$tools   = $this->position( $source, 'MCPServerToolTable::instance()->maybe_upgrade()' );
@@ -106,10 +127,7 @@ class ActivationOrderTest extends WP_UnitTestCase {
 	 * failure path cannot be exercised.
 	 */
 	public function test_replace_set_reports_only_rows_it_actually_inserted(): void {
-		$path = dirname( __DIR__, 4 ) . '/includes/Database/MCPServerTool/Query.php';
-		$this->assertFileExists( $path );
-
-		$source = (string) file_get_contents( $path );
+		$source = $this->code( 'includes/Database/MCPServerTool/Query.php' );
 
 		$this->assertStringContainsString(
 			'\'added\'   => $inserted,',
