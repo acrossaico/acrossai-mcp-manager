@@ -264,6 +264,50 @@ class DefaultServerSeederTest extends WP_UnitTestCase {
 	}
 
 	/**
+	 * The operator's server TYPE survives, and the plugin's identity does not.
+	 *
+	 * These are asserted together because the bug was the boundary between
+	 * them. `server_type` sat in the managed bucket, so the reconciler rewrote
+	 * it on every admin request: switching a seeded server's type through the
+	 * Tools tab saved correctly, then silently reverted on the next page load.
+	 * A control whose result is undone before the operator sees it again is
+	 * worse than no control.
+	 *
+	 * Moving it is only safe if the rest of the bucket still self-heals, so the
+	 * same test proves both halves — otherwise a future fix for one could quietly
+	 * take the other with it.
+	 */
+	public function test_the_type_is_operator_owned_but_identity_is_not(): void {
+		global $wpdb;
+
+		$wpdb->update(
+			$this->table(),
+			array(
+				'server_type' => ServerTypes::ACROSSAI,
+				'server_name' => 'Renamed by hand',
+			),
+			array( 'server_slug' => DefaultServerSeeder::SLUG ),
+			array( '%s', '%s' ),
+			array( '%s' )
+		);
+
+		DefaultServerSeeder::seed();
+
+		$row = $this->row( DefaultServerSeeder::SLUG );
+
+		$this->assertSame(
+			ServerTypes::ACROSSAI,
+			$row['server_type'],
+			'The type is the operator\'s choice — the Tools tab offers a control for it.'
+		);
+		$this->assertSame(
+			'Default MCP Server',
+			$row['server_name'],
+			'Identity stays plugin-owned and is restored, or the buckets mean nothing.'
+		);
+	}
+
+	/**
 	 * A healthy install must cost reads only — no INSERT/UPDATE churn on
 	 * every admin page load. One SELECT per definition, nothing more.
 	 */
