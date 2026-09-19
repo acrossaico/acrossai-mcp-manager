@@ -7,7 +7,7 @@
  * yet, which is most people running it.
  *
  * Handing over a configuration is the step that must still wait. Such a server
- * answers with a single `acrossai/setup-required` tool, so a config pasted into
+ * answers with a single `toolset/setup-required` tool, so a config pasted into
  * Claude or Cursor now would connect and look broken — and because clients
  * cache their tool list at connect time, it would keep looking broken after the
  * plugin was installed. Better to say so here than to hand over something that

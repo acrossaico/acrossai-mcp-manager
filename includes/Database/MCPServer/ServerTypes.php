@@ -178,6 +178,46 @@ final class ServerTypes {
 		return $tools;
 	}
 
+	/**
+	 * A type's tool list as DECLARED, without narrowing to what is registered.
+	 *
+	 * This is the one to WRITE. `tools_for()` answers "what could this type
+	 * serve right now?", which is the right question for a reader and the wrong
+	 * one for anything that stores a template: on a site without the AcrossAI
+	 * Abilities Manager add-on every `toolset/*` slug narrows away, so a type
+	 * declaring fifteen tools resolves to the legacy four and stamps them onto
+	 * an AcrossAI server.
+	 *
+	 * That is the original reported bug — a new AcrossAI server arriving with
+	 * mcp-adapter's tools — and until 0.3.6 it survived in both writers:
+	 * `ToolPolicy::apply_type_defaults()` on create, and the Reset template.
+	 * The seeder already avoided it by reading the declaration directly
+	 * ({@see DefaultServerSeeder::write_declared_tools()}); this gives the other
+	 * two the same answer instead of each re-deriving it.
+	 *
+	 * Writing slugs whose abilities do not exist yet is deliberate. They are
+	 * never advertised to a client, and they light up when the add-on registers
+	 * them — no type switch, no Reset.
+	 *
+	 * Keeps `tools_for()`'s fallback for an unrecognised or genuinely empty
+	 * type, because an empty template still wipes a server whichever accessor
+	 * produced it.
+	 *
+	 * @since  0.3.6
+	 * @param  string $slug Type slug.
+	 * @return string[]
+	 */
+	public static function declared_tools( string $slug ): array {
+		$all  = self::all();
+		$type = $all[ $slug ] ?? null;
+
+		if ( null === $type || empty( $type['tools'] ) ) {
+			return self::registered_only( $all[ self::LEGACY ]['tools'] ?? array() );
+		}
+
+		return array_values( (array) $type['tools'] );
+	}
+
 
 	/**
 	 * Every tool a server may offer — the picker's pool, server-side.

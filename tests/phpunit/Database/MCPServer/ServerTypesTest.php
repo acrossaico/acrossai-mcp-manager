@@ -113,6 +113,63 @@ class ServerTypesTest extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * `declared_tools()` does NOT narrow; `tools_for()` does. That is the point.
+	 *
+	 * The two exist because a reader and a writer want opposite answers. Asking
+	 * "what can this type serve right now?" before STORING a template is how an
+	 * AcrossAI server came to be stamped with mcp-adapter's four tools on every
+	 * site without the add-on — the narrowing emptied the list and the legacy
+	 * fallback filled it back up with the wrong thing.
+	 */
+	public function test_declared_tools_keeps_slugs_that_tools_for_narrows_away(): void {
+		add_filter(
+			ServerTypes::FILTER,
+			static function ( array $types ): array {
+				$types['ghosts'] = array(
+					'label' => 'Ghosts',
+					'tools' => array( 'toolset/nothing-here', 'toolset/nor-here' ),
+				);
+				return $types;
+			}
+		);
+
+		$this->assertSame(
+			array( 'toolset/nothing-here', 'toolset/nor-here' ),
+			ServerTypes::declared_tools( 'ghosts' ),
+			'A declaration is what the type says, not what the site happens to have.'
+		);
+
+		$this->assertNotSame(
+			ServerTypes::declared_tools( 'ghosts' ),
+			ServerTypes::tools_for( 'ghosts' ),
+			'tools_for() must still narrow — the two answer different questions.'
+		);
+	}
+
+	/**
+	 * An empty declaration still falls back, whichever accessor asks.
+	 *
+	 * The wipe guard is not weakened by adding a non-narrowing reader: a
+	 * template of nothing erases a server no matter how it was resolved.
+	 */
+	public function test_declared_tools_falls_back_for_an_unknown_or_empty_type(): void {
+		$this->assertNotEmpty( ServerTypes::declared_tools( 'no-such-type' ) );
+
+		add_filter(
+			ServerTypes::FILTER,
+			static function ( array $types ): array {
+				$types['hollow'] = array(
+					'label' => 'Hollow',
+					'tools' => array(),
+				);
+				return $types;
+			}
+		);
+
+		$this->assertNotEmpty( ServerTypes::declared_tools( 'hollow' ) );
+	}
+
 	// ------------------------------------------------------------ last-wins --
 
 	public function test_filter_can_add_a_type(): void {

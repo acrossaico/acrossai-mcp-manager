@@ -32,6 +32,8 @@ namespace AcrossAI_MCP_Manager\Includes\Abilities\Toolset;
 use AcrossAI_MCP_Manager\Includes\Abilities\Toolset\AbilityGroup;
 use WP_Ability;
 
+use AcrossAI_MCP_Manager\Includes\Abilities\SetupRequired;
+
 defined( 'ABSPATH' ) || exit;
 
 /**
@@ -57,6 +59,30 @@ final class Guide {
 	 * @var bool
 	 */
 	private bool $registered = false;
+
+	/**
+	 * `toolset/*` slugs that are not, for this purpose, Toolsets.
+	 *
+	 * This guide exists to describe a catalogue, and declines to register when
+	 * there is none — which is what keeps a site running only this plugin
+	 * unchanged.
+	 *
+	 * `SetupRequired` took the `toolset/` prefix in 0.3.6 and registers
+	 * unconditionally, so without this exception a bare site would always
+	 * appear to hold one Toolset and the guide would publish a table of
+	 * contents whose only entry is a notice saying nothing is installed.
+	 *
+	 * The prefix is the identity everywhere else on purpose; this is the one
+	 * place that asks a narrower question — "is there anything here worth
+	 * describing?" — and the answer has to exclude the thing that only exists
+	 * to say there is not.
+	 *
+	 * @var string[]
+	 */
+	private const NOT_A_SUBJECT = array(
+		self::SLUG,
+		SetupRequired::SLUG,
+	);
 
 	/**
 	 * This ability's slug.
@@ -243,7 +269,11 @@ final class Guide {
 		}
 
 		foreach ( array_keys( $registry->get_all_registered() ) as $slug ) {
-			if ( self::SLUG !== $slug && 0 === strpos( (string) $slug, 'toolset/' ) ) {
+			if ( in_array( $slug, self::NOT_A_SUBJECT, true ) ) {
+				continue;
+			}
+
+			if ( 0 === strpos( (string) $slug, 'toolset/' ) ) {
 				return true;
 			}
 		}

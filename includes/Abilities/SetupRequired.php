@@ -53,11 +53,20 @@ defined( 'ABSPATH' ) || exit;
 final class SetupRequired {
 
 	/**
-	 * Ability slug. Plugin-owned namespace — never the sibling's.
+	 * Ability slug.
+	 *
+	 * Moved into the `toolset/` namespace in 0.3.6. It is the only tool an
+	 * AcrossAI server advertises while its add-on is missing, so it appears in a
+	 * client's list beside the Toolsets it stands in for — and reading
+	 * `acrossai/setup-required` amongst fourteen `toolset/*` entries suggested a
+	 * different kind of thing, from a different plugin.
+	 *
+	 * Deliberately treated as an ordinary Toolset from here on, with one
+	 * exception documented at `Toolset\Guide::describes_anything()`.
 	 *
 	 * @var string
 	 */
-	public const SLUG = 'acrossai/setup-required';
+	public const SLUG = 'toolset/setup-required';
 
 	/**
 	 * Ability category this plugin owns and registers.

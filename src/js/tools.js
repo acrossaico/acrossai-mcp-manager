@@ -149,6 +149,10 @@ export function safeApplyFilters( hookName, defaultValue, ...args ) {
  *                                      to prevent double-clicks during a POST.
  */
 function AbilityRow( { ability, side, onAction, actionLabel, busy } ) {
+	// Configured, but the site cannot serve it yet — the plugin providing it is
+	// not active. Shown greyed rather than hidden: it is what the operator is
+	// waiting on, and it stays removable.
+	const isWaiting = Boolean( ability.isWaiting );
 	const decoration = safeApplyFilters(
 		'acrossaiMcpManager.tools.row',
 		{},
@@ -171,12 +175,20 @@ function AbilityRow( { ability, side, onAction, actionLabel, busy } ) {
 	// Non-protocol added rows keep the F020 subtle blue; non-protocol available
 	// rows keep the neutral white.
 	let rowBg = '';
-	if ( isProtocolTool ) {
+	if ( isWaiting ) {
+		rowBg = '#fafafa';
+	} else if ( isProtocolTool ) {
 		rowBg = '#fef7e0';
 	} else if ( side === 'added' ) {
 		rowBg = '#f9fcff';
 	}
 	const displayType = isProtocolTool ? 'Built-in' : ability.type;
+	let badgeStyle = { bg: '#e6f6ec', fg: '#0a6b3d' };
+	if ( isWaiting ) {
+		badgeStyle = { bg: '#e8e8e8', fg: '#646970' };
+	} else if ( isProtocolTool ) {
+		badgeStyle = { bg: '#fdefb2', fg: '#8a6d00' };
+	}
 
 	return createElement(
 		'div',
@@ -189,6 +201,7 @@ function AbilityRow( { ability, side, onAction, actionLabel, busy } ) {
 				padding: '13px 16px',
 				borderBottom: '1px solid #f0f0f1',
 				background: rowBg,
+				opacity: isWaiting ? 0.72 : 1,
 			},
 		},
 		showCheckmark
@@ -200,8 +213,8 @@ function AbilityRow( { ability, side, onAction, actionLabel, busy } ) {
 						width: '22px',
 						height: '22px',
 						borderRadius: '50%',
-						background: isProtocolTool ? '#fdefb2' : '#e6f6ec',
-						color: isProtocolTool ? '#8a6d00' : '#0a6b3d',
+						background: badgeStyle.bg,
+						color: badgeStyle.fg,
 						display: 'flex',
 						alignItems: 'center',
 						justifyContent: 'center',
@@ -210,7 +223,7 @@ function AbilityRow( { ability, side, onAction, actionLabel, busy } ) {
 						marginTop: '1px',
 					},
 				},
-				'✓',
+				isWaiting ? '⏳' : '✓',
 			)
 			: null,
 		decoration.prepend || null,
@@ -444,12 +457,36 @@ function ToolsApp( { serverId } ) {
 			} );
 	}, [ config.namespace, serverId ] );
 
-	// F090 — what the server ACTUALLY serves, which is what both columns show.
-	// The Abilities tab does the same thing: each row renders from
-	// `ExposureResolver::resolve_effective()`, not from the raw override rows,
-	// which is why "Disable All" visibly empties it. Rendering the CONFIGURED
-	// set instead is what made "Remove All" look inert here.
-	const shown = useMemo( () => new Set( effectiveTools ), [ effectiveTools ] );
+	// What the operator CONFIGURED. This is the set the panes render and every
+	// edit composes from.
+	//
+	// It used to be `effective_tools` — what the server actually serves — so
+	// that "Disable All" visibly emptied the pane instead of looking inert.
+	// That held while the two sets differed only by stale slugs. It stopped
+	// holding when this plugin began seeding an AcrossAI server with its
+	// Toolsets declared in advance: the server's type requirement is unmet
+	// until the add-on arrives, so `ToolPolicy` replaces the WHOLE set with one
+	// setup notice, and a server carrying fifteen configured tools rendered as
+	// "Added as tools (1)". The operator could not see them, could not curate
+	// them, and any single add or remove composed its payload from that one
+	// slug — silently deleting the other fourteen.
+	//
+	// `served` below keeps the original guarantee: removing everything still
+	// empties the pane, because `added` is what was removed from.
+	const shown = useMemo( () => new Set( added ), [ added ] );
+
+	// What the server actually serves right now. Used to EXPLAIN the panes,
+	// never to populate them — the contract in
+	// specs/090-server-types/contracts/rest-tools.md requires the UI to show
+	// both and say why they differ.
+	const served = useMemo( () => new Set( effectiveTools ), [ effectiveTools ] );
+
+	// Configured tools the site cannot serve yet. On an AcrossAI server without
+	// the add-on this is all of them; on a healthy server it is empty.
+	const waiting = useMemo(
+		() => Array.from( shown ).filter( ( slug ) => ! served.has( slug ) ),
+		[ shown, served ],
+	);
 
 	const visibleAvailable = useMemo( () => {
 		const q = search.trim().toLowerCase();
@@ -497,28 +534,34 @@ function ToolsApp( { serverId } ) {
 		const curatedAdded = Array.from( shown ).filter(
 			( slug ) => ! PROTOCOL_TOOL_SLUGS.includes( slug ),
 		);
-		return [ ...protocolAdded, ...curatedAdded ].map(
-			( name ) =>
-				byName[ name ] ||
-				builtinByName[ name ] || {
-					name,
-					label: name,
-					// Reworded in 0.3.6. "No longer registered" reads as
-					// breakage, and since this plugin began seeding an AcrossAI
-					// server with its Toolsets declared up front, the usual
-					// reason a row lands here is that the ability has not
-					// arrived YET — the add-on is not installed. Same row, two
-					// opposite stories, and the alarming one was wrong far more
-					// often than it was right.
-					description: __(
-						'(not available on this site yet — the plugin that provides it is not active)',
-						'acrossai-mcp-manager',
-					),
-					type: '',
-					category: '',
-				},
-		);
-	}, [ abilities, shown ] );
+		const resolve = ( name ) =>
+			byName[ name ] ||
+			builtinByName[ name ] || {
+				name,
+				label: name,
+				// Reworded in 0.3.6. "No longer registered" reads as breakage,
+				// and since this plugin began seeding an AcrossAI server with
+				// its Toolsets declared up front, the usual reason a row lands
+				// here is that the ability has not arrived YET — the add-on is
+				// not installed. Same row, two opposite stories, and the
+				// alarming one was wrong far more often than it was right.
+				description: __(
+					'(not available on this site yet — the plugin that provides it is not active)',
+					'acrossai-mcp-manager',
+				),
+				type: '',
+				category: '',
+			};
+
+		return [ ...protocolAdded, ...curatedAdded ].map( ( name ) => ( {
+			...resolve( name ),
+			// Rendered visibly inactive rather than hidden. A configured tool
+			// the site cannot serve yet is not an error and not a lie — it is
+			// the promise the operator is waiting on, and hiding it is what
+			// made this look broken.
+			isWaiting: ! served.has( name ),
+		} ) );
+	}, [ abilities, shown, served ] );
 
 	// #129 — the served set as it was when this page loaded. The notice compares
 	// against THIS, not against the previous write, so a set that is edited and
@@ -627,15 +670,38 @@ function ToolsApp( { serverId } ) {
 	// removed in schema 1.1.7 — `ToolExposureGate` never honoured it, so
 	// `expose` advertised tools that `tools/call` then refused.)
 	const membership = useMemo(
-		() => ( {
-			description: sprintf(
-				/* translators: 1: tools exposed, 2: tools available. */
+		() => {
+			// Counts the CONFIGURED set, matching the pane beside it. Counting
+			// what is served instead read "1 of 4" on a server carrying fifteen
+			// tools, which is true of neither number the operator can see.
+			const description = sprintf(
+				/* translators: 1: tools added, 2: tools available. */
 				__( '%1$d of %2$d available tools are added to this server.', 'acrossai-mcp-manager' ),
-				effectiveTools.length,
+				shown.size,
 				poolAbilities.length,
-			),
-		} ),
-		[ effectiveTools, poolAbilities ],
+			);
+
+			if ( waiting.length === 0 ) {
+				return { description };
+			}
+
+			// Configured and served disagree, and the contract says the UI must
+			// say why rather than quietly showing one of them.
+			return {
+				description,
+				pending: sprintf(
+					/* translators: %d: number of tools not yet available. */
+					_n(
+						'%d of these is not available on this site yet, so it is not offered to AI clients. It starts working as soon as the plugin that provides it is active — nothing here needs changing.',
+						'%d of these are not available on this site yet, so they are not offered to AI clients. They start working as soon as the plugin that provides them is active — nothing here needs changing.',
+						waiting.length,
+						'acrossai-mcp-manager',
+					),
+					waiting.length,
+				),
+			};
+		},
+		[ shown, waiting, poolAbilities ],
 	);
 
 	// F090 — the bulk buttons are ONE-TIME writes, not a standing rule.
@@ -653,10 +719,17 @@ function ToolsApp( { serverId } ) {
 	const applyBulk = ( which ) => {
 		const prev = new Set( added );
 
-		return persistSet(
-			which === 'all' ? new Set( poolAbilities.map( ( a ) => a.name ) ) : new Set(),
-			prev,
-		);
+		// "Enable All" unions the pool with what is already configured but not
+		// yet servable. The pool only holds abilities registered right now, so
+		// without the union, pressing Enable All on an AcrossAI server whose
+		// add-on is missing would REMOVE its fifteen dormant Toolsets — a
+		// button labelled Enable All silently disabling most of the list.
+		const everything = new Set( [
+			...poolAbilities.map( ( a ) => a.name ),
+			...waiting,
+		] );
+
+		return persistSet( which === 'all' ? everything : new Set(), prev );
 	};
 
 	// Individual add/remove. Tool storage is presence-based
@@ -833,6 +906,16 @@ function ToolsApp( { serverId } ) {
 					},
 					membership.description,
 				),
+				membership.pending
+					? createElement(
+						'p',
+						{
+							className: 'description',
+							style: { margin: '4px 0 0', color: '#646970' },
+						},
+						membership.pending,
+					)
+					: null,
 			),
 			createElement(
 				'div',

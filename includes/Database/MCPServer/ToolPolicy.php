@@ -305,7 +305,12 @@ final class ToolPolicy {
 			return;
 		}
 
-		$split = self::split_payload( ServerTypes::tools_for( $server_type ) );
+		// DECLARED, not `tools_for()`. The latter narrows to abilities registered
+		// right now, so on a site without the add-on an AcrossAI server created
+		// from the form or the wizard was stamped with mcp-adapter's tools —
+		// the exact bug this feature exists to fix, surviving in the create path
+		// after the seeder had been corrected.
+		$split = self::split_payload( ServerTypes::declared_tools( $server_type ) );
 
 		MCPServerQuery::instance()->update_item( $server_id, $split['columns'] );
 		MCPServerToolQuery::instance()->replace_set( $server_id, $split['curated'] );

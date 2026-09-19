@@ -85,7 +85,7 @@ class ServerEnablementTest extends WP_UnitTestCase {
 	 * further action, because the intent was already recorded.
 	 *
 	 * Nothing is lost at runtime: `ToolPolicy` resolves such a server to
-	 * exactly `acrossai/setup-required`, so a connected client is told what to
+	 * exactly `toolset/setup-required`, so a connected client is told what to
 	 * install rather than handed a broken tool list.
 	 */
 	public function test_enabling_is_allowed_when_the_type_requirement_is_unmet(): void {

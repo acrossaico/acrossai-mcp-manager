@@ -70,8 +70,6 @@ declare( strict_types = 1 );
 namespace AcrossAI_MCP_Manager\Includes\Database\MCPServer;
 
 use AcrossAI_MCP_Manager\Includes\Abilities\ServerGuide;
-use AcrossAI_MCP_Manager\Includes\Database\MCPServerTool\Query as MCPServerToolQuery;
-use AcrossAI_MCP_Manager\Includes\MCP\ToolExposureGate;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -106,19 +104,10 @@ final class ServerGuideBackfill {
 		}
 
 		foreach ( self::servers_missing_the_guide() as $server_id ) {
-			// `add_item()`, never `replace_set()`: this must ADD one row and
-			// leave every other curated pick alone. The `server_ability` UNIQUE
-			// index is the backstop if the SELECT above ever races.
-			MCPServerToolQuery::instance()->add_item(
-				array(
-					'server_id'    => $server_id,
-					'ability_slug' => ServerGuide::SLUG,
-				)
-			);
-
-			// The gate caches added slugs per request, and it is the caller's
-			// job to invalidate — `replace_set()` does not do it either.
-			ToolExposureGate::flush_cache( $server_id );
+			// Additive, never `replace_set()`: this must ADD one row and leave
+			// every other curated pick alone. The writer also owns the gate
+			// cache flush, which is the caller's job and easy to forget.
+			CuratedToolWriter::add_missing( $server_id, array( ServerGuide::SLUG ) );
 		}
 
 		update_option( self::DONE_OPTION, 1, false );
