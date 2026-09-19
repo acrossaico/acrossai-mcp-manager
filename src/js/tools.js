@@ -338,7 +338,11 @@ function ToolsApp( { serverId } ) {
 	// both is what stops this tab showing a list the server is not serving.
 	const [ serverType, setServerType ] = useState( '' );
 	const [ serverTypes, setServerTypes ] = useState( [] );
-	const [ typeAvailable, setTypeAvailable ] = useState( true );
+	// NOTE no `typeAvailable` state. The tab had one, and its only consumer was
+	// the Apply prompt removed above; the unmet-requirement notice it sounds
+	// like it should drive is rendered in PHP. The REST field stays — other
+	// clients read it — but holding a copy here that nothing renders is how a
+	// second, quietly diverging source of truth starts.
 	const [ serverEnabled, setServerEnabled ] = useState( false );
 	const [ typeLabel, setTypeLabel ] = useState( '' );
 	const [ effectiveTools, setEffectiveTools ] = useState( [] );
@@ -503,7 +507,6 @@ function ToolsApp( { serverId } ) {
 				setAdded( new Set( response.tools || [] ) );
 				setServerType( response.server_type || '' );
 				setServerTypes( response.server_types || [] );
-				setTypeAvailable( response.type_available !== false );
 				setServerEnabled( response.server_enabled === true );
 				setTypeLabel( response.type_label || '' );
 				setEffectiveTools( response.effective_tools || [] );
@@ -640,7 +643,6 @@ function ToolsApp( { serverId } ) {
 				setAdded( new Set( response.tools || [] ) );
 				if ( response.server_type ) {
 					setServerType( response.server_type );
-					setTypeAvailable( response.type_available !== false );
 					setTypeLabel( response.type_label || '' );
 				}
 				noteServedSetChange( response.effective_tools || [] );
@@ -788,10 +790,6 @@ function ToolsApp( { serverId } ) {
 			createElement( Spinner ),
 		);
 	}
-
-	// F090 — tools this server's type provides that it does not currently have.
-	// Drives the Apply prompt; never applied without the operator asking.
-	const missingFromType = typeTools.filter( ( slug ) => ! shown.has( slug ) );
 
 	return createElement(
 		Fragment,
@@ -1028,44 +1026,17 @@ function ToolsApp( { serverId } ) {
 			)
 			: null,
 
-		// F090 (T027) — offer the type's missing tools; never auto-apply.
-		typeAvailable && missingFromType.length > 0
-			? createElement(
-				Notice,
-				{ status: 'info', isDismissible: false },
-				createElement(
-					'p',
-					null,
-					sprintf(
-						/* translators: 1: count of tools, 2: server type label. */
-						_n(
-							'%1$d tool is available for the %2$s server type but is not added here.',
-							'%1$d tools are available for the %2$s server type but are not added here.',
-							missingFromType.length,
-							'acrossai-mcp-manager',
-						),
-						missingFromType.length,
-						typeLabel || serverType,
-					),
-					' ',
-					createElement(
-						Button,
-						{
-							variant: 'secondary',
-							isSmall: true,
-							disabled: saving,
-							onClick: () => {
-								const prev = new Set( added );
-								const next = new Set( added );
-								missingFromType.forEach( ( slug ) => next.add( slug ) );
-								persistSet( next, prev );
-							},
-						},
-						__( 'Apply', 'acrossai-mcp-manager' ),
-					),
-				),
-			)
-			: null,
+		// The "N tools are available for this type but are not added here" prompt
+		// that sat here is gone. It fired on any difference between the type's
+		// template and the operator's curation — but a curation that differs
+		// from the template IS the normal state once someone has chosen what
+		// their server should serve, so the prompt nagged about a decision
+		// already made and offered to undo it.
+		//
+		// "Reset to Type Defaults" in the panel above does the same job on
+		// request, which is the difference that matters: asked for, rather than
+		// suggested every time the tab loads.
+
 		// NOTE no counter row here. One lived here from before the panel above
 		// existed and reported the SAME two numbers from the same sources
 		// (`shown` is `new Set( effectiveTools )`, and both counted

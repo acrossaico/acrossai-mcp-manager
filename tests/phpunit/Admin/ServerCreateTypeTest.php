@@ -183,9 +183,14 @@ class ServerCreateTypeTest extends WP_UnitTestCase {
 
 	/**
 	 * The concrete symptom: `mcp-adapter/server-guide` has no `tool_*` column,
-	 * so it can only arrive as a curated row. Left unwritten, a brand-new
-	 * MCP Adapter server opened on "1 tool is available for the MCP Adapter
-	 * server type but is not added here".
+	 * so it can only arrive as a curated row. Left unwritten, a brand-new MCP
+	 * Adapter server was missing the one tool that explains the other three.
+	 *
+	 * The tab used to announce this with an "N tools are available for this
+	 * type but are not added here" prompt, since removed — it fired on any
+	 * difference between template and curation, which is the normal state once
+	 * an operator has chosen. The underlying gap is still real, so it is still
+	 * asserted here rather than left to a prompt nobody should need.
 	 */
 	public function test_a_new_mcp_adapter_server_gets_the_server_guide(): void {
 		$id = $this->create_with_type( ServerTypes::LEGACY );
