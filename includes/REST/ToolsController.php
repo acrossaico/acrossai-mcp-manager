@@ -37,6 +37,7 @@ declare( strict_types = 1 );
 namespace AcrossAI_MCP_Manager\Includes\REST;
 
 use AcrossAI_MCP_Manager\Includes\Database\MCPServer\Query as MCPServerQuery;
+use AcrossAI_MCP_Manager\Includes\Abilities\Toolset\Registrar as ToolsetRegistrar;
 use AcrossAI_MCP_Manager\Includes\Database\MCPServer\ServerTypes;
 use AcrossAI_MCP_Manager\Includes\Database\MCPServer\ToolPolicy;
 use AcrossAI_MCP_Manager\Includes\Database\MCPServerTool\Query as MCPServerToolQuery;
@@ -217,6 +218,12 @@ final class ToolsController {
 			'tools'           => ToolPolicy::compose_for_row( $server_row ),
 			'effective_tools' => ToolPolicy::compose_effective_tools_for_row( $server_row ),
 			'server_type'     => $server_type,
+			// Whether the operator has switched this server ON. The tab uses it
+			// to decide whether an unmet requirement is worth mentioning: a
+			// disabled server serves nobody, so warning that it would serve
+			// only a setup notice is noise stacked on top of the "Server is
+			// disabled" banner already above it.
+			'server_enabled'  => ! empty( $server_row->is_enabled ),
 			'type_available'  => ServerTypes::is_available( $server_type ),
 			// Falls back to the raw slug so an unrecognised type renders as
 			// itself marked unavailable, rather than blank (FR-010).
@@ -224,8 +231,9 @@ final class ToolsController {
 			'server_types'    => self::types_payload(),
 			// F090 — the pool this server may offer, computed server-side so the
 			// picker and "Enable All" cannot disagree about what "every
-			// available tool" means.
-			'type_pool'       => ServerTypes::pool(),
+			// available tool" means. Scoped to the server's TYPE since 0.3.6,
+			// so an AcrossAI server stops offering mcp-adapter's vocabulary.
+			'type_pool'       => ServerTypes::pool( (string) $server_row->server_type ),
 		);
 
 		$include_abilities = (bool) $request->get_param( 'include_abilities' );
@@ -259,8 +267,34 @@ final class ToolsController {
 				if ( isset( $seen_names[ $stub['name'] ] ) ) {
 					continue;
 				}
-				$abilities[] = $stub;
+				$seen_names[ $stub['name'] ] = true;
+				$abilities[]                 = $stub;
 			}
+
+			// Same idea, different reason. A Toolset's ability is registered by
+			// the AcrossAI Abilities Manager add-on, so on a site without it
+			// every `toolset/*` slug an AcrossAI server carries is absent from
+			// the registry — and the tab rendered each as a bare slug printed
+			// twice with no description, which reads as breakage rather than as
+			// a tool waiting on a plugin.
+			//
+			// This plugin owns the dispatcher classes, so it knows their real
+			// label and description without anything being registered. Dedup
+			// leaves the live registration authoritative whenever there is one.
+			foreach ( ToolsetRegistrar::tool_metadata() as $stub ) {
+				if ( isset( $seen_names[ $stub['name'] ] ) ) {
+					continue;
+				}
+				$seen_names[ $stub['name'] ] = true;
+				$abilities[]                 = array_merge(
+					$stub,
+					array(
+						'type'     => 'tool',
+						'category' => '',
+					)
+				);
+			}
+
 			$response['abilities'] = $abilities;
 		}
 
@@ -305,19 +339,51 @@ final class ToolsController {
 		// (SEC-025-v2-2 correction — the v2 review claimed the hook order was safe;
 		// runtime evidence 2026-07-14 disproved that. See F025 plan-review-v3 if
 		// authored.)
+		// The type this write leaves the server on — the submitted one when the
+		// request also switches type, since the two are one atomic write below.
+		// Resolved BEFORE validation because it decides which slugs are
+		// canonical for this server.
+		$effective_type = (string) $server_row->server_type;
+		$submitted_type = $request->get_param( 'server_type' );
+
+		if ( null !== $submitted_type && '' !== $submitted_type ) {
+			$candidate = sanitize_key( (string) $submitted_type );
+
+			if ( null !== ServerTypes::get( $candidate ) ) {
+				$effective_type = $candidate;
+			}
+		}
+
 		if ( function_exists( 'wp_get_abilities' ) ) {
 			$registered = array();
 			foreach ( \wp_get_abilities() as $ability ) {
 				$registered[ (string) $ability->get_name() ] = true;
 			}
+
+			// A type's OWN declared tools are canonical for a server of that
+			// type, registered or not. Without this, an AcrossAI server on a
+			// site lacking the add-on could not be saved at all: every
+			// `toolset/*` slug it legitimately carries is unregistered, so
+			// pressing Reset — or saving the tab at all — answered 400
+			// `acrossai_mcp_invalid_tool_slug` and the operator was locked out
+			// of their own tool list.
+			//
+			// This is a narrow exemption, not a hole. It admits exactly the
+			// vocabulary a registered server type declares for itself, which is
+			// the same list the seeder writes at INSERT; an arbitrary slug is
+			// still rejected.
+			$canonical = array_merge(
+				ToolPolicy::PROTOCOL_TOOLS,
+				ServerTypes::declared_tools( $effective_type )
+			);
+
 			$invalid_slugs = array();
 			foreach ( $tools_param as $slug ) {
 				$slug_str = (string) $slug;
 				if ( '' === $slug_str ) {
 					continue;
 				}
-				// Protocol slugs are canonical — skip catalog validation.
-				if ( in_array( $slug_str, ToolPolicy::PROTOCOL_TOOLS, true ) ) {
+				if ( in_array( $slug_str, $canonical, true ) ) {
 					continue;
 				}
 				if ( ! isset( $registered[ $slug_str ] ) ) {
@@ -339,11 +405,13 @@ final class ToolsController {
 		// F090 (T022/T023) — an optional server_type makes a type switch and its
 		// resulting tool set ONE atomic write, so the two can never disagree.
 		$type_columns = array();
-		$type_param   = $request->get_param( 'server_type' );
 
-		if ( null !== $type_param && '' !== $type_param ) {
-			$type_param = sanitize_key( (string) $type_param );
+		if ( null !== $submitted_type && '' !== $submitted_type ) {
+			$type_param = sanitize_key( (string) $submitted_type );
 
+			// Rejected here rather than above: an unregistered type must fail
+			// the request, but the validation block only needed to know which
+			// type's vocabulary to trust, and falls back to the stored one.
 			if ( null === ServerTypes::get( $type_param ) ) {
 				return new WP_Error(
 					'acrossai_mcp_invalid_server_type',
@@ -453,12 +521,13 @@ final class ToolsController {
 					// unverified.
 					'effective_tools' => ToolPolicy::compose_effective_tools_for_row( $refreshed ),
 					'server_type'     => (string) $refreshed->server_type,
+					'server_enabled'  => ! empty( $refreshed->is_enabled ),
 					'type_available'  => ServerTypes::is_available( (string) $refreshed->server_type ),
 					'type_label'      => self::type_label( (string) $refreshed->server_type ),
 					// The pool is TYPE-DEPENDENT, so a switch must return the new
 					// one. Without it the picker keeps offering the previous
 					// type's tools until the operator reloads.
-					'type_pool'       => ServerTypes::pool(),
+					'type_pool'       => ServerTypes::pool( (string) $refreshed->server_type ),
 					'server_types'    => self::types_payload(),
 				)
 			)
@@ -559,13 +628,20 @@ final class ToolsController {
 				'available'   => ServerTypes::is_available( (string) $slug ),
 				'requires'    => $type['requires'],
 				// The actual slugs, not just a count — the Tools tab resolves
-				// Reset and a type switch from this, so the UI can never drift
-				// from what ServerTypes::tools_for() would return.
-				// Resolved through tools_for(), which applies the same empty,
-				// unknown and not-registered narrowing every server-side
-				// consumer gets — so the picker cannot offer a tool the write
-				// path would then reject.
-				'tools'       => ServerTypes::tools_for( (string) $slug ),
+				// Reset and a type switch from this, so the UI cannot drift from
+				// what the server would store.
+				//
+				// DECLARED, not `tools_for()`. This is what Reset WRITES, and
+				// the narrowed answer is wrong for a write: on a site without
+				// the add-on every `toolset/*` slug narrows away, so Reset on an
+				// AcrossAI server replaced its fifteen dormant Toolsets with
+				// mcp-adapter's four — data loss dressed as a restore.
+				//
+				// The write path accepts these: `post_tools()` treats a type's
+				// own declared tools as canonical for a server of that type, so
+				// the picker can no longer offer something the save would
+				// reject.
+				'tools'       => ServerTypes::declared_tools( (string) $slug ),
 			);
 		}
 

@@ -16,6 +16,7 @@
 
 namespace AcrossAI_MCP_Manager\Admin\Partials\ServerTabs;
 
+use AcrossAI_MCP_Manager\Admin\Partials\ServerTabs\Partials\TypeRequirementNotice;
 use AcrossAI_MCP_Manager\Includes\Database\MCPServer\ServerTypes;
 use AcrossAI_MCP_Manager\Includes\MCPClients\AbstractMCPClient;
 use AcrossAI_MCP_Manager\Includes\MCPClients\ClaudeCodeClient;
@@ -95,7 +96,7 @@ final class OverviewTab extends AbstractServerTab {
 	 */
 	protected function render_body( array $server ): void {
 		echo '<div class="mcp-tab-panel">';
-		$this->render_type_requirement_notice( $server );
+		TypeRequirementNotice::instance()->render( $server, 'overview' );
 		$this->render_info_table( $server );
 		$this->render_passwords_notice();
 		$this->render_supported_clients();
@@ -307,57 +308,5 @@ final class OverviewTab extends AbstractServerTab {
 			);
 		}
 		echo '</ul>';
-	}
-
-	/**
-	 * F090 — when this server's type has an unmet requirement, say so here and
-	 * offer BOTH remedies.
-	 *
-	 * Two ways out, not one. Installing the add-on is the obvious remedy, but an
-	 * operator who does not want it must also be able to switch the server to a
-	 * type that works today — otherwise the Overview tab reports a problem with
-	 * no reachable fix, which is the dead end this feature exists to remove.
-	 *
-	 * @since 0.1.0
-	 * @param array<string, mixed> $server Server row data.
-	 * @return void
-	 */
-	private function render_type_requirement_notice( array $server ): void {
-		$server_type = (string) ( $server['server_type'] ?? '' );
-
-		if ( '' === $server_type || ServerTypes::is_available( $server_type ) ) {
-			return;
-		}
-
-		// The SOFT notice, not the hard refusal. Since 0.3.6 a server of this
-		// type CAN be enabled without its plugin — it simply is not Ready, and
-		// says so. `enablement_error()` now covers only an unrecognised slug,
-		// which this method's `is_available()` guard above has already let
-		// through.
-		$error = ServerTypes::requirement_notice( $server_type );
-
-		if ( null === $error ) {
-			return;
-		}
-
-		$tools_url = add_query_arg(
-			array(
-				'page'   => 'acrossai_mcp_manager',
-				'action' => 'edit',
-				'server' => (int) ( $server['id'] ?? 0 ),
-				'tab'    => 'tools',
-			),
-			admin_url( 'admin.php' )
-		);
-
-		printf(
-			'<div class="notice notice-warning inline"><p><strong>%1$s</strong> %2$s</p><p><a class="button button-primary" href="%3$s" target="_blank" rel="noopener noreferrer">%4$s</a> <a class="button" href="%5$s">%6$s</a></p></div>',
-			esc_html__( 'This server cannot be enabled yet.', 'acrossai-mcp-manager' ),
-			esc_html( $error->get_error_message() ),
-			esc_url( add_query_arg( array( 'page' => 'acrossai-addons' ), admin_url( 'admin.php' ) ) ),
-			esc_html__( 'Install the add-on →', 'acrossai-mcp-manager' ),
-			esc_url( $tools_url ),
-			esc_html__( 'Change the server type', 'acrossai-mcp-manager' )
-		);
 	}
 }

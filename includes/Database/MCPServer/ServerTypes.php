@@ -178,6 +178,46 @@ final class ServerTypes {
 		return $tools;
 	}
 
+	/**
+	 * A type's tool list as DECLARED, without narrowing to what is registered.
+	 *
+	 * This is the one to WRITE. `tools_for()` answers "what could this type
+	 * serve right now?", which is the right question for a reader and the wrong
+	 * one for anything that stores a template: on a site without the AcrossAI
+	 * Abilities Manager add-on every `toolset/*` slug narrows away, so a type
+	 * declaring fifteen tools resolves to the legacy four and stamps them onto
+	 * an AcrossAI server.
+	 *
+	 * That is the original reported bug — a new AcrossAI server arriving with
+	 * mcp-adapter's tools — and until 0.3.6 it survived in both writers:
+	 * `ToolPolicy::apply_type_defaults()` on create, and the Reset template.
+	 * The seeder already avoided it by reading the declaration directly
+	 * ({@see DefaultServerSeeder::write_declared_tools()}); this gives the other
+	 * two the same answer instead of each re-deriving it.
+	 *
+	 * Writing slugs whose abilities do not exist yet is deliberate. They are
+	 * never advertised to a client, and they light up when the add-on registers
+	 * them — no type switch, no Reset.
+	 *
+	 * Keeps `tools_for()`'s fallback for an unrecognised or genuinely empty
+	 * type, because an empty template still wipes a server whichever accessor
+	 * produced it.
+	 *
+	 * @since  0.3.6
+	 * @param  string $slug Type slug.
+	 * @return string[]
+	 */
+	public static function declared_tools( string $slug ): array {
+		$all  = self::all();
+		$type = $all[ $slug ] ?? null;
+
+		if ( null === $type || empty( $type['tools'] ) ) {
+			return self::registered_only( $all[ self::LEGACY ]['tools'] ?? array() );
+		}
+
+		return array_values( (array) $type['tools'] );
+	}
+
 
 	/**
 	 * Every tool a server may offer — the picker's pool, server-side.
@@ -194,10 +234,28 @@ final class ServerTypes {
 	 *   > A type is NOT a runtime filter over what the server serves.
 	 *   > — docs/extending-server-types.md §1
 	 *
-	 * The type still decides what **Reset** writes (`tools_for()`), which is the
-	 * whole feature. It does not decide what the operator is allowed to add by
-	 * hand. Those are different questions, and conflating them meant an operator
-	 * who wanted one protocol tool on an AcrossAI server simply could not have it.
+	 * SCOPED TO THE TYPE since 0.3.6, reversing the original decision. The pool
+	 * used to be every tool-level ability on the site, on the reasoning that a
+	 * type decides what Reset WRITES and not what an operator may add by hand.
+	 * Defensible in the abstract; wrong on screen. An AcrossAI server offered
+	 * the four `mcp-adapter/*` tools — a different server's entire vocabulary,
+	 * under a heading naming this one — and the header counted the configured
+	 * set against a pool that excluded it, reading "15 of 4".
+	 *
+	 * A tool-level ability that NO type claims is still offered everywhere, so
+	 * the `acrossai_mcp_manager_tool_abilities` filter keeps working for a
+	 * plugin contributing a tool of its own. Only vocabulary another type has
+	 * claimed is withheld — which is exactly the case that looked wrong.
+	 *
+	 * A plugin that wants its tool on a particular type declares it there
+	 * (`acrossai_mcp_server_types`); one that wants it on a particular SERVER
+	 * still has `acrossai_mcp_manager_server_tools`. Neither route is closed.
+	 *
+	 * The type's own tools are NOT narrowed to what is registered. A declared
+	 * tool whose plugin is not installed yet belongs in the pool: the Tools tab
+	 * shows it as pending, and hiding it would make the pool disagree with the
+	 * list beside it. Unclaimed third-party slugs ARE narrowed — with no type
+	 * vouching for one, an unregistered slug is just junk.
 	 *
 	 * This is what the Tools tab's picker offers on the left, and what its
 	 * "Enable All" writes: a tool registered by a plugin installed tomorrow
@@ -213,10 +271,32 @@ final class ServerTypes {
 	 * `wp_get_abilities()` cannot see them in the Tools tab's REST context.
 	 *
 	 * @since 0.1.0
+	 * @param  string $type_slug Scope to this type. Empty keeps the old
+	 *                           site-wide answer, for callers with no server in
+	 *                           hand.
 	 * @return string[]
 	 */
-	public static function pool(): array {
-		return self::registered_only( ToolAbilities::get_slugs() );
+	public static function pool( string $type_slug = '' ): array {
+		$declared = ToolAbilities::get_slugs();
+
+		if ( '' === $type_slug ) {
+			return self::registered_only( $declared );
+		}
+
+		$claimed = array();
+
+		foreach ( self::all() as $type ) {
+			$claimed = array_merge( $claimed, (array) $type['tools'] );
+		}
+
+		return array_values(
+			array_unique(
+				array_merge(
+					self::declared_tools( $type_slug ),
+					self::registered_only( array_values( array_diff( $declared, $claimed ) ) )
+				)
+			)
+		);
 	}
 
 	/**
@@ -551,12 +631,19 @@ final class ServerTypes {
 					'server_name'            => 'AcrossAI',
 					'server_slug'            => DefaultServerSeeder::ACROSSAI_SLUG,
 					'description'            => __( 'Recommended AcrossAI MCP server, managed by the plugin.', 'acrossai-mcp-manager' ),
-					// Byte-identical to the values F088 shipped in 0.3.4 and
-					// F090 withdrew, so the handful of sites that briefly had
-					// this row adopt it without a drift UPDATE.
 					'registered_from'        => 'database',
+					// `/acrossai/mcp`. The namespace already says whose server
+					// this is, so repeating it in the route — `/acrossai/
+					// mcp-server` — only made the URL longer to type and read.
+					//
+					// Both halves are MANAGED columns, so a row created before
+					// this change is corrected by the reconciler on the next
+					// admin request rather than being left on the old address.
+					// Safe to move because 0.3.6 is unreleased: the only rows
+					// carrying the old route are test installs, and the server
+					// ships disabled, so nothing was connected to it.
 					'server_route_namespace' => 'acrossai',
-					'server_route'           => 'mcp-server',
+					'server_route'           => 'mcp',
 					'server_version'         => 'v1.0.0',
 				),
 			),

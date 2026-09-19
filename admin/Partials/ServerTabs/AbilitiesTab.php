@@ -17,8 +17,6 @@
 
 namespace AcrossAI_MCP_Manager\Admin\Partials\ServerTabs;
 
-use AcrossAI_MCP_Manager\Admin\Partials\ServerTabs\Partials\AbilitiesManagerPromoCard;
-
 // Exit if accessed directly.
 defined( 'ABSPATH' ) || exit;
 
@@ -92,12 +90,7 @@ final class AbilitiesTab extends AbstractServerTab {
 			// disabled so the operator can prepare the exposure set in advance.
 		}
 
-		// §VI — ONE implementation, owned by the card that already resolves the
-		// sibling's three-state status. This was previously a copy of the markup
-		// plus its own hardcoded plugin-path literal.
-		AbilitiesManagerPromoCard::instance()->render_inline_notice(
-			__( '— the add-on ships a rich library of built-in WordPress abilities you can expose here, a big head start for developing and building sites.', 'acrossai-mcp-manager' )
-		);
+		// The add-on promo that used to sit here is gone — see ToolsTab for why.
 
 		if ( ! function_exists( 'wp_get_abilities' ) ) {
 			printf(

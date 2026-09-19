@@ -18,7 +18,7 @@
 
 namespace AcrossAI_MCP_Manager\Admin\Partials\ServerTabs;
 
-use AcrossAI_MCP_Manager\Admin\Partials\ServerTabs\Partials\AbilitiesManagerPromoCard;
+use AcrossAI_MCP_Manager\Admin\Partials\ServerTabs\Partials\TypeRequirementNotice;
 
 // Exit if accessed directly.
 defined( 'ABSPATH' ) || exit;
@@ -85,16 +85,16 @@ final class ToolsTab extends AbstractServerTab {
 			// disabled so the operator can prepare the tool set in advance.
 		}
 
-		// Nudge the operator toward the sibling AcrossAI Abilities Manager
-		// plugin when it's not active — the add-on registers a rich library
-		// of built-in WordPress abilities that populate the tool picker
-		// below (tools ARE abilities marked with MCP tool metadata). Same
-		// message + link for both "not installed" and "installed-but-off"
-		// states; the shared Add-ons page handles the transition.
-		// §VI — see AbilitiesTab; same renderer, context sentence differs.
-		AbilitiesManagerPromoCard::instance()->render_inline_notice(
-			__( '— the add-on ships a rich library of built-in WordPress abilities that surface as MCP tools here, a big head start for developing and building sites.', 'acrossai-mcp-manager' )
-		);
+		// The add-on promo that used to sit here is gone. It appeared on every
+		// server whatever its type, said nothing specific to the screen it was
+		// on, and stacked above the notices that DO carry information.
+		//
+		// This is what replaced it: the same notice the Overview tab shows, so
+		// the tab displaying the tools that are not being served explains why
+		// and offers the fix, instead of the bare sentence it used to render
+		// from JavaScript. `current_tab` drops the "Change the server type"
+		// button here, because that control is already on this page.
+		TypeRequirementNotice::instance()->render( $server, 'tools' );
 
 		if ( ! function_exists( 'wp_get_abilities' ) ) {
 			printf(

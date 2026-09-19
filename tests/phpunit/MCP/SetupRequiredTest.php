@@ -116,7 +116,12 @@ class SetupRequiredTest extends WP_UnitTestCase {
 	}
 
 	public function test_the_diagnostic_is_absent_from_the_picker_pool(): void {
-		$this->assertNotContains( SetupRequired::SLUG, ServerTypes::pool() );
+		// Checked per type since 0.3.6, when the pool became type-scoped. The
+		// AcrossAI one is the case that matters: its server is the only one
+		// that ever advertises the diagnostic, so it is the one place an
+		// operator might plausibly be offered it as a tool to add.
+		$this->assertNotContains( SetupRequired::SLUG, ServerTypes::pool( ServerTypes::LEGACY ) );
+		$this->assertNotContains( SetupRequired::SLUG, ServerTypes::pool( ServerTypes::ACROSSAI ) );
 	}
 
 	public function test_a_healthy_server_never_serves_the_diagnostic(): void {

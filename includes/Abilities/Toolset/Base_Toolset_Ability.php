@@ -473,6 +473,35 @@ abstract class Base_Toolset_Ability {
 	abstract protected function toolset_label(): string;
 
 	/**
+	 * This Toolset's slug, label and description, without registering anything.
+	 *
+	 * The admin needs these before the ability exists. An AcrossAI server is
+	 * seeded with its Toolsets declared in advance, so on a site without the
+	 * add-on every one of them is configured-but-unregistered — and the Tools
+	 * tab was left rendering a bare slug twice with no description, which reads
+	 * as breakage rather than as a tool that has not arrived yet.
+	 *
+	 * The plugin owns these classes, so it already knows the answer. This is
+	 * the same move `ToolPolicy::PROTOCOL_TOOL_METADATA` makes for the three
+	 * vendor tools the registry cannot see at REST time.
+	 *
+	 * Safe to call on an instance built WITHOUT the constructor — it reads four
+	 * pure methods and touches no state. That matters: the constructor attaches
+	 * five hooks, so building one just to read its label would quietly register
+	 * a second copy of every filter.
+	 *
+	 * @since  0.3.6
+	 * @return array{name: string, label: string, description: string}
+	 */
+	final public function tool_metadata(): array {
+		return array(
+			'name'        => $this->slug(),
+			'label'       => $this->toolset_label(),
+			'description' => $this->toolset_description(),
+		);
+	}
+
+	/**
 	 * Description an assistant reads when choosing between Toolsets.
 	 *
 	 * The single most important string a subclass declares: it is what a model
