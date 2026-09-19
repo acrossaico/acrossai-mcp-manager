@@ -63,15 +63,20 @@ final class ManagedServerTabVisibilityTest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * The AcrossAI row is no longer seeded, reconciled or protected, so it is
-	 * an ordinary server and both tabs must be OFFERED — otherwise a site that
-	 * already has one could neither edit nor delete it.
+	 * INVERTED in 0.3.6, and it follows ownership both times.
+	 *
+	 * F090 stopped seeding this row, so the plugin had no business guarding it
+	 * and both tabs had to be offered — otherwise a site that already had one
+	 * could neither edit nor delete it. 0.3.6 seeds and reconciles it again, so
+	 * editing must not be offered: the seeder re-asserts the managed columns on
+	 * the next `admin_init`, which would silently undo the operator's edit and
+	 * make the form look broken rather than refused.
 	 */
-	public function test_tabs_are_offered_for_the_withdrawn_acrossai_server(): void {
+	public function test_tabs_are_hidden_for_the_reseeded_acrossai_server(): void {
 		$server = $this->server( DefaultServerSeeder::ACROSSAI_SLUG );
 
-		$this->assertTrue( ( new UpdateServerTab() )->visible_for( $server ) );
-		$this->assertTrue( ( new DangerZoneTab() )->visible_for( $server ) );
+		$this->assertFalse( ( new UpdateServerTab() )->visible_for( $server ) );
+		$this->assertFalse( ( new DangerZoneTab() )->visible_for( $server ) );
 	}
 
 	/**

@@ -63,6 +63,59 @@ final class Registrar {
 	);
 
 	/**
+	 * Every Toolset slug an AcrossAI server offers, in menu order.
+	 *
+	 * The `acrossai` server type is built from this, which is why it lives here
+	 * rather than in `ServerTypes`: the Toolset layer owns this vocabulary, and
+	 * a server type is a consumer of it.
+	 *
+	 * DECLARED, not derived. The slugs are read at seed time — before any
+	 * ability exists — so this cannot ask the registry what is present; that is
+	 * the entire point. A server created today carries all fifteen dormant, and
+	 * they light up when the AcrossAI Abilities Manager add-on arrives, with no
+	 * type switch and no Reset.
+	 *
+	 * Three of these are NOT in {@see self::CORE}, and each for its own reason:
+	 * `integrations` spans every non-default group rather than owning one;
+	 * `server-guide` is {@see Guide}, which is not a dispatcher; and `other` is
+	 * the add-on's catch-all, registered by its integration registry and never
+	 * by this plugin. All three are still tools an AcrossAI server offers.
+	 *
+	 * Kept in step with `CORE` by `RegistrarTest`, which asserts every
+	 * dispatcher's own `slug()` appears here — so adding a class and forgetting
+	 * this list fails rather than silently shipping a server missing a tool.
+	 *
+	 * @var string[]
+	 */
+	private const TOOL_SLUGS = array(
+		'toolset/content',
+		'toolset/blocks',
+		'toolset/appearance',
+		'toolset/configuration',
+		'toolset/users',
+		'toolset/updates',
+		'toolset/cron',
+		'toolset/cache',
+		'toolset/backups',
+		'toolset/database',
+		'toolset/files',
+		'toolset/diagnostics',
+		'toolset/other',
+		'toolset/integrations',
+		Guide::SLUG,
+	);
+
+	/**
+	 * The Toolset slugs an AcrossAI server offers.
+	 *
+	 * @since  0.3.6
+	 * @return string[]
+	 */
+	public static function tool_slugs(): array {
+		return self::TOOL_SLUGS;
+	}
+
+	/**
 	 * Construct every dispatcher.
 	 *
 	 * Each constructor only ATTACHES hooks — `wp_abilities_api_init` at 20 plus

@@ -14,6 +14,7 @@
 namespace AcrossAI_MCP_Manager\Tests\Database\MCPServer;
 
 use AcrossAI_MCP_Manager\Includes\Database\MCPServer\DefaultServerSeeder;
+use AcrossAI_MCP_Manager\Includes\Database\MCPServer\ServerTypes;
 use ReflectionMethod;
 use WP_UnitTestCase;
 
@@ -73,39 +74,103 @@ class DefaultServerSeederTest extends WP_UnitTestCase {
 		);
 	}
 
-	public function test_seeds_exactly_one_row_on_an_empty_table(): void {
+	/**
+	 * One row per seeded type, and the default one FIRST.
+	 *
+	 * Order is not cosmetic. Rows are listed by id, so whichever is inserted
+	 * first leads every list and the admin's "Default MCP Server" heading — the
+	 * exact complaint that got the AcrossAI row withdrawn in F090, when it took
+	 * id 1 and sorted above the default one.
+	 */
+	public function test_seeds_one_row_per_type_with_the_default_first(): void {
 		global $wpdb;
 		$wpdb->query( $wpdb->prepare( 'DELETE FROM %i', $this->table() ) );
 
 		DefaultServerSeeder::seed();
 
-		$this->assertSame( 1, $this->count_rows( DefaultServerSeeder::SLUG ) );
+		$slugs = $wpdb->get_col( $wpdb->prepare( 'SELECT server_slug FROM %i ORDER BY id ASC', $this->table() ) );
 
-		// The whole table, not just the slugs this suite knows about: a second
-		// managed row would take id 1 and lead every list, which is how the
-		// withdrawn AcrossAI row came to sort above the default one.
 		$this->assertSame(
-			1,
-			(int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM %i', $this->table() ) ),
-			'Seeding must create ONE server. Adding a second is a product decision, not a detail.'
+			array_keys( ServerTypes::seeded_servers() ),
+			$slugs,
+			'Seeded rows must appear in registry order, default first.'
 		);
 	}
 
 	/**
-	 * The AcrossAI row was withdrawn before 0.3.4 reached any site.
+	 * The AcrossAI row is seeded again, which reverses F090 on purpose.
 	 *
-	 * A second MCP server appearing unasked is a surprise the plugin should not
-	 * spring; the `acrossai` server TYPE already covers the case. This asserts
-	 * the seeder does not bring it back — the constant survives only because
-	 * `Table::upgrade_to_1_1_6()` still names it for installs that have one.
+	 * The row was never the problem. It arrived carrying mcp-adapter's three
+	 * tools under an AcrossAI label, because the `acrossai` type shipped with
+	 * an empty tool list that only the add-on could fill. Withdrawing the row
+	 * removed the symptom. 0.3.6 moved the Toolset layer into this plugin, so
+	 * the type declares its own tools and the row can come back with the right
+	 * ones.
 	 */
-	public function test_does_not_seed_the_withdrawn_acrossai_row(): void {
+	public function test_seeds_the_acrossai_row_with_its_declared_tools(): void {
 		global $wpdb;
 		$wpdb->query( $wpdb->prepare( 'DELETE FROM %i', $this->table() ) );
 
 		DefaultServerSeeder::seed();
 
-		$this->assertSame( 0, $this->count_rows( DefaultServerSeeder::ACROSSAI_SLUG ) );
+		$this->assertSame( 1, $this->count_rows( DefaultServerSeeder::ACROSSAI_SLUG ) );
+
+		$row = $this->row( DefaultServerSeeder::ACROSSAI_SLUG );
+		$this->assertNotNull( $row );
+		$this->assertSame( ServerTypes::ACROSSAI, $row['server_type'] );
+		$this->assertSame( '0', (string) $row['is_enabled'], 'A server appearing unasked must not also be live.' );
+
+		$curated = $wpdb->get_col(
+			$wpdb->prepare(
+				'SELECT ability_slug FROM %i WHERE server_id = %d ORDER BY ability_slug ASC',
+				$wpdb->prefix . 'acrossai_mcp_server_tools',
+				(int) $row['id']
+			)
+		);
+
+		// Composed from the registry, never restated: a list written out here
+		// would drift from the one the plugin actually seeds (B48).
+		$expected = ServerTypes::seeded_servers()[ DefaultServerSeeder::ACROSSAI_SLUG ]['tools'];
+		sort( $expected );
+
+		$this->assertSame( $expected, $curated );
+	}
+
+	/**
+	 * The declared tools are written even though nothing has registered them.
+	 *
+	 * This is the whole fix, and it looks wrong at a glance. `tools_for()`
+	 * narrows to abilities that exist NOW, and at seed time every `toolset/*`
+	 * slug narrows away — so resolving through it would leave the AcrossAI
+	 * server empty, which is the bug. The slugs are written dormant instead and
+	 * light up when the add-on registers the abilities behind them: no type
+	 * switch, no "Reset to Type Defaults".
+	 */
+	public function test_declared_tools_are_written_without_the_abilities_existing(): void {
+		global $wpdb;
+		$wpdb->query( $wpdb->prepare( 'DELETE FROM %i', $this->table() ) );
+
+		DefaultServerSeeder::seed();
+
+		$row = $this->row( DefaultServerSeeder::ACROSSAI_SLUG );
+		$this->assertNotNull( $row );
+
+		$curated = $wpdb->get_col(
+			$wpdb->prepare(
+				'SELECT ability_slug FROM %i WHERE server_id = %d',
+				$wpdb->prefix . 'acrossai_mcp_server_tools',
+				(int) $row['id']
+			)
+		);
+
+		$this->assertNotEmpty( $curated );
+
+		foreach ( $curated as $slug ) {
+			$this->assertFalse(
+				wp_has_ability( (string) $slug ),
+				"Precondition: {$slug} is NOT registered here, and was stored anyway."
+			);
+		}
 	}
 
 	public function test_default_row_identity_is_unchanged_by_f088(): void {

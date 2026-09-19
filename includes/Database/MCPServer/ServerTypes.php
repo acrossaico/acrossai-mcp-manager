@@ -40,6 +40,7 @@ namespace AcrossAI_MCP_Manager\Includes\Database\MCPServer;
 
 use AcrossAI_MCP_Manager\Includes\Abilities\ServerGuide;
 use AcrossAI_MCP_Manager\Includes\Abilities\ToolAbilities;
+use AcrossAI_MCP_Manager\Includes\Abilities\Toolset\Registrar as ToolsetRegistrar;
 use WP_Error;
 
 defined( 'ABSPATH' ) || exit;
@@ -345,7 +346,19 @@ final class ServerTypes {
 	}
 
 	/**
-	 * Why a server of this type may not be ENABLED, or null when it may.
+	 * The HARD case — a type slug nothing recognises, which can never work.
+	 *
+	 * Narrowed in 0.3.6. This used to refuse BOTH an unrecognised slug and a
+	 * known type whose required plugin was inactive; the second is now reported
+	 * by {@see self::requirement_notice()} and no longer blocks enabling. The
+	 * two are different questions: one asks "could this ever work?", the other
+	 * "does it work yet?", and answering both with a refusal made the second
+	 * unanswerable — Quick Connect cannot complete against a server it may not
+	 * switch on, which is the wizard the operator without the add-on is
+	 * standing in.
+	 *
+	 * Keeping the unrecognised-slug refusal is what stops this becoming a gate
+	 * that never says no.
 	 *
 	 * Returns a `WP_Error` the caller renders in its own surface. Consumed
 	 * exclusively by `ServerEnablement::set()` — see that class for why
@@ -356,35 +369,119 @@ final class ServerTypes {
 	 * @return WP_Error|null
 	 */
 	public static function enablement_error( string $slug ): ?WP_Error {
-		if ( self::is_available( $slug ) ) {
+		if ( null !== self::get( $slug ) ) {
 			return null;
 		}
 
-		$type  = self::get( $slug );
-		$label = null !== $type ? $type['label'] : $slug;
+		return new WP_Error(
+			'acrossai_mcp_unknown_server_type',
+			sprintf(
+				/* translators: %s: the server type slug stored on the row. */
+				esc_html__( 'This server has an unrecognised type (%s). Change its type before enabling it.', 'acrossai-mcp-manager' ),
+				$slug
+			),
+			array( 'status' => 400 )
+		);
+	}
 
-		if ( null === $type ) {
-			return new WP_Error(
-				'acrossai_mcp_unknown_server_type',
-				sprintf(
-					/* translators: %s: the server type slug stored on the row. */
-					esc_html__( 'This server has an unrecognised type (%s). Change its type before enabling it.', 'acrossai-mcp-manager' ),
-					$label
-				),
-				array( 'status' => 400 )
-			);
+	/**
+	 * The SOFT case — a known type whose required plugin is not active.
+	 *
+	 * Split out of `enablement_error()` because the two answer different
+	 * questions and deserve different answers. An unrecognised slug can never
+	 * be made to work, so enabling stays refused. A known type missing its
+	 * plugin is a temporary state the operator can resolve, and refusing it
+	 * breaks the main setup path for exactly the person who has not installed
+	 * the add-on yet: Quick Connect cannot complete against a server it is
+	 * forbidden to switch on.
+	 *
+	 * So enabling is ALLOWED and this reports what is still missing. The server
+	 * is then Enabled but not Ready — `is_enabled` records the operator's
+	 * INTENT, and this condition decides whether that intent can take effect.
+	 * Install the plugin and the server runs with no further action, because
+	 * the intent was already recorded.
+	 *
+	 * The runtime half already behaves: `ToolPolicy` resolves such a server to
+	 * exactly `SetupRequired::SLUG`, so a connected client sees one
+	 * self-describing diagnostic instead of a broken tool list. The endpoint
+	 * deliberately keeps answering rather than 404ing — a client that suddenly
+	 * gets connection errors cannot tell you why; one that gets a single tool
+	 * saying what to install is told exactly what is wrong.
+	 *
+	 * @since  0.3.6
+	 * @param  string $slug Type slug stored on the row.
+	 * @return WP_Error|null Null when the type is unknown (see
+	 *                       `enablement_error()`) or its requirement is met.
+	 */
+	public static function requirement_notice( string $slug ): ?WP_Error {
+		$type = self::get( $slug );
+
+		if ( null === $type || self::is_available( $slug ) ) {
+			return null;
 		}
 
 		return new WP_Error(
 			'acrossai_mcp_server_type_unavailable',
 			sprintf(
 				/* translators: 1: server type label, 2: required plugin name. */
-				esc_html__( 'The %1$s server type requires the %2$s plugin to be installed and activated. Install it, or change this server\'s type.', 'acrossai-mcp-manager' ),
-				$label,
-				esc_html__( 'AcrossAI Abilities Manager', 'acrossai-mcp-manager' )
+				esc_html__( 'This server is enabled, but the %1$s type needs the %2$s plugin. Until it is installed and activated the server offers only a setup notice to AI clients.', 'acrossai-mcp-manager' ),
+				$type['label'],
+				self::required_plugin_label( (string) $type['requires'] )
 			),
 			array( 'status' => 400 )
 		);
+	}
+
+	/**
+	 * The plugin FOLDER slug a type requires, or '' when it requires nothing.
+	 *
+	 * Exposed so a caller can act on the requirement rather than only print it
+	 * — Quick Connect feeds this to its install-plugin route, turning "you need
+	 * the add-on" into a button.
+	 *
+	 * @since  0.3.6
+	 * @param  string $slug Type slug.
+	 * @return string
+	 */
+	public static function required_plugin_slug( string $slug ): string {
+		$type = self::get( $slug );
+
+		return null !== $type && null !== $type['requires'] ? (string) $type['requires'] : '';
+	}
+
+	/**
+	 * A human name for a required plugin, falling back to its folder slug.
+	 *
+	 * The previous message named "AcrossAI Abilities Manager" unconditionally,
+	 * which is wrong the moment a third party registers a type with its own
+	 * `requires` — it would tell the operator to install the wrong plugin.
+	 * `get_plugins()` is admin-only, so the slug is the fallback rather than an
+	 * error: a folder name the operator can search for beats a confident lie.
+	 *
+	 * @since  0.3.6
+	 * @param  string $plugin_slug Plugin FOLDER slug from the type's `requires`.
+	 * @return string
+	 */
+	private static function required_plugin_label( string $plugin_slug ): string {
+		if ( '' === $plugin_slug ) {
+			return '';
+		}
+
+		if ( self::ACROSSAI_REQUIRES === $plugin_slug ) {
+			return __( 'AcrossAI Abilities Manager', 'acrossai-mcp-manager' );
+		}
+
+		if ( ! function_exists( 'get_plugins' ) ) {
+			return $plugin_slug;
+		}
+
+		foreach ( get_plugins() as $file => $data ) {
+			if ( strtok( (string) $file, '/' ) === $plugin_slug && ! empty( $data['Name'] ) ) {
+				return (string) $data['Name'];
+			}
+		}
+
+		return $plugin_slug;
 	}
 
 	/**
@@ -417,17 +514,90 @@ final class ServerTypes {
 				// both create paths and the create form all resolve through
 				// `default_slug()`.
 				'is_default'  => true,
+				// The server this plugin seeds for this type. Optional: a type
+				// without it is selectable but seeds nothing. Adding a type AND
+				// its server is now one entry in one place — see
+				// `seeded_servers()` for why this key never reaches `all()`.
+				'server'      => array(
+					'server_name'            => 'Default MCP Server',
+					'server_slug'            => DefaultServerSeeder::SLUG,
+					'description'            => __( 'Default MCP server registered by the plugin.', 'acrossai-mcp-manager' ),
+					'registered_from'        => 'plugin',
+					'server_route_namespace' => 'mcp',
+					'server_route'           => DefaultServerSeeder::SLUG,
+					'server_version'         => 'v1.0.0',
+				),
 			),
 			self::ACROSSAI => array(
 				'label'       => __( 'AcrossAI', 'acrossai-mcp-manager' ),
 				'description' => __( 'Abilities grouped into toolsets, supplied by the AcrossAI Abilities Manager add-on.', 'acrossai-mcp-manager' ),
-				// Intentionally EMPTY. The sibling plugin re-registers this slug
-				// with its own toolsets; this entry is the placeholder it
-				// replaces (D41 last-wins).
-				'tools'       => array(),
+				// DECLARED here since 0.3.6, where it used to be deliberately
+				// empty for the sibling to fill in (D41 last-wins).
+				//
+				// The placeholder was correct while this plugin did not own the
+				// vocabulary, and it produced the bug this release exists to
+				// fix: a server created before the add-on arrived got an empty
+				// menu, and only a type switch followed by "Reset to Type
+				// Defaults" — four undocumented steps — ever filled it. Now the
+				// Toolset layer lives here, so the list can be written down in
+				// advance and the slugs sit dormant until the add-on arrives.
+				//
+				// Still NOT hardcoded vocabulary: `Toolset\Registrar` owns
+				// these names, and this reads them. The sibling may still
+				// re-register the slug and win (D41 unchanged).
+				'tools'       => ToolsetRegistrar::tool_slugs(),
 				'requires'    => self::ACROSSAI_REQUIRES,
+				'server'      => array(
+					'server_name'            => 'AcrossAI',
+					'server_slug'            => DefaultServerSeeder::ACROSSAI_SLUG,
+					'description'            => __( 'Recommended AcrossAI MCP server, managed by the plugin.', 'acrossai-mcp-manager' ),
+					// Byte-identical to the values F088 shipped in 0.3.4 and
+					// F090 withdrew, so the handful of sites that briefly had
+					// this row adopt it without a drift UPDATE.
+					'registered_from'        => 'database',
+					'server_route_namespace' => 'acrossai',
+					'server_route'           => 'mcp-server',
+					'server_version'         => 'v1.0.0',
+				),
 			),
 		);
+	}
+
+	/**
+	 * The built-in types that ask this plugin to seed a server, keyed by slug.
+	 *
+	 * Reads `seed()` directly and NOT `all()`, which is the security property
+	 * and not an oversight. `normalize()` emits a fixed five-key shape and
+	 * drops everything else, so the `server` key survives inside `seed()` but
+	 * never leaves `all()` — meaning a third-party plugin filtering
+	 * {@see self::FILTER} can contribute a server TYPE but can never make this
+	 * plugin create server ROWS. Do not "fix" that by widening `normalize()`.
+	 *
+	 * @since  0.3.6
+	 * @return array<string, array{type: string, server: array<string, mixed>, tools: string[]}>
+	 */
+	public static function seeded_servers(): array {
+		$seeded = array();
+
+		foreach ( self::seed() as $type => $entry ) {
+			if ( empty( $entry['server'] ) || ! is_array( $entry['server'] ) ) {
+				continue;
+			}
+
+			$slug = isset( $entry['server']['server_slug'] ) ? (string) $entry['server']['server_slug'] : '';
+
+			if ( '' === $slug ) {
+				continue;
+			}
+
+			$seeded[ $slug ] = array(
+				'type'   => (string) $type,
+				'server' => $entry['server'],
+				'tools'  => isset( $entry['tools'] ) ? array_values( (array) $entry['tools'] ) : array(),
+			);
+		}
+
+		return $seeded;
 	}
 
 	/**

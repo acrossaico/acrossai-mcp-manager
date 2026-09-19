@@ -16,6 +16,9 @@ declare( strict_types = 1 );
 
 namespace AcrossAI_MCP_Manager\Includes\Database\MCPServer;
 
+use AcrossAI_MCP_Manager\Includes\Database\MCPServer\Query as MCPServerQuery;
+use AcrossAI_MCP_Manager\Includes\Database\MCPServerTool\Query as MCPServerToolQuery;
+
 defined( 'ABSPATH' ) || exit;
 
 /**
@@ -63,48 +66,55 @@ final class DefaultServerSeeder {
 	public const SLUG = 'mcp-adapter-default-server';
 
 	/**
-	 * Feature 088 — the AcrossAI-branded server slug. NO LONGER SEEDED.
+	 * Feature 088 — the AcrossAI-branded server slug. Seeded again since 0.3.6.
 	 *
-	 * The row was withdrawn before 0.3.4 reached any site: a second MCP server
-	 * appearing unasked is a surprise the plugin should not spring, and the
-	 * `acrossai` server TYPE already covers the case — an operator who wants
-	 * one creates it and picks the type.
+	 * Withdrawn in F090 and restored here, which is worth stating plainly
+	 * rather than leaving as a silent revert. The row was never the problem:
+	 * it arrived carrying the WRONG TOOLS, because the `acrossai` type shipped
+	 * with an empty list and only the sibling could fill it — so a server
+	 * created before the add-on was installed got mcp-adapter's three tools
+	 * under an AcrossAI label. Withdrawing the row removed the symptom.
 	 *
-	 * The constant stays because `Table::upgrade_to_1_1_6()` still names it.
-	 * That migration corrects the row's type on installs that already have one,
-	 * and simply matches nothing on installs that never did.
+	 * 0.3.6 moved the Toolset layer into this plugin, so the type can declare
+	 * its own fifteen tools up front. The row comes back with the right ones,
+	 * dormant until the add-on registers the abilities behind them.
 	 *
-	 * Deliberately NOT protected any more (see ProtectedServers): a row the
-	 * plugin no longer manages must not keep the plugin's deletion guard, or a
-	 * site that already has one could never remove it.
+	 * `Table::upgrade_to_1_1_6()` also names this constant, to correct the type
+	 * on installs that already carry the row from 0.3.4.
 	 */
 	public const ACROSSAI_SLUG = 'acrossai-mcp-server';
 
 	/**
 	 * Declarative definitions for every plugin-managed server row, keyed by slug.
 	 *
-	 * @return array<string, array{managed: array<string, mixed>, initial: array<string, mixed>}>
+	 * Derived from `ServerTypes::seeded_servers()` since 0.3.6 rather than
+	 * hardcoded here. One entry in the type registry now yields one seeded
+	 * server, which is what makes a future server type a single-place change —
+	 * and it is what stops the type and its server disagreeing about tools, the
+	 * way they did when an AcrossAI server arrived carrying mcp-adapter's.
+	 *
+	 * @return array<string, array{managed: array<string, mixed>, initial: array<string, mixed>, tools: string[]}>
 	 */
 	private static function definitions(): array {
-		return array(
-			self::SLUG => array(
-				'managed' => array(
-					'server_name'            => 'Default MCP Server',
-					'server_slug'            => self::SLUG,
-					'description'            => __( 'Default MCP server registered by the plugin.', 'acrossai-mcp-manager' ),
-					'registered_from'        => 'plugin',
-					'server_route_namespace' => 'mcp',
-					'server_route'           => self::SLUG,
-					'server_version'         => 'v1.0.0',
-					// Feature 090 — `managed` for this row: the legacy server's
-					// identity is plugin-owned and re-asserted every run.
-					'server_type'            => 'mcp-adapter',
+		$definitions = array();
+
+		foreach ( ServerTypes::seeded_servers() as $slug => $seeded ) {
+			$definitions[ $slug ] = array(
+				// Plugin-owned identity, re-asserted every run.
+				'managed' => array_merge(
+					$seeded['server'],
+					array( 'server_type' => $seeded['type'] )
 				),
 				'initial' => array(
 					'is_enabled' => 0,
 				),
-			),
-		);
+				// NOT a column. Consumed after INSERT by `seed()`, because
+				// curated rows are keyed by the id the INSERT produces.
+				'tools'   => $seeded['tools'],
+			);
+		}
+
+		return $definitions;
 	}
 
 	/**
@@ -136,6 +146,7 @@ final class DefaultServerSeeder {
 				$data = array_merge( $managed, $initial );
 				// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 				$wpdb->insert( $table, $data, self::formats( $data ) );
+				self::write_declared_tools( (int) $wpdb->insert_id, $definition['tools'] ?? array() );
 				$touched = true;
 				continue;
 			}
@@ -158,6 +169,40 @@ final class DefaultServerSeeder {
 
 		if ( $touched ) {
 			wp_cache_delete( 'all_servers', 'acrossai_mcp' );
+		}
+	}
+
+	/**
+	 * Put the type's DECLARED tools on a freshly inserted server.
+	 *
+	 * Declared, emphatically not `ServerTypes::tools_for()`. That narrows to
+	 * abilities registered right now, and at seed time — plugin activation, or
+	 * `admin_init` on the update that adds a row — every `toolset/*` slug
+	 * narrows away, leaving the AcrossAI server empty all over again. That is
+	 * the bug this release fixes, so resolving through the narrowing path here
+	 * would reintroduce it at the one moment it matters most.
+	 *
+	 * Writing slugs for abilities that do not exist yet is safe and is the
+	 * point: an unregistered tool is never advertised to a client, the Tools
+	 * tab filters it out of what it offers, and the row lights up the moment
+	 * the add-on registers it. INSERT-only; a later run never re-forces these,
+	 * so the operator's curation is never overwritten.
+	 *
+	 * @param  int      $server_id The id the INSERT produced.
+	 * @param  string[] $tools     Slugs the type declares.
+	 * @return void
+	 */
+	private static function write_declared_tools( int $server_id, array $tools ): void {
+		if ( $server_id <= 0 || array() === $tools ) {
+			return;
+		}
+
+		$split = ToolPolicy::split_payload( $tools );
+
+		MCPServerQuery::instance()->update_item( $server_id, $split['columns'] );
+
+		if ( array() !== $split['curated'] ) {
+			MCPServerToolQuery::instance()->replace_set( $server_id, $split['curated'] );
 		}
 	}
 

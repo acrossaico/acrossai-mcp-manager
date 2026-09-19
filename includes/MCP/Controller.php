@@ -405,13 +405,32 @@ final class Controller {
 		$description = trim( (string) $server->description );
 		$type        = (string) $server->server_type;
 
-		$guidance = ServerTypes::LEGACY === $type
-			? sprintf(
+		$guidance = '';
+
+		if ( ServerTypes::LEGACY === $type ) {
+			$guidance = sprintf(
 				/* translators: %s: the server guide's ability name. */
 				__( 'This server exposes WordPress abilities through three tools: discover-abilities to find them, get-ability-info to read one\'s parameters, and execute-ability to run it. Call %s first — it reports every category, namespace and group on this site with a count for each, so you can narrow on the first attempt instead of guessing a filter value.', 'acrossai-mcp-manager' ),
 				ServerGuide::SLUG
-			)
-			: '';
+			);
+		} elseif ( ServerTypes::ACROSSAI === $type ) {
+			// A DEFAULT, not a claim of ownership. The add-on still wins through
+			// the filter below when it is active — but the type now ships here,
+			// so a server of this type must be able to introduce itself before
+			// the add-on arrives, or it connects saying nothing at all.
+			//
+			// The last sentence is the load-bearing one. A client fixes its tool
+			// list at connect time and cannot refresh it, so a capability can
+			// exist on this site with no tool of its own in the client's list.
+			// Saying so is what stops an assistant concluding the site cannot do
+			// something it can.
+			$guidance = sprintf(
+				/* translators: 1: the toolset guide's ability name, 2: the integrations toolset's ability name. */
+				__( 'This server exposes Toolsets. Each one takes action=discover to list what it holds, action=info to read an ability\'s parameters, and action=execute to run it — the same three everywhere, so learn them once. Call %1$s first: it names every Toolset on this site with what it covers and how to reach it. Note that your tool list was fixed when you connected and cannot be refreshed, so a capability may exist here without a tool of its own in your list — %2$s reaches those.', 'acrossai-mcp-manager' ),
+				'toolset/server-guide',
+				'toolset/integrations'
+			);
+		}
 
 		/**
 		 * Filter the instructions a connecting MCP client receives.

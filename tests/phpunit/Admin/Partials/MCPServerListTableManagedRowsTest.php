@@ -51,11 +51,11 @@ final class MCPServerListTableManagedRowsTest extends WP_UnitTestCase {
 
 		$this->assertSame( '', $table->column_cb( $this->item( DefaultServerSeeder::SLUG, 'plugin' ) ) );
 
-		// The AcrossAI row is no longer managed, so it behaves like any other.
-		$this->assertStringContainsString(
-			'type="checkbox"',
-			$table->column_cb( $this->item( DefaultServerSeeder::ACROSSAI_SLUG ) )
-		);
+		// INVERTED in 0.3.6: the AcrossAI row is seeded and protected again, so
+		// it is managed again and gets no bulk checkbox either. A checkbox on a
+		// row bulk-delete cannot remove is an affordance that lies.
+		$this->assertSame( '', $table->column_cb( $this->item( DefaultServerSeeder::ACROSSAI_SLUG ) ) );
+
 		$this->assertStringContainsString(
 			'type="checkbox"',
 			$table->column_cb( $this->item( 'operator-server' ) )

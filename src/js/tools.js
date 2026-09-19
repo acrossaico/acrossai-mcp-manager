@@ -503,8 +503,15 @@ function ToolsApp( { serverId } ) {
 				builtinByName[ name ] || {
 					name,
 					label: name,
+					// Reworded in 0.3.6. "No longer registered" reads as
+					// breakage, and since this plugin began seeding an AcrossAI
+					// server with its Toolsets declared up front, the usual
+					// reason a row lands here is that the ability has not
+					// arrived YET — the add-on is not installed. Same row, two
+					// opposite stories, and the alarming one was wrong far more
+					// often than it was right.
 					description: __(
-						'(ability no longer registered)',
+						'(not available on this site yet — the plugin that provides it is not active)',
 						'acrossai-mcp-manager',
 					),
 					type: '',

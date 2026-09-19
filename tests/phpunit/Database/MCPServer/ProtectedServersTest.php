@@ -36,14 +36,17 @@ class ProtectedServersTest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Protection follows OWNERSHIP, not history.
+	 * Protection follows OWNERSHIP, not history — which is why this inverted.
 	 *
-	 * The AcrossAI row is no longer seeded or reconciled, so the plugin has no
-	 * business guarding it. Left protected, a site that already has one could
-	 * never delete it — a lock with nothing behind it.
+	 * F090 withdrew the AcrossAI row and dropped its protection in the same
+	 * move: a lock with nothing behind it would have left a site unable to
+	 * delete a row the plugin no longer maintained. 0.3.6 seeds the row again,
+	 * so the plugin owns it again and the lock has something behind it again.
+	 * Without this, deleting the row would appear to work and the next
+	 * `admin_init` would silently put it back.
 	 */
-	public function test_the_withdrawn_acrossai_slug_is_not_protected(): void {
-		$this->assertFalse( ProtectedServers::is_protected( DefaultServerSeeder::ACROSSAI_SLUG ) );
+	public function test_the_reseeded_acrossai_slug_is_protected_again(): void {
+		$this->assertTrue( ProtectedServers::is_protected( DefaultServerSeeder::ACROSSAI_SLUG ) );
 	}
 
 	public function test_operator_created_and_empty_slugs_are_not_protected(): void {

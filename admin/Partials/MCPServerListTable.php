@@ -299,6 +299,12 @@ class MCPServerListTable extends \WP_List_Table {
 			// This is presentation only. The boundary is server-side in
 			// ServerEnablement::set(), which every write path routes through — a
 			// disabled link stops the honest click, not a forged request.
+			// Only the HARD case disables the affordance. A known type whose
+			// plugin is missing is now enablable — the operator's intent is
+			// recorded, the server says what it still needs, and installing the
+			// plugin makes it live with no further click. Disabling Enable here
+			// would strand exactly the operator who has not installed the
+			// add-on yet, including inside Quick Connect.
 			$type_error = ServerTypes::enablement_error( (string) ( $item['server_type'] ?? '' ) );
 
 			if ( null !== $type_error ) {
