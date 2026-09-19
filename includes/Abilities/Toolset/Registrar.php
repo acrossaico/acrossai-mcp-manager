@@ -116,6 +116,54 @@ final class Registrar {
 	}
 
 	/**
+	 * Slug, label and description for every Toolset this server type offers.
+	 *
+	 * Answers the admin's question — "what IS this tool?" — for Toolsets whose
+	 * abilities are not registered on this site. That is the ordinary state of
+	 * an AcrossAI server before the add-on arrives: its fifteen tools are
+	 * declared in advance, so without this the Tools tab printed a bare slug
+	 * twice with no description and a working server read as a broken one.
+	 *
+	 * The plugin owns these classes, so it already knows. Same move
+	 * `ToolPolicy::PROTOCOL_TOOL_METADATA` makes for the three vendor tools the
+	 * registry cannot see at REST time.
+	 *
+	 * Instances are built WITHOUT the constructor on purpose: constructing one
+	 * attaches five hooks, so reading a label the ordinary way would register a
+	 * second copy of every filter on every admin page load.
+	 *
+	 * @since  0.3.6
+	 * @return array<int, array{name: string, label: string, description: string}>
+	 */
+	public static function tool_metadata(): array {
+		$metadata = array();
+
+		foreach ( array_merge( self::CORE, array( Integrations::class ) ) as $toolset ) {
+			$instance = ( new \ReflectionClass( $toolset ) )->newInstanceWithoutConstructor();
+
+			if ( $instance instanceof Base_Toolset_Ability ) {
+				$metadata[] = $instance->tool_metadata();
+			}
+		}
+
+		$metadata[] = array(
+			'name'        => Guide::SLUG,
+			'label'       => __( 'Toolset Guide', 'acrossai-mcp-manager' ),
+			'description' => __( 'Read this first. Explains how every other tool on this server is called — the three actions, which parameters belong to which, and their real limits — then lists what this site holds, with an ability count per toolset.', 'acrossai-mcp-manager' ),
+		);
+
+		// The add-on's catch-all. No class of ours registers it, so its copy
+		// lives here rather than being derived — see `Guide::CATCH_ALL_GROUP`.
+		$metadata[] = array(
+			'name'        => 'toolset/other',
+			'label'       => __( 'Other', 'acrossai-mcp-manager' ),
+			'description' => __( 'Abilities that matched no other group. Membership is by fallthrough rather than assignment, so what it holds depends entirely on which plugins are installed. action=discover lists this group; action=info returns schemas; action=execute runs one ability.', 'acrossai-mcp-manager' ),
+		);
+
+		return $metadata;
+	}
+
+	/**
 	 * Construct every dispatcher.
 	 *
 	 * Each constructor only ATTACHES hooks — `wp_abilities_api_init` at 20 plus

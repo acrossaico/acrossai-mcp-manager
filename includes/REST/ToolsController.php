@@ -37,6 +37,7 @@ declare( strict_types = 1 );
 namespace AcrossAI_MCP_Manager\Includes\REST;
 
 use AcrossAI_MCP_Manager\Includes\Database\MCPServer\Query as MCPServerQuery;
+use AcrossAI_MCP_Manager\Includes\Abilities\Toolset\Registrar as ToolsetRegistrar;
 use AcrossAI_MCP_Manager\Includes\Database\MCPServer\ServerTypes;
 use AcrossAI_MCP_Manager\Includes\Database\MCPServer\ToolPolicy;
 use AcrossAI_MCP_Manager\Includes\Database\MCPServerTool\Query as MCPServerToolQuery;
@@ -266,8 +267,34 @@ final class ToolsController {
 				if ( isset( $seen_names[ $stub['name'] ] ) ) {
 					continue;
 				}
-				$abilities[] = $stub;
+				$seen_names[ $stub['name'] ] = true;
+				$abilities[]                 = $stub;
 			}
+
+			// Same idea, different reason. A Toolset's ability is registered by
+			// the AcrossAI Abilities Manager add-on, so on a site without it
+			// every `toolset/*` slug an AcrossAI server carries is absent from
+			// the registry — and the tab rendered each as a bare slug printed
+			// twice with no description, which reads as breakage rather than as
+			// a tool waiting on a plugin.
+			//
+			// This plugin owns the dispatcher classes, so it knows their real
+			// label and description without anything being registered. Dedup
+			// leaves the live registration authoritative whenever there is one.
+			foreach ( ToolsetRegistrar::tool_metadata() as $stub ) {
+				if ( isset( $seen_names[ $stub['name'] ] ) ) {
+					continue;
+				}
+				$seen_names[ $stub['name'] ] = true;
+				$abilities[]                 = array_merge(
+					$stub,
+					array(
+						'type'     => 'tool',
+						'category' => '',
+					)
+				);
+			}
+
 			$response['abilities'] = $abilities;
 		}
 
