@@ -18,8 +18,6 @@
 
 namespace AcrossAI_MCP_Manager\Admin\Partials\ServerTabs;
 
-use AcrossAI_MCP_Manager\Admin\Partials\ServerTabs\Partials\AbilitiesManagerPromoCard;
-
 // Exit if accessed directly.
 defined( 'ABSPATH' ) || exit;
 
@@ -85,16 +83,14 @@ final class ToolsTab extends AbstractServerTab {
 			// disabled so the operator can prepare the tool set in advance.
 		}
 
-		// Nudge the operator toward the sibling AcrossAI Abilities Manager
-		// plugin when it's not active — the add-on registers a rich library
-		// of built-in WordPress abilities that populate the tool picker
-		// below (tools ARE abilities marked with MCP tool metadata). Same
-		// message + link for both "not installed" and "installed-but-off"
-		// states; the shared Add-ons page handles the transition.
-		// §VI — see AbilitiesTab; same renderer, context sentence differs.
-		AbilitiesManagerPromoCard::instance()->render_inline_notice(
-			__( '— the add-on ships a rich library of built-in WordPress abilities that surface as MCP tools here, a big head start for developing and building sites.', 'acrossai-mcp-manager' )
-		);
+		// The add-on promo that used to sit here is gone. It appeared on every
+		// server whatever its type, said nothing specific to the screen it was
+		// on, and stacked under the notices that DO carry information — so the
+		// one line an operator needed to read arrived third.
+		//
+		// Nothing is lost: the Add-ons page is in the menu, and an AcrossAI
+		// server that actually needs the add-on says so precisely, naming the
+		// plugin, once it is enabled.
 
 		if ( ! function_exists( 'wp_get_abilities' ) ) {
 			printf(
