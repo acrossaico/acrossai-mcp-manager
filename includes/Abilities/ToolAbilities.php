@@ -87,7 +87,25 @@ final class ToolAbilities {
 		 */
 		$slugs = apply_filters(
 			'acrossai_mcp_manager_tool_abilities',
-			array_merge( ToolPolicy::PROTOCOL_TOOLS, array( ServerGuide::SLUG ) )
+			array_merge(
+				ToolPolicy::PROTOCOL_TOOLS,
+				array(
+					ServerGuide::SLUG,
+					// The setup diagnostic. It IS tool-level — `ToolPolicy`
+					// advertises it in `tools/list` in place of a server's
+					// tools — so leaving it out put an operator-facing toggle
+					// on the Abilities tab for something no operator chooses,
+					// and left it unprotected by the gate's exemption below,
+					// where an Abilities-tab "Disable All" could 403 the one
+					// tool a stranded server has.
+					//
+					// It was excluded to keep it out of the Tools picker. That
+					// is now handled where the picker is built,
+					// `ServerTypes::pool()`, which is the layer that actually
+					// answers "what may be added to this server".
+					SetupRequired::SLUG,
+				)
+			)
 		);
 
 		// Same normalization the server-registration filters get in

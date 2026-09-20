@@ -109,10 +109,28 @@ class SetupRequiredTest extends WP_UnitTestCase {
 
 	// ------------------------------------------------------------- T040 ----
 
-	public function test_the_diagnostic_is_not_a_tool_level_ability(): void {
-		// It is a repair notice the plugin owns, not something an operator picks.
-		// Leaking it into the pool would let it be curated onto a healthy server.
-		$this->assertNotContains( SetupRequired::SLUG, ToolAbilities::get_slugs() );
+	/**
+	 * INVERTED in 0.3.6: it IS a tool-level ability, and saying otherwise cost
+	 * two things.
+	 *
+	 * The original reasoning — "a repair notice the plugin owns, not something
+	 * an operator picks" — was about the Tools PICKER, and it is still right.
+	 * But `ToolAbilities::get_slugs()` answers a wider question than that, and
+	 * excluding the diagnostic from it meant:
+	 *
+	 *   - the Abilities tab listed it as an operator-toggleable row, beside a
+	 *     toggle that decides nothing, when every other tool-level ability is
+	 *     hidden there;
+	 *   - `AbilityExposureGate` exempts this list from the hide policy, so an
+	 *     Abilities-tab "Disable All" could 403 the one tool a stranded server
+	 *     has left to explain itself.
+	 *
+	 * The picker concern moved to `ServerTypes::pool()`, which is the layer
+	 * that actually answers "what may be added to this server" — see the test
+	 * below, which still holds.
+	 */
+	public function test_the_diagnostic_is_a_tool_level_ability(): void {
+		$this->assertContains( SetupRequired::SLUG, ToolAbilities::get_slugs() );
 	}
 
 	public function test_the_diagnostic_is_absent_from_the_picker_pool(): void {

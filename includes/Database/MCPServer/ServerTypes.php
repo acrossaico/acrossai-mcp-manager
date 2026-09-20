@@ -39,6 +39,7 @@ declare( strict_types = 1 );
 namespace AcrossAI_MCP_Manager\Includes\Database\MCPServer;
 
 use AcrossAI_MCP_Manager\Includes\Abilities\ServerGuide;
+use AcrossAI_MCP_Manager\Includes\Abilities\SetupRequired;
 use AcrossAI_MCP_Manager\Includes\Abilities\ToolAbilities;
 use AcrossAI_MCP_Manager\Includes\Abilities\Toolset\Registrar as ToolsetRegistrar;
 use WP_Error;
@@ -277,7 +278,19 @@ final class ServerTypes {
 	 * @return string[]
 	 */
 	public static function pool( string $type_slug = '' ): array {
-		$declared = ToolAbilities::get_slugs();
+		// The setup diagnostic is tool-level, so it is in `get_slugs()` — that
+		// is what hides it from the Abilities tab and exempts it from the
+		// exposure gate. It must never be OFFERED, though: the plugin puts it
+		// in front of a stranded client by itself, and an operator curating it
+		// onto a healthy server would advertise a repair notice for a problem
+		// that server does not have.
+		//
+		// Excluded here rather than left out of `get_slugs()`, because this is
+		// the layer that answers "what may be added to this server" and that is
+		// the only question it fails.
+		$declared = array_values(
+			array_diff( ToolAbilities::get_slugs(), array( SetupRequired::SLUG ) )
+		);
 
 		if ( '' === $type_slug ) {
 			return self::registered_only( $declared );
