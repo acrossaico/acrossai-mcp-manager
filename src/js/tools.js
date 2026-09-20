@@ -633,7 +633,12 @@ function ToolsApp( { serverId } ) {
 		if ( nextType ) {
 			data.server_type = nextType;
 		}
-		apiFetch( {
+		// Returned so a caller can act on the OUTCOME — `applyTypeSwitch` needs
+		// to know the write actually landed before it reloads the page.
+		// Resolves with the response on success and null on failure, rather
+		// than rejecting: every other caller ignores the result, and a
+		// rejection nobody catches is an unhandled promise in the console.
+		return apiFetch( {
 			path,
 			method: 'POST',
 			data,
@@ -655,12 +660,16 @@ function ToolsApp( { serverId } ) {
 				if ( Array.isArray( response.server_types ) ) {
 					setServerTypes( response.server_types );
 				}
+
+				return response;
 			} )
 			.catch( ( err ) => {
 				// Rollback the optimistic update — the server rejected the
 				// change (403 / 400 / 500) or the network failed.
 				setAdded( prevSet );
 				setError( err.message || __( 'Save failed.', 'acrossai-mcp-manager' ) );
+
+				return null;
 			} )
 			.finally( () => {
 				setSaving( false );
@@ -780,7 +789,21 @@ function ToolsApp( { serverId } ) {
 		const entry = serverTypes.find( ( t ) => t.slug === nextType );
 		const nextTools = entry && Array.isArray( entry.tools ) ? entry.tools : [];
 		const prev = new Set( added );
-		persistSet( new Set( nextTools ), prev, nextType );
+
+		// Reload once the switch has landed. A type change moves state this app
+		// does not own: the "Not ready yet." notice is rendered in PHP, and so
+		// is the page's notice area generally, so after an in-place switch the
+		// tab showed the new type while the warning about it was still missing
+		// — or worse, still showing for the type just left behind.
+		//
+		// Only on a type switch, and only on success. Ordinary tool edits
+		// change nothing outside this app, so reloading for those would throw
+		// away the "Saved" confirmation for no reason.
+		persistSet( new Set( nextTools ), prev, nextType ).then( ( response ) => {
+			if ( response ) {
+				window.location.reload();
+			}
+		} );
 	};
 
 	if ( loading ) {
