@@ -21,6 +21,7 @@ declare( strict_types = 1 );
 namespace AcrossAI_MCP_Manager\Tests\PHPUnit\Abilities;
 
 use AcrossAI_MCP_Manager\Includes\Abilities\ServerGuide;
+use AcrossAI_MCP_Manager\Includes\Abilities\SetupRequired;
 use AcrossAI_MCP_Manager\Includes\Abilities\ToolAbilities;
 use AcrossAI_MCP_Manager\Includes\Database\MCPServer\ToolPolicy;
 use WP_UnitTestCase;
@@ -41,11 +42,19 @@ class ToolAbilitiesTest extends WP_UnitTestCase {
 		parent::tear_down();
 	}
 
-	public function test_defaults_are_the_protocol_slugs_plus_the_server_guide() {
-		$this->assertSame(
-			array_merge( ToolPolicy::PROTOCOL_TOOLS, array( ServerGuide::SLUG ) ),
-			ToolAbilities::get_slugs()
-		);
+	/**
+	 * The two non-protocol members are deliberate, and each is here for its
+	 * own reason.
+	 *
+	 * `mcp-adapter/server-guide` is a tool an operator may add. The setup
+	 * diagnostic is one they never choose — the plugin puts it in front of a
+	 * stranded client by itself — but it is still tool-level, which is what
+	 * hides it from the Abilities tab and exempts it from the exposure gate.
+	 * Keeping it OUT of the picker is `ServerTypes::pool()`'s job, not this
+	 * list's.
+	 */
+	public function test_defaults_are_the_protocol_slugs_plus_the_guide_and_the_diagnostic() {
+		$this->assertSame( self::seed(), ToolAbilities::get_slugs() );
 	}
 
 	/**
@@ -168,6 +177,9 @@ class ToolAbilitiesTest extends WP_UnitTestCase {
 	 * @return string[]
 	 */
 	private static function seed(): array {
-		return array_merge( ToolPolicy::PROTOCOL_TOOLS, array( ServerGuide::SLUG ) );
+		return array_merge(
+			ToolPolicy::PROTOCOL_TOOLS,
+			array( ServerGuide::SLUG, SetupRequired::SLUG )
+		);
 	}
 }
