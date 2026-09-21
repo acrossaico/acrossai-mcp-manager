@@ -364,6 +364,54 @@ class ServerTypesTest extends WP_UnitTestCase {
 	}
 
 	/**
+	 * The assertion whose absence let the leak ship.
+	 *
+	 * An unclaimed slug in a namespace the AcrossAI type speaks belongs to it
+	 * alone. The add-on's per-plugin Toolsets are exactly this: they contribute
+	 * to `acrossai_mcp_manager_tool_abilities` but deliberately never declare
+	 * themselves onto the `acrossai` type, because they are reached through
+	 * `toolset/integrations` instead — so nothing "claims" them, and 0.3.6's
+	 * offered-everywhere rule handed `toolset/rank-math` and a dozen siblings
+	 * to MCP Adapter servers that could never serve them.
+	 *
+	 * The suite had a test for the unclaimed slug reaching everywhere and one
+	 * for declared vocabulary staying put; neither covered an unclaimed slug in
+	 * a namespace somebody owns, which is the case that broke.
+	 */
+	public function test_an_unclaimed_slug_stays_in_the_namespace_that_owns_it(): void {
+		acrossai_test_register_ability(
+			'toolset/pretend-integration',
+			array(
+				'label'            => 'Pretend integration',
+				'description'      => 'Contributes as tool-level, declares itself on no type.',
+				'category'         => 'test',
+				'input_schema'     => array( 'type' => 'object', 'properties' => array() ),
+				'output_schema'    => array( 'type' => 'object', 'properties' => array() ),
+				'execute_callback' => static fn () => array(),
+			)
+		);
+
+		add_filter(
+			'acrossai_mcp_manager_tool_abilities',
+			static function ( array $slugs ): array {
+				$slugs[] = 'toolset/pretend-integration';
+				return $slugs;
+			}
+		);
+
+		$this->assertContains(
+			'toolset/pretend-integration',
+			ServerTypes::pool( ServerTypes::ACROSSAI ),
+			'AcrossAI declares toolset/* slugs, so it owns that namespace and gets them.'
+		);
+		$this->assertNotContains(
+			'toolset/pretend-integration',
+			ServerTypes::pool( ServerTypes::LEGACY ),
+			'MCP Adapter speaks no toolset/* vocabulary and must never be offered it.'
+		);
+	}
+
+	/**
 	 * The scoping must not close the third-party extension point.
 	 *
 	 * A plugin contributing a tool-level ability through
