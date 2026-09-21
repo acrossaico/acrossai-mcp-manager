@@ -120,6 +120,12 @@ class DefaultServerSeederTest extends WP_UnitTestCase {
 		$this->assertSame( ServerTypes::ACROSSAI, $row['server_type'] );
 		$this->assertSame( '0', (string) $row['is_enabled'], 'A server appearing unasked must not also be live.' );
 
+		// `/acrossai/mcp`. Pinned because both halves are MANAGED columns: the
+		// reconciler rewrites them on every admin request, so a change here
+		// silently moves the endpoint of every install on the next page load.
+		$this->assertSame( 'acrossai', $row['server_route_namespace'] );
+		$this->assertSame( 'mcp', $row['server_route'] );
+
 		$curated = $wpdb->get_col(
 			$wpdb->prepare(
 				'SELECT ability_slug FROM %i WHERE server_id = %d ORDER BY ability_slug ASC',
@@ -254,6 +260,50 @@ class DefaultServerSeederTest extends WP_UnitTestCase {
 			'1',
 			(string) $this->row( DefaultServerSeeder::SLUG )['is_enabled'],
 			'is_enabled is operator-owned and must never be re-forced by the seeder.'
+		);
+	}
+
+	/**
+	 * The operator's server TYPE survives, and the plugin's identity does not.
+	 *
+	 * These are asserted together because the bug was the boundary between
+	 * them. `server_type` sat in the managed bucket, so the reconciler rewrote
+	 * it on every admin request: switching a seeded server's type through the
+	 * Tools tab saved correctly, then silently reverted on the next page load.
+	 * A control whose result is undone before the operator sees it again is
+	 * worse than no control.
+	 *
+	 * Moving it is only safe if the rest of the bucket still self-heals, so the
+	 * same test proves both halves — otherwise a future fix for one could quietly
+	 * take the other with it.
+	 */
+	public function test_the_type_is_operator_owned_but_identity_is_not(): void {
+		global $wpdb;
+
+		$wpdb->update(
+			$this->table(),
+			array(
+				'server_type' => ServerTypes::ACROSSAI,
+				'server_name' => 'Renamed by hand',
+			),
+			array( 'server_slug' => DefaultServerSeeder::SLUG ),
+			array( '%s', '%s' ),
+			array( '%s' )
+		);
+
+		DefaultServerSeeder::seed();
+
+		$row = $this->row( DefaultServerSeeder::SLUG );
+
+		$this->assertSame(
+			ServerTypes::ACROSSAI,
+			$row['server_type'],
+			'The type is the operator\'s choice — the Tools tab offers a control for it.'
+		);
+		$this->assertSame(
+			'Default MCP Server',
+			$row['server_name'],
+			'Identity stays plugin-owned and is restored, or the buckets mean nothing.'
 		);
 	}
 

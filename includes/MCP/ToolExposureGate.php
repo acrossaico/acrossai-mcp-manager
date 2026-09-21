@@ -71,6 +71,14 @@ final class ToolExposureGate {
 		'mcp-adapter-discover-abilities',
 		'mcp-adapter-get-ability-info',
 		'mcp-adapter-execute-ability',
+		// The setup diagnostic. ToolPolicy advertises it INSTEAD of a server's
+		// tools when the type's requirement is unmet, so it is never a curated
+		// row and `is_added()` says no. Without the exclusion a client that
+		// called the one tool it was offered got `acrossai_mcp_tool_not_added`
+		// — the gate refusing the very thing the server put in front of it,
+		// with the explanation sitting unread in the description.
+		'toolset/setup-required',
+		'toolset-setup-required',
 	);
 
 	/**

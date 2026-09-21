@@ -15,15 +15,7 @@
  * @package
  */
 
-import {
-	createElement,
-	createRoot,
-	Fragment,
-	useState,
-	useEffect,
-	useMemo,
-	useRef,
-} from '@wordpress/element';
+import { createElement, createRoot, Fragment, useState, useEffect, useMemo, useRef, useCallback } from '@wordpress/element';
 import {
 	Button,
 	SearchControl,
@@ -148,6 +140,23 @@ export function safeApplyFilters( hookName, defaultValue, ...args ) {
  * @param {?boolean}  props.busy        When true, the action button is disabled
  *                                      to prevent double-clicks during a POST.
  */
+/**
+ * A readable label for a slug whose ability is not registered here.
+ *
+ * `toolset/server-guide` -> `Server guide`. Without it the row printed the raw
+ * slug as its title and again as its code chip, which read like a fault rather
+ * than a tool that has not arrived yet.
+ *
+ * @param {string} name Ability slug.
+ * @return {string} Human-readable label.
+ */
+function humanizeSlug( name ) {
+	const tail = String( name ).split( '/' ).pop() || String( name );
+	const words = tail.replace( /[-_]+/g, ' ' ).trim();
+
+	return words ? words.charAt( 0 ).toUpperCase() + words.slice( 1 ) : String( name );
+}
+
 function AbilityRow( { ability, side, onAction, actionLabel, busy } ) {
 	const decoration = safeApplyFilters(
 		'acrossaiMcpManager.tools.row',
@@ -177,6 +186,19 @@ function AbilityRow( { ability, side, onAction, actionLabel, busy } ) {
 		rowBg = '#f9fcff';
 	}
 	const displayType = isProtocolTool ? 'Built-in' : ability.type;
+	// Every added row reads the same. The tick means "added to this server",
+	// which is a CURATION state — it does not claim the tool is being served
+	// right now. Those are different questions, and the pane is headed "Added
+	// as tools".
+	//
+	// A greyed, hourglassed variant lived here for tools whose plugin was not
+	// active. It answered the runtime question in a pane that asks the curation
+	// one, so a server configured exactly as intended read as fifteen problems.
+	// What IS being served is stated once, in the line above the panes, where
+	// one sentence serves the whole list instead of decorating every row.
+	const badgeStyle = isProtocolTool
+		? { bg: '#fdefb2', fg: '#8a6d00' }
+		: { bg: '#e6f6ec', fg: '#0a6b3d' };
 
 	return createElement(
 		'div',
@@ -200,8 +222,8 @@ function AbilityRow( { ability, side, onAction, actionLabel, busy } ) {
 						width: '22px',
 						height: '22px',
 						borderRadius: '50%',
-						background: isProtocolTool ? '#fdefb2' : '#e6f6ec',
-						color: isProtocolTool ? '#8a6d00' : '#0a6b3d',
+						background: badgeStyle.bg,
+						color: badgeStyle.fg,
 						display: 'flex',
 						alignItems: 'center',
 						justifyContent: 'center',
@@ -316,7 +338,12 @@ function ToolsApp( { serverId } ) {
 	// both is what stops this tab showing a list the server is not serving.
 	const [ serverType, setServerType ] = useState( '' );
 	const [ serverTypes, setServerTypes ] = useState( [] );
-	const [ typeAvailable, setTypeAvailable ] = useState( true );
+	// NOTE no `typeAvailable` state. The tab had one, and its only consumer was
+	// the Apply prompt removed above; the unmet-requirement notice it sounds
+	// like it should drive is rendered in PHP. The REST field stays — other
+	// clients read it — but holding a copy here that nothing renders is how a
+	// second, quietly diverging source of truth starts.
+	const [ serverEnabled, setServerEnabled ] = useState( false );
 	const [ typeLabel, setTypeLabel ] = useState( '' );
 	const [ effectiveTools, setEffectiveTools ] = useState( [] );
 	const [ typePool, setTypePool ] = useState( [] );
@@ -410,14 +437,67 @@ function ToolsApp( { serverId } ) {
 	// recomputed here. One definition of "available to this server" means the
 	// picker can never offer a tool the write path would reject, and the
 	// `expose` rule exposes exactly what the picker showed.
+	// Metadata for one slug: the live catalogue, then the protocol stubs, then a
+	// pending placeholder. Shared by both panes so a tool reads the same on
+	// either side of the screen.
+	//
+	// The placeholder is not a rare edge. Since the plugin began seeding an
+	// AcrossAI server with its Toolsets declared in advance, every one of them
+	// lands here until the add-on is installed — which is the state this tab
+	// exists to explain.
+	const resolveAbility = useCallback(
+		( name ) => {
+			const found = abilities.find( ( a ) => a.name === name );
+			if ( found ) {
+				return found;
+			}
+
+			const builtin = BUILTIN_ABILITIES.find( ( b ) => b.name === name );
+			if ( builtin ) {
+				return {
+					name: builtin.name,
+					label: builtin.getLabel(),
+					description: builtin.getDescription(),
+					type: builtin.type,
+					category: '',
+				};
+			}
+
+			// A tool whose ability is not registered here — usually one this
+			// server's type declared in advance, waiting on the plugin that
+			// provides it.
+			//
+			// Rendered as the ordinary row it is about to become, not as a
+			// problem. It previously carried "(not available on this site yet
+			// …)" under every entry, which turned a server that is working
+			// exactly as intended into a screen of fifteen apologies. The
+			// label is derived from the slug so the row reads like its
+			// registered neighbours instead of printing the slug twice.
+			return {
+				name,
+				label: humanizeSlug( name ),
+				description: '',
+				type: '',
+				category: '',
+			};
+		},
+		[ abilities ],
+	);
+
 	const poolAbilities = useMemo( () => {
-		const pool = new Set( typePool );
-		return abilities.filter(
-			( a ) =>
-				added.has( a.name ) ||
-				( pool.size > 0 ? pool.has( a.name ) : toolSlugs.has( a.name ) ),
-		);
-	}, [ abilities, toolSlugs, added, typePool ] );
+		// Built from the pool the SERVER sent, not by filtering the ability
+		// catalogue. Filtering silently dropped every declared-but-dormant tool
+		// — so an AcrossAI server counted its fifteen configured tools against
+		// a denominator of four ("15 of 4"), and a dormant tool the operator
+		// removed could never be added back.
+		//
+		// Still unioned with what is already curated: an install that picked
+		// individual abilities before F087 keeps seeing and managing them, and
+		// the "N of M" stays coherent with the pane beside it.
+		const names = typePool.length > 0 ? typePool : Array.from( toolSlugs );
+
+		return Array.from( new Set( [ ...names, ...added ] ) ).map( resolveAbility );
+	}, [ toolSlugs, added, typePool, resolveAbility ] );
 
 	// Initial mount: GET /tools?include_abilities=1
 	useEffect( () => {
@@ -427,7 +507,7 @@ function ToolsApp( { serverId } ) {
 				setAdded( new Set( response.tools || [] ) );
 				setServerType( response.server_type || '' );
 				setServerTypes( response.server_types || [] );
-				setTypeAvailable( response.type_available !== false );
+				setServerEnabled( response.server_enabled === true );
 				setTypeLabel( response.type_label || '' );
 				setEffectiveTools( response.effective_tools || [] );
 				servedAtLoad.current = response.effective_tools || [];
@@ -444,12 +524,36 @@ function ToolsApp( { serverId } ) {
 			} );
 	}, [ config.namespace, serverId ] );
 
-	// F090 — what the server ACTUALLY serves, which is what both columns show.
-	// The Abilities tab does the same thing: each row renders from
-	// `ExposureResolver::resolve_effective()`, not from the raw override rows,
-	// which is why "Disable All" visibly empties it. Rendering the CONFIGURED
-	// set instead is what made "Remove All" look inert here.
-	const shown = useMemo( () => new Set( effectiveTools ), [ effectiveTools ] );
+	// What the operator CONFIGURED. This is the set the panes render and every
+	// edit composes from.
+	//
+	// It used to be `effective_tools` — what the server actually serves — so
+	// that "Disable All" visibly emptied the pane instead of looking inert.
+	// That held while the two sets differed only by stale slugs. It stopped
+	// holding when this plugin began seeding an AcrossAI server with its
+	// Toolsets declared in advance: the server's type requirement is unmet
+	// until the add-on arrives, so `ToolPolicy` replaces the WHOLE set with one
+	// setup notice, and a server carrying fifteen configured tools rendered as
+	// "Added as tools (1)". The operator could not see them, could not curate
+	// them, and any single add or remove composed its payload from that one
+	// slug — silently deleting the other fourteen.
+	//
+	// `served` below keeps the original guarantee: removing everything still
+	// empties the pane, because `added` is what was removed from.
+	const shown = useMemo( () => new Set( added ), [ added ] );
+
+	// What the server actually serves right now. Used to EXPLAIN the panes,
+	// never to populate them — the contract in
+	// specs/090-server-types/contracts/rest-tools.md requires the UI to show
+	// both and say why they differ.
+	const served = useMemo( () => new Set( effectiveTools ), [ effectiveTools ] );
+
+	// Configured tools the site cannot serve yet. On an AcrossAI server without
+	// the add-on this is all of them; on a healthy server it is empty.
+	const waiting = useMemo(
+		() => Array.from( shown ).filter( ( slug ) => ! served.has( slug ) ),
+		[ shown, served ],
+	);
 
 	const visibleAvailable = useMemo( () => {
 		const q = search.trim().toLowerCase();
@@ -470,55 +574,18 @@ function ToolsApp( { serverId } ) {
 	}, [ poolAbilities, shown, search ] );
 
 	const addedRows = useMemo( () => {
-		const byName = Object.fromEntries( abilities.map( ( a ) => [ a.name, a ] ) );
-		// F025: build a BUILTIN_ABILITIES metadata fallback for the three
-		// protocol slugs — the vendor registers them via wp_register_ability
-		// so they should appear in the abilities pool, but the fallback keeps
-		// the UI correct if the pool is briefly empty (e.g., during initial
-		// load or if the abilities data store is unavailable).
-		const builtinByName = Object.fromEntries(
-			BUILTIN_ABILITIES.map( ( b ) => [
-				b.name,
-				{
-					name: b.name,
-					label: b.getLabel(),
-					description: b.getDescription(),
-					type: b.type,
-					category: '',
-				},
-			] ),
-		);
 		// Order: protocol slugs first (in PROTOCOL_TOOL_SLUGS order — matches
-		// PHP-side ToolPolicy::COLUMN_MAP iteration), then curated in
-		// insertion order returned by the server.
+		// PHP-side ToolPolicy::COLUMN_MAP iteration), then curated in insertion
+		// order returned by the server.
 		const protocolAdded = PROTOCOL_TOOL_SLUGS.filter( ( slug ) =>
 			shown.has( slug ),
 		);
 		const curatedAdded = Array.from( shown ).filter(
 			( slug ) => ! PROTOCOL_TOOL_SLUGS.includes( slug ),
 		);
-		return [ ...protocolAdded, ...curatedAdded ].map(
-			( name ) =>
-				byName[ name ] ||
-				builtinByName[ name ] || {
-					name,
-					label: name,
-					// Reworded in 0.3.6. "No longer registered" reads as
-					// breakage, and since this plugin began seeding an AcrossAI
-					// server with its Toolsets declared up front, the usual
-					// reason a row lands here is that the ability has not
-					// arrived YET — the add-on is not installed. Same row, two
-					// opposite stories, and the alarming one was wrong far more
-					// often than it was right.
-					description: __(
-						'(not available on this site yet — the plugin that provides it is not active)',
-						'acrossai-mcp-manager',
-					),
-					type: '',
-					category: '',
-				},
-		);
-	}, [ abilities, shown ] );
+
+		return [ ...protocolAdded, ...curatedAdded ].map( resolveAbility );
+	}, [ shown, resolveAbility ] );
 
 	// #129 — the served set as it was when this page loaded. The notice compares
 	// against THIS, not against the previous write, so a set that is edited and
@@ -559,7 +626,12 @@ function ToolsApp( { serverId } ) {
 		if ( nextType ) {
 			data.server_type = nextType;
 		}
-		apiFetch( {
+		// Returned so a caller can act on the OUTCOME — `applyTypeSwitch` needs
+		// to know the write actually landed before it reloads the page.
+		// Resolves with the response on success and null on failure, rather
+		// than rejecting: every other caller ignores the result, and a
+		// rejection nobody catches is an unhandled promise in the console.
+		return apiFetch( {
 			path,
 			method: 'POST',
 			data,
@@ -569,7 +641,6 @@ function ToolsApp( { serverId } ) {
 				setAdded( new Set( response.tools || [] ) );
 				if ( response.server_type ) {
 					setServerType( response.server_type );
-					setTypeAvailable( response.type_available !== false );
 					setTypeLabel( response.type_label || '' );
 				}
 				noteServedSetChange( response.effective_tools || [] );
@@ -582,12 +653,16 @@ function ToolsApp( { serverId } ) {
 				if ( Array.isArray( response.server_types ) ) {
 					setServerTypes( response.server_types );
 				}
+
+				return response;
 			} )
 			.catch( ( err ) => {
 				// Rollback the optimistic update — the server rejected the
 				// change (403 / 400 / 500) or the network failed.
 				setAdded( prevSet );
 				setError( err.message || __( 'Save failed.', 'acrossai-mcp-manager' ) );
+
+				return null;
 			} )
 			.finally( () => {
 				setSaving( false );
@@ -627,15 +702,38 @@ function ToolsApp( { serverId } ) {
 	// removed in schema 1.1.7 — `ToolExposureGate` never honoured it, so
 	// `expose` advertised tools that `tools/call` then refused.)
 	const membership = useMemo(
-		() => ( {
-			description: sprintf(
-				/* translators: 1: tools exposed, 2: tools available. */
+		() => {
+			// Counts the CONFIGURED set, matching the pane beside it. Counting
+			// what is served instead read "1 of 4" on a server carrying fifteen
+			// tools, which is true of neither number the operator can see.
+			const description = sprintf(
+				/* translators: 1: tools added, 2: tools available. */
 				__( '%1$d of %2$d available tools are added to this server.', 'acrossai-mcp-manager' ),
-				effectiveTools.length,
+				shown.size,
 				poolAbilities.length,
-			),
-		} ),
-		[ effectiveTools, poolAbilities ],
+			);
+
+			if ( ! serverEnabled || waiting.length === 0 ) {
+				return { description };
+			}
+
+			// Configured and served disagree, and the contract says the UI must
+			// say why rather than quietly showing one of them.
+			return {
+				description,
+				pending: sprintf(
+					/* translators: %d: number of tools not yet available. */
+					_n(
+						'%d of these is not available on this site yet, so it is not offered to AI clients. It starts working as soon as the plugin that provides it is active — nothing here needs changing.',
+						'%d of these are not available on this site yet, so they are not offered to AI clients. They start working as soon as the plugin that provides them is active — nothing here needs changing.',
+						waiting.length,
+						'acrossai-mcp-manager',
+					),
+					waiting.length,
+				),
+			};
+		},
+		[ shown, waiting, poolAbilities, serverEnabled ],
 	);
 
 	// F090 — the bulk buttons are ONE-TIME writes, not a standing rule.
@@ -653,10 +751,17 @@ function ToolsApp( { serverId } ) {
 	const applyBulk = ( which ) => {
 		const prev = new Set( added );
 
-		return persistSet(
-			which === 'all' ? new Set( poolAbilities.map( ( a ) => a.name ) ) : new Set(),
-			prev,
-		);
+		// "Enable All" unions the pool with what is already configured but not
+		// yet servable. The pool only holds abilities registered right now, so
+		// without the union, pressing Enable All on an AcrossAI server whose
+		// add-on is missing would REMOVE its fifteen dormant Toolsets — a
+		// button labelled Enable All silently disabling most of the list.
+		const everything = new Set( [
+			...poolAbilities.map( ( a ) => a.name ),
+			...waiting,
+		] );
+
+		return persistSet( which === 'all' ? everything : new Set(), prev );
 	};
 
 	// Individual add/remove. Tool storage is presence-based
@@ -677,7 +782,21 @@ function ToolsApp( { serverId } ) {
 		const entry = serverTypes.find( ( t ) => t.slug === nextType );
 		const nextTools = entry && Array.isArray( entry.tools ) ? entry.tools : [];
 		const prev = new Set( added );
-		persistSet( new Set( nextTools ), prev, nextType );
+
+		// Reload once the switch has landed. A type change moves state this app
+		// does not own: the "Not ready yet." notice is rendered in PHP, and so
+		// is the page's notice area generally, so after an in-place switch the
+		// tab showed the new type while the warning about it was still missing
+		// — or worse, still showing for the type just left behind.
+		//
+		// Only on a type switch, and only on success. Ordinary tool edits
+		// change nothing outside this app, so reloading for those would throw
+		// away the "Saved" confirmation for no reason.
+		persistSet( new Set( nextTools ), prev, nextType ).then( ( response ) => {
+			if ( response ) {
+				window.location.reload();
+			}
+		} );
 	};
 
 	if ( loading ) {
@@ -687,10 +806,6 @@ function ToolsApp( { serverId } ) {
 			createElement( Spinner ),
 		);
 	}
-
-	// F090 — tools this server's type provides that it does not currently have.
-	// Drives the Apply prompt; never applied without the operator asking.
-	const missingFromType = typeTools.filter( ( slug ) => ! shown.has( slug ) );
 
 	return createElement(
 		Fragment,
@@ -703,21 +818,25 @@ function ToolsApp( { serverId } ) {
 			)
 			: null,
 
-		// F090 (T024) — the server type selector. Unavailable types are listed
-		// but disabled, so an operator can see the option exists and why it is
-		// not usable rather than wondering where it went.
-		// Only rendered when there is a choice to make.
+		// F090 (T024) — the server type selector, shown whenever there is more
+		// than one type to choose between.
 		//
-		// AVAILABLE, not merely registered: the transport always ships an
-		// `acrossai` placeholder so the type has a label and a stated
-		// requirement even with no add-on installed, which means the raw count
-		// never drops below two and the control never hid. `available` is the
-		// same `is_available()` the options use to disable themselves — a
-		// select whose only other option is disabled is not a choice.
+		// This counted AVAILABLE types until 0.3.6, which hid the control on
+		// every site without the add-on — and hid it hardest exactly where it
+		// was needed. The unmet-requirement notice offers two remedies, one of
+		// them "change the server type", and the control that does it was not
+		// on the page. A dead end presented as a choice.
+		//
+		// The reasoning behind the old gate has also expired. It called a
+		// select whose only other option is disabled "not a choice", and it was
+		// right while `acrossai` was an empty placeholder you could neither
+		// populate nor enable. That type now declares its own fifteen tools and
+		// its server can be enabled before the add-on arrives, so picking it is
+		// a real choice with a real result — see the Enabled/Ready split.
 		//
 		// Counted rather than checking for the add-on by name, so a type from
 		// any plugin brings the control back.
-		serverTypes.filter( ( t ) => t.available ).length > 1
+		serverTypes.length > 1
 			? createElement(
 				'div',
 				{ className: 'acrossai-mcp-tools-type' },
@@ -757,10 +876,19 @@ function ToolsApp( { serverId } ) {
 								typeLabel || serverType,
 							),
 						),
+					// Every registered type is SELECTABLE, including one whose
+					// plugin is missing. That is the same rule enabling
+					// follows: the operator states the intent, the admin says
+					// what is still needed, and installing the plugin completes
+					// it with nothing further to click. Disabling the option
+					// would put the one documented remedy for an unmet
+					// requirement permanently out of reach.
+					//
+					// The suffix stays. It is information, not a barrier.
 					serverTypes.map( ( t ) =>
 						createElement(
 							'option',
-							{ key: t.slug, value: t.slug, disabled: ! t.available },
+							{ key: t.slug, value: t.slug },
 							t.available
 								? t.label
 								: sprintf(
@@ -780,32 +908,20 @@ function ToolsApp( { serverId } ) {
 					'p',
 					{ className: 'acrossai-mcp-tools-type__help' },
 					__(
-						'Sets what “Reset to Type Defaults” restores. Any tool below can still be added by hand.',
+						'Sets which tools this server offers, and what “Reset to Type Defaults” restores.',
 						'acrossai-mcp-manager',
 					),
 				),
 			)
 			: null,
 
-		// F090 — requirement unmet: state it plainly and offer BOTH remedies.
-		! typeAvailable
-			? createElement(
-				Notice,
-				{ status: 'warning', isDismissible: false },
-				createElement(
-					'p',
-					null,
-					sprintf(
-						/* translators: %s: server type label. */
-						__(
-							'The %s server type requires the AcrossAI Abilities Manager add-on. Until it is installed and activated this server advertises a single notice to AI clients instead of tools. Install the add-on, or change this server\'s type above.',
-							'acrossai-mcp-manager',
-						),
-						typeLabel || serverType,
-					),
-				),
-			)
-			: null,
+		// The requirement notice that used to sit here is rendered in PHP now, by
+		// `Partials\TypeRequirementNotice`, which the Overview tab already used.
+		// This copy was the weaker of the two — one bare sentence where the
+		// other had a headline and the two buttons that actually resolve it —
+		// and it appeared on the tab where the operator is already looking at
+		// the tools that are not being served, which is where the better one
+		// belongs. One implementation now, above with the other notices.
 
 		// F090 (T050) — the bulk-actions panel. Deliberately the SAME markup and
 		// styling as the Abilities tab's default-policy panel
@@ -833,6 +949,16 @@ function ToolsApp( { serverId } ) {
 					},
 					membership.description,
 				),
+				membership.pending
+					? createElement(
+						'p',
+						{
+							className: 'description',
+							style: { margin: '4px 0 0', color: '#646970' },
+						},
+						membership.pending,
+					)
+					: null,
 			),
 			createElement(
 				'div',
@@ -916,44 +1042,17 @@ function ToolsApp( { serverId } ) {
 			)
 			: null,
 
-		// F090 (T027) — offer the type's missing tools; never auto-apply.
-		typeAvailable && missingFromType.length > 0
-			? createElement(
-				Notice,
-				{ status: 'info', isDismissible: false },
-				createElement(
-					'p',
-					null,
-					sprintf(
-						/* translators: 1: count of tools, 2: server type label. */
-						_n(
-							'%1$d tool is available for the %2$s server type but is not added here.',
-							'%1$d tools are available for the %2$s server type but are not added here.',
-							missingFromType.length,
-							'acrossai-mcp-manager',
-						),
-						missingFromType.length,
-						typeLabel || serverType,
-					),
-					' ',
-					createElement(
-						Button,
-						{
-							variant: 'secondary',
-							isSmall: true,
-							disabled: saving,
-							onClick: () => {
-								const prev = new Set( added );
-								const next = new Set( added );
-								missingFromType.forEach( ( slug ) => next.add( slug ) );
-								persistSet( next, prev );
-							},
-						},
-						__( 'Apply', 'acrossai-mcp-manager' ),
-					),
-				),
-			)
-			: null,
+		// The "N tools are available for this type but are not added here" prompt
+		// that sat here is gone. It fired on any difference between the type's
+		// template and the operator's curation — but a curation that differs
+		// from the template IS the normal state once someone has chosen what
+		// their server should serve, so the prompt nagged about a decision
+		// already made and offered to undo it.
+		//
+		// "Reset to Type Defaults" in the panel above does the same job on
+		// request, which is the difference that matters: asked for, rather than
+		// suggested every time the tab loads.
+
 		// NOTE no counter row here. One lived here from before the panel above
 		// existed and reported the SAME two numbers from the same sources
 		// (`shown` is `new Set( effectiveTools )`, and both counted

@@ -40,8 +40,24 @@ foreach ( $types as $k => $v ) {
 	}
 }
 
-$tool_abilities = \AcrossAI_MCP_Manager\Includes\Abilities\ToolAbilities::get_slugs();
-sort( $tool_abilities );
+// What the admin OFFERS, per type — not the raw tool-ability list.
+//
+// That list was the original third signal and is the wrong thing to compare.
+// It names which slugs are tool-level, so once this plugin owns the Toolset
+// vocabulary it legitimately grows by fifteen entries on a site without the
+// add-on. None of them is registered there, so nothing is hidden that would
+// otherwise show and nothing is offered that could be added — the list
+// changes, the behaviour does not.
+//
+// The picker pool is the behavioural question: what can an operator actually
+// put on a server of this type? It is type-scoped and narrows to registered
+// abilities, so it stays fixed whether or not these classes are loaded.
+$tool_abilities = array();
+foreach ( array_keys( \AcrossAI_MCP_Manager\Includes\Database\MCPServer\ServerTypes::all() ) as $type_slug ) {
+	$tool_abilities[ $type_slug ] = \AcrossAI_MCP_Manager\Includes\Database\MCPServer\ServerTypes::pool( $type_slug );
+	sort( $tool_abilities[ $type_slug ] );
+}
+ksort( $tool_abilities );
 
 $toolsets = array_values(
 	array_filter(
@@ -56,7 +72,7 @@ sort( $toolsets );
 echo wp_json_encode(
 	array(
 		'types'          => $types,
-		'tool_abilities' => $tool_abilities,
+		'picker_pool'    => $tool_abilities,
 		'toolsets'       => $toolsets,
 	),
 	JSON_PRETTY_PRINT

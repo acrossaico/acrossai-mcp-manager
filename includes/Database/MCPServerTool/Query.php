@@ -158,7 +158,9 @@ class Query extends \BerlinDB\Database\Kern\Query {
 	 *
 	 * @param int      $server_id     The MCP server id.
 	 * @param string[] $desired_slugs Full desired set (post-save state).
-	 * @return array{added: string[], removed: string[]} The applied diff.
+	 * @return array{added: string[], removed: string[]} The applied diff. `added`
+	 *                lists rows that were actually INSERTED, which is not always
+	 *                every requested slug — see the note at the insert loop.
 	 * @throws \Throwable When the transaction rolls back — the original exception
 	 *                   (from `add_item`, `delete_item`, or the SELECT FOR UPDATE)
 	 *                   is re-thrown after `ROLLBACK`. Callers MUST catch (see
@@ -194,13 +196,30 @@ class Query extends \BerlinDB\Database\Kern\Query {
 			$added   = array_values( array_diff( $desired, $current ) );
 			$removed = array_values( array_diff( $current, $desired ) );
 
+			// Report only what actually landed. `add_item()` returns false on a
+			// failed INSERT — including the case where the physical table does
+			// not exist, which BerlinDB's Query layer has no way to detect and
+			// $wpdb reports only by returning false.
+			//
+			// Until 0.3.6 this loop discarded that return and the method went on
+			// to report every requested slug as added. A caller asking "did the
+			// write succeed?" was told yes by a function that had written
+			// nothing, which is how the activation-order bug reached a release
+			// branch past green CI and a manual pass. A write that cannot fail
+			// visibly cannot be verified by anyone.
+			$inserted = array();
+
 			foreach ( $added as $slug ) {
-				$this->add_item(
+				$result = $this->add_item(
 					array(
 						'server_id'    => $server_id,
 						'ability_slug' => $slug,
 					)
 				);
+
+				if ( false !== $result ) {
+					$inserted[] = $slug;
+				}
 			}
 
 			foreach ( $removed as $slug ) {
@@ -219,7 +238,7 @@ class Query extends \BerlinDB\Database\Kern\Query {
 			$wpdb->query( 'COMMIT' ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery -- Transaction control.
 
 			return array(
-				'added'   => $added,
+				'added'   => $inserted,
 				'removed' => $removed,
 			);
 		} catch ( \Throwable $e ) {

@@ -113,6 +113,63 @@ class ServerTypesTest extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * `declared_tools()` does NOT narrow; `tools_for()` does. That is the point.
+	 *
+	 * The two exist because a reader and a writer want opposite answers. Asking
+	 * "what can this type serve right now?" before STORING a template is how an
+	 * AcrossAI server came to be stamped with mcp-adapter's four tools on every
+	 * site without the add-on — the narrowing emptied the list and the legacy
+	 * fallback filled it back up with the wrong thing.
+	 */
+	public function test_declared_tools_keeps_slugs_that_tools_for_narrows_away(): void {
+		add_filter(
+			ServerTypes::FILTER,
+			static function ( array $types ): array {
+				$types['ghosts'] = array(
+					'label' => 'Ghosts',
+					'tools' => array( 'toolset/nothing-here', 'toolset/nor-here' ),
+				);
+				return $types;
+			}
+		);
+
+		$this->assertSame(
+			array( 'toolset/nothing-here', 'toolset/nor-here' ),
+			ServerTypes::declared_tools( 'ghosts' ),
+			'A declaration is what the type says, not what the site happens to have.'
+		);
+
+		$this->assertNotSame(
+			ServerTypes::declared_tools( 'ghosts' ),
+			ServerTypes::tools_for( 'ghosts' ),
+			'tools_for() must still narrow — the two answer different questions.'
+		);
+	}
+
+	/**
+	 * An empty declaration still falls back, whichever accessor asks.
+	 *
+	 * The wipe guard is not weakened by adding a non-narrowing reader: a
+	 * template of nothing erases a server no matter how it was resolved.
+	 */
+	public function test_declared_tools_falls_back_for_an_unknown_or_empty_type(): void {
+		$this->assertNotEmpty( ServerTypes::declared_tools( 'no-such-type' ) );
+
+		add_filter(
+			ServerTypes::FILTER,
+			static function ( array $types ): array {
+				$types['hollow'] = array(
+					'label' => 'Hollow',
+					'tools' => array(),
+				);
+				return $types;
+			}
+		);
+
+		$this->assertNotEmpty( ServerTypes::declared_tools( 'hollow' ) );
+	}
+
 	// ------------------------------------------------------------ last-wins --
 
 	public function test_filter_can_add_a_type(): void {
@@ -280,20 +337,78 @@ class ServerTypesTest extends WP_UnitTestCase {
 
 	// ------------------------------------------------------- pool vs Reset --
 
-	public function test_pool_is_not_scoped_by_server_type(): void {
-		// A type is a TEMPLATE for Reset, never a filter over what an operator
-		// may add. An earlier iteration subtracted tools claimed by other types,
-		// so an AcrossAI server could not be given a protocol tool even when the
-		// site needed one. The picker offers the same set on every type.
-		$pool = ServerTypes::pool();
+	/**
+	 * REVERSED in 0.3.6: the pool IS scoped to the type.
+	 *
+	 * This asserted the opposite, on the reasoning that a type is a template
+	 * for Reset and never a filter over what an operator may add. Defensible in
+	 * the abstract, wrong on screen: an AcrossAI server offered the four
+	 * `mcp-adapter/*` tools — another server's entire vocabulary, under a
+	 * heading naming this one — and the header counted its configured set
+	 * against a pool that excluded it, reading "15 of 4".
+	 */
+	public function test_the_pool_offers_only_this_types_vocabulary(): void {
+		$acrossai = ServerTypes::pool( ServerTypes::ACROSSAI );
+		$legacy   = ServerTypes::pool( ServerTypes::LEGACY );
 
 		foreach ( ToolPolicy::PROTOCOL_TOOLS as $protocol_tool ) {
-			$this->assertContains(
+			$this->assertContains( $protocol_tool, $legacy );
+			$this->assertNotContains(
 				$protocol_tool,
-				$pool,
-				'The three built-in tools are offered on every server type, AcrossAI included.'
+				$acrossai,
+				'mcp-adapter vocabulary must not be offered on an AcrossAI server.'
 			);
 		}
+
+		$this->assertNotEmpty( $acrossai, 'A type still offers its OWN tools.' );
+	}
+
+	/**
+	 * The scoping must not close the third-party extension point.
+	 *
+	 * A plugin contributing a tool-level ability through
+	 * `acrossai_mcp_manager_tool_abilities` has no type to declare it on, so
+	 * withholding unclaimed slugs would have made that filter useless the
+	 * moment the pool stopped being site-wide. Only vocabulary another type has
+	 * CLAIMED is withheld.
+	 */
+	public function test_a_tool_no_type_claims_is_still_offered_everywhere(): void {
+		acrossai_test_register_ability(
+			'mycorp/standalone-tool',
+			array(
+				'label'            => 'Standalone',
+				'description'      => 'Contributed by a plugin that registers no type.',
+				'category'         => 'test',
+				'input_schema'     => array( 'type' => 'object', 'properties' => array() ),
+				'output_schema'    => array( 'type' => 'object', 'properties' => array() ),
+				'execute_callback' => static fn () => array(),
+			)
+		);
+
+		add_filter(
+			'acrossai_mcp_manager_tool_abilities',
+			static function ( array $slugs ): array {
+				$slugs[] = 'mycorp/standalone-tool';
+				return $slugs;
+			}
+		);
+
+		$this->assertContains( 'mycorp/standalone-tool', ServerTypes::pool( ServerTypes::ACROSSAI ) );
+		$this->assertContains( 'mycorp/standalone-tool', ServerTypes::pool( ServerTypes::LEGACY ) );
+	}
+
+	/**
+	 * A declared tool whose plugin is absent still belongs in the pool.
+	 *
+	 * It is shown as pending beside the list it was declared into. Narrowing it
+	 * away would make the picker disagree with the pane next to it, and would
+	 * leave a tool the operator removed with no way back.
+	 */
+	public function test_the_pool_keeps_declared_tools_that_are_not_registered(): void {
+		$pool = ServerTypes::pool( ServerTypes::ACROSSAI );
+
+		$this->assertContains( 'toolset/content', $pool );
+		$this->assertFalse( wp_has_ability( 'toolset/content' ), 'Precondition: dormant here.' );
 	}
 
 	public function test_pool_survives_the_registry_being_blind_to_protocol_tools(): void {
@@ -302,7 +417,7 @@ class ServerTypesTest extends WP_UnitTestCase {
 		// registration listener after `wp_abilities_api_init` has fired. Without
 		// the exemption inside registered_only() the picker would silently lose
 		// its three built-ins here.
-		$this->assertNotEmpty( ServerTypes::pool() );
+		$this->assertNotEmpty( ServerTypes::pool( ServerTypes::LEGACY ) );
 	}
 
 	public function test_reset_stays_scoped_to_the_type(): void {

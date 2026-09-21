@@ -391,13 +391,25 @@ abstract class Base_Toolset_Ability {
 		// down with it. Both hooks' owners normalise the same way.
 		$slugs = is_array( $slugs ) ? $slugs : array();
 
-		// Both lists answer "which slugs are Toolsets ON THIS SITE?", so a
-		// Toolset that did not register belongs on neither — whether because
-		// another plugin holds the slug (protecting or tool-listing it would
-		// act on THEIR ability) or because its group is empty, in which case
-		// the slug names nothing at all and the admin would offer a tool that
-		// cannot be added.
-		if ( ! $this->registered ) {
+		// Gated on the COLLISION only, never on "have I registered yet?".
+		//
+		// 0.3.6 briefly gated this on registration too, to keep dormant
+		// Toolsets out of the Tools picker. That reads well and is wrong: the
+		// admin builds this list at `admin_enqueue_scripts`, which runs BEFORE
+		// `wp_abilities_api_init`, so at the moment it is read no Toolset has
+		// registered and the gate declares nothing at all. The Abilities tab
+		// would then show all fifteen as operator-toggleable rows, and the
+		// exposure gate's exemption would stop covering them.
+		//
+		// The AcrossAI Abilities Manager shipped that same gate once and
+		// reverted it for this reason; its test suite, ported here, is what
+		// caught the repeat. Keeping the picker clean is `ServerTypes::pool()`'s
+		// job — it is type-scoped and consulted at REST time, when registration
+		// HAS happened.
+		//
+		// The collision check stays: protecting or tool-listing a slug another
+		// plugin holds would act on THEIR ability.
+		if ( $this->slug_taken_by_other ) {
 			return $slugs;
 		}
 
@@ -471,6 +483,35 @@ abstract class Base_Toolset_Ability {
 	 * @return string
 	 */
 	abstract protected function toolset_label(): string;
+
+	/**
+	 * This Toolset's slug, label and description, without registering anything.
+	 *
+	 * The admin needs these before the ability exists. An AcrossAI server is
+	 * seeded with its Toolsets declared in advance, so on a site without the
+	 * add-on every one of them is configured-but-unregistered — and the Tools
+	 * tab was left rendering a bare slug twice with no description, which reads
+	 * as breakage rather than as a tool that has not arrived yet.
+	 *
+	 * The plugin owns these classes, so it already knows the answer. This is
+	 * the same move `ToolPolicy::PROTOCOL_TOOL_METADATA` makes for the three
+	 * vendor tools the registry cannot see at REST time.
+	 *
+	 * Safe to call on an instance built WITHOUT the constructor — it reads four
+	 * pure methods and touches no state. That matters: the constructor attaches
+	 * five hooks, so building one just to read its label would quietly register
+	 * a second copy of every filter.
+	 *
+	 * @since  0.3.6
+	 * @return array{name: string, label: string, description: string}
+	 */
+	final public function tool_metadata(): array {
+		return array(
+			'name'        => $this->slug(),
+			'label'       => $this->toolset_label(),
+			'description' => $this->toolset_description(),
+		);
+	}
 
 	/**
 	 * Description an assistant reads when choosing between Toolsets.

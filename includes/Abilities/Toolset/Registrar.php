@@ -56,7 +56,6 @@ final class Registrar {
 		Updates::class,
 		Cron::class,
 		Cache::class,
-		Backups::class,
 		Database::class,
 		Files::class,
 		Diagnostics::class,
@@ -74,6 +73,13 @@ final class Registrar {
 	 * the entire point. A server created today carries all fifteen dormant, and
 	 * they light up when the AcrossAI Abilities Manager add-on arrives, with no
 	 * type switch and no Reset.
+	 *
+	 * `toolset/backups` is deliberately absent. It was the one Toolset named
+	 * after a CATEGORY rather than a plugin, reaching UpdraftPlus and
+	 * All-in-One WP Migration through a provider layer, while every other
+	 * integration here is named for the plugin it serves. It is being rebuilt
+	 * as `toolset/updraftplus` and `toolset/all-in-one-wp-migration` — see the
+	 * issue on acrossai-abilities-manager. The abilities behind it were kept.
 	 *
 	 * Three of these are NOT in {@see self::CORE}, and each for its own reason:
 	 * `integrations` spans every non-default group rather than owning one;
@@ -96,7 +102,6 @@ final class Registrar {
 		'toolset/updates',
 		'toolset/cron',
 		'toolset/cache',
-		'toolset/backups',
 		'toolset/database',
 		'toolset/files',
 		'toolset/diagnostics',
@@ -113,6 +118,54 @@ final class Registrar {
 	 */
 	public static function tool_slugs(): array {
 		return self::TOOL_SLUGS;
+	}
+
+	/**
+	 * Slug, label and description for every Toolset this server type offers.
+	 *
+	 * Answers the admin's question — "what IS this tool?" — for Toolsets whose
+	 * abilities are not registered on this site. That is the ordinary state of
+	 * an AcrossAI server before the add-on arrives: its fifteen tools are
+	 * declared in advance, so without this the Tools tab printed a bare slug
+	 * twice with no description and a working server read as a broken one.
+	 *
+	 * The plugin owns these classes, so it already knows. Same move
+	 * `ToolPolicy::PROTOCOL_TOOL_METADATA` makes for the three vendor tools the
+	 * registry cannot see at REST time.
+	 *
+	 * Instances are built WITHOUT the constructor on purpose: constructing one
+	 * attaches five hooks, so reading a label the ordinary way would register a
+	 * second copy of every filter on every admin page load.
+	 *
+	 * @since  0.3.6
+	 * @return array<int, array{name: string, label: string, description: string}>
+	 */
+	public static function tool_metadata(): array {
+		$metadata = array();
+
+		foreach ( array_merge( self::CORE, array( Integrations::class ) ) as $toolset ) {
+			$instance = ( new \ReflectionClass( $toolset ) )->newInstanceWithoutConstructor();
+
+			if ( $instance instanceof Base_Toolset_Ability ) {
+				$metadata[] = $instance->tool_metadata();
+			}
+		}
+
+		$metadata[] = array(
+			'name'        => Guide::SLUG,
+			'label'       => __( 'Toolset Guide', 'acrossai-mcp-manager' ),
+			'description' => __( 'Read this first. Explains how every other tool on this server is called — the three actions, which parameters belong to which, and their real limits — then lists what this site holds, with an ability count per toolset.', 'acrossai-mcp-manager' ),
+		);
+
+		// The add-on's catch-all. No class of ours registers it, so its copy
+		// lives here rather than being derived — see `Guide::CATCH_ALL_GROUP`.
+		$metadata[] = array(
+			'name'        => 'toolset/other',
+			'label'       => __( 'Other', 'acrossai-mcp-manager' ),
+			'description' => __( 'Abilities that matched no other group. Membership is by fallthrough rather than assignment, so what it holds depends entirely on which plugins are installed. action=discover lists this group; action=info returns schemas; action=execute runs one ability.', 'acrossai-mcp-manager' ),
+		);
+
+		return $metadata;
 	}
 
 	/**

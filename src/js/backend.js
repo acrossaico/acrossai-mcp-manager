@@ -303,3 +303,53 @@
 		}
 	} );
 }() );
+
+/**
+ * 0.3.6 — show the connect-message box only when "Custom" is selected.
+ *
+ * The Overview tab prefills the box with what the server sends today, which is
+ * useful when you are about to edit it and misleading when you are not: left
+ * visible under "System default" it reads as an editable field whose contents
+ * are about to be saved, when nothing in it will be.
+ *
+ * PHP renders the wrapper with `hidden` already correct, so the first paint
+ * needs no script. This only keeps it in step as the radios change.
+ *
+ * Delegated from the document rather than bound per form: the panel is markup
+ * PHP prints, and a listener attached at load would miss anything re-rendered
+ * later.
+ */
+( function() {
+	const WRAPPER = '.acrossai-mcp-instructions__custom';
+	const RADIO = 'input[name="instructions_mode"]';
+
+	/**
+	 * Match the box's visibility to the chosen radio.
+	 *
+	 * @param {Element} form The connect-message form.
+	 */
+	function sync( form ) {
+		const wrapper = form.querySelector( WRAPPER );
+		const custom = form.querySelector( RADIO + '[value="custom"]' );
+
+		if ( ! wrapper || ! custom ) {
+			return;
+		}
+
+		wrapper.hidden = ! custom.checked;
+	}
+
+	document.addEventListener( 'change', function( event ) {
+		const target = event.target;
+
+		if ( ! ( target instanceof Element ) || ! target.matches( RADIO ) ) {
+			return;
+		}
+
+		const form = target.closest( 'form' );
+
+		if ( form ) {
+			sync( form );
+		}
+	} );
+}() );

@@ -336,18 +336,77 @@ class RegistrarTest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Every registered `toolset/*` ability except the guide itself.
+	 * Every declared Toolset can describe itself without being registered.
+	 *
+	 * This is what lets the Tools tab render a real title and description for a
+	 * Toolset whose add-on is not installed — the ordinary state of an AcrossAI
+	 * server before the add-on arrives. Without it those rows printed a bare
+	 * slug twice and a working server read as a broken one.
+	 *
+	 * Asserted against `tool_slugs()` rather than a restated list, so a Toolset
+	 * added to one and forgotten in the other fails here (B48).
+	 */
+	public function test_every_declared_toolset_carries_a_label_and_description() {
+		$metadata = array();
+
+		foreach ( Registrar::tool_metadata() as $entry ) {
+			$this->assertNotEmpty( $entry['label'], "{$entry['name']} has no label." );
+			$this->assertNotEmpty( $entry['description'], "{$entry['name']} has no description." );
+			$this->assertNotSame(
+				$entry['name'],
+				$entry['label'],
+				"{$entry['name']} falls back to its own slug as a label — the row would print it twice."
+			);
+
+			$metadata[] = $entry['name'];
+		}
+
+		$declared = Registrar::tool_slugs();
+		sort( $declared );
+		sort( $metadata );
+
+		$this->assertSame( $declared, $metadata );
+	}
+
+	/**
+	 * Reading a Toolset's metadata must not attach its hooks.
+	 *
+	 * Each constructor attaches five filters, so building one just to read a
+	 * label would register a second copy of every one of them on every admin
+	 * page load — and the duplicates would be invisible until something
+	 * counted.
+	 */
+	public function test_reading_metadata_attaches_nothing() {
+		$before = $this->abilities_init_callback_count();
+
+		Registrar::tool_metadata();
+
+		$this->assertSame( $before, $this->abilities_init_callback_count() );
+	}
+
+	/**
+	 * Every registered `toolset/*` ability the guide would have to describe.
+	 *
+	 * The exclusion list is read out of `Guide`'s own private constant rather
+	 * than restated, so the test and the rule it checks cannot drift apart
+	 * (B48). It matters here: `toolset/setup-required` took the prefix in
+	 * 0.3.6 and registers unconditionally, so a test counting the prefix alone
+	 * would find a Toolset on every bare site and assert the opposite of the
+	 * rule — that a guide to nothing still publishes.
 	 *
 	 * @return string[]
 	 */
 	private function registered_toolsets(): array {
 		$registry = \WP_Abilities_Registry::get_instance();
+		$ignored  = ( new ReflectionClass( Guide::class ) )->getConstant( 'NOT_A_SUBJECT' );
+		$ignored  = is_array( $ignored ) ? $ignored : array( Guide::SLUG );
 
 		return array_values(
 			array_filter(
 				null === $registry ? array() : array_keys( $registry->get_all_registered() ),
-				static function ( $slug ): bool {
-					return Guide::SLUG !== $slug && 0 === strpos( (string) $slug, 'toolset/' );
+				static function ( $slug ) use ( $ignored ): bool {
+					return ! in_array( $slug, $ignored, true )
+						&& 0 === strpos( (string) $slug, 'toolset/' );
 				}
 			)
 		);

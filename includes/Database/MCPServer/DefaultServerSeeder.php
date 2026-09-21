@@ -101,12 +101,24 @@ final class DefaultServerSeeder {
 		foreach ( ServerTypes::seeded_servers() as $slug => $seeded ) {
 			$definitions[ $slug ] = array(
 				// Plugin-owned identity, re-asserted every run.
-				'managed' => array_merge(
-					$seeded['server'],
-					array( 'server_type' => $seeded['type'] )
-				),
+				'managed' => $seeded['server'],
 				'initial' => array(
-					'is_enabled' => 0,
+					'is_enabled'  => 0,
+					// OPERATOR-owned, despite being the plugin that chose it.
+					//
+					// This sat in `managed` until 0.3.6, so the reconciler
+					// rewrote it on every admin request: switching a seeded
+					// server's type appeared to work, survived the save, and
+					// was silently reverted by the next page load. The Tools
+					// tab offers a Server type control, and a control whose
+					// result is undone before the operator sees it again is
+					// worse than no control.
+					//
+					// Written at INSERT so a new install still gets the right
+					// type; never re-forced, so the choice sticks. The 1.1.6
+					// migration that backfills this column is unaffected —
+					// that is a migration, not the reconciler.
+					'server_type' => $seeded['type'],
 				),
 				// NOT a column. Consumed after INSERT by `seed()`, because
 				// curated rows are keyed by the id the INSERT produces.

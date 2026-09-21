@@ -406,6 +406,19 @@ final class Main {
 			6
 		);
 
+		// One-shot: restore a seeded server's declared tools when it has NONE.
+		// Repairs installs activated before 0.3.6 fixed the activation order, on
+		// which the seeder wrote its curated rows into a table that did not
+		// exist yet and lost them silently. Same priority 6 and the same reasons
+		// as the guide backfill above; it is a no-op on every healthy site, and
+		// on a repaired one it never runs again.
+		$this->loader->add_action(
+			'admin_init',
+			\AcrossAI_MCP_Manager\Includes\Database\MCPServer\SeededToolsBackfill::class,
+			'maybe_backfill',
+			6
+		);
+
 		// F069 T015/T024 — Quick Connect via AcrossAI wizard activation redirect. Fires at
 		// admin_init @ 5 (same slot as handle_actions but different handler);
 		// on the very next admin page load after plugin activation, the

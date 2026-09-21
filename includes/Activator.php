@@ -34,22 +34,38 @@ class Activator {
 	public static function activate() {
 
 		// Feature 011: BerlinDB Table subclasses handle create/upgrade lifecycle.
-		// Order matters — MCPServer table must exist before DefaultServerSeeder::seed()
-		// can insert the default row (FR-018). Feature 016 retired the two
-		// dedicated Connectors BerlinDB modules; operator drops pre-016 physical
-		// tables manually per spec.md §User Story 2.
+		// Feature 016 retired the two dedicated Connectors BerlinDB modules;
+		// operator drops pre-016 physical tables manually per spec.md §User
+		// Story 2.
+		//
+		// ORDER IS LOAD-BEARING, and BOTH tables below are part of it.
+		//
+		// `DefaultServerSeeder::seed()` writes two things for each row it
+		// INSERTs: the `tool_*` boolean columns on the servers table, and the
+		// type's curated tool slugs as rows in the server-tools table. So both
+		// tables must exist BEFORE it runs, not just the servers one.
+		//
+		// Until 0.3.6 the tools table was created ten lines further down, and
+		// the curated write went to a table that did not exist yet. It did not
+		// fail loudly: `$wpdb` returns false, BerlinDB's Query has no DDL of its
+		// own, and nothing threw — so activation "succeeded" while every
+		// `toolset/*` row on the seeded AcrossAI server was silently dropped.
+		// Nothing recovered them either, because a later reconcile run finds the
+		// row already present and never reaches the curated write again.
+		//
+		// Servers table stays first: the seeder's column write needs it.
 		MCPServerTable::instance()->maybe_upgrade();
+		// Feature 020 — per-server tool selection. Presence-based storage; the
+		// empty-table state is the correct initial state for a server the seeder
+		// does not touch. Moved above the seeder in 0.3.6 — see the note above.
+		// Co-commit invariant with the Main.php request-time boot below
+		// (DEC-BERLINDB-TABLE-REQUEST-BOOT).
+		MCPServerToolTable::instance()->maybe_upgrade();
 		DefaultServerSeeder::seed();
 		CliAuthLogTable::instance()->maybe_upgrade();
 		// Feature 017 — per-server ability exposure overrides. No seeder call —
 		// the empty-table state IS the correct backwards-compatible initial state.
 		MCPServerAbilityTable::instance()->maybe_upgrade();
-		// Feature 020 — per-server tool selection. Presence-based storage; no
-		// seeder — the empty-table state is the correct initial state (UI
-		// renders the zero-added warning banner until the operator saves a
-		// non-empty set). Co-commit invariant with the Main.php request-time
-		// boot below (DEC-BERLINDB-TABLE-REQUEST-BOOT).
-		MCPServerToolTable::instance()->maybe_upgrade();
 
 		// F037 — per-server key-value meta. This was the only BerlinDB table the
 		// activator did not create: it relied on admin_init@3

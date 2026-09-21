@@ -16,15 +16,11 @@
 
 namespace AcrossAI_MCP_Manager\Admin\Partials\ServerTabs;
 
+use AcrossAI_MCP_Manager\Admin\Partials\ServerTabs\Partials\TypeRequirementNotice;
+use AcrossAI_MCP_Manager\Includes\Database\MCPServer\Query;
 use AcrossAI_MCP_Manager\Includes\Database\MCPServer\ServerTypes;
-use AcrossAI_MCP_Manager\Includes\MCPClients\AbstractMCPClient;
-use AcrossAI_MCP_Manager\Includes\MCPClients\ClaudeCodeClient;
-use AcrossAI_MCP_Manager\Includes\MCPClients\ClaudeDesktopClient;
-use AcrossAI_MCP_Manager\Includes\MCPClients\CodexClient;
-use AcrossAI_MCP_Manager\Includes\MCPClients\CursorClient;
-use AcrossAI_MCP_Manager\Includes\MCPClients\CustomClient;
-use AcrossAI_MCP_Manager\Includes\MCPClients\GitHubCopilotClient;
-use AcrossAI_MCP_Manager\Includes\MCPClients\VSCodeClient;
+use AcrossAI_MCP_Manager\Includes\Database\MCPServerMeta\Query as MCPServerMetaQuery;
+use AcrossAI_MCP_Manager\Includes\MCP\Controller as MCPController;
 use AcrossAI_MCP_Manager\Includes\Utilities\AdminPageSlugs;
 
 // Exit if accessed directly.
@@ -39,22 +35,6 @@ defined( 'ABSPATH' ) || exit;
  */
 final class OverviewTab extends AbstractServerTab {
 
-	/**
-	 * Static descriptions for each MCP client shown in the Supported MCP
-	 * Clients section. Keyed by client slug (AbstractMCPClient::get_client_slug()).
-	 *
-	 * @since 0.0.6
-	 * @var array<string, string>
-	 */
-	private const CLIENT_DESCRIPTIONS = array(
-		'claude-desktop' => 'Anthropic Claude Desktop App',
-		'claude-code'    => 'Anthropic Claude Code CLI',
-		'vscode'         => 'Visual Studio Code',
-		'github-copilot' => 'GitHub Copilot in VS Code (user-level MCP config)',
-		'codex'          => 'OpenAI Codex CLI',
-		'cursor'         => 'Cursor AI Code Editor',
-		'custom'         => 'Custom MCP Client Implementation',
-	);
 
 	/**
 	 * Returns the tab slug.
@@ -95,10 +75,16 @@ final class OverviewTab extends AbstractServerTab {
 	 */
 	protected function render_body( array $server ): void {
 		echo '<div class="mcp-tab-panel">';
-		$this->render_type_requirement_notice( $server );
+		TypeRequirementNotice::instance()->render( $server, 'overview' );
 		$this->render_info_table( $server );
-		$this->render_passwords_notice();
-		$this->render_supported_clients();
+		$this->render_instructions_setting( $server );
+
+		// The Application Passwords notice and the "Supported MCP Clients"
+		// list that used to close this tab are gone. Both described the CONNECT
+		// tab from a distance — one explained where credentials generated there
+		// end up, the other listed the clients whose tabs are already on
+		// screen — so the Overview tab ended on a summary of somewhere else,
+		// below the settings it actually owns.
 		echo '</div>';
 	}
 
@@ -252,112 +238,122 @@ final class OverviewTab extends AbstractServerTab {
 	}
 
 	/**
-	 * Renders the Application Passwords notice.
+	 * The per-server connect message: system default, or the operator's own.
 	 *
-	 * @since 0.0.6
+	 * Two states on purpose. "System default" stores NOTHING — a saved copy of
+	 * the default would freeze the wording as it read on the day it was saved
+	 * and quietly stop tracking the plugin when that wording improves. Absence
+	 * of the row IS the default, so there is nothing to go stale.
+	 *
+	 * The textarea is prefilled with what the server sends today, so "custom"
+	 * starts from the real text rather than an empty box. It is
+	 * `Controller::default_instructions_for()`, the same value the live path
+	 * builds, so what an operator edits cannot differ from what they were
+	 * getting.
+	 *
+	 * @since  0.3.6
+	 * @param  array<string, mixed> $server Server row data.
 	 * @return void
 	 */
-	private function render_passwords_notice(): void {
-		printf(
-			'<div class="notice notice-info inline"><p>%s <a href="%s">%s</a></p></div>',
-			esc_html__( 'Passwords generated in the client tabs are stored as WordPress Application Passwords. View, revoke, or manage them on your', 'acrossai-mcp-manager' ),
-			esc_url( admin_url( 'profile.php#application-passwords-section' ) ),
-			esc_html__( 'profile page', 'acrossai-mcp-manager' )
-		);
-	}
+	private function render_instructions_setting( array $server ): void {
+		$server_id = (int) ( $server['id'] ?? 0 );
 
-	/**
-	 * Renders the Supported MCP Clients section.
-	 *
-	 * @since 0.0.6
-	 * @return void
-	 */
-	private function render_supported_clients(): void {
-		$client_class_fqns = array(
-			ClaudeDesktopClient::class,
-			ClaudeCodeClient::class,
-			VSCodeClient::class,
-			GitHubCopilotClient::class,
-			CodexClient::class,
-			CursorClient::class,
-			CustomClient::class,
-		);
+		if ( $server_id <= 0 ) {
+			return;
+		}
 
-		printf( '<h3>%s</h3>', esc_html__( 'Supported MCP Clients', 'acrossai-mcp-manager' ) );
-		printf(
-			'<p class="description">%s</p>',
-			esc_html__( 'Click a client tab above to generate credentials and copy the ready-to-paste JSON configuration.', 'acrossai-mcp-manager' )
-		);
+		$row = Query::instance()->get_item( $server_id );
 
-		echo '<ul class="mcp-clients-list">';
-		foreach ( $client_class_fqns as $fqn ) {
-			if ( ! class_exists( $fqn ) || ! is_subclass_of( $fqn, AbstractMCPClient::class ) ) {
-				continue;
-			}
-			/** @var AbstractMCPClient $client */
-			$client      = new $fqn();
-			$slug        = $client->get_client_slug();
-			$name        = $client->get_client_name();
-			$description = self::CLIENT_DESCRIPTIONS[ $slug ] ?? '';
+		if ( ! $row ) {
+			return;
+		}
 
+		$default = MCPController::default_instructions_for( $row );
+		$stored  = MCPServerMetaQuery::get_meta( $server_id, MCPController::INSTRUCTIONS_META_KEY );
+		$custom  = null !== $stored && '' !== $stored;
+
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Display-only flag; the save itself verified its nonce.
+		if ( ! empty( $_GET['acrossai_mcp_manager_instructions_saved'] ) ) {
 			printf(
-				'<li><strong>%1$s</strong> — %2$s</li>',
-				esc_html( $name ),
-				esc_html( $description )
+				'<div class="notice notice-success inline"><p>%s</p></div>',
+				esc_html__( 'Connect message saved. Already-connected AI clients keep the message they received; new connections get this one.', 'acrossai-mcp-manager' )
 			);
 		}
-		echo '</ul>';
-	}
 
-	/**
-	 * F090 — when this server's type has an unmet requirement, say so here and
-	 * offer BOTH remedies.
-	 *
-	 * Two ways out, not one. Installing the add-on is the obvious remedy, but an
-	 * operator who does not want it must also be able to switch the server to a
-	 * type that works today — otherwise the Overview tab reports a problem with
-	 * no reachable fix, which is the dead end this feature exists to remove.
-	 *
-	 * @since 0.1.0
-	 * @param array<string, mixed> $server Server row data.
-	 * @return void
-	 */
-	private function render_type_requirement_notice( array $server ): void {
-		$server_type = (string) ( $server['server_type'] ?? '' );
+		printf(
+			'<form method="post" action="%s" class="acrossai-mcp-instructions">',
+			esc_url(
+				add_query_arg(
+					array(
+						'page'   => AdminPageSlugs::PARENT,
+						'action' => 'save_instructions',
+						'server' => $server_id,
+					),
+					admin_url( 'admin.php' )
+				)
+			)
+		);
+		wp_nonce_field(
+			'acrossai_mcp_manager_instructions_' . $server_id,
+			'acrossai_mcp_manager_instructions_nonce'
+		);
 
-		if ( '' === $server_type || ServerTypes::is_available( $server_type ) ) {
-			return;
-		}
+		echo '<h3>' . esc_html__( 'Default server message', 'acrossai-mcp-manager' ) . '</h3>';
 
-		// The SOFT notice, not the hard refusal. Since 0.3.6 a server of this
-		// type CAN be enabled without its plugin — it simply is not Ready, and
-		// says so. `enablement_error()` now covers only an unrecognised slug,
-		// which this method's `is_available()` guard above has already let
-		// through.
-		$error = ServerTypes::requirement_notice( $server_type );
+		echo '<p class="description">';
+		esc_html_e(
+			'Sent to an AI client when it connects, after this server\'s description. It tells the client what kind of server this is and which tool to call first.',
+			'acrossai-mcp-manager'
+		);
+		echo '</p>';
 
-		if ( null === $error ) {
-			return;
-		}
-
-		$tools_url = add_query_arg(
-			array(
-				'page'   => 'acrossai_mcp_manager',
-				'action' => 'edit',
-				'server' => (int) ( $server['id'] ?? 0 ),
-				'tab'    => 'tools',
-			),
-			admin_url( 'admin.php' )
+		printf(
+			'<p><label><input type="radio" name="instructions_mode" value="default" %1$s> <strong>%2$s</strong> %3$s</label></p>',
+			checked( $custom, false, false ),
+			esc_html__( 'System default', 'acrossai-mcp-manager' ),
+			esc_html__( '— kept up to date by the plugin. Recommended.', 'acrossai-mcp-manager' )
 		);
 
 		printf(
-			'<div class="notice notice-warning inline"><p><strong>%1$s</strong> %2$s</p><p><a class="button button-primary" href="%3$s" target="_blank" rel="noopener noreferrer">%4$s</a> <a class="button" href="%5$s">%6$s</a></p></div>',
-			esc_html__( 'This server cannot be enabled yet.', 'acrossai-mcp-manager' ),
-			esc_html( $error->get_error_message() ),
-			esc_url( add_query_arg( array( 'page' => 'acrossai-addons' ), admin_url( 'admin.php' ) ) ),
-			esc_html__( 'Install the add-on →', 'acrossai-mcp-manager' ),
-			esc_url( $tools_url ),
-			esc_html__( 'Change the server type', 'acrossai-mcp-manager' )
+			'<p><label><input type="radio" name="instructions_mode" value="custom" %1$s> <strong>%2$s</strong> %3$s</label></p>',
+			checked( $custom, true, false ),
+			esc_html__( 'Custom', 'acrossai-mcp-manager' ),
+			esc_html__( '— write your own. It replaces the message below, not your description.', 'acrossai-mcp-manager' )
 		);
+
+		// Wrapped, and hidden server-side when System default is selected, so
+		// the field is not there to read as "this is what will be sent" when it
+		// is not. `backend.js` toggles it as the radios change; the `hidden`
+		// attribute below is what makes the first paint correct without
+		// waiting for script.
+		//
+		// With JavaScript off the field simply stays as rendered — and the save
+		// handler reads the RADIO, never the textarea's visibility, so a
+		// no-script operator can still switch to Custom and have it work.
+		printf(
+			'<div class="acrossai-mcp-instructions__custom"%s>',
+			$custom ? '' : ' hidden'
+		);
+
+		printf(
+			'<p><textarea name="instructions_custom" rows="7" class="large-text code" placeholder="%1$s">%2$s</textarea></p>',
+			esc_attr__( 'Leave empty to use the system default.', 'acrossai-mcp-manager' ),
+			// Prefilled with the live default when nothing is stored, so
+			// choosing Custom starts from what the server actually sends.
+			esc_textarea( $custom ? (string) $stored : $default )
+		);
+
+		echo '<p class="description">';
+		esc_html_e( 'Leaving this empty keeps the system default.', 'acrossai-mcp-manager' );
+		echo '</p>';
+
+		echo '</div>';
+
+		printf(
+			'<p><button type="submit" class="button button-primary">%s</button></p>',
+			esc_html__( 'Save connect message', 'acrossai-mcp-manager' )
+		);
+
+		echo '</form>';
 	}
 }

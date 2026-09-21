@@ -19,6 +19,14 @@
             <directory>tests/phpunit/MCPClients</directory>
         </testsuite>
 
+        <!-- Toolset dispatch + permissions. WP-free like mcpclients: these came
+             across from the AcrossAI Abilities Manager with the code they test,
+             and run against the in-memory Abilities-API stubs in
+             tests/bootstrap.php rather than a WordPress install. -->
+        <testsuite name="toolset">
+            <directory>tests/phpunit/AbilitiesToolset</directory>
+        </testsuite>
+
         <!--
             Rename gate (F080): pure-PHP canary + reflection contract that
             locks in the "Quick Setup → Quick Connect via AcrossAI" rename.

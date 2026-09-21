@@ -15,6 +15,8 @@ use AcrossAI_MCP_Manager\Includes\Database\MCPServer\Query;
 use AcrossAI_MCP_Manager\Includes\Database\MCPServer\ServerEnablement;
 use AcrossAI_MCP_Manager\Includes\Database\MCPServer\ServerTypes;
 use AcrossAI_MCP_Manager\Includes\Database\MCPServer\ToolPolicy;
+use AcrossAI_MCP_Manager\Includes\Database\MCPServerMeta\Query as MCPServerMetaQuery;
+use AcrossAI_MCP_Manager\Includes\MCP\Controller as MCPController;
 use AcrossAI_MCP_Manager\Includes\Utilities\AdminPageSlugs;
 use AcrossAI_MCP_Manager\Includes\Utilities\MCPServerFieldSanitizer;
 
@@ -128,7 +130,7 @@ class Settings {
 		// wpb-ac panel.
 		// F030: save_permission_override handles the per-server override toggle
 		// form on the Access Control tab (does NOT touch the wpb-ac panel).
-		if ( ! in_array( $action, array( 'toggle_status', 'delete', 'create', 'update', 'save_permission_override' ), true )
+		if ( ! in_array( $action, array( 'toggle_status', 'delete', 'create', 'update', 'save_permission_override', 'save_instructions' ), true )
 			&& ! $this->is_bulk_request()
 		) {
 			return;
@@ -215,6 +217,16 @@ class Settings {
 			$server_id = isset( $_GET['server'] ) ? absint( $_GET['server'] ) : 0; // phpcs:ignore WordPress.Security.NonceVerification
 			check_admin_referer( 'acrossai_mcp_manager_permission_override_' . $server_id, 'acrossai_mcp_manager_permission_override_nonce' );
 			$this->handle_save_permission_override( $server_id );
+		}
+
+		// ── 0.3.6 — save_instructions (POST) ─────────────────────────────────
+		// Overview tab's connect-message override. Its own save path for the
+		// same reason as the one above: the Update Server tab's handler owns
+		// the server's identity columns and must not grow a second concern.
+		if ( 'save_instructions' === $action && $this->is_post_request() ) {
+			$server_id = isset( $_GET['server'] ) ? absint( $_GET['server'] ) : 0; // phpcs:ignore WordPress.Security.NonceVerification
+			check_admin_referer( 'acrossai_mcp_manager_instructions_' . $server_id, 'acrossai_mcp_manager_instructions_nonce' );
+			$this->handle_save_instructions( $server_id );
 		}
 
 		// F037 — save handler owned by the tab class itself (EmbedsTab
@@ -623,6 +635,81 @@ class Settings {
 						'server' => $server_id,
 						'tab'    => 'access-control',
 						'acrossai_mcp_manager_permission_saved' => 1,
+					),
+					admin_url( 'admin.php' )
+				)
+			)
+		);
+		exit;
+	}
+
+	/**
+	 * Save the per-server connect-message override.
+	 *
+	 * Two states, not three. "System default" DELETES the row rather than
+	 * storing a copy of the default: a stored copy would keep the wording the
+	 * operator saw on the day they saved it, and silently stop tracking the
+	 * plugin when that wording improves.
+	 *
+	 * Choosing "Custom" and leaving the box empty is treated as System default
+	 * and the field says so. The alternative is a third state meaning "send my
+	 * description and nothing else", which costs an explanation on every screen
+	 * to serve a case nobody has asked for — and `MCPServerMeta\Query` does not
+	 * round-trip an empty value anyway.
+	 *
+	 * @since  0.3.6
+	 * @param  int $server_id MCP server PK.
+	 * @return void
+	 */
+	private function handle_save_instructions( int $server_id ): void {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_die(
+				esc_html__( 'You do not have permission to perform this action.', 'acrossai-mcp-manager' ),
+				'',
+				array( 'response' => 403 )
+			);
+		}
+
+		if ( $server_id <= 0 ) {
+			$this->redirect_to_list( 'server_not_found' );
+		}
+
+		$rows = Query::instance()->query(
+			array(
+				'id'     => $server_id,
+				'number' => 1,
+			)
+		);
+
+		if ( empty( $rows ) ) {
+			$this->redirect_to_list( 'server_not_found' );
+		}
+
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce verified in handle_actions() dispatcher via check_admin_referer().
+		$mode = isset( $_POST['instructions_mode'] ) ? sanitize_key( wp_unslash( $_POST['instructions_mode'] ) ) : 'default';
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- as above.
+		$custom = isset( $_POST['instructions_custom'] ) ? trim( (string) wp_unslash( $_POST['instructions_custom'] ) ) : '';
+
+		// `sanitize_textarea_field` and not `wp_kses_post`: this is sent to an
+		// AI client as plain text, never rendered as HTML, so markup would be
+		// noise at best and instructions smuggled into a model at worst.
+		$custom = sanitize_textarea_field( $custom );
+
+		if ( 'custom' === $mode && '' !== $custom ) {
+			MCPServerMetaQuery::update_meta( $server_id, MCPController::INSTRUCTIONS_META_KEY, $custom );
+		} else {
+			MCPServerMetaQuery::delete_meta( $server_id, MCPController::INSTRUCTIONS_META_KEY );
+		}
+
+		wp_safe_redirect(
+			esc_url_raw(
+				add_query_arg(
+					array(
+						'page'   => AdminPageSlugs::PARENT,
+						'action' => 'edit',
+						'server' => $server_id,
+						'tab'    => 'overview',
+						'acrossai_mcp_manager_instructions_saved' => 1,
 					),
 					admin_url( 'admin.php' )
 				)

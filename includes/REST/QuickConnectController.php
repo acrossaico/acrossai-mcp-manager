@@ -275,7 +275,7 @@ final class QuickConnectController {
 				//
 				// Handing over a client configuration is the step that must
 				// still wait. Such a server answers with one tool,
-				// `acrossai/setup-required`, so a config pasted into Claude or
+				// `toolset/setup-required`, so a config pasted into Claude or
 				// Cursor now would connect and appear broken — and the client
 				// caches its tool list at connect time, so it would keep
 				// appearing broken after the plugin was installed.
