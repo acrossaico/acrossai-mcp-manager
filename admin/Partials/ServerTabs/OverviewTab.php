@@ -340,6 +340,20 @@ final class OverviewTab extends AbstractServerTab {
 			esc_html__( '— write your own. It replaces the message below, not your description.', 'acrossai-mcp-manager' )
 		);
 
+		// Wrapped, and hidden server-side when System default is selected, so
+		// the field is not there to read as "this is what will be sent" when it
+		// is not. `backend.js` toggles it as the radios change; the `hidden`
+		// attribute below is what makes the first paint correct without
+		// waiting for script.
+		//
+		// With JavaScript off the field simply stays as rendered — and the save
+		// handler reads the RADIO, never the textarea's visibility, so a
+		// no-script operator can still switch to Custom and have it work.
+		printf(
+			'<div class="acrossai-mcp-instructions__custom"%s>',
+			$custom ? '' : ' hidden'
+		);
+
 		printf(
 			'<p><textarea name="instructions_custom" rows="7" class="large-text code" placeholder="%1$s">%2$s</textarea></p>',
 			esc_attr__( 'Leave empty to use the system default.', 'acrossai-mcp-manager' ),
@@ -351,6 +365,8 @@ final class OverviewTab extends AbstractServerTab {
 		echo '<p class="description">';
 		esc_html_e( 'Leaving this empty keeps the system default.', 'acrossai-mcp-manager' );
 		echo '</p>';
+
+		echo '</div>';
 
 		printf(
 			'<p><button type="submit" class="button button-primary">%s</button></p>',
