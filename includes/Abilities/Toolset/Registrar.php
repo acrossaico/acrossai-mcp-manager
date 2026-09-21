@@ -56,7 +56,6 @@ final class Registrar {
 		Updates::class,
 		Cron::class,
 		Cache::class,
-		Backups::class,
 		Database::class,
 		Files::class,
 		Diagnostics::class,
@@ -74,6 +73,13 @@ final class Registrar {
 	 * the entire point. A server created today carries all fifteen dormant, and
 	 * they light up when the AcrossAI Abilities Manager add-on arrives, with no
 	 * type switch and no Reset.
+	 *
+	 * `toolset/backups` is deliberately absent. It was the one Toolset named
+	 * after a CATEGORY rather than a plugin, reaching UpdraftPlus and
+	 * All-in-One WP Migration through a provider layer, while every other
+	 * integration here is named for the plugin it serves. It is being rebuilt
+	 * as `toolset/updraftplus` and `toolset/all-in-one-wp-migration` — see the
+	 * issue on acrossai-abilities-manager. The abilities behind it were kept.
 	 *
 	 * Three of these are NOT in {@see self::CORE}, and each for its own reason:
 	 * `integrations` spans every non-default group rather than owning one;
@@ -96,7 +102,6 @@ final class Registrar {
 		'toolset/updates',
 		'toolset/cron',
 		'toolset/cache',
-		'toolset/backups',
 		'toolset/database',
 		'toolset/files',
 		'toolset/diagnostics',
