@@ -76,7 +76,7 @@ final class DefaultServerSeeder {
 	 * under an AcrossAI label. Withdrawing the row removed the symptom.
 	 *
 	 * 0.3.6 moved the Toolset layer into this plugin, so the type can declare
-	 * its own fifteen tools up front. The row comes back with the right ones,
+	 * its own fourteen tools up front. The row comes back with the right ones,
 	 * dormant until the add-on registers the abilities behind them.
 	 *
 	 * `Table::upgrade_to_1_1_6()` also names this constant, to correct the type
