@@ -21,14 +21,6 @@ use AcrossAI_MCP_Manager\Includes\Database\MCPServer\Query;
 use AcrossAI_MCP_Manager\Includes\Database\MCPServer\ServerTypes;
 use AcrossAI_MCP_Manager\Includes\Database\MCPServerMeta\Query as MCPServerMetaQuery;
 use AcrossAI_MCP_Manager\Includes\MCP\Controller as MCPController;
-use AcrossAI_MCP_Manager\Includes\MCPClients\AbstractMCPClient;
-use AcrossAI_MCP_Manager\Includes\MCPClients\ClaudeCodeClient;
-use AcrossAI_MCP_Manager\Includes\MCPClients\ClaudeDesktopClient;
-use AcrossAI_MCP_Manager\Includes\MCPClients\CodexClient;
-use AcrossAI_MCP_Manager\Includes\MCPClients\CursorClient;
-use AcrossAI_MCP_Manager\Includes\MCPClients\CustomClient;
-use AcrossAI_MCP_Manager\Includes\MCPClients\GitHubCopilotClient;
-use AcrossAI_MCP_Manager\Includes\MCPClients\VSCodeClient;
 use AcrossAI_MCP_Manager\Includes\Utilities\AdminPageSlugs;
 
 // Exit if accessed directly.
@@ -43,22 +35,6 @@ defined( 'ABSPATH' ) || exit;
  */
 final class OverviewTab extends AbstractServerTab {
 
-	/**
-	 * Static descriptions for each MCP client shown in the Supported MCP
-	 * Clients section. Keyed by client slug (AbstractMCPClient::get_client_slug()).
-	 *
-	 * @since 0.0.6
-	 * @var array<string, string>
-	 */
-	private const CLIENT_DESCRIPTIONS = array(
-		'claude-desktop' => 'Anthropic Claude Desktop App',
-		'claude-code'    => 'Anthropic Claude Code CLI',
-		'vscode'         => 'Visual Studio Code',
-		'github-copilot' => 'GitHub Copilot in VS Code (user-level MCP config)',
-		'codex'          => 'OpenAI Codex CLI',
-		'cursor'         => 'Cursor AI Code Editor',
-		'custom'         => 'Custom MCP Client Implementation',
-	);
 
 	/**
 	 * Returns the tab slug.
@@ -102,8 +78,13 @@ final class OverviewTab extends AbstractServerTab {
 		TypeRequirementNotice::instance()->render( $server, 'overview' );
 		$this->render_info_table( $server );
 		$this->render_instructions_setting( $server );
-		$this->render_passwords_notice();
-		$this->render_supported_clients();
+
+		// The Application Passwords notice and the "Supported MCP Clients"
+		// list that used to close this tab are gone. Both described the CONNECT
+		// tab from a distance — one explained where credentials generated there
+		// end up, the other listed the clients whose tabs are already on
+		// screen — so the Overview tab ended on a summary of somewhere else,
+		// below the settings it actually owns.
 		echo '</div>';
 	}
 
@@ -374,63 +355,5 @@ final class OverviewTab extends AbstractServerTab {
 		);
 
 		echo '</form>';
-	}
-
-	/**
-	 * Renders the Application Passwords notice.
-	 *
-	 * @since 0.0.6
-	 * @return void
-	 */
-	private function render_passwords_notice(): void {
-		printf(
-			'<div class="notice notice-info inline"><p>%s <a href="%s">%s</a></p></div>',
-			esc_html__( 'Passwords generated in the client tabs are stored as WordPress Application Passwords. View, revoke, or manage them on your', 'acrossai-mcp-manager' ),
-			esc_url( admin_url( 'profile.php#application-passwords-section' ) ),
-			esc_html__( 'profile page', 'acrossai-mcp-manager' )
-		);
-	}
-
-	/**
-	 * Renders the Supported MCP Clients section.
-	 *
-	 * @since 0.0.6
-	 * @return void
-	 */
-	private function render_supported_clients(): void {
-		$client_class_fqns = array(
-			ClaudeDesktopClient::class,
-			ClaudeCodeClient::class,
-			VSCodeClient::class,
-			GitHubCopilotClient::class,
-			CodexClient::class,
-			CursorClient::class,
-			CustomClient::class,
-		);
-
-		printf( '<h3>%s</h3>', esc_html__( 'Supported MCP Clients', 'acrossai-mcp-manager' ) );
-		printf(
-			'<p class="description">%s</p>',
-			esc_html__( 'Click a client tab above to generate credentials and copy the ready-to-paste JSON configuration.', 'acrossai-mcp-manager' )
-		);
-
-		echo '<ul class="mcp-clients-list">';
-		foreach ( $client_class_fqns as $fqn ) {
-			if ( ! class_exists( $fqn ) || ! is_subclass_of( $fqn, AbstractMCPClient::class ) ) {
-				continue;
-			}
-			/** @var AbstractMCPClient $client */
-			$client      = new $fqn();
-			$slug        = $client->get_client_slug();
-			$name        = $client->get_client_name();
-			$description = self::CLIENT_DESCRIPTIONS[ $slug ] ?? '';
-
-			printf(
-				'<li><strong>%1$s</strong> — %2$s</li>',
-				esc_html( $name ),
-				esc_html( $description )
-			);
-		}
-		echo '</ul>';
 	}
 }

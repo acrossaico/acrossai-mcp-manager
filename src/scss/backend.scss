@@ -165,27 +165,6 @@
 }
 
 // -------------------------------------------------------------------------
-// Supported clients list (overview tab)
-// -------------------------------------------------------------------------
-.mcp-clients-list {
-	list-style: none;
-	margin: 8px 0 0;
-	padding: 0;
-}
-
-.mcp-clients-list li {
-	padding: 7px 0;
-	border-bottom: 1px solid #f0f0f1;
-	color: #50575e;
-	font-size: 13px;
-	line-height: 1.5;
-}
-
-.mcp-clients-list li:last-child {
-	border-bottom: none;
-}
-
-// -------------------------------------------------------------------------
 // Danger Zone tab link — red tint in the tab nav
 // -------------------------------------------------------------------------
 .acrossai-tab-danger {
