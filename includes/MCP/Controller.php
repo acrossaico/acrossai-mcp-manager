@@ -36,6 +36,7 @@ use AcrossAI_MCP_Manager\Includes\Database\MCPServer\Query as MCPServerQuery;
 use AcrossAI_MCP_Manager\Includes\Database\MCPServer\Row;
 use AcrossAI_MCP_Manager\Includes\Database\MCPServer\ServerTypes;
 use AcrossAI_MCP_Manager\Includes\Database\MCPServer\ToolPolicy;
+use AcrossAI_MCP_Manager\Includes\Database\MCPServerMeta\Query as MCPServerMetaQuery;
 use WP\MCP\Infrastructure\ErrorHandling\ErrorLogMcpErrorHandler;
 use WP\MCP\Infrastructure\Observability\NullMcpObservabilityHandler;
 use WP\MCP\Transport\HttpTransport;
@@ -381,6 +382,19 @@ final class Controller {
 	}
 
 	/**
+	 * Per-server meta key holding the operator's replacement connect message.
+	 *
+	 * ABSENT means "use the system default" — there is no stored copy of the
+	 * default to drift from the code when the wording changes. Present means
+	 * the operator wrote their own, and an empty string is a legitimate value:
+	 * "send my description and nothing else".
+	 *
+	 * @since 0.3.6
+	 * @var string
+	 */
+	public const INSTRUCTIONS_META_KEY = '_server_instructions';
+
+	/**
 	 * What a connecting client is told before it calls anything.
 	 *
 	 * The adapter passes a server's description straight through as the MCP
@@ -403,8 +417,40 @@ final class Controller {
 	 */
 	private static function instructions_for( Row $server ): string {
 		$description = trim( (string) $server->description );
-		$type        = (string) $server->server_type;
+		$guidance    = self::type_guidance( $server );
 
+		// The operator's own wording, if they set one on the Overview tab.
+		//
+		// Applied AFTER the filter on purpose. A filter is a plugin stating what
+		// its server type is for; this is a human overriding that for one
+		// server, having read it. When the two disagree the human wins — they
+		// can see the result and the plugin cannot.
+		$override = self::instructions_override( (int) $server->id );
+
+		if ( null !== $override ) {
+			$guidance = $override;
+		}
+
+		if ( '' === trim( $guidance ) ) {
+			return $description;
+		}
+
+		return '' === $description ? trim( $guidance ) : $description . "\n\n" . trim( $guidance );
+	}
+
+	/**
+	 * The guidance a server type contributes, before any operator override.
+	 *
+	 * Split out of `instructions_for()` so the Overview tab can show an
+	 * operator exactly what they are replacing. One implementation, so the box
+	 * they edit cannot describe something other than what the server sends.
+	 *
+	 * @since  0.3.6
+	 * @param  Row $server The server row.
+	 * @return string
+	 */
+	private static function type_guidance( Row $server ): string {
+		$type     = (string) $server->server_type;
 		$guidance = '';
 
 		if ( ServerTypes::LEGACY === $type ) {
@@ -451,10 +497,43 @@ final class Controller {
 		 */
 		$guidance = (string) apply_filters( 'acrossai_mcp_server_instructions', $guidance, $type, $server );
 
-		if ( '' === trim( $guidance ) ) {
-			return $description;
+		return $guidance;
+	}
+
+	/**
+	 * The default guidance for a server type, with nothing operator-specific.
+	 *
+	 * What the Overview tab shows an operator who chooses to write their own —
+	 * it prefills the box with this, so "custom" starts from what the server
+	 * says today rather than from an empty field.
+	 *
+	 * Runs the same filter the live path does, so a companion plugin's wording
+	 * is what gets offered for editing, not a version only this plugin knows.
+	 *
+	 * @since  0.3.6
+	 * @param  Row $server The server row.
+	 * @return string
+	 */
+	public static function default_instructions_for( Row $server ): string {
+		return trim( self::type_guidance( $server ) );
+	}
+
+	/**
+	 * The operator's replacement guidance for one server, or null for none.
+	 *
+	 * Absence of the meta row IS "use the system default" — there is no stored
+	 * "default" value to drift from the code. An empty string is a real choice
+	 * and kept: it means "send my description and nothing else".
+	 *
+	 * @since  0.3.6
+	 * @param  int $server_id Server row id.
+	 * @return string|null
+	 */
+	private static function instructions_override( int $server_id ): ?string {
+		if ( $server_id <= 0 ) {
+			return null;
 		}
 
-		return '' === $description ? trim( $guidance ) : $description . "\n\n" . trim( $guidance );
+		return MCPServerMetaQuery::get_meta( $server_id, self::INSTRUCTIONS_META_KEY );
 	}
 }

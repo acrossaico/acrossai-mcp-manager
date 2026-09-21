@@ -17,7 +17,10 @@
 namespace AcrossAI_MCP_Manager\Admin\Partials\ServerTabs;
 
 use AcrossAI_MCP_Manager\Admin\Partials\ServerTabs\Partials\TypeRequirementNotice;
+use AcrossAI_MCP_Manager\Includes\Database\MCPServer\Query;
 use AcrossAI_MCP_Manager\Includes\Database\MCPServer\ServerTypes;
+use AcrossAI_MCP_Manager\Includes\Database\MCPServerMeta\Query as MCPServerMetaQuery;
+use AcrossAI_MCP_Manager\Includes\MCP\Controller as MCPController;
 use AcrossAI_MCP_Manager\Includes\MCPClients\AbstractMCPClient;
 use AcrossAI_MCP_Manager\Includes\MCPClients\ClaudeCodeClient;
 use AcrossAI_MCP_Manager\Includes\MCPClients\ClaudeDesktopClient;
@@ -98,6 +101,7 @@ final class OverviewTab extends AbstractServerTab {
 		echo '<div class="mcp-tab-panel">';
 		TypeRequirementNotice::instance()->render( $server, 'overview' );
 		$this->render_info_table( $server );
+		$this->render_instructions_setting( $server );
 		$this->render_passwords_notice();
 		$this->render_supported_clients();
 		echo '</div>';
@@ -250,6 +254,110 @@ final class OverviewTab extends AbstractServerTab {
 		);
 
 		return $badge . $toggle_link;
+	}
+
+	/**
+	 * The per-server connect message: system default, or the operator's own.
+	 *
+	 * Two states on purpose. "System default" stores NOTHING — a saved copy of
+	 * the default would freeze the wording as it read on the day it was saved
+	 * and quietly stop tracking the plugin when that wording improves. Absence
+	 * of the row IS the default, so there is nothing to go stale.
+	 *
+	 * The textarea is prefilled with what the server sends today, so "custom"
+	 * starts from the real text rather than an empty box. It is
+	 * `Controller::default_instructions_for()`, the same value the live path
+	 * builds, so what an operator edits cannot differ from what they were
+	 * getting.
+	 *
+	 * @since  0.3.6
+	 * @param  array<string, mixed> $server Server row data.
+	 * @return void
+	 */
+	private function render_instructions_setting( array $server ): void {
+		$server_id = (int) ( $server['id'] ?? 0 );
+
+		if ( $server_id <= 0 ) {
+			return;
+		}
+
+		$row = Query::instance()->get_item( $server_id );
+
+		if ( ! $row ) {
+			return;
+		}
+
+		$default = MCPController::default_instructions_for( $row );
+		$stored  = MCPServerMetaQuery::get_meta( $server_id, MCPController::INSTRUCTIONS_META_KEY );
+		$custom  = null !== $stored && '' !== $stored;
+
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Display-only flag; the save itself verified its nonce.
+		if ( ! empty( $_GET['acrossai_mcp_manager_instructions_saved'] ) ) {
+			printf(
+				'<div class="notice notice-success inline"><p>%s</p></div>',
+				esc_html__( 'Connect message saved. Already-connected AI clients keep the message they received; new connections get this one.', 'acrossai-mcp-manager' )
+			);
+		}
+
+		printf(
+			'<form method="post" action="%s" class="acrossai-mcp-instructions">',
+			esc_url(
+				add_query_arg(
+					array(
+						'page'   => AdminPageSlugs::PARENT,
+						'action' => 'save_instructions',
+						'server' => $server_id,
+					),
+					admin_url( 'admin.php' )
+				)
+			)
+		);
+		wp_nonce_field(
+			'acrossai_mcp_manager_instructions_' . $server_id,
+			'acrossai_mcp_manager_instructions_nonce'
+		);
+
+		echo '<h3>' . esc_html__( 'Default server message', 'acrossai-mcp-manager' ) . '</h3>';
+
+		echo '<p class="description">';
+		esc_html_e(
+			'Sent to an AI client when it connects, after this server\'s description. It tells the client what kind of server this is and which tool to call first.',
+			'acrossai-mcp-manager'
+		);
+		echo '</p>';
+
+		printf(
+			'<p><label><input type="radio" name="instructions_mode" value="default" %1$s> <strong>%2$s</strong> %3$s</label></p>',
+			checked( $custom, false, false ),
+			esc_html__( 'System default', 'acrossai-mcp-manager' ),
+			esc_html__( '— kept up to date by the plugin. Recommended.', 'acrossai-mcp-manager' )
+		);
+
+		printf(
+			'<p><label><input type="radio" name="instructions_mode" value="custom" %1$s> <strong>%2$s</strong> %3$s</label></p>',
+			checked( $custom, true, false ),
+			esc_html__( 'Custom', 'acrossai-mcp-manager' ),
+			esc_html__( '— write your own. It replaces the message below, not your description.', 'acrossai-mcp-manager' )
+		);
+
+		printf(
+			'<p><textarea name="instructions_custom" rows="7" class="large-text code" placeholder="%1$s">%2$s</textarea></p>',
+			esc_attr__( 'Leave empty to use the system default.', 'acrossai-mcp-manager' ),
+			// Prefilled with the live default when nothing is stored, so
+			// choosing Custom starts from what the server actually sends.
+			esc_textarea( $custom ? (string) $stored : $default )
+		);
+
+		echo '<p class="description">';
+		esc_html_e( 'Leaving this empty keeps the system default.', 'acrossai-mcp-manager' );
+		echo '</p>';
+
+		printf(
+			'<p><button type="submit" class="button button-primary">%s</button></p>',
+			esc_html__( 'Save connect message', 'acrossai-mcp-manager' )
+		);
+
+		echo '</form>';
 	}
 
 	/**

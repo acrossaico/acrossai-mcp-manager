@@ -121,42 +121,8 @@ final class Guide {
 		add_filter( 'acrossai_mcp_manager_tool_abilities', array( $this, 'declare_tool_level_ability' ) );
 		add_filter( 'acrossai_mcp_server_types', array( $this, 'declare_server_type_tool' ) );
 		add_filter( 'acrossai_abilities_manager_protected_slugs', array( $this, 'protect_own_slug' ) );
-		add_filter( 'acrossai_mcp_server_instructions', array( $this, 'declare_server_instructions' ), 10, 2 );
 	}
 
-	/**
-	 * What a client connecting to an AcrossAI-type server is told, before it
-	 * calls anything.
-	 *
-	 * The transport passes a server's instructions through MCP `initialize`,
-	 * which is the only thing an assistant reads without first choosing to call
-	 * a tool. Everything else this plugin publishes — the guide, the Toolset
-	 * descriptions — depends on it deciding to look.
-	 *
-	 * This plugin supplies the text because this plugin owns the vocabulary:
-	 * Toolsets, the three actions, and `toolset/integrations` are ours to name.
-	 * The transport names only its own tools and never ours, which is the same
-	 * two-filter boundary the rest of this integration keeps.
-	 *
-	 * Appends; the operator's own description is already the first line.
-	 *
-	 * @since  0.0.34
-	 * @param  mixed $instructions Guidance built so far.
-	 * @param  mixed $server_type  The server row's type slug.
-	 * @return mixed
-	 */
-	public function declare_server_instructions( $instructions, $server_type ) {
-		if ( 'acrossai' !== $server_type ) {
-			return $instructions;
-		}
-
-		return sprintf(
-			/* translators: 1: the server guide's ability name, 2: the integrations toolset name. */
-			__( 'This server exposes Toolsets. Each one takes action=discover to list what it holds, action=info to read an ability\'s parameters, and action=execute to run it — the same three everywhere, so learn them once. Call %1$s first: it names every Toolset on this site with what it covers and how to reach it. Note that your tool list was fixed when you connected and cannot be refreshed, so a capability may exist here without a tool of its own in your list — %2$s reaches those.', 'acrossai-mcp-manager' ),
-			self::SLUG,
-			'toolset/integrations'
-		);
-	}
 
 	/**
 	 * Register the guide, unless something already holds its slug.
