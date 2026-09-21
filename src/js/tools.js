@@ -158,10 +158,6 @@ function humanizeSlug( name ) {
 }
 
 function AbilityRow( { ability, side, onAction, actionLabel, busy } ) {
-	// Configured, but the site cannot serve it yet — the plugin providing it is
-	// not active. Shown greyed rather than hidden: it is what the operator is
-	// waiting on, and it stays removable.
-	const isWaiting = Boolean( ability.isWaiting );
 	const decoration = safeApplyFilters(
 		'acrossaiMcpManager.tools.row',
 		{},
@@ -184,20 +180,25 @@ function AbilityRow( { ability, side, onAction, actionLabel, busy } ) {
 	// Non-protocol added rows keep the F020 subtle blue; non-protocol available
 	// rows keep the neutral white.
 	let rowBg = '';
-	if ( isWaiting ) {
-		rowBg = '#fafafa';
-	} else if ( isProtocolTool ) {
+	if ( isProtocolTool ) {
 		rowBg = '#fef7e0';
 	} else if ( side === 'added' ) {
 		rowBg = '#f9fcff';
 	}
 	const displayType = isProtocolTool ? 'Built-in' : ability.type;
-	let badgeStyle = { bg: '#e6f6ec', fg: '#0a6b3d' };
-	if ( isWaiting ) {
-		badgeStyle = { bg: '#e8e8e8', fg: '#646970' };
-	} else if ( isProtocolTool ) {
-		badgeStyle = { bg: '#fdefb2', fg: '#8a6d00' };
-	}
+	// Every added row reads the same. The tick means "added to this server",
+	// which is a CURATION state — it does not claim the tool is being served
+	// right now. Those are different questions, and the pane is headed "Added
+	// as tools".
+	//
+	// A greyed, hourglassed variant lived here for tools whose plugin was not
+	// active. It answered the runtime question in a pane that asks the curation
+	// one, so a server configured exactly as intended read as fifteen problems.
+	// What IS being served is stated once, in the line above the panes, where
+	// one sentence serves the whole list instead of decorating every row.
+	const badgeStyle = isProtocolTool
+		? { bg: '#fdefb2', fg: '#8a6d00' }
+		: { bg: '#e6f6ec', fg: '#0a6b3d' };
 
 	return createElement(
 		'div',
@@ -210,7 +211,6 @@ function AbilityRow( { ability, side, onAction, actionLabel, busy } ) {
 				padding: '13px 16px',
 				borderBottom: '1px solid #f0f0f1',
 				background: rowBg,
-				opacity: isWaiting ? 0.72 : 1,
 			},
 		},
 		showCheckmark
@@ -232,7 +232,7 @@ function AbilityRow( { ability, side, onAction, actionLabel, busy } ) {
 						marginTop: '1px',
 					},
 				},
-				isWaiting ? '⏳' : '✓',
+				'✓',
 			)
 			: null,
 		decoration.prepend || null,
@@ -584,15 +584,8 @@ function ToolsApp( { serverId } ) {
 			( slug ) => ! PROTOCOL_TOOL_SLUGS.includes( slug ),
 		);
 
-		return [ ...protocolAdded, ...curatedAdded ].map( ( name ) => ( {
-			...resolveAbility( name ),
-			// Only flagged once the server is ON. A disabled server serves
-			// nobody, so "configured but not served" describes every row on it
-			// and singling some out says nothing. Enable it and the distinction
-			// starts to matter, so that is when it appears.
-			isWaiting: serverEnabled && ! served.has( name ),
-		} ) );
-	}, [ shown, served, resolveAbility, serverEnabled ] );
+		return [ ...protocolAdded, ...curatedAdded ].map( resolveAbility );
+	}, [ shown, resolveAbility ] );
 
 	// #129 — the served set as it was when this page loaded. The notice compares
 	// against THIS, not against the previous write, so a set that is edited and
