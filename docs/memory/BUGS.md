@@ -2946,3 +2946,76 @@ or re-firing it re-runs every other registration and trips core's duplicate noti
 
 **Related**
 - `B52` — tests that never ran at all. Cousin: this is tests that run and cannot fail.
+
+---
+
+### B63 — BerlinDB `Column::is_text()` answers true for `char` and `varchar`
+
+**Symptom**
+F091's `SchemaReconciler::is_addable()` expressed "MySQL forbids a DEFAULT on TEXT/BLOB/JSON" as
+`$column->is_text() || is_json() || is_binary()`. That silently excluded **every `varchar` and `char`
+column with a default** — which in this plugin is most of them, `server_type` among them. The
+reconciler was reduced to numeric columns and would not have repaired the production site it was
+written for.
+
+**Why it survived the first test run**
+The generic per-table test picked its target column by walking the declared Schema in reverse and
+taking the first addable one. For `MCPServer` that happened to be a `tinyint`, so the test passed.
+The bug only surfaced when a second test targeted `server_type` by name.
+
+**Decision**
+Match the exact type set MySQL names in errno 1101 —
+`SchemaReconciler::DEFAULTLESS_TYPES` — never the `is_text()` predicate. `is_type()` is `private`,
+so a direct comparison against `$column->type` is the available route.
+
+**Lesson (generalises past this bug)**
+A predicate named for a SQL concept may not partition the way the SQL error does. When a rule exists
+to avoid a specific database error, encode the error's own vocabulary, and verify against a real
+server rather than reading the predicate's name. All three of F091's addability rules were confirmed
+by issuing the failing `ALTER` against MySQL 8.0.35 before the rule was written.
+
+**Companion lesson — data-provider tests can pass for the wrong reason.** A test that discovers its
+own fixture ("first addable column") is well-insulated against renames but can silently stop covering
+the interesting case. Pair it with at least one test that names the case you actually care about.
+
+**Related**
+- `B48` — count-based assertions drifting from source-of-truth registries; same family: derive from
+  the registry, but make sure what you derived is still the thing under test.
+
+---
+
+### B64 — constructing a BerlinDB `Schema` also constructs its `Index` objects
+
+**Symptom**
+Reading declared columns via `new $schema_class()` raised
+`Creation of dynamic property BerlinDB\Database\Kern\Index::$length is deprecated` on PHP 8.2+.
+`MCPServerMeta/Schema.php` declares `'length' => array( 'meta_key' => 191 )` on an index, and
+BerlinDB's `Index` has no `$length` property. The notice prints into output, which this suite counts
+as unexpected output — three tests went RISKY, and CI runs `failOnRisky`.
+
+**Decision**
+Read the raw `$columns` array by reflection and build `Column` objects directly. Columns were all
+that was wanted; constructing indexes was both wasteful and harmful. `DefaultServerSeeder::schema_columns()`
+already did this, for its own reasons.
+
+**Note**
+The underlying declaration is still there, so the deprecation still fires wherever BerlinDB itself
+constructs that Schema — at table boot, on every request, on PHP 8.2+. Worth fixing at the source
+(`B21` is the same class of mistake with `modified` vs `date_updated`), but out of F091's scope.
+
+---
+
+### B65 — MySQL 8.0.19+ stopped reporting integer display width
+
+**Symptom**
+A declared `tinyint(1)` comes back from `SHOW COLUMNS` as plain `tinyint`, and BerlinDB's
+`Column::from_mysql()` parses the absent width as `0`. Any naive declared-versus-live width
+comparison reports every boolean and bigint column on a modern server as drifted.
+
+**Decision**
+Compare lengths only when BOTH sides report one. Assert restored column types with
+`assertStringStartsWith` on the base type rather than equality.
+
+**Related**
+- `tests/phpunit/Database/MCPServer/PermissionOverrideColumnUpgradeTest.php` already documented this
+  behaviour; F091 is the second feature to trip over it, which is why it is now written down here.
