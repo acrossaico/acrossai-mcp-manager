@@ -1,7 +1,7 @@
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan
-at `specs/007-frontend-cli-auth/plan.md`.
+at `specs/091-schema-drift-reconciliation/plan.md`.
 <!-- SPECKIT END -->
 
 <!-- MEMORY-MD START -->
