@@ -89,19 +89,42 @@ open question, because reporting is safe and correcting is not.
 
 ## R5 — Not every declared column is safely addable
 
-**Decision**: A column is addable if and only if its create string is non-empty, contains no
-`auto_increment`, and does not contain `not null` without also containing `default`. Everything else
-is reported.
+**Decision**: A column is addable unless its create string is empty, contains `auto_increment`,
+carries a `default` while being one of the types MySQL forbids defaults on, or carries the zero
+date. Everything else is reported rather than attempted.
 
-**Rationale**: Derived from the create string rather than a maintained list, so it stays correct as
-columns are added. It excludes, without enumerating them: every primary key (auto-increment without
-`PRIMARY KEY` is invalid DDL, errno 1075); the authentication-log hash column (`char(64)`, not null,
-under a uniqueness constraint — the second existing row would violate it); and every creation
-timestamp (not-null `datetime` whose synthesised default is the zero date, which fails where
-`NO_ZERO_DATE` is enforced).
+**Rationale**: Each rule maps to one MySQL error, and all three were verified empirically against
+the 8.0.35 server this work was developed on rather than assumed:
 
-**Alternatives considered**: An explicit exclusion list. Rejected under Constitution VI — it is a
-second place the schema is described, and it drifts.
+| Rule | Error it prevents |
+|---|---|
+| no `auto_increment` | 1075 — "there can be only one auto column and it must be defined as a key". `ADD COLUMN` adds no key. |
+| no `default` on TEXT/BLOB/JSON/GEOMETRY | 1101 — "BLOB, TEXT, GEOMETRY or JSON column can't have a default value". BerlinDB emits `default ''` for these, so its own create string is invalid as an `ADD COLUMN` fragment. |
+| no zero date | 1067 — "Invalid default value". WordPress happens to strip `NO_ZERO_DATE`, so this usually succeeds; a repair whose correctness depends on session state is not a repair. |
+
+**Corrected during implementation.** This entry first claimed the rule was "no `not null` without a
+`default`", and that it thereby excluded `created_at` and the authentication-log hash column. Both
+claims were wrong. `Column::get_default_sql()` emits a default for *every* non-JSON,
+non-auto-increment column — numerics get `default '0'`, datetimes the zero date, strings
+`default ''` — so almost nothing is ever "not null without a default", and neither named column was
+excluded for the stated reason.
+
+The first implementation expressed the type rule as `Column::is_text() || is_json() || is_binary()`.
+That is worse than wrong: `is_text()` answers true for `char` and `varchar`, which accept defaults
+without complaint, so the reconciler silently refused to add almost every string column in the
+plugin — including `server_type`, whose absence is the whole reason the value-repair pass exists.
+The test suite caught it only because a regression test targeted that specific column; the generic
+per-table test had picked a `tinyint` and passed. The rule now matches the exact type set MySQL
+names in errno 1101.
+
+**Alternatives considered**: An explicit per-column exclusion list. Rejected under Constitution VI —
+a second place the schema is described, and it drifts. The type list that replaced the predicate is
+not that: it enumerates a fixed MySQL restriction, not this plugin's columns.
+
+**Also noted**: the authentication-log hash column is addable, and that is correct. Its uniqueness
+constraint lives in an index, and an index cannot exist on a column that does not — so a table
+missing the column is missing the index too, and adding the column alone cannot violate anything.
+Index drift is reported, not repaired.
 
 ---
 

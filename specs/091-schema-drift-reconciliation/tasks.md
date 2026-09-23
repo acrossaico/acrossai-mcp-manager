@@ -25,8 +25,8 @@ Single WordPress plugin, existing layout. Paths below are relative to the plugin
 **Purpose**: Ensure the integration test harness can run, since every verification in this feature
 issues real DDL.
 
-- [ ] T001 Verify the WordPress test scaffolding is installed and the database suite runs green before any change, via `bash bin/install-wp-tests.sh wordpress_test root root 127.0.0.1:3306 latest true` then `vendor/bin/phpunit --bootstrap tests/bootstrap-wp.php --testsuite database`
-- [ ] T002 Confirm static analysis runs at the level CI enforces, not the committed level, via `vendor/bin/phpstan analyse --level=8 --memory-limit=4G` — record any pre-existing failures so they are not attributed to this feature
+- [X] T001 Verify the WordPress test scaffolding is installed and the database suite runs green before any change, via `bash bin/install-wp-tests.sh wordpress_test root root 127.0.0.1:3306 latest true` then `vendor/bin/phpunit --bootstrap tests/bootstrap-wp.php --testsuite database`
+- [X] T002 Confirm static analysis runs at the level CI enforces, not the committed level, via `vendor/bin/phpstan analyse --level=8 --memory-limit=4G` — record any pre-existing failures so they are not attributed to this feature
 
 ---
 
@@ -36,15 +36,15 @@ issues real DDL.
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete.
 
-- [ ] T003 Create `includes/Database/SchemaReconciler.php` — `final` class, namespace `AcrossAI_MCP_Manager\Includes\Database`, `declare( strict_types = 1 )`, `defined( 'ABSPATH' ) || exit;`, static-only with the A11 pure-service exemption cited in the class docblock pointing at `docs/memory/ARCHITECTURE.md`
-- [ ] T004 Implement `SchemaReconciler::is_addable( Column $column ): bool` in `includes/Database/SchemaReconciler.php` — non-empty create string, no `auto_increment`, and never `not null` without `default`; case-insensitive matching; public so it is unit-testable without WordPress (research R5)
-- [ ] T005 Implement the declared-schema read in `includes/Database/SchemaReconciler.php` using the table's schema object, with a `/** @var Schema */` annotation for static analysis and a fallback that constructs the schema class by name if the object is not of the expected type (research R11)
-- [ ] T006 Implement the live-schema read in `includes/Database/SchemaReconciler.php` via `Schema::from_table()`, guarded on BOTH `$table->exists()` and a non-empty returned column list — an empty list means "table absent", never "every column is missing" (research R11, data-model)
-- [ ] T007 Implement `SchemaReconciler::reconcile( Table $table ): array` in `includes/Database/SchemaReconciler.php` — returns the names of columns actually added; emits `ALTER TABLE ... ADD COLUMN {$column->get_create_string()}` with no hand-written DDL (research R3)
-- [ ] T008 Implement the ALTER execution helper in `includes/Database/SchemaReconciler.php` — suppress `$wpdb` errors around the statement and restore afterwards; compare the result strictly against `false`; on failure re-check `column_exists()` so a lost race counts as success; single line-scoped `phpcs:ignore` carrying the justification that both identifier and definition are plugin-owned (research R11, plan Complexity Tracking)
-- [ ] T009 Implement `SchemaReconciler::fingerprint( array $tables ): string` in `includes/Database/SchemaReconciler.php` — plugin version plus, per table, the table name, the declared version read by reflection, and the sorted declared column definitions; memoised per request and keyed on the current site id (research R6, R11)
-- [ ] T010 Implement `SchemaReconciler::maybe_reconcile( array $tables ): array` in `includes/Database/SchemaReconciler.php` — short-circuit on a matching stored fingerprint; take a short transient lock released in a `finally`; write the fingerprint LAST and only when no ALTER failed (research R6, R11)
-- [ ] T011 Implement the drift partitioning in `includes/Database/SchemaReconciler.php` — collect unaddable-and-missing and type/width-divergent columns separately, comparing lengths only when both sides report one so modern MySQL does not report false drift (research R11, data-model)
+- [X] T003 Create `includes/Database/SchemaReconciler.php` — `final` class, namespace `AcrossAI_MCP_Manager\Includes\Database`, `declare( strict_types = 1 )`, `defined( 'ABSPATH' ) || exit;`, static-only with the A11 pure-service exemption cited in the class docblock pointing at `docs/memory/ARCHITECTURE.md`
+- [X] T004 Implement `SchemaReconciler::is_addable( Column $column ): bool` in `includes/Database/SchemaReconciler.php` — non-empty create string, no `auto_increment`, and never `not null` without `default`; case-insensitive matching; public so it is unit-testable without WordPress (research R5)
+- [X] T005 Implement the declared-schema read in `includes/Database/SchemaReconciler.php` using the table's schema object, with a `/** @var Schema */` annotation for static analysis and a fallback that constructs the schema class by name if the object is not of the expected type (research R11)
+- [X] T006 Implement the live-schema read in `includes/Database/SchemaReconciler.php` via `Schema::from_table()`, guarded on BOTH `$table->exists()` and a non-empty returned column list — an empty list means "table absent", never "every column is missing" (research R11, data-model)
+- [X] T007 Implement `SchemaReconciler::reconcile( Table $table ): array` in `includes/Database/SchemaReconciler.php` — returns the names of columns actually added; emits `ALTER TABLE ... ADD COLUMN {$column->get_create_string()}` with no hand-written DDL (research R3)
+- [X] T008 Implement the ALTER execution helper in `includes/Database/SchemaReconciler.php` — suppress `$wpdb` errors around the statement and restore afterwards; compare the result strictly against `false`; on failure re-check `column_exists()` so a lost race counts as success; single line-scoped `phpcs:ignore` carrying the justification that both identifier and definition are plugin-owned (research R11, plan Complexity Tracking)
+- [X] T009 Implement `SchemaReconciler::fingerprint( array $tables ): string` in `includes/Database/SchemaReconciler.php` — plugin version plus, per table, the table name, the declared version read by reflection, and the sorted declared column definitions; memoised per request and keyed on the current site id (research R6, R11)
+- [X] T010 Implement `SchemaReconciler::maybe_reconcile( array $tables ): array` in `includes/Database/SchemaReconciler.php` — short-circuit on a matching stored fingerprint; take a short transient lock released in a `finally`; write the fingerprint LAST and only when no ALTER failed (research R6, R11)
+- [X] T011 Implement the drift partitioning in `includes/Database/SchemaReconciler.php` — collect unaddable-and-missing and type/width-divergent columns separately, comparing lengths only when both sides report one so modern MySQL does not report false drift (research R11, data-model)
 
 **Checkpoint**: The reconciler can heal any table in isolation. User story work can begin.
 
@@ -60,16 +60,16 @@ any wp-admin page, and confirm the columns return with their declared definition
 
 ### Tests for User Story 1
 
-- [ ] T012 [P] [US1] Create `tests/phpunit/Database/SchemaReconcilerTest.php` with a `@dataProvider` over all five table classes; `public set_up()`/`tear_down()`; remove WordPress's temporary-table query filters so DDL is real; unconditionally self-heal in `tear_down()` including deleting the fingerprint option, the reconciler lock and the library upgrade lock
-- [ ] T013 [P] [US1] Add `test_restores_a_dropped_addable_column` to `tests/phpunit/Database/SchemaReconcilerTest.php` — select the target column by reflection over the declared schema rather than hardcoding a name; assert the restored type *starts with* the declared base type so modern MySQL's omitted display width does not fail the assertion
-- [ ] T014 [P] [US1] Add `test_second_run_creates_nothing` and `test_returns_empty_when_table_absent` to `tests/phpunit/Database/SchemaReconcilerTest.php` — the second asserts the table is still absent afterwards, proving no ALTER was attempted
-- [ ] T015 [P] [US1] Add `test_unsafe_columns_are_never_added` to `tests/phpunit/Database/SchemaReconcilerTest.php` — assert `is_addable()` is false for every primary key, for the authentication-log hash column, and for every creation-timestamp column
-- [ ] T016 [P] [US1] Add `test_no_library_getter_shadows_the_magic_properties` to `tests/phpunit/Database/SchemaReconcilerTest.php` — assert no `get_schema_object()` or `get_table_name()` exists on the library table class, so a future library upgrade fails loudly instead of silently returning the wrong value (research R11)
+- [X] T012 [P] [US1] Create `tests/phpunit/Database/SchemaReconcilerTest.php` with a `@dataProvider` over all five table classes; `public set_up()`/`tear_down()`; remove WordPress's temporary-table query filters so DDL is real; unconditionally self-heal in `tear_down()` including deleting the fingerprint option, the reconciler lock and the library upgrade lock
+- [X] T013 [P] [US1] Add `test_restores_a_dropped_addable_column` to `tests/phpunit/Database/SchemaReconcilerTest.php` — select the target column by reflection over the declared schema rather than hardcoding a name; assert the restored type *starts with* the declared base type so modern MySQL's omitted display width does not fail the assertion
+- [X] T014 [P] [US1] Add `test_second_run_creates_nothing` and `test_returns_empty_when_table_absent` to `tests/phpunit/Database/SchemaReconcilerTest.php` — the second asserts the table is still absent afterwards, proving no ALTER was attempted
+- [X] T015 [P] [US1] Add `test_unsafe_columns_are_never_added` to `tests/phpunit/Database/SchemaReconcilerTest.php` — assert `is_addable()` is false for every primary key, for the authentication-log hash column, and for every creation-timestamp column
+- [X] T016 [P] [US1] Add `test_no_library_getter_shadows_the_magic_properties` to `tests/phpunit/Database/SchemaReconcilerTest.php` — assert no `get_schema_object()` or `get_table_name()` exists on the library table class, so a future library upgrade fails loudly instead of silently returning the wrong value (research R11)
 
 ### Implementation for User Story 1
 
-- [ ] T017 [US1] Wire the reconciler into `includes/Main.php` `reconcile_database_schemas()` — a sixth call placed AFTER the five existing `maybe_upgrade()` calls so routine migrations run first and the reconciler only handles what they could not; update the method docblock, whose "7 cheap option reads" figure is already stale
-- [ ] T018 [US1] Reorder `includes/Activator.php` `activate()` so the reconciler runs AFTER all five `maybe_upgrade()` calls but BEFORE `DefaultServerSeeder::seed()` — on a drifted install the seeder writes columns that do not exist and silently drops them (research R7); rewrite the "ORDER IS LOAD-BEARING" comment to state this new reason
+- [X] T017 [US1] Wire the reconciler into `includes/Main.php` `reconcile_database_schemas()` — a sixth call placed AFTER the five existing `maybe_upgrade()` calls so routine migrations run first and the reconciler only handles what they could not; update the method docblock, whose "7 cheap option reads" figure is already stale
+- [X] T018 [US1] Reorder `includes/Activator.php` `activate()` so the reconciler runs AFTER all five `maybe_upgrade()` calls but BEFORE `DefaultServerSeeder::seed()` — on a drifted install the seeder writes columns that do not exist and silently drops them (research R7); rewrite the "ORDER IS LOAD-BEARING" comment to state this new reason
 
 **Checkpoint**: A drifted site heals itself. This is the shippable MVP.
 
@@ -86,20 +86,20 @@ confirm the stored values are untouched.
 ### Tests for User Story 2
 
 - [ ] T019 [P] [US2] Create `tests/phpunit/Database/MCPServer/CreatedColumnBackfillTest.php` seeding one managed-type server and one default-type server, with the same DDL-safe harness conventions as T012
-- [ ] T020 [P] [US2] Add `test_flags_follow_declared_type_when_columns_were_just_created` — drop the three flag columns, reconcile, apply; assert the managed server lands on all-disabled and the default server on all-enabled
-- [ ] T021 [P] [US2] Add `test_pre_existing_columns_are_never_touched` — with columns present, set the managed server's flags deliberately, reconcile (creating nothing), apply; assert the values are unchanged. This is the doctrine assertion for FR-010
-- [ ] T022 [P] [US2] Add `test_server_type_is_corrected_before_flags_are_read` — drop the type column AND the three flag columns, reconcile, apply; assert the seeded managed server regained its correct type AND landed on all-disabled. This is the regression test for the highest-severity ordering trap (research R7)
-- [ ] T023 [P] [US2] Add `test_unknown_or_empty_type_leaves_flags_alone` — register a type declaring no tools via the server-types filter and assert no write occurs, guarding the legacy fallback (research R8)
-- [ ] T024 [P] [US2] Add `test_server_guide_repair_flag_is_cleared_when_type_column_is_created` (research R12)
+- [X] T020 [P] [US2] Add `test_flags_follow_declared_type_when_columns_were_just_created` — drop the three flag columns, reconcile, apply; assert the managed server lands on all-disabled and the default server on all-enabled
+- [X] T021 [P] [US2] Add `test_pre_existing_columns_are_never_touched` — with columns present, set the managed server's flags deliberately, reconcile (creating nothing), apply; assert the values are unchanged. This is the doctrine assertion for FR-010
+- [X] T022 [P] [US2] Add `test_server_type_is_corrected_before_flags_are_read` — drop the type column AND the three flag columns, reconcile, apply; assert the seeded managed server regained its correct type AND landed on all-disabled. This is the regression test for the highest-severity ordering trap (research R7)
+- [X] T023 [P] [US2] Add `test_unknown_or_empty_type_leaves_flags_alone` — register a type declaring no tools via the server-types filter and assert no write occurs, guarding the legacy fallback (research R8)
+- [X] T024 [P] [US2] Add `test_server_guide_repair_flag_is_cleared_when_type_column_is_created` (research R12)
 
 ### Implementation for User Story 2
 
-- [ ] T025 [US2] Create `includes/Database/MCPServer/CreatedColumnBackfill.php` — `final`, static-only, A11 exemption cited; docblock carries the seeded-tools doctrine verbatim: an operator cannot have expressed a preference about a column that did not exist
-- [ ] T026 [US2] Implement the seeded-server retype step in `includes/Database/MCPServer/CreatedColumnBackfill.php`, generalising the 1.1.6 slug-matched update over `ServerTypes::seeded_servers()` so a future seeded type needs no new hardcoded statement; MUST run before any type is read
-- [ ] T027 [US2] Clear the server-guide repair's completion flag in `includes/Database/MCPServer/CreatedColumnBackfill.php` whenever the type column was created, so a repair that already recorded false success can run (research R12)
-- [ ] T028 [US2] Implement the flag backfill in `includes/Database/MCPServer/CreatedColumnBackfill.php` — intersect created columns against `ToolPolicy::COLUMN_MAP`; per row skip when the type is unknown or declares no tools; derive values via `ToolPolicy::split_payload( ServerTypes::declared_tools( … ) )` and write ONLY the intersected columns; do NOT call `ToolPolicy::apply_type_defaults()`, whose row-replacing half would erase operator curation (research R7)
-- [ ] T029 [US2] Invalidate the server cache after writing in `includes/Database/MCPServer/CreatedColumnBackfill.php`, matching the seeder's existing invalidation
-- [ ] T030 [US2] Call the backfill from `includes/Main.php` and `includes/Activator.php` immediately after the reconciler, passing only the server table's created-column list
+- [X] T025 [US2] Create `includes/Database/MCPServer/CreatedColumnBackfill.php` — `final`, static-only, A11 exemption cited; docblock carries the seeded-tools doctrine verbatim: an operator cannot have expressed a preference about a column that did not exist
+- [X] T026 [US2] Implement the seeded-server retype step in `includes/Database/MCPServer/CreatedColumnBackfill.php`, generalising the 1.1.6 slug-matched update over `ServerTypes::seeded_servers()` so a future seeded type needs no new hardcoded statement; MUST run before any type is read
+- [X] T027 [US2] Clear the server-guide repair's completion flag in `includes/Database/MCPServer/CreatedColumnBackfill.php` whenever the type column was created, so a repair that already recorded false success can run (research R12)
+- [X] T028 [US2] Implement the flag backfill in `includes/Database/MCPServer/CreatedColumnBackfill.php` — intersect created columns against `ToolPolicy::COLUMN_MAP`; per row skip when the type is unknown or declares no tools; derive values via `ToolPolicy::split_payload( ServerTypes::declared_tools( … ) )` and write ONLY the intersected columns; do NOT call `ToolPolicy::apply_type_defaults()`, whose row-replacing half would erase operator curation (research R7)
+- [X] T029 [US2] Invalidate the server cache after writing in `includes/Database/MCPServer/CreatedColumnBackfill.php`, matching the seeder's existing invalidation
+- [X] T030 [US2] Call the backfill from `includes/Main.php` and `includes/Activator.php` immediately after the reconciler, passing only the server table's created-column list
 
 **Checkpoint**: The 17-tools symptom is gone and operator selections are provably intact.
 
