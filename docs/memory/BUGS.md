@@ -1227,7 +1227,19 @@ The F011 phantom-version guard (`if ( ! $this->exists() ) { delete_option( $this
    ```
    Diff manually against `Schema.php`. If any column is missing OR widths differ OR defaults differ, the `$upgrades` callback didn't run — investigate (usually: version stamped but callback was missing).
 3. **Emergency remediation** — if a live install is silently write-losing, the temporary fix is `DROP TABLE <table>` + reload any admin page to trigger `install()` on the fresh table. This obviously loses data. The permanent fix is the `D28` reconciliation callback running on the next admin request after upgrade.
-4. **Grep gate on `Schema.php` diffs**: any PR that changes an `includes/Database/<Module>/Schema.php` MUST also touch the paired `Table.php` (`$version` + `$upgrades` diff). If a reviewer sees the Schema diff without the paired Table diff, block the PR.
+4. ~~**Grep gate on `Schema.php` diffs**~~ — **SUPERSEDED 2026-09-24 by F091.** Not implementable as a grep: "was this column narrowed" is a DIFF predicate, and `bin/verify-f021-gates.sh` runs whole-repo content greps against a `fetch-depth: 1` checkout with no merge base, and also fires on `push: main` where "the diff" is undefined. Replaced by `tests/phpunit/Database/SchemaManifestTest.php`, a frozen column manifest that fails the build on any removal, narrowing, retype or nullability tightening while ignoring additions (which the reconciler now delivers). Same guarantee, no diff required, and a failure message that names the column and the remedy.
+
+5. **Ship `F091`'s reconciler** — `Includes\Database\SchemaReconciler` adds any declared column a live table lacks, so item 1's three-part contract is no longer the only thing standing between a Schema edit and a drifted install. See the D28 amendment for which changes still require the full contract.
+
+**Second root cause, found 2026-09-24 (F091) — the phantom version stamp**
+
+This entry originally described only "version stamped but the callback was missing". A second, independent mechanism produces the identical symptom and no version bump can ever reach it:
+
+`Table::get_pending_upgrades()` (vendored, `:1021`) returns nothing whenever the recorded version is EMPTY, and `Table::upgrade()` (`:982`) then calls `set_db_version()` and returns success having run **zero** callbacks. Every install created by the pre-F011 hand-rolled installer — which tracked `acrossai_mcp_manager_db_version`, a key F011 deliberately diverged from — hits this the first time a BerlinDB-era release runs.
+
+The damage is a contiguous PREFIX, not the whole chain: the stamp takes whatever version the landed-on release declares, and later migrations then run normally from that false baseline. Verified on a production site running 0.3.6 — missing the 1.1.1 `tool_*` columns and the 1.1.2 `override_abilities_permission`, while holding the 1.1.5 `abilities_default_policy` and 1.1.6 `server_type`, which places its stamp in [1.1.2, 1.1.4] and reconstructs its upgrade history exactly. Its user-visible symptom was an MCP connector advertising 17 tools instead of 14, with the Tools tab reporting a successful save that changed nothing.
+
+A site making that jump TODAY lands on a release declaring 1.1.7 and loses all seven migrations, `server_type` included — which is why the value repair must correct the type before reading it.
 
 **Tradeoffs / Prevention**
 

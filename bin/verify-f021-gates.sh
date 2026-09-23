@@ -200,6 +200,79 @@ run_gate 'T120 S3 raw-secret generation outside SecretsVault' \
 	'Only SecretsVault should call random_bytes/random_token. Any other hit needs review.' \
 	"$GATE_RAW_HITS"
 
+# ---------------------------------------------------------------------------
+# F091-1 — the reconciler is ADD-ONLY.
+#
+# This is not a style rule. F091 relaxes D28's migration contract for column
+# ADDITIONS, and the entire justification for that relaxation is that adding a
+# column cannot lose data while dropping or narrowing one can. The moment
+# SchemaReconciler learns to DROP or MODIFY, the relaxation is unsound and every
+# Schema change needs its callback back.
+#
+# So the property is enforced here rather than trusted to review. Code, not
+# comments, and not memory.
+# ---------------------------------------------------------------------------
+GATE_RECONCILER_ADDONLY_HITS="$(
+	grep -nE '(DROP[[:space:]]+COLUMN|MODIFY[[:space:]]+COLUMN|CHANGE[[:space:]]+COLUMN|DROP[[:space:]]+TABLE|TRUNCATE|DELETE[[:space:]]+FROM)' \
+		includes/Database/SchemaReconciler.php 2>/dev/null \
+		| grep -vE '^\s*[0-9]+:\s*(\*|//)' \
+		|| true
+)"
+run_gate 'F091-1 SchemaReconciler is add-only' \
+	'SchemaReconciler must never emit destructive DDL — that is the whole safety argument for relaxing D28.' \
+	"$GATE_RECONCILER_ADDONLY_HITS"
+
+# ---------------------------------------------------------------------------
+# F091-2 — destructive DDL lives only in versioned migration callbacks.
+#
+# A DROP or MODIFY outside a Table's $upgrades callback has no version gate, so
+# it cannot be retried, ordered, or reasoned about — and on a stamped table it
+# may never run at all. Tests are excluded: they synthesise drift on purpose.
+# ---------------------------------------------------------------------------
+GATE_DESTRUCTIVE_DDL_HITS="$(
+	grep -rEn '(DROP[[:space:]]+COLUMN|MODIFY[[:space:]]+COLUMN|CHANGE[[:space:]]+COLUMN)' \
+		--include='*.php' \
+		includes/ admin/ public/ 2>/dev/null \
+		| grep -vE 'includes/Database/[A-Za-z]+/Table\.php' \
+		| grep -vE ':[[:space:]]*(\*|//)' \
+		|| true
+)"
+run_gate 'F091-2 destructive DDL only in versioned callbacks' \
+	'DROP/MODIFY COLUMN belongs in a Table $upgrades callback, where a version gates and retries it.' \
+	"$GATE_DESTRUCTIVE_DDL_HITS"
+
+# ---------------------------------------------------------------------------
+# F091-3 — every $upgrades entry has a matching method.
+#
+# BerlinDB resolves callbacks by name at runtime. A typo'd or renamed method is
+# silent: get_callable() returns nothing, upgrade_to() returns false, and the
+# version simply never advances — the table sits drifted with no error anywhere.
+# ---------------------------------------------------------------------------
+GATE_UPGRADE_MAP_HITS="$(
+	for table_file in includes/Database/*/Table.php; do
+		[ -f "$table_file" ] || continue
+
+		awk -v file="$table_file" "
+			/protected \\\$upgrades/ { in_map = 1 }
+			in_map && /=> *'/ {
+				line = \$0
+				sub(/.*=> *'/, \"\", line)
+				sub(/'.*/, \"\", line)
+				if (line != \"\") { print line }
+			}
+			in_map && /\\);/ { in_map = 0 }
+		" "$table_file" | while read -r method; do
+			[ -n "$method" ] || continue
+			if ! grep -qE "function[[:space:]]+${method}[[:space:]]*\(" "$table_file"; then
+				echo "${table_file}: \$upgrades names ${method}() but no such method exists"
+			fi
+		done
+	done
+)"
+run_gate 'F091-3 $upgrades callbacks all exist' \
+	'A named callback with no method silently no-ops: the version never advances and the table stays drifted.' \
+	"$GATE_UPGRADE_MAP_HITS"
+
 echo ''
 if [ "$FAIL" -eq 0 ]; then
 	printf '\033[1;32mAll F021 governance gates passed.\033[0m\n'

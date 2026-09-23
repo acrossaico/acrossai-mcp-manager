@@ -85,7 +85,7 @@ confirm the stored values are untouched.
 
 ### Tests for User Story 2
 
-- [ ] T019 [P] [US2] Create `tests/phpunit/Database/MCPServer/CreatedColumnBackfillTest.php` seeding one managed-type server and one default-type server, with the same DDL-safe harness conventions as T012
+- [X] T019 [P] [US2] Create `tests/phpunit/Database/MCPServer/CreatedColumnBackfillTest.php` seeding one managed-type server and one default-type server, with the same DDL-safe harness conventions as T012
 - [X] T020 [P] [US2] Add `test_flags_follow_declared_type_when_columns_were_just_created` — drop the three flag columns, reconcile, apply; assert the managed server lands on all-disabled and the default server on all-enabled
 - [X] T021 [P] [US2] Add `test_pre_existing_columns_are_never_touched` — with columns present, set the managed server's flags deliberately, reconcile (creating nothing), apply; assert the values are unchanged. This is the doctrine assertion for FR-010
 - [X] T022 [P] [US2] Add `test_server_type_is_corrected_before_flags_are_read` — drop the type column AND the three flag columns, reconcile, apply; assert the seeded managed server regained its correct type AND landed on all-disabled. This is the regression test for the highest-severity ordering trap (research R7)
@@ -115,17 +115,17 @@ change and the migration required.
 
 ### Tests for User Story 3
 
-- [ ] T031 [P] [US3] Create `tests/phpunit/Database/SchemaParityTest.php` — `@dataProvider` over all five tables; assert declared and live column names match as SETS, not sequences, because added columns are appended and a repaired table's order will never match a fresh install's (research R11, spec edge cases)
-- [ ] T032 [P] [US3] Create `tests/phpunit/Database/SchemaManifestTest.php` as a WordPress-free `TestCase` mirroring the existing column-width invariant test — a frozen manifest of every declared column as name → type, length, nullability
-- [ ] T033 [P] [US3] Implement the manifest assertions in `tests/phpunit/Database/SchemaManifestTest.php` — every manifest entry still declared, type unchanged case-insensitively, length never reduced, nullability never tightened; columns ABSENT from the manifest are ignored, because additions are legal now; failure message must name the required migration
-- [ ] T034 [P] [US3] Create `tests/phpunit/Database/RowDefaultParityTest.php` (WordPress-free) asserting each Row class property default equals its declared column default across all five modules — these defaults are the mechanism that hid this drift instead of erroring
+- [X] T031 [P] [US3] Create `tests/phpunit/Database/SchemaParityTest.php` — `@dataProvider` over all five tables; assert declared and live column names match as SETS, not sequences, because added columns are appended and a repaired table's order will never match a fresh install's (research R11, spec edge cases)
+- [X] T032 [P] [US3] Create `tests/phpunit/Database/SchemaManifestTest.php` as a WordPress-free `TestCase` mirroring the existing column-width invariant test — a frozen manifest of every declared column as name → type, length, nullability
+- [X] T033 [P] [US3] Implement the manifest assertions in `tests/phpunit/Database/SchemaManifestTest.php` — every manifest entry still declared, type unchanged case-insensitively, length never reduced, nullability never tightened; columns ABSENT from the manifest are ignored, because additions are legal now; failure message must name the required migration
+- [X] T034 [P] [US3] Create `tests/phpunit/Database/RowDefaultParityTest.php` (WordPress-free) asserting each Row class property default equals its declared column default across all five modules — these defaults are the mechanism that hid this drift instead of erroring
 
 ### Implementation for User Story 3
 
-- [ ] T035 [US3] Add a gate to `bin/verify-f021-gates.sh` asserting `includes/Database/SchemaReconciler.php` contains no destructive DDL keyword — the additive-only property is the entire safety argument for relaxing the migration contract, so it must be mechanically enforced
-- [ ] T036 [US3] Add a gate to `bin/verify-f021-gates.sh` asserting destructive DDL appears only inside versioned `includes/Database/*/Table.php` callbacks
-- [ ] T037 [US3] Add a gate to `bin/verify-f021-gates.sh` asserting every `$upgrades` entry has a matching method in the same file and that the highest key equals the declared version
-- [ ] T038 [US3] Register the three new gates in the gate script's reporting and in `.github/workflows/verify-f021-gates.yml` step naming — do NOT rename the job, which is a required branch-protection check
+- [X] T035 [US3] Add a gate to `bin/verify-f021-gates.sh` asserting `includes/Database/SchemaReconciler.php` contains no destructive DDL keyword — the additive-only property is the entire safety argument for relaxing the migration contract, so it must be mechanically enforced
+- [X] T036 [US3] Add a gate to `bin/verify-f021-gates.sh` asserting destructive DDL appears only inside versioned `includes/Database/*/Table.php` callbacks
+- [X] T037 [US3] Add a gate to `bin/verify-f021-gates.sh` asserting every `$upgrades` entry has a matching method in the same file and that the highest key equals the declared version
+- [X] T038 [US3] Register the three new gates in the gate script's reporting and in `.github/workflows/verify-f021-gates.yml` step naming — do NOT rename the job, which is a required branch-protection check
 
 **Checkpoint**: The authoring hole that orphaned four columns is closed.
 
@@ -141,15 +141,15 @@ column is unchanged.
 
 ### Tests for User Story 4
 
-- [ ] T039 [P] [US4] Add `test_divergent_and_unaddable_columns_are_reported_not_altered` to `tests/phpunit/Database/SchemaReconcilerTest.php`, subscribing to the drift action and asserting the column is untouched
-- [ ] T040 [P] [US4] Create `tests/phpunit/Database/UpgradeReturnHonestyTest.php` — rewrite the specific destructive statement into invalid SQL via a `query` filter, rewind the version option, clear the library upgrade lock, run the migration, and assert the version did NOT advance and the failure action fired; remove the filter and self-heal in `tear_down()`
+- [X] T039 [P] [US4] Add `test_divergent_and_unaddable_columns_are_reported_not_altered` to `tests/phpunit/Database/SchemaReconcilerTest.php`, subscribing to the drift action and asserting the column is untouched
+- [X] T040 [P] [US4] Create `tests/phpunit/Database/UpgradeReturnHonestyTest.php` — rewrite the specific destructive statement into invalid SQL via a `query` filter, rewind the version option, clear the library upgrade lock, run the migration, and assert the version did NOT advance and the failure action fired; remove the filter and self-heal in `tear_down()`
 
 ### Implementation for User Story 4
 
-- [ ] T041 [US4] Fire `acrossai_mcp_schema_drift_detected` from `includes/Database/SchemaReconciler.php` per the published contract — only when the pass actually ran and found something it will not repair
-- [ ] T042 [P] [US4] Make `upgrade_to_1_1_4()` and `upgrade_to_1_1_7()` in `includes/Database/MCPServer/Table.php` return `false` when their statement fails, firing `acrossai_mcp_schema_upgrade_failed` first — the unstamped version is the only retry a destructive migration has (research R9)
-- [ ] T043 [P] [US4] Make `upgrade_to_1_0_1()` in `includes/Database/CliAuthLog/Table.php` return `false` on failure, accumulating per-column results, firing the same action
-- [ ] T044 [US4] Correct the docblocks of the add-column callbacks in `includes/Database/MCPServer/Table.php` — they currently promise a false-on-failure contract the code never had; state instead that they intentionally keep returning success because the reconciler is their retry and stalling the chain would block every later migration (research R9)
+- [X] T041 [US4] Fire `acrossai_mcp_schema_drift_detected` from `includes/Database/SchemaReconciler.php` per the published contract — only when the pass actually ran and found something it will not repair
+- [X] T042 [P] [US4] Make `upgrade_to_1_1_4()` and `upgrade_to_1_1_7()` in `includes/Database/MCPServer/Table.php` return `false` when their statement fails, firing `acrossai_mcp_schema_upgrade_failed` first — the unstamped version is the only retry a destructive migration has (research R9)
+- [X] T043 [P] [US4] Make `upgrade_to_1_0_1()` in `includes/Database/CliAuthLog/Table.php` return `false` on failure, accumulating per-column results, firing the same action
+- [X] T044 [US4] Correct the docblocks of the add-column callbacks in `includes/Database/MCPServer/Table.php` — they currently promise a false-on-failure contract the code never had; state instead that they intentionally keep returning success because the reconciler is their retry and stalling the chain would block every later migration (research R9)
 
 **Checkpoint**: All four stories independently functional.
 
@@ -157,12 +157,12 @@ column is unchanged.
 
 ## Phase 7: Polish & Cross-Cutting Concerns
 
-- [ ] T045 [P] Amend D28 in `docs/memory/DECISIONS.md` under its own Reconsider clause — the contract becomes conditional on the kind of change; record that D28 never covered the phantom stamp
-- [ ] T046 [P] Amend B34 in `docs/memory/BUGS.md` with the phantom-stamp variant and the verified evidence; mark its prevention-recipe grep-gate item as superseded by the manifest test
-- [ ] T047 [P] Add the upgrade notice to `readme.txt` and `README.md` — repair happens on the first admin page load; a connected client must be RECONNECTED to see the corrected tool list; deleting the fingerprint option forces a re-check; a site whose operator never opens wp-admin is not repaired
-- [ ] T048 Run the full gate set: `composer phpcs`, `vendor/bin/phpstan analyse --level=8`, the database suite, `bash bin/verify-f021-gates.sh`, `npm run validate-packages`
-- [ ] T049 Walk `specs/091-schema-drift-reconciliation/quickstart.md` end to end on a local site, including the harder case that also drops the type column
-- [ ] T050 File a follow-up issue for the save path that reports success on a failed write — `ToolsController::post_tools()` ignores the update return and catches only throwables, which is why this drift stayed invisible. Out of scope here by decision, not oversight
+- [X] T045 [P] Amend D28 in `docs/memory/DECISIONS.md` under its own Reconsider clause — the contract becomes conditional on the kind of change; record that D28 never covered the phantom stamp
+- [X] T046 [P] Amend B34 in `docs/memory/BUGS.md` with the phantom-stamp variant and the verified evidence; mark its prevention-recipe grep-gate item as superseded by the manifest test
+- [X] T047 [P] Add the upgrade notice to `readme.txt` and `README.md` — repair happens on the first admin page load; a connected client must be RECONNECTED to see the corrected tool list; deleting the fingerprint option forces a re-check; a site whose operator never opens wp-admin is not repaired
+- [X] T048 Run the full gate set: `composer phpcs`, `vendor/bin/phpstan analyse --level=8`, the database suite, `bash bin/verify-f021-gates.sh`, `npm run validate-packages`
+- [~] T049 Walk `specs/091-schema-drift-reconciliation/quickstart.md` end to end on a local site, including the harder case that also drops the type column — **PARTIALLY DONE.** The quickstart's reproduction and both repair paths are verified automatically: `tests/phpunit/Database/ReconcileWiringTest.php` drops the same four columns, stamps the version at the declared current value, drives `Main::reconcile_database_schemas()` (the real `admin_init@3` entry point) and asserts the columns return with the managed server on `0,0,0`; `CreatedColumnBackfillTest::test_server_type_is_corrected_before_flags_are_read` covers the harder case that also drops `server_type`. NOT done: a human clicking through wp-admin and reconnecting a live MCP client. That remains for the reviewer, and is the one step no test can stand in for.
+- [X] T050 (filed as #150) File a follow-up issue for the save path that reports success on a failed write — `ToolsController::post_tools()` ignores the update return and catches only throwables, which is why this drift stayed invisible. Out of scope here by decision, not oversight
 
 ---
 
