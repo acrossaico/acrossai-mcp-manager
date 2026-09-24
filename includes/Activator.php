@@ -3,7 +3,9 @@ namespace AcrossAI_MCP_Manager\Includes;
 
 use AcrossAI_MCP_Manager\Includes\AccessControl\AcrossAI_MCP_Access_Control;
 use AcrossAI_MCP_Manager\Includes\Database\MCPServer\Table as MCPServerTable;
+use AcrossAI_MCP_Manager\Includes\Database\MCPServer\CreatedColumnBackfill;
 use AcrossAI_MCP_Manager\Includes\Database\MCPServer\DefaultServerSeeder;
+use AcrossAI_MCP_Manager\Includes\Database\SchemaReconciler;
 use AcrossAI_MCP_Manager\Includes\Database\CliAuthLog\Table as CliAuthLogTable;
 use AcrossAI_MCP_Manager\Includes\Database\MCPServerAbility\Table as MCPServerAbilityTable;
 use AcrossAI_MCP_Manager\Includes\Database\MCPServerTool\Table as MCPServerToolTable;
@@ -53,6 +55,14 @@ class Activator {
 		// Nothing recovered them either, because a later reconcile run finds the
 		// row already present and never reaches the curated write again.
 		//
+		// F091 widened this rule. It is no longer only that both tables must
+		// EXIST before the seeder — every column the seeder writes must exist
+		// too. On a drifted install the seeder's INSERT names columns the table
+		// does not have, `$wpdb` returns false, nothing throws, and the row is
+		// written without them. That is the same silent-write-loss shape as the
+		// 0.3.6 bug described above, one level down. So the reconciler runs
+		// before the seeder, not after it.
+		//
 		// Servers table stays first: the seeder's column write needs it.
 		MCPServerTable::instance()->maybe_upgrade();
 		// Feature 020 — per-server tool selection. Presence-based storage; the
@@ -61,7 +71,6 @@ class Activator {
 		// Co-commit invariant with the Main.php request-time boot below
 		// (DEC-BERLINDB-TABLE-REQUEST-BOOT).
 		MCPServerToolTable::instance()->maybe_upgrade();
-		DefaultServerSeeder::seed();
 		CliAuthLogTable::instance()->maybe_upgrade();
 		// Feature 017 — per-server ability exposure overrides. No seeder call —
 		// the empty-table state IS the correct backwards-compatible initial state.
@@ -74,6 +83,25 @@ class Activator {
 		// front-end or REST request in that window — exactly where the Embeds
 		// feature reads `_embeds_enabled` — ran against a missing table.
 		MCPServerMetaTable::instance()->maybe_upgrade();
+
+		// F091 — heal any column a migration could not deliver, THEN give the
+		// just-created columns their values, and only then seed. All three
+		// orderings are load-bearing: the backfill consumes the reconciler's
+		// created-column report, and the seeder writes columns both of them
+		// repair.
+		$created = SchemaReconciler::maybe_reconcile(
+			array(
+				MCPServerTable::instance(),
+				CliAuthLogTable::instance(),
+				MCPServerAbilityTable::instance(),
+				MCPServerToolTable::instance(),
+				MCPServerMetaTable::instance(),
+			)
+		);
+
+		CreatedColumnBackfill::apply( $created['acrossai_mcp_servers'] ?? array() );
+
+		DefaultServerSeeder::seed();
 
 		// Feature 015 — Access Control v2 adoption. Create the
 		// {$wpdb->prefix}mcp_access_control table via the vendor-owned

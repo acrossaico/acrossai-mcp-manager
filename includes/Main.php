@@ -238,9 +238,11 @@ final class Main {
 	 * `acrossai_mcp_servers` and the `status`/`failure_code`/
 	 * `app_password_uuid` widths on `acrossai_mcp_cli_auth_logs`.
 	 *
-	 * Cost per admin request: 7 cheap option reads (needs_upgrade()
-	 * short-circuits when the stored version matches). Real dbDelta only
-	 * runs on the FIRST admin request after a version bump.
+	 * Cost per admin request: five cheap option reads for the version checks
+	 * (needs_upgrade() short-circuits when the stored version matches), plus one
+	 * non-autoloaded read each for the F091 fingerprint and the F083 done-flag.
+	 * Real DDL runs only on the FIRST admin request after a version bump or a
+	 * change to a declared column set.
 	 *
 	 * Runs at priority 3 so it fires BEFORE `Settings::maybe_seed_default_server`
 	 * (priority 4) and `Settings::handle_actions` (priority 5) — both of
@@ -252,12 +254,34 @@ final class Main {
 	 * @return void
 	 */
 	public function reconcile_database_schemas(): void {
-		\AcrossAI_MCP_Manager\Includes\Database\MCPServer\Table::instance()->maybe_upgrade();
-		\AcrossAI_MCP_Manager\Includes\Database\CliAuthLog\Table::instance()->maybe_upgrade();
-		\AcrossAI_MCP_Manager\Includes\Database\MCPServerAbility\Table::instance()->maybe_upgrade();
-		\AcrossAI_MCP_Manager\Includes\Database\MCPServerTool\Table::instance()->maybe_upgrade();
-		// F037 — reconcile MCPServerMeta schema on admin_init per D28.
-		\AcrossAI_MCP_Manager\Includes\Database\MCPServerMeta\Table::instance()->maybe_upgrade();
+		$tables = array(
+			\AcrossAI_MCP_Manager\Includes\Database\MCPServer\Table::instance(),
+			\AcrossAI_MCP_Manager\Includes\Database\CliAuthLog\Table::instance(),
+			\AcrossAI_MCP_Manager\Includes\Database\MCPServerAbility\Table::instance(),
+			\AcrossAI_MCP_Manager\Includes\Database\MCPServerTool\Table::instance(),
+			// F037 — reconcile MCPServerMeta schema on admin_init per D28.
+			\AcrossAI_MCP_Manager\Includes\Database\MCPServerMeta\Table::instance(),
+		);
+
+		foreach ( $tables as $table ) {
+			$table->maybe_upgrade();
+		}
+
+		// F091 — the backstop for what `$upgrades` cannot reach: a column
+		// declared without a paired callback, and a version stamped by
+		// BerlinDB's phantom path with zero callbacks run. Deliberately AFTER
+		// the loop above, so routine migrations run first and this only handles
+		// what they could not. Add-only; see SchemaReconciler for why.
+		$created = \AcrossAI_MCP_Manager\Includes\Database\SchemaReconciler::maybe_reconcile( $tables );
+
+		// F091 — values for the columns just created. MUST follow the reconciler
+		// (it consumes the created-column report) and MUST precede
+		// `Settings::maybe_seed_default_server` at priority 4, which reads the
+		// server type this repairs.
+		\AcrossAI_MCP_Manager\Includes\Database\MCPServer\CreatedColumnBackfill::apply(
+			$created['acrossai_mcp_servers'] ?? array()
+		);
+
 		// F083 — one-shot drop of the orphaned pre-F040 OAuth tables (only
 		// when present AND empty; non-empty tables are surfaced via the
 		// `acrossai_mcp_legacy_oauth_cleanup_skipped` action and left to the
