@@ -18,7 +18,9 @@ The Model Context Protocol is the standard Anthropic introduced and the AI indus
 
 **Setup takes about a minute** via the [Quick Setup wizard](https://acrossai.co/mcp-manager-quick-setup/) — install, click through the guided flow, paste the ready-made JSON into your AI client, done.
 
-Every section below links to the full docs at [acrossai.co/doc-category/mcp-manager](https://acrossai.co/doc-category/mcp-manager/). Source and issues live at [github.com/acrossai-co/acrossai-mcp-manager](https://github.com/acrossai-co/acrossai-mcp-manager).
+**Documentation:** [acrossai.co/docs](https://acrossai.co/docs/) · **Use cases:** [acrossai.co/use-cases](https://acrossai.co/use-cases/) · **Integrations:** [acrossai.co/integrations](https://acrossai.co/integrations/) · **Full changelog:** [acrossai.co/changelog](https://acrossai.co/changelog/)
+
+Every section below links to the relevant page. Source and issues live at [github.com/acrossai-co/acrossai-mcp-manager](https://github.com/acrossai-co/acrossai-mcp-manager).
 
 = Your Site Is the MCP Server — No Relay, No Third Party =
 
@@ -70,6 +72,8 @@ On its own, this plugin is the server, the security and the plumbing. Install th
 
 **Plugins you already run get dedicated toolsets**, active only when that plugin is: WooCommerce, Elementor (and Pro), Rank Math, Yoast SEO, LiteSpeed Cache, Contact Form 7, WPCode, CookieYes, WP Mail SMTP, The Events Calendar, Event Tickets, Loco Translate, Classic Editor, Advanced Custom Fields, Akismet, WPForms, UpdraftPlus and All-in-One WP Migration.
 
+→ [Browse every integration](https://acrossai.co/integrations/)
+
 = Decide Exactly What Each AI Can Touch =
 
 Nobody should hand an AI assistant their whole site by default, so this plugin does not.
@@ -108,6 +112,8 @@ Create as many servers as you need, each with its own route, namespace, version,
 **Developers** get a real WordPress MCP server with a documented extension surface: register a client, a server tab, a connect method or a server type through filters, no fork required. WP-CLI STDIO keeps credentials off the network entirely on local boxes.
 
 **Agencies** run a separate server per client site with its own access rules, hand each client an AI connection scoped to exactly what they should reach, and keep an audit log of terminal approvals.
+
+→ [Real-world use cases](https://acrossai.co/use-cases/)
 
 = Built on the WordPress Abilities API =
 
@@ -243,7 +249,11 @@ Delete its Application Password from your WordPress profile page, or disable the
 
 == Support ==
 
-* **Docs hub** — [acrossai.co/doc-category/mcp-manager](https://acrossai.co/doc-category/mcp-manager/)
+* **Documentation** — [acrossai.co/docs](https://acrossai.co/docs/)
+* **MCP Manager docs** — [acrossai.co/doc-category/mcp-manager](https://acrossai.co/doc-category/mcp-manager/)
+* **Use cases** — [acrossai.co/use-cases](https://acrossai.co/use-cases/)
+* **Integrations** — [acrossai.co/integrations](https://acrossai.co/integrations/)
+* **Full changelog** — [acrossai.co/changelog](https://acrossai.co/changelog/)
 * **Troubleshooting & FAQ** — [acrossai.co/docs/mcp-faq-troubleshooting](https://acrossai.co/docs/mcp-faq-troubleshooting/)
 * **Source code + issue tracker** — [github.com/acrossai-co/acrossai-mcp-manager](https://github.com/acrossai-co/acrossai-mcp-manager)
 
@@ -266,6 +276,8 @@ Delete its Application Password from your WordPress profile page, or disable the
 Installing the AcrossAI Abilities Manager add-on now works immediately — no server-type change and no Reset needed. Adds a second, disabled-by-default AcrossAI server, and repairs servers that were created with no tools. Your own tool selections are left alone.
 
 == Changelog ==
+
+The complete, formatted release history — including releases older than the ones shown here — lives at [acrossai.co/changelog](https://acrossai.co/changelog/). WordPress.org truncates this section, so the site is the fuller record.
 
 = 0.3.6 =
 * **Fixed — installing the AcrossAI Abilities Manager add-on now just works.** Before this release, installing the add-on after this plugin changed nothing you could see: your server still offered the same few tools and nothing told you the larger set had arrived. Getting it took four undocumented steps — open **Tools**, change **Server type** to AcrossAI, confirm, then press **Reset to Type Defaults**. The cause was that the AcrossAI type shipped with an empty tool list, because this plugin did not know what belonged on it until the add-on turned up and said so. It knows now, so the list is written down in advance and the tools start working the moment the add-on is activated. No type change, no Reset, nothing to read.
