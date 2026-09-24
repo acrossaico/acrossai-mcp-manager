@@ -4,7 +4,7 @@ Tags: ai assistant, chatgpt, claude, mcp, mcp-server
 Requires at least: 7.0
 Requires PHP: 8.1
 Tested up to: 7.1
-Stable tag: 0.3.6
+Stable tag: 0.3.7
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -293,6 +293,9 @@ Delete its Application Password from your WordPress profile page, or disable the
 
 == Upgrade Notice ==
 
+= 0.3.7 =
+Repairs sites whose database tables were missing columns — which could make a server advertise tools you never selected and silently refuse to remove them. It happens automatically on the next wp-admin page load. Reconnect your AI client afterwards to see the corrected tool list.
+
 = 0.3.6 =
 Installing the AcrossAI Abilities Manager add-on now works immediately — no server-type change and no Reset needed. Adds a second, disabled-by-default AcrossAI server, and repairs servers that were created with no tools. Your own tool selections are left alone.
 
@@ -300,11 +303,12 @@ Installing the AcrossAI Abilities Manager add-on now works immediately — no se
 
 The complete, formatted release history — including releases older than the ones shown here — lives at [acrossai.co/changelog](https://acrossai.co/changelog/). WordPress.org truncates this section, so the site is the fuller record.
 
-= Unreleased =
+= 0.3.7 =
 * **Fixed — a server could offer tools you never chose, and refuse to let you remove them.** On some sites the plugin's database tables were missing columns the plugin expected, and had been for a long time. Nothing reported it: the missing settings simply read as "on", so a server could advertise three extra tools, and unchecking them said "saved" while changing nothing — the setting was being written to a column that did not exist. Affected sites now repair themselves on the next wp-admin page load. You do not need to do anything, and your own tool selections are left exactly as you set them.
 * **Please note — reconnect your AI client afterwards.** An AI client is handed its list of tools once, at the moment it connects, and there is no way to hand it a new one. So a repaired site serves the right tools immediately, but a client that was already connected keeps showing the old list until you disconnect and reconnect it. If the count still looks wrong after the repair, that is why.
 * **Please note — the repair runs when someone opens wp-admin.** It happens on the first admin page load after updating, with no reactivation needed. A site nobody ever signs into is not repaired, because nothing runs there to do it.
 * **Fixed — a failed database change no longer records itself as done.** Certain changes that could not be applied were nevertheless marked complete, which meant they were never retried and the site stayed wrong indefinitely. They now retry on the next admin page load.
+* **Changed — the WordPress.org listing now describes what the plugin actually does.** The description, feature list and FAQ were rewritten against the code, three claims that the plugin did not support were removed, and every screenshot is now captioned. No change to the plugin itself.
 
 = 0.3.6 =
 * **Fixed — installing the AcrossAI Abilities Manager add-on now just works.** Before this release, installing the add-on after this plugin changed nothing you could see: your server still offered the same few tools and nothing told you the larger set had arrived. Getting it took four undocumented steps — open **Tools**, change **Server type** to AcrossAI, confirm, then press **Reset to Type Defaults**. The cause was that the AcrossAI type shipped with an empty tool list, because this plugin did not know what belonged on it until the add-on turned up and said so. It knows now, so the list is written down in advance and the tools start working the moment the add-on is activated. No type change, no Reset, nothing to read.
