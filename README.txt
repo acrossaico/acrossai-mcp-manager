@@ -112,12 +112,11 @@ Create as many servers as you need, each with its own route, namespace, version,
 Everything above this point is free. [AcrossAI Pro](https://acrossai.co/pricing/) is a separate plugin that adds the following, and nothing here is required to run an MCP server:
 
 * **One-click AI connectors *(Pro)*** — **ChatGPT**, **Claude**, **Grok**, **Gemini** and **Cursor**. Paste one URL into the AI client, approve the consent screen on your own site, and you are connected. No config file, no Application Password to copy.
-* **n8n connection *(Pro)*** — connect your site to n8n workflows through its own tab, for automation that runs without a human in the chat.
-* **A full OAuth 2.1 server, on your own site *(Pro)*** — authorization and token endpoints, PKCE, dynamic client registration, metadata discovery, token validation and revocation. The clients, tokens and authorization codes are rows in **your** database. This is what makes one-click connectors possible without a vendor relay.
+* **n8n connection — Beta *(Pro)*** — connect your site to n8n workflows using a generated bearer token or an Application Password, with a chosen lifetime and one-click revocation. Off by default, and labelled Beta in the plugin itself: n8n's own MCP OAuth credential is not yet OAuth 2.1 compliant, so this path is deliberately token-based rather than OAuth.
+* **An OAuth 2.1 authorization server, on your own site *(Pro)*** — authorization and token endpoints, mandatory PKCE (S256), refresh-token rotation with reuse detection, dynamic client registration, and metadata discovery. The clients, tokens and authorization codes are rows in **your** database. This is what makes one-click connectors possible without a vendor relay.
 * **Connections dashboard *(Pro)*** — see every AI client currently connected to each server, and revoke any one of them.
 * **Membership-aware access control *(Pro)*** — gate an MCP server by membership or course enrolment instead of only by WordPress role, across **10 platforms**: BuddyBoss, MemberPress, LearnDash, LifterLMS, Paid Memberships Pro, Restrict Content Pro, WooCommerce Memberships, s2Member, Wishlist Member and Memberium.
-* **More plugin toolsets *(Pro)*** — additional ability coverage for BuddyBoss, GeoDirectory, LearnDash, MailerPress and MailerPress Pro.
-* **Priority email support *(Pro)*** — with a private Slack channel on the Agency plan.
+* **276 more abilities *(Pro)*** — deep coverage for **LearnDash** (74), **BuddyBoss** (60), **MailerPress** (89 plus 28 for MailerPress Pro) and **GeoDirectory** (25), each active only when that plugin is.
 
 Pro keeps the same model as the free plugin: **it runs on your own server, with no third-party cloud**, and actions are never metered or credited. Plans start at a **30-day free trial with no card required**, and every plan carries a **14-day money-back guarantee**. Local and staging sites do not count against your site limit.
 
@@ -167,15 +166,7 @@ Clients, server tabs, connect methods and server types are all registered throug
 * Filter-based extension surface for clients, tabs, connect methods and server types
 * Works with the free AcrossAI Abilities Manager add-on for 357+ abilities across 14 toolsets
 
-With the optional [AcrossAI Pro](https://acrossai.co/pricing/) add-on:
-
-* One-click connectors for ChatGPT, Claude, Grok, Gemini and Cursor *(Pro)*
-* n8n connection for automation workflows *(Pro)*
-* OAuth 2.1 authorization server running on your own site — PKCE, dynamic client registration, discovery, revocation *(Pro)*
-* Connections dashboard showing every connected client, with one-click revocation *(Pro)*
-* Membership-aware access control across 10 membership and LMS platforms *(Pro)*
-* Extra plugin toolsets — BuddyBoss, GeoDirectory, LearnDash, MailerPress *(Pro)*
-* Priority email support, and a private Slack channel on the Agency plan *(Pro)*
+Optionally, with [AcrossAI Pro](https://acrossai.co/pricing/): one-click connectors for five AI vendors, an OAuth 2.1 server on your own site, a connections dashboard, membership-aware access control across 10 platforms, 276 more abilities, and an n8n connection in Beta. See the section above for detail.
 
 = Requirements =
 
