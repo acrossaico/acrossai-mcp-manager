@@ -174,11 +174,25 @@ class Table extends \BerlinDB\Database\Kern\Table {
 	 * only ADDs columns that are actually missing. Safe to re-run on
 	 * already-correct installs (each per-column check short-circuits).
 	 *
-	 * Returns `true` on success (BerlinDB stamps the version), `false` on
-	 * failure (BerlinDB aborts and leaves the version unstamped so the
-	 * upgrade retries on the next admin request).
+	 * ALWAYS returns `true`, including when a statement fails — and that is
+	 * deliberate as of F091, not an oversight. This docblock previously promised
+	 * a false-on-failure contract the code has never implemented; the promise is
+	 * removed rather than the behaviour changed, because the behaviour is now
+	 * correct for a different reason.
 	 *
-	 * @return bool
+	 * An ADD-column migration has a second mechanism behind it:
+	 * {@see \AcrossAI_MCP_Manager\Includes\Database\SchemaReconciler} adds any
+	 * declared column a table lacks, on the next administrative page load and on
+	 * every one after that. Returning `false` here would leave the version
+	 * unstamped and block EVERY later migration in the chain behind a statement
+	 * something else already retries — on a site whose database user cannot
+	 * ALTER, permanently.
+	 *
+	 * Migrations that DROP or MODIFY are the opposite case and do return `false`
+	 * on failure: the reconciler never performs those, so an unstamped version is
+	 * their only retry. See `upgrade_to_1_1_4()` and `upgrade_to_1_1_7()`.
+	 *
+	 * @return bool Always true.
 	 */
 	protected function upgrade_to_1_1_1(): bool {
 		global $wpdb;
@@ -333,7 +347,17 @@ class Table extends \BerlinDB\Database\Kern\Table {
 		);
 		if ( ! empty( $col_exists ) ) {
 			// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching,WordPress.DB.DirectDatabaseQuery.SchemaChange
-			$wpdb->query( "ALTER TABLE `{$table}` DROP COLUMN `embeds_enabled`" );
+			$result = $wpdb->query( "ALTER TABLE `{$table}` DROP COLUMN `embeds_enabled`" );
+
+			// F091 — a DROP has no second mechanism behind it. SchemaReconciler
+			// never drops, so leaving the version unstamped is this migration's
+			// only retry.
+			if ( false === $result ) {
+				/** This action is documented in includes/Database/CliAuthLog/Table.php */
+				do_action( 'acrossai_mcp_schema_upgrade_failed', 'acrossai_mcp_servers', '1.1.4', $wpdb->last_error );
+
+				return false;
+			}
 		}
 
 		// Step 2 — DROP the retired junction table (idempotent).
@@ -490,7 +514,20 @@ class Table extends \BerlinDB\Database\Kern\Table {
 
 		if ( $this->column_exists( 'tools_default_policy' ) ) {
 			// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching,WordPress.DB.DirectDatabaseQuery.SchemaChange -- DDL with a plugin-owned table name + hardcoded column name; idempotent via the existence check above. $wpdb->prepare() does not support DDL identifiers.
-			$wpdb->query( "ALTER TABLE `{$table}` DROP COLUMN `tools_default_policy`" );
+			$result = $wpdb->query( "ALTER TABLE `{$table}` DROP COLUMN `tools_default_policy`" );
+
+			// F091 — report failure honestly. This is a DROP, which
+			// SchemaReconciler deliberately never performs, so the unstamped
+			// version is the ONLY retry this migration has. Returning true on a
+			// failed statement would advance the stamp and strand the column
+			// permanently. (ADD-column callbacks in this class keep returning
+			// true on purpose — see their docblocks.)
+			if ( false === $result ) {
+				/** This action is documented in includes/Database/CliAuthLog/Table.php */
+				do_action( 'acrossai_mcp_schema_upgrade_failed', 'acrossai_mcp_servers', '1.1.7', $wpdb->last_error );
+
+				return false;
+			}
 		}
 
 		return true;

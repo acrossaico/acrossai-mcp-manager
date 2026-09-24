@@ -129,6 +129,12 @@ class Table extends \BerlinDB\Database\Kern\Table {
 	 * failure (BerlinDB aborts and leaves the version unstamped so the
 	 * upgrade retries on the next admin request).
 	 *
+	 * As of F091 the code actually honours that contract — it previously
+	 * returned `true` unconditionally, so a failed statement still advanced the
+	 * stamp and stranded the width permanently. These are MODIFY statements and
+	 * `SchemaReconciler` deliberately never performs those, so an unstamped
+	 * version is the only retry they have.
+	 *
 	 * @return bool
 	 */
 	protected function upgrade_to_1_0_1(): bool {
@@ -169,6 +175,8 @@ class Table extends \BerlinDB\Database\Kern\Table {
 			return false;
 		}
 
+		$ok = true;
+
 		foreach ( $targets as $column_name => $spec ) {
 			if ( ! isset( $current[ $column_name ] ) ) {
 				continue;
@@ -177,9 +185,37 @@ class Table extends \BerlinDB\Database\Kern\Table {
 				continue;
 			}
 			// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching,WordPress.DB.DirectDatabaseQuery.SchemaChange -- DDL with plugin-owned table name ($wpdb->prefix + hardcoded slug) + hardcoded column definitions; idempotent via width check above. $wpdb->prepare() does not support DDL identifiers.
-			$wpdb->query( "ALTER TABLE `{$table}` " . $spec['ddl'] );
+			$result = $wpdb->query( "ALTER TABLE `{$table}` " . $spec['ddl'] );
+
+			// F091 — report failure honestly. These are MODIFY statements, which
+			// SchemaReconciler deliberately never performs (widening is safe but
+			// narrowing truncates, and it cannot tell which a Schema intends), so
+			// the unstamped version is this migration's only retry. Every target
+			// is attempted before returning, so one failing column does not hide
+			// the state of the others.
+			if ( false === $result ) {
+				$ok = false;
+
+				/**
+				 * Fires when a schema migration's statement failed.
+				 *
+				 * The version is deliberately left unstamped when this fires, so
+				 * the migration retries on the next administrative page load. On
+				 * a persistently failing site — no ALTER privilege, say — a
+				 * subscriber will therefore see this repeatedly. That is the
+				 * intended signal that operator intervention is required, not a
+				 * bug (D19 fail-open observability).
+				 *
+				 * @since 0.3.7 (F091)
+				 *
+				 * @param string $table   Un-prefixed table stem.
+				 * @param string $version Schema version whose callback failed.
+				 * @param string $error   Database error as reported by $wpdb.
+				 */
+				do_action( 'acrossai_mcp_schema_upgrade_failed', 'acrossai_mcp_cli_auth_logs', '1.0.1', $wpdb->last_error );
+			}
 		}
 
-		return true;
+		return $ok;
 	}
 }
