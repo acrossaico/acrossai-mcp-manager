@@ -105,13 +105,34 @@ final class ProtectedServers {
 		return self::is_protected( (string) $rows[0]->server_slug );
 	}
 
-	// F088's `is_recommended()` and `recommended_badge()` were removed here:
-	// the AcrossAI server is no longer promoted, in any form. They backed the
-	// green badge on the list and Overview tab AND the row pinning that put
-	// that server first, which is why both went together — a row silently
-	// sorted to the top is a promotion whether or not it carries a label.
-	//
-	// `is_protected()` above is a DIFFERENT predicate and stays: it covers both
-	// seeded slugs and guards deletion, rather than singling one out for
-	// prominence.
+	/**
+	 * Whether a slug is the one server surfaced as "Recommended".
+	 *
+	 * Drives both the ordering that pins that row first (servers list and
+	 * Quick Connect Step 1) and the Recommended badge in the list, the
+	 * Overview tab and the wizard card.
+	 *
+	 * This is a DIFFERENT predicate from `is_protected()` above, which covers
+	 * both seeded slugs and guards deletion rather than singling one out for
+	 * prominence. Changing which server is recommended is changing the slug
+	 * returned here — plus its mirror in Step1_ServerPick.jsx.
+	 *
+	 * @param string $slug Server slug.
+	 * @return bool
+	 */
+	public static function is_recommended( string $slug ): bool {
+		return DefaultServerSeeder::ACROSSAI_SLUG === $slug;
+	}
+
+	/**
+	 * Pre-escaped "Recommended" pill markup.
+	 *
+	 * @return string
+	 */
+	public static function recommended_badge(): string {
+		return sprintf(
+			'<span class="acrossai-recommended-badge">%s</span>',
+			esc_html__( 'Recommended', 'acrossai-mcp-manager' )
+		);
+	}
 }

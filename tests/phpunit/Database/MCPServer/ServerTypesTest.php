@@ -219,24 +219,36 @@ class ServerTypesTest extends WP_UnitTestCase {
 	 * The two tests below cover the MECHANISM — that an unmet requirement is
 	 * skipped and a met one is honoured — using throwaway filter-registered
 	 * types. Neither says anything about which type a stock install actually
-	 * lands on, which is exactly how the shipped default could drift back to
-	 * `acrossai` unnoticed.
+	 * lands on, which is exactly how the shipped default could drift unnoticed.
 	 *
-	 * Asserted against `ServerTypes::LEGACY` rather than the literal
+	 * Asserted against the constants rather than the literals 'acrossai' /
 	 * 'mcp-adapter': a literal restates the constant instead of checking it,
 	 * and goes stale the day the constant moves (B48).
 	 *
-	 * Deliberately runs WITH the sibling plugin treated as active. Before this
-	 * change `acrossai` carried `is_default` and was available on such a site,
-	 * so this is the case that would have failed — a site without the sibling
-	 * already resolved to LEGACY via the requirement check and proves nothing.
+	 * BOTH shipped entries carry `is_default`, so the two cases below are the
+	 * whole contract: the add-on decides which one `default_slug()` lands on.
 	 */
-	public function test_a_stock_install_defaults_to_the_mcp_adapter_type(): void {
+	public function test_a_site_with_the_add_on_defaults_to_the_acrossai_type(): void {
 		update_option( 'active_plugins', array( 'acrossai-abilities-manager/acrossai-abilities-manager.php' ) );
 
 		$this->assertTrue(
 			ServerTypes::is_available( ServerTypes::ACROSSAI ),
 			'setup: the AcrossAI type must be AVAILABLE, or this asserts nothing.'
+		);
+		$this->assertSame( ServerTypes::ACROSSAI, ServerTypes::default_slug() );
+	}
+
+	/**
+	 * The floor still holds. Without the add-on the preferred type is
+	 * unavailable, so the requirement check must fall back rather than hand a
+	 * new server a type the site cannot run.
+	 */
+	public function test_a_site_without_the_add_on_falls_back_to_the_mcp_adapter_type(): void {
+		update_option( 'active_plugins', array() );
+
+		$this->assertFalse(
+			ServerTypes::is_available( ServerTypes::ACROSSAI ),
+			'setup: the AcrossAI type must be UNAVAILABLE, or this asserts nothing.'
 		);
 		$this->assertSame( ServerTypes::LEGACY, ServerTypes::default_slug() );
 	}

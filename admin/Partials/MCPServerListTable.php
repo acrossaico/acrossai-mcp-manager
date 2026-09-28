@@ -113,10 +113,20 @@ class MCPServerListTable extends \WP_List_Table {
 			$rows
 		);
 
-		// No re-ordering pass. F088 pinned the AcrossAI row to the top here;
-		// with that promotion gone the rows keep the order the query already
-		// asked for — `'orderby' => 'id', 'order' => 'ASC'` above — which is
-		// exactly what the removed sort used as its own tiebreak.
+		// Pin the Recommended plugin-managed server to the top of the list;
+		// every other row keeps the insertion order the query already asked
+		// for (`id ASC` above), which is also this sort's own tiebreak.
+		usort(
+			$this->items,
+			static function ( $a, $b ) {
+				$rank_a = ProtectedServers::is_recommended( (string) $a['slug'] ) ? 0 : 1;
+				$rank_b = ProtectedServers::is_recommended( (string) $b['slug'] ) ? 0 : 1;
+
+				return ( $rank_a === $rank_b )
+					? ( (int) $a['id'] <=> (int) $b['id'] )
+					: ( $rank_a <=> $rank_b );
+			}
+		);
 	}
 
 	/**
@@ -158,7 +168,8 @@ class MCPServerListTable extends \WP_List_Table {
 	}
 
 	/**
-	 * Name column with row actions (Edit + conditional Delete).
+	 * Name column with row actions (Edit + conditional Delete) and the
+	 * Recommended badge.
 	 *
 	 * Source-repo behavior preserved: Delete row action only appears for
 	 * 'database'-source rows (the seeded default-plugin row is not deletable
@@ -205,10 +216,15 @@ class MCPServerListTable extends \WP_List_Table {
 			);
 		}
 
+		$badge = ProtectedServers::is_recommended( (string) $item['slug'] )
+			? ' ' . ProtectedServers::recommended_badge()
+			: '';
+
 		return sprintf(
-			'<strong><a class="row-title" href="%s">%s</a></strong>%s',
+			'<strong><a class="row-title" href="%s">%s</a></strong>%s%s',
 			esc_url( $edit_url ),
 			esc_html( $item['name'] ),
+			$badge,
 			$this->row_actions( $row_actions )
 		);
 	}
