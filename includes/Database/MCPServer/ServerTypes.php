@@ -423,6 +423,11 @@ final class ServerTypes {
 	 * satisfied**, so a site without the sibling never defaults to a type it
 	 * cannot use. `mcp-adapter` is the floor and is always registered.
 	 *
+	 * As shipped that means `acrossai` on a site carrying the add-on and
+	 * `mcp-adapter` everywhere else — both entries declare the flag, and the
+	 * requirement check is what picks between them. Changing the preferred
+	 * type is moving the flag in `seed()`; every create path reads this.
+	 *
 	 * @since 0.1.0
 	 * @return string
 	 */
@@ -596,16 +601,14 @@ final class ServerTypes {
 				// curated set AND have nowhere to be stored, silently dropping the
 				// operator's pick on every save.
 				'tools'       => array_merge( ToolPolicy::PROTOCOL_TOOLS, array( ServerGuide::SLUG ) ),
-				// The type a new server gets unless the operator picks another.
+				// The FALLBACK default — what a new server gets on a site
+				// without the add-on, where `acrossai` below is unavailable.
 				//
 				// DECLARED here rather than left to `default_slug()`'s LEGACY
 				// floor, which would produce the same answer by absence. An
 				// absence is invisible at the point the decision is made and is
 				// reintroduced by accident the next time someone adds a type;
-				// a key you can see is a key you can move. Moving it IS how the
-				// preferred type changes — nothing else needs editing, because
-				// both create paths and the create form all resolve through
-				// `default_slug()`.
+				// a key you can see is a key you can move.
 				'is_default'  => true,
 				// The server this plugin seeds for this type. Optional: a type
 				// without it is selectable but seeds nothing. Adding a type AND
@@ -640,6 +643,17 @@ final class ServerTypes {
 				// re-register the slug and win (D41 unchanged).
 				'tools'       => ToolsetRegistrar::tool_slugs(),
 				'requires'    => self::ACROSSAI_REQUIRES,
+				// The PREFERRED default — new servers are AcrossAI servers
+				// wherever that is possible, matching the Recommended badge
+				// this type's seeded server carries.
+				//
+				// Two entries carry `is_default` on purpose; that is what
+				// `default_slug()` is built for. It takes the LAST flagged
+				// entry WHOSE REQUIREMENT IS MET, and this one sits after
+				// `mcp-adapter` and requires the add-on — so it wins on a site
+				// that has the add-on, and yields to the floor above on a site
+				// that does not. Neither case needs a second code path.
+				'is_default'  => true,
 				'server'      => array(
 					'server_name'            => 'AcrossAI',
 					'server_slug'            => DefaultServerSeeder::ACROSSAI_SLUG,
