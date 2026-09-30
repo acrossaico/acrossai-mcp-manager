@@ -107,12 +107,31 @@ class ProtectedServersTest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Protection is NOT prominence.
-	 *
-	 * `is_recommended()` / `recommended_badge()` lived beside `is_protected()`
-	 * and were removed with the AcrossAI promotion. Its premise — that BOTH
-	 * seeded rows are equally protected — retired with the AcrossAI row itself;
-	 * `test_the_withdrawn_acrossai_slug_is_not_protected()` above now holds the
-	 * relevant half, that the surviving predicate did not inherit a promotion.
+	 * Exactly one row is surfaced as "Recommended" — the AcrossAI one. This
+	 * drives both the list-table pin and the badge.
 	 */
+	public function test_only_the_acrossai_row_is_recommended(): void {
+		$this->assertTrue( ProtectedServers::is_recommended( DefaultServerSeeder::ACROSSAI_SLUG ) );
+		$this->assertFalse( ProtectedServers::is_recommended( DefaultServerSeeder::SLUG ) );
+		$this->assertFalse( ProtectedServers::is_recommended( 'my-own-server' ) );
+	}
+
+	/**
+	 * Recommendation is NOT protection.
+	 *
+	 * Both seeded rows are equally protected — only one is promoted — so the
+	 * two predicates must stay distinct rather than one drifting into the
+	 * other.
+	 */
+	public function test_protection_covers_both_seeded_rows(): void {
+		$this->assertTrue( ProtectedServers::is_protected( DefaultServerSeeder::ACROSSAI_SLUG ) );
+		$this->assertTrue( ProtectedServers::is_protected( DefaultServerSeeder::SLUG ) );
+	}
+
+	public function test_recommended_badge_markup(): void {
+		$this->assertStringContainsString(
+			'acrossai-recommended-badge',
+			ProtectedServers::recommended_badge()
+		);
+	}
 }

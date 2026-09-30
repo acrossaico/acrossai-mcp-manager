@@ -18,6 +18,7 @@ namespace AcrossAI_MCP_Manager\Admin\Partials\ServerTabs;
 
 use AcrossAI_MCP_Manager\Admin\Partials\ServerTabs\Partials\TypeRequirementNotice;
 use AcrossAI_MCP_Manager\Includes\Database\MCPServer\Query;
+use AcrossAI_MCP_Manager\Includes\Database\MCPServer\ProtectedServers;
 use AcrossAI_MCP_Manager\Includes\Database\MCPServer\ServerTypes;
 use AcrossAI_MCP_Manager\Includes\Database\MCPServerMeta\Query as MCPServerMetaQuery;
 use AcrossAI_MCP_Manager\Includes\MCP\Controller as MCPController;
@@ -99,9 +100,14 @@ final class OverviewTab extends AbstractServerTab {
 	private function render_info_table( array $server ): void {
 		echo '<table class="form-table" role="presentation">';
 
+		// Surface the Recommended pill next to the managed AcrossAI row.
+		$recommended = ProtectedServers::is_recommended( (string) $server['server_slug'] )
+			? ' ' . ProtectedServers::recommended_badge()
+			: '';
+
 		$this->render_row(
 			__( 'Server Name', 'acrossai-mcp-manager' ),
-			sprintf( '<strong>%s</strong>', esc_html( (string) $server['server_name'] ) )
+			sprintf( '<strong>%s</strong>%s', esc_html( (string) $server['server_name'] ), $recommended )
 		);
 
 		// Match reference — description row hidden when empty.

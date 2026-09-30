@@ -62,6 +62,8 @@ final class DefaultServerSeeder {
 
 	/**
 	 * Default MCP server slug — relocated here from MCPServer\Table in Feature 011 (FR-022).
+	 *
+	 * Mirrored in src/js/quick-connect/steps/Step1_ServerPick.jsx; keep in sync.
 	 */
 	public const SLUG = 'mcp-adapter-default-server';
 
@@ -81,6 +83,11 @@ final class DefaultServerSeeder {
 	 *
 	 * `Table::upgrade_to_1_1_6()` also names this constant, to correct the type
 	 * on installs that already carry the row from 0.3.4.
+	 *
+	 * This is also the slug `ProtectedServers::is_recommended()` matches, so it
+	 * carries the Recommended badge and leads both pickers.
+	 *
+	 * Mirrored in src/js/quick-connect/steps/Step1_ServerPick.jsx; keep in sync.
 	 */
 	public const ACROSSAI_SLUG = 'acrossai-mcp-server';
 
