@@ -243,10 +243,27 @@ final class ServerTypes {
 	 * under a heading naming this one — and the header counted the configured
 	 * set against a pool that excluded it, reading "15 of 4".
 	 *
-	 * A tool-level ability that NO type claims is still offered everywhere, so
-	 * the `acrossai_mcp_manager_tool_abilities` filter keeps working for a
-	 * plugin contributing a tool of its own. Only vocabulary another type has
-	 * claimed is withheld — which is exactly the case that looked wrong.
+	 * An unclaimed tool-level ability reaches a type only when that type already
+	 * speaks its NAMESPACE — the part of the slug before the `/`.
+	 *
+	 * 0.3.6 said instead that anything no type claimed was offered everywhere,
+	 * to keep `acrossai_mcp_manager_tool_abilities` working for a plugin
+	 * publishing a tool of its own. Too broad, and it shipped: the AcrossAI
+	 * add-on's per-plugin Toolsets deliberately do NOT declare themselves onto
+	 * the `acrossai` type — they are reached through `toolset/integrations`
+	 * instead — so nothing claimed them and an MCP Adapter server was offered
+	 * `toolset/rank-math`, `toolset/litespeed-cache` and a dozen more it could
+	 * never serve.
+	 *
+	 * Namespace ownership fixes that without closing the extension point.
+	 * `mcp-adapter` declares `mcp-adapter/*` and so receives only those;
+	 * `acrossai` declares `toolset/*` and receives every registered integration
+	 * Toolset. A slug in a namespace NO type declares — `mycorp/some-tool` —
+	 * still reaches every type, which is where that filter was actually aimed.
+	 *
+	 * Derived, never hardcoded. Nothing here names `toolset/` or `acrossai`, so
+	 * a future type that declares its own namespace gets the same treatment for
+	 * free, and this file keeps knowing nothing about the sibling's vocabulary.
 	 *
 	 * A plugin that wants its tool on a particular type declares it there
 	 * (`acrossai_mcp_server_types`); one that wants it on a particular SERVER
@@ -296,20 +313,62 @@ final class ServerTypes {
 			return self::registered_only( $declared );
 		}
 
-		$claimed = array();
+		$claimed    = array();
+		$namespaces = array();
 
 		foreach ( self::all() as $type ) {
-			$claimed = array_merge( $claimed, (array) $type['tools'] );
+			foreach ( (array) $type['tools'] as $slug ) {
+				$claimed[] = (string) $slug;
+				$namespaces[ self::namespace_of( (string) $slug ) ] = true;
+			}
+		}
+
+		// Which namespaces THIS type speaks, from what it declares.
+		$mine = array();
+
+		foreach ( self::declared_tools( $type_slug ) as $slug ) {
+			$mine[ self::namespace_of( (string) $slug ) ] = true;
+		}
+
+		$tail = array();
+
+		foreach ( array_diff( $declared, $claimed ) as $slug ) {
+			$ns = self::namespace_of( (string) $slug );
+
+			// Spoken by this type, or by no type at all. The second case is the
+			// extension point: a plugin publishing its own tool-level ability
+			// has no server type to declare it on, so withholding it would make
+			// `acrossai_mcp_manager_tool_abilities` useless.
+			if ( isset( $mine[ $ns ] ) || ! isset( $namespaces[ $ns ] ) ) {
+				$tail[] = (string) $slug;
+			}
 		}
 
 		return array_values(
 			array_unique(
 				array_merge(
 					self::declared_tools( $type_slug ),
-					self::registered_only( array_values( array_diff( $declared, $claimed ) ) )
+					self::registered_only( $tail )
 				)
 			)
 		);
+	}
+
+	/**
+	 * The namespace half of an ability slug — everything before the first `/`.
+	 *
+	 * A slug with no `/` has no namespace and gets `''`, which no declared tool
+	 * can match, so it falls to the offered-everywhere branch rather than being
+	 * silently attached to whichever type happens to be asking.
+	 *
+	 * @since  0.3.7
+	 * @param  string $slug Ability slug.
+	 * @return string
+	 */
+	private static function namespace_of( string $slug ): string {
+		$at = strpos( $slug, '/' );
+
+		return false === $at ? '' : substr( $slug, 0, $at );
 	}
 
 	/**
