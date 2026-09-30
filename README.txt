@@ -4,7 +4,7 @@ Tags: ai assistant, chatgpt, claude, mcp, mcp-server
 Requires at least: 7.0
 Requires PHP: 8.1
 Tested up to: 7.1
-Stable tag: 0.3.7
+Stable tag: 0.3.8
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -293,6 +293,9 @@ Delete its Application Password from your WordPress profile page, or disable the
 
 == Upgrade Notice ==
 
+= 0.3.8 =
+The **AcrossAI** server is recommended again — badged and pinned to the top of the servers list, and preselected in Quick Connect. New servers now start on the **AcrossAI** server type where the AcrossAI Abilities Manager add-on is installed, and on **MCP Adapter** where it is not. Existing servers are untouched and there is no database change.
+
 = 0.3.7 =
 Repairs sites whose database tables were missing columns — which could make a server advertise tools you never selected and silently refuse to remove them. It happens automatically on the next wp-admin page load. Reconnect your AI client afterwards to see the corrected tool list.
 
@@ -302,6 +305,12 @@ Installing the AcrossAI Abilities Manager add-on now works immediately — no se
 == Changelog ==
 
 The complete, formatted release history — including releases older than the ones shown here — lives at [acrossai.co/changelog](https://acrossai.co/changelog/). WordPress.org truncates this section, so the site is the fuller record.
+
+= 0.3.8 =
+* **Changed — the **AcrossAI** server is recommended again.** It carries a **RECOMMENDED** badge and its row is pinned to the top of the servers list.
+* **Changed — **Quick Connect** step 1 arrives with AcrossAI already selected**, instead of whichever server happened to come first.
+* **Changed — new servers start on the **AcrossAI** type** where the AcrossAI Abilities Manager add-on is installed, so they arrive with its toolsets. Without the add-on they still start on **MCP Adapter**. Pick either from the **Server type** dropdown.
+* **Existing servers are untouched**, both seeded servers are still undeletable, and there is no database change.
 
 = 0.3.7 =
 * **Fixed — a server could offer tools you never chose, and refuse to let you remove them.** On some sites the plugin's database tables were missing columns the plugin expected, and had been for a long time. Nothing reported it: the missing settings simply read as "on", so a server could advertise three extra tools, and unchecking them said "saved" while changing nothing — the setting was being written to a column that did not exist. Affected sites now repair themselves on the next wp-admin page load. You do not need to do anything, and your own tool selections are left exactly as you set them.
