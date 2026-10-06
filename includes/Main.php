@@ -220,6 +220,18 @@ final class Main {
 		// `wp_acrossai_mcp_servers.embeds_enabled` column (both DROPped by
 		// MCPServer\Table::upgrade_to_1_1_4).
 		\AcrossAI_MCP_Manager\Includes\Database\MCPServerMeta\Table::instance();
+
+		// F095 — OAuth tables, per DEC-BERLINDB-TABLE-REQUEST-BOOT. Request-time
+		// instantiation is NOT optional: activation-time Table::instance() alone
+		// leaves BerlinDB's DB interface empty on every subsequent request, after
+		// which Query silently falls back to $table_alias as the FROM clause and
+		// returns wrong results rather than erroring.
+		//
+		// Order is Tokens -> AuthCodes -> Clients per D31 (F032).
+		\AcrossAI_MCP_Manager\Includes\Database\OAuthTokens\Table::instance();
+		\AcrossAI_MCP_Manager\Includes\Database\OAuthAuthCodes\Table::instance();
+		\AcrossAI_MCP_Manager\Includes\Database\OAuthClients\Table::instance();
+		\AcrossAI_MCP_Manager\Includes\Database\ConnectorApprovedUsers\Table::instance();
 	}
 
 	/**
@@ -261,6 +273,11 @@ final class Main {
 			\AcrossAI_MCP_Manager\Includes\Database\MCPServerTool\Table::instance(),
 			// F037 — reconcile MCPServerMeta schema on admin_init per D28.
 			\AcrossAI_MCP_Manager\Includes\Database\MCPServerMeta\Table::instance(),
+			// F095 — OAuth tables. Order Tokens -> AuthCodes -> Clients per D31.
+			\AcrossAI_MCP_Manager\Includes\Database\OAuthTokens\Table::instance(),
+			\AcrossAI_MCP_Manager\Includes\Database\OAuthAuthCodes\Table::instance(),
+			\AcrossAI_MCP_Manager\Includes\Database\OAuthClients\Table::instance(),
+			\AcrossAI_MCP_Manager\Includes\Database\ConnectorApprovedUsers\Table::instance(),
 		);
 
 		foreach ( $tables as $table ) {
@@ -281,14 +298,6 @@ final class Main {
 		\AcrossAI_MCP_Manager\Includes\Database\MCPServer\CreatedColumnBackfill::apply(
 			$created['acrossai_mcp_servers'] ?? array()
 		);
-
-		// F083 — one-shot drop of the orphaned pre-F040 OAuth tables (only
-		// when present AND empty; non-empty tables are surfaced via the
-		// `acrossai_mcp_legacy_oauth_cleanup_skipped` action and left to the
-		// operator). Rides this same post-update code path because the
-		// orphans have no BerlinDB Table class left to own an $upgrades
-		// entry. Gated on one option read after first run.
-		\AcrossAI_MCP_Manager\Includes\Database\LegacyOAuthCleanup::maybe_cleanup();
 	}
 
 	/**

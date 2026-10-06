@@ -76,7 +76,7 @@ final class SchemaReconciler {
 	 * Records the declared column set most recently reconciled.
 	 *
 	 * Deleting it forces a full re-check, which is the documented recovery
-	 * action (README), mirroring `LegacyOAuthCleanup::DONE_OPTION`.
+	 * action (README).
 	 *
 	 * Deliberately NOT a one-shot done-flag. A done-flag burns its single
 	 * opportunity on whichever page load happens to come first and then disables

@@ -10,6 +10,10 @@ use AcrossAI_MCP_Manager\Includes\Database\CliAuthLog\Table as CliAuthLogTable;
 use AcrossAI_MCP_Manager\Includes\Database\MCPServerAbility\Table as MCPServerAbilityTable;
 use AcrossAI_MCP_Manager\Includes\Database\MCPServerTool\Table as MCPServerToolTable;
 use AcrossAI_MCP_Manager\Includes\Database\MCPServerMeta\Table as MCPServerMetaTable;
+use AcrossAI_MCP_Manager\Includes\Database\OAuthTokens\Table as OAuthTokensTable;
+use AcrossAI_MCP_Manager\Includes\Database\OAuthAuthCodes\Table as OAuthAuthCodesTable;
+use AcrossAI_MCP_Manager\Includes\Database\OAuthClients\Table as OAuthClientsTable;
+use AcrossAI_MCP_Manager\Includes\Database\ConnectorApprovedUsers\Table as ConnectorApprovedUsersTable;
 use AcrossAI_MCP_Manager\Public\Partials\FrontendAuth;
 use WPBoilerplate\AccessControl\Database\Rule\RuleTable as WPB_AccessControl_RuleTable;
 
@@ -83,6 +87,20 @@ class Activator {
 		// front-end or REST request in that window — exactly where the Embeds
 		// feature reads `_embeds_enabled` — ran against a missing table.
 		MCPServerMetaTable::instance()->maybe_upgrade();
+
+		// F095 — OAuth tables. Created here for exactly the reason the F037 note
+		// above records: a table that waits for admin_init@3 does not exist
+		// between activation and the first wp-admin request, and every read in
+		// that window hits "table doesn't exist". For OAuth that window is the
+		// token endpoint, so the failure would be connected clients unable to
+		// authenticate. Co-commit invariant with the Main.php request-time boot
+		// (DEC-BERLINDB-TABLE-REQUEST-BOOT).
+		//
+		// Order is Tokens -> AuthCodes -> Clients per D31 (F032).
+		OAuthTokensTable::instance()->maybe_upgrade();
+		OAuthAuthCodesTable::instance()->maybe_upgrade();
+		OAuthClientsTable::instance()->maybe_upgrade();
+		ConnectorApprovedUsersTable::instance()->maybe_upgrade();
 
 		// F091 — heal any column a migration could not deliver, THEN give the
 		// just-created columns their values, and only then seed. All three

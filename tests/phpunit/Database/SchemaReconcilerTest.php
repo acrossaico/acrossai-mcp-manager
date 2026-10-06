@@ -31,6 +31,10 @@ declare( strict_types = 1 );
 namespace AcrossAI_MCP_Manager\Tests\PHPUnit\Database;
 
 use AcrossAI_MCP_Manager\Includes\Database\CliAuthLog\Table as CliAuthLogTable;
+use AcrossAI_MCP_Manager\Includes\Database\OAuthTokens\Table as OAuthTokensTable;
+use AcrossAI_MCP_Manager\Includes\Database\OAuthAuthCodes\Table as OAuthAuthCodesTable;
+use AcrossAI_MCP_Manager\Includes\Database\OAuthClients\Table as OAuthClientsTable;
+use AcrossAI_MCP_Manager\Includes\Database\ConnectorApprovedUsers\Table as ConnectorApprovedUsersTable;
 use AcrossAI_MCP_Manager\Includes\Database\MCPServer\Table as MCPServerTable;
 use AcrossAI_MCP_Manager\Includes\Database\MCPServerAbility\Table as MCPServerAbilityTable;
 use AcrossAI_MCP_Manager\Includes\Database\MCPServerMeta\Table as MCPServerMetaTable;
@@ -303,6 +307,11 @@ class SchemaReconcilerTest extends WP_UnitTestCase {
 			'MCPServerAbility' => array( MCPServerAbilityTable::class ),
 			'MCPServerMeta'    => array( MCPServerMetaTable::class ),
 			'CliAuthLog'       => array( CliAuthLogTable::class ),
+			// F095 — OAuth tables inherit the same coverage as the original five.
+			'OAuthTokens' => array( OAuthTokensTable::class ),
+			'OAuthAuthCodes' => array( OAuthAuthCodesTable::class ),
+			'OAuthClients' => array( OAuthClientsTable::class ),
+			'ConnectorApprovedUsers' => array( ConnectorApprovedUsersTable::class ),
 		);
 	}
 
