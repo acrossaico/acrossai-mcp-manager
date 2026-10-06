@@ -298,6 +298,12 @@ final class Main {
 		\AcrossAI_MCP_Manager\Includes\Database\MCPServer\CreatedColumnBackfill::apply(
 			$created['acrossai_mcp_servers'] ?? array()
 		);
+
+		// F095 — copy OAuth rows left behind by the acrossai-pro companion.
+		// Deliberately LAST: the destination tables must exist and be current
+		// before anything is copied into them. Gated on a done-option, so this is
+		// a single option read on every site after the first successful run.
+		\AcrossAI_MCP_Manager\Includes\Database\OAuthDataMigration::maybe_migrate();
 	}
 
 	/**

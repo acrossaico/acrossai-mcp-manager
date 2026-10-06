@@ -6,6 +6,7 @@ use AcrossAI_MCP_Manager\Includes\Database\MCPServer\Table as MCPServerTable;
 use AcrossAI_MCP_Manager\Includes\Database\MCPServer\CreatedColumnBackfill;
 use AcrossAI_MCP_Manager\Includes\Database\MCPServer\DefaultServerSeeder;
 use AcrossAI_MCP_Manager\Includes\Database\SchemaReconciler;
+use AcrossAI_MCP_Manager\Includes\Database\OAuthDataMigration;
 use AcrossAI_MCP_Manager\Includes\Database\CliAuthLog\Table as CliAuthLogTable;
 use AcrossAI_MCP_Manager\Includes\Database\MCPServerAbility\Table as MCPServerAbilityTable;
 use AcrossAI_MCP_Manager\Includes\Database\MCPServerTool\Table as MCPServerToolTable;
@@ -120,6 +121,11 @@ class Activator {
 		CreatedColumnBackfill::apply( $created['acrossai_mcp_servers'] ?? array() );
 
 		DefaultServerSeeder::seed();
+
+		// F095 — copy OAuth rows from the companion. After the seeder for the
+		// same reason as in Main::reconcile_database_schemas(): destinations must
+		// be present and current first.
+		OAuthDataMigration::maybe_migrate();
 
 		// Feature 015 — Access Control v2 adoption. Create the
 		// {$wpdb->prefix}mcp_access_control table via the vendor-owned

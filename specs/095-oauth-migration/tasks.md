@@ -65,19 +65,21 @@
 
 ### Tests for User Story 1
 
-- [ ] T017 [P] [US1] Write `tests/phpunit/Database/OAuth/MigrationFidelityTest.php` — seeds companion-shaped source tables, runs the migration, asserts `token_hash`, `token_family_id` and `server_id` are byte-identical across every row (FR-008, SC-C1). **Also checksum every source table before and after the run and assert equality** — those tables are the only rollback path, and a bug that truncated or updated one would destroy the sole means of recovery (SEC-T03).
-- [ ] T018 [P] [US1] Write `tests/phpunit/Database/OAuth/MigrationIdempotencyTest.php` — running twice produces no duplicates; clearing the done-flag and re-running is a no-op (FR-011, SC-004).
-- [ ] T019 [P] [US1] Write `tests/phpunit/Database/OAuth/MigrationResumeTest.php` — sets a mid-table cursor, re-runs, asserts it resumes from the cursor rather than restarting and still reaches correct totals (FR-011).
+> **T017–T019 and T026 were consolidated into one file**, `tests/phpunit/Database/OAuthDataMigrationTest.php`. All four need the same expensive fixture — four real companion-shaped source tables, seeded and torn down — and four separate files would have duplicated it four times.
+
+- [x] T017 [P] [US1] Write `tests/phpunit/Database/OAuth/MigrationFidelityTest.php` — seeds companion-shaped source tables, runs the migration, asserts `token_hash`, `token_family_id` and `server_id` are byte-identical across every row (FR-008, SC-C1). **Also checksum every source table before and after the run and assert equality** — those tables are the only rollback path, and a bug that truncated or updated one would destroy the sole means of recovery (SEC-T03).
+- [x] T018 [P] [US1] Write `tests/phpunit/Database/OAuth/MigrationIdempotencyTest.php` — running twice produces no duplicates; clearing the done-flag and re-running is a no-op (FR-011, SC-004).
+- [x] T019 [P] [US1] Write `tests/phpunit/Database/OAuth/MigrationResumeTest.php` — sets a mid-table cursor, re-runs, asserts it resumes from the cursor rather than restarting and still reaches correct totals (FR-011).
 
 ### Implementation for User Story 1
 
-- [ ] T020 [US1] Implement `includes/Database/OAuthDataMigration.php` — batched copy, **200 rows per table per pass** behind a filter, ordered by source `id` ascending, persisting a per-table cursor. Copy **never** move; source tables stay untouched as the rollback path (FR-010).
-- [ ] T021 [US1] Gate the migration on `acrossai_mcp_oauth_migration_done` (early-bail read, written with autoload disabled) and `acrossai_mcp_oauth_migration_cursor`. Set the done-flag only when every source table is drained.
-- [ ] T022 [US1] Wire the migration into `includes/Main.php::reconcile_database_schemas()` (after schema reconciliation so destination tables exist) and `includes/Activator.php`. **Admin-side only** — no front-end or OAuth-path trigger (FR-011, R1).
-- [ ] T023 [US1] Implement the companion-absent path: skip silently, set the done-flag, write no cursor state, raise no notice (FR-012).
-- [ ] T024 [US1] Migrate server meta keys `_acrossai_pro_server_settings` → `_acrossai_mcp_server_settings` and `_acrossai_pro_pending_users` → `_acrossai_mcp_pending_users` (FR-013).
-- [ ] T025 [US1] Implement failure visibility: on repeated failure raise a Site Health critical and an error-log entry. **Output limited to table name, cursor position and row count** — never row contents, column values, or raw DB error/query text (FR-012, SEC-002, SC-C2).
-- [ ] T026 [P] [US1] Write `tests/phpunit/Database/OAuth/MigrationDiagnosticsTest.php` — forces a batch failure and asserts no 64-character hexadecimal string appears in any diagnostic payload (SC-012, TASK-SEC-002).
+- [x] T020 [US1] Implement `includes/Database/OAuthDataMigration.php` — batched copy, **200 rows per table per pass** behind a filter, ordered by source `id` ascending, persisting a per-table cursor. Copy **never** move; source tables stay untouched as the rollback path (FR-010).
+- [x] T021 [US1] Gate the migration on `acrossai_mcp_oauth_migration_done` (early-bail read, written with autoload disabled) and `acrossai_mcp_oauth_migration_cursor`. Set the done-flag only when every source table is drained.
+- [x] T022 [US1] Wire the migration into `includes/Main.php::reconcile_database_schemas()` (after schema reconciliation so destination tables exist) and `includes/Activator.php`. **Admin-side only** — no front-end or OAuth-path trigger (FR-011, R1).
+- [x] T023 [US1] Implement the companion-absent path: skip silently, set the done-flag, write no cursor state, raise no notice (FR-012).
+- [x] T024 [US1] Migrate server meta keys `_acrossai_pro_server_settings` → `_acrossai_mcp_server_settings` and `_acrossai_pro_pending_users` → `_acrossai_mcp_pending_users` (FR-013).
+- [x] T025 [US1] Implement failure visibility: on repeated failure raise a Site Health critical and an error-log entry. **Output limited to table name, cursor position and row count** — never row contents, column values, or raw DB error/query text (FR-012, SEC-002, SC-C2).
+- [x] T026 [P] [US1] Write `tests/phpunit/Database/OAuth/MigrationDiagnosticsTest.php` — forces a batch failure and asserts no 64-character hexadecimal string appears in any diagnostic payload (SC-012, TASK-SEC-002).
 - [ ] T027 [P] [US1] Port `includes/OAuth/Repositories/{AccessToken,RefreshToken,AuthCode,Client,Scope}Repository.php`, namespace-rewritten.
 - [ ] T028 [P] [US1] Port `includes/OAuth/Security/{SecretsVault,RateLimiter}.php`. Preserve `RateLimiter`'s scalar `(int) get_transient()` read.
 - [ ] T029 [P] [US1] Write `tests/phpunit/OAuth/TokenValidatorFailsClosedTest.php` **before** porting the validator — asserts an MCP call against an empty or missing token table returns unauthenticated, not a grant (SC-C3, SEC-T06). Fail-closed behaviour is easy to assert after the fact and hard to notice losing; writing the test first makes the ported behaviour demonstrably correct rather than presumed correct.
