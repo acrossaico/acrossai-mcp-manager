@@ -195,6 +195,15 @@ final class OAuthDataMigration {
 			);
 		}
 
+		// A missing DESTINATION is a genuine failure — the caller records it and
+		// retries next pass — but it must be detected by probing rather than by
+		// letting a query fail. `SHOW COLUMNS` against a table that does not
+		// exist emits a WordPress database error, which prints to output and,
+		// on a site with WP_DEBUG_DISPLAY on, would surface mid-page.
+		if ( ! self::table_exists( $destination ) ) {
+			return null;
+		}
+
 		// Copy only the columns both tables actually have. Identical by design,
 		// but an install carrying schema drift should migrate what it can
 		// rather than fail outright on a column neither side needs.

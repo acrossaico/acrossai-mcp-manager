@@ -67,14 +67,23 @@ class OAuthDataMigrationTest extends WP_UnitTestCase {
 
 		$this->reset_migration_state();
 		$this->drop_source_tables();
+		$this->restore_destination_tokens();
 
-		// Destination tables must exist before anything is copied into them.
-		delete_transient( 'acrossai_mcp_oauth_tokens_db_version_upgrade_lock' );
-		OAuthTokensTable::instance()->maybe_upgrade();
+		// Rows do NOT roll back here. The DDL above commits implicitly, which
+		// ends WP_UnitTestCase's per-test transaction (B53), so anything a
+		// previous test inserted is still present. Start from empty explicitly.
+		$this->truncate_destination_tokens();
 	}
 
 	public function tear_down(): void {
+		// Leave the database exactly as found. This class DROPS the destination
+		// table in one test, and because DDL commits, that drop would otherwise
+		// escape into sibling test classes — PhantomVersionGuardTest asserts
+		// the same table exists at baseline and would fail with no indication
+		// that this file was responsible.
 		$this->drop_source_tables();
+		$this->restore_destination_tokens();
+		$this->truncate_destination_tokens();
 		$this->reset_migration_state();
 
 		parent::tear_down();
@@ -313,6 +322,33 @@ class OAuthDataMigrationTest extends WP_UnitTestCase {
 
 		$wpdb->query( 'DROP TABLE IF EXISTS `' . $wpdb->prefix . self::DEST_TOKENS . '`' );
 		delete_option( 'acrossai_mcp_oauth_tokens_db_version' );
+	}
+
+	/**
+	 * Recreate the destination table if a test dropped it.
+	 *
+	 * Clears BerlinDB's upgrade lock first: it is a 900-second production
+	 * concurrency guard, and with it set `maybe_upgrade()` returns without
+	 * doing anything, so the table would never come back.
+	 */
+	private function restore_destination_tokens(): void {
+		delete_transient( 'acrossai_mcp_oauth_tokens_db_version_upgrade_lock' );
+		OAuthTokensTable::instance()->maybe_upgrade();
+	}
+
+	/**
+	 * Empty the destination without dropping it.
+	 *
+	 * Needed because inserts in this class are not rolled back — see set_up().
+	 */
+	private function truncate_destination_tokens(): void {
+		global $wpdb;
+
+		$table = $wpdb->prefix . self::DEST_TOKENS;
+
+		if ( (string) $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $table ) ) === $table ) {
+			$wpdb->query( 'TRUNCATE TABLE `' . $table . '`' );
+		}
 	}
 
 	private function reset_migration_state(): void {
