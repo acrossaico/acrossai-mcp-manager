@@ -626,6 +626,21 @@ final class Main {
 		$this->loader->add_action( 'rest_api_init', $mcp_controller, 'initialize_adapter' );
 		$this->loader->add_filter( 'mcp_adapter_default_server_config', $mcp_controller, 'filter_default_server_config' );
 
+		// Makes `is_enabled` govern the DEFAULT server too. That row is
+		// `registered_from = 'plugin'`, so register_database_servers() never
+		// sees it — the adapter's DefaultServerFactory creates it, and this
+		// filter is its only off-switch. Unhooked, Disable was cosmetic: the
+		// badge read "Inactive" while initialize returned HTTP 200 and
+		// tools/list returned 4 tools. It also defeated DefaultServerSeeder,
+		// which seeds `is_enabled => 0`, so fresh installs published an
+		// endpoint the plugin had declared disabled. The Loader registers at
+		// `plugins_loaded` priority 0, which matters here: the adapter
+		// consults this filter from `wp_abilities_api_init` as well as from
+		// its own init, and the callback has to be in place for both. See the
+		// callback for why only the server — never the abilities — is
+		// suppressed.
+		$this->loader->add_filter( 'mcp_adapter_create_default_server', $mcp_controller, 'filter_create_default_server' );
+
 		/**
 		 * Feature 017 — Per-server Ability Selection.
 		 *

@@ -256,6 +256,100 @@ final class Controller {
 	}
 
 	/**
+	 * Callback for the vendor filter `mcp_adapter_create_default_server`.
+	 *
+	 * Makes the default server's `is_enabled` column mean something.
+	 *
+	 * `register_database_servers()` only ever registers rows whose
+	 * `registered_from = 'database'`. The default row is
+	 * `registered_from = 'plugin'` — the adapter's own DefaultServerFactory
+	 * creates it, and this filter is its only off-switch. Nothing hooked it,
+	 * so the Disable control on the Default MCP Server was cosmetic: the row
+	 * flipped to 0, the badge read "Inactive", and the route kept serving.
+	 * Measured as an authenticated admin against a server marked Inactive —
+	 * `initialize` returned HTTP 200 and `tools/list` returned 4 tools.
+	 *
+	 * That also silently defeated this plugin's own stated default.
+	 * {@see DefaultServerSeeder} has always seeded `is_enabled => 0`, so a
+	 * fresh install was publishing an endpoint the plugin had declared
+	 * disabled. The filter has existed upstream since adapter 0.3.0 and has
+	 * defaulted to `true` in every release since, so this was never a
+	 * regression — just a switch that was never wired.
+	 *
+	 * TIMING IS LOAD-BEARING. The adapter gates THREE things on this one
+	 * filter, at three different moments:
+	 *
+	 *   1. registration of the `mcp-adapter` ability CATEGORY, from
+	 *      `register_default_category()` on `wp_abilities_api_categories_init`;
+	 *   2. registration of its three `mcp-adapter/*` abilities, from
+	 *      `register_default_abilities()` on `wp_abilities_api_init`;
+	 *   3. creation of the default server, from `maybe_create_default_server()`
+	 *      inside `McpAdapter::init()` on `rest_api_init`.
+	 *
+	 * Only (3) may be suppressed, and (1) is easy to miss — the first cut of
+	 * this method guarded (2) alone, which silently took the category with it
+	 * and left the abilities unregistrable. Measured: a sibling server's
+	 * `tools/list` fell from 4 tools to 1. Both ability hooks must pass
+	 * through.
+	 *
+	 * Those abilities are site-wide primitives,
+	 * not the default server's property: other servers advertise them through
+	 * the three `tool_*` columns, and a server whose tool names an ability
+	 * that does not exist is precisely what logged thousands of "WordPress
+	 * ability 'mcp-adapter/get-ability-info' does not exist" errors under
+	 * adapter 0.6.1. Disabling one server must not resurrect that on the
+	 * others. {@see \AcrossAI_MCP_Manager\Includes\Abilities\CallbackReplacer}
+	 * also depends on the vendor registering them — it swaps their callbacks
+	 * and never registers them itself, so unregistering here would leave it
+	 * with nothing to swap.
+	 *
+	 * Hence the `doing_action()` guard: pass the vendor value through while
+	 * the abilities hook is firing, and answer from the DB otherwise. This
+	 * shape matches adapter 0.7.0, which composer.json now requires; 0.6.1
+	 * consulted the filter only at (2), where this still returns the right
+	 * answer.
+	 *
+	 * @since 0.3.9
+	 *
+	 * @param mixed $create Vendor default — `true`.
+	 * @return bool False only when the default server row exists and is disabled.
+	 */
+	public function filter_create_default_server( $create ): bool {
+		if ( doing_action( 'wp_abilities_api_init' ) || doing_action( 'wp_abilities_api_categories_init' ) ) {
+			return (bool) $create;
+		}
+
+		$rows = MCPServerQuery::instance()->query(
+			array(
+				'server_slug' => DefaultServerSeeder::SLUG,
+				'number'      => 1,
+			)
+		);
+
+		// Narrowed with is_array() + reset() rather than $rows[0]: query()
+		// is typed `int|list<object>`, so indexing it adds a second
+		// "Cannot access offset 0" to a baseline that records exactly one.
+		if ( ! is_array( $rows ) || empty( $rows ) ) {
+			// Unseeded install, or the table is not ready yet. Defer to the
+			// vendor default rather than pulling an endpoint down over a
+			// transient DB condition — the same fail-to-vendor posture every
+			// other defensive branch in this class takes.
+			return (bool) $create;
+		}
+
+		$row = reset( $rows );
+
+		// isset() rather than a bare read: the rows are typed `object`, so
+		// reading an undeclared property is an error the baseline records
+		// exactly once elsewhere in this file.
+		if ( ! isset( $row->is_enabled ) ) {
+			return (bool) $create;
+		}
+
+		return (bool) $row->is_enabled;
+	}
+
+	/**
 	 * Callback for the vendor filter `mcp_adapter_default_server_config`.
 	 *
 	 * REPLACES three keys on the vendor-supplied config:
