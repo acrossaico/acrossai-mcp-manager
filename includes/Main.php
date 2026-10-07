@@ -871,6 +871,25 @@ final class Main {
 	private function define_public_hooks() {
 
 		/**
+		 * F095 — OAuth bearer-token authenticator.
+		 *
+		 * Priority 20 matches what the companion used, so the resolution order
+		 * relative to other `determine_current_user` consumers is unchanged.
+		 *
+		 * The contract this upholds is fail-closed: every refusal path inside
+		 * `authenticate()` returns the INCOMING `$user_id` rather than a resolved
+		 * user or a literal. That is why the F095 upgrade window — companion
+		 * stood down, migration not yet run, token table empty — is an
+		 * availability problem and not an authentication bypass. Pinned by
+		 * TokenValidatorFailsClosedTest; do not "simplify" a branch to return 0.
+		 *
+		 * Resolved to a named variable first, per the constitution's Boot Flow
+		 * Rule: passing `Class::instance()` inline to add_filter is prohibited.
+		 */
+		$oauth_token_validator = \AcrossAI_MCP_Manager\Includes\OAuth\TokenValidator::instance();
+		$this->loader->add_filter( 'determine_current_user', $oauth_token_validator, 'authenticate', 20 );
+
+		/**
 		 * Phase 6 — REST CLI Authentication Controller + Phase 6.0 FrontendAuth.
 		 *
 		 * Every CLI-flow hook trace MUST be in this method — feature classes
