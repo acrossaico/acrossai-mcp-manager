@@ -582,6 +582,22 @@ final class Main {
 		$this->loader->add_filter( 'mcp_adapter_pre_resource_read', $access_control, 'gate_mcp_resource_read', 10, 4 );
 		$this->loader->add_filter( 'mcp_adapter_pre_prompt_get', $access_control, 'gate_mcp_prompt_get', 10, 4 );
 
+		// The three pre-dispatch gates above stop a denied user EXECUTING, but
+		// they never ran for the `*/list` primitives — so an excluded user
+		// could still read the whole catalogue. This bites because configuring
+		// any rule drops the transport gate from 'manage_options' to the
+		// vendor default 'read' (see TransportPermissionDefault), and every
+		// logged-in user holds 'read'. Measured against a server whose rule
+		// was "Editor only": a subscriber completed `initialize` and received
+		// 14 tools with names and descriptions, while `tools/call` correctly
+		// denied. Same class of gap as the 0.2.8 F1 fix that added the
+		// resource and prompt pre-dispatch gates — these are its discovery
+		// siblings. Priority 10 / 3 args: the 0.7.0 list filters pass
+		// ( $list, $server, $schema ).
+		$this->loader->add_filter( 'mcp_adapter_tools_list', $access_control, 'gate_mcp_tools_list', 10, 3 );
+		$this->loader->add_filter( 'mcp_adapter_resources_list', $access_control, 'gate_mcp_resources_list', 10, 3 );
+		$this->loader->add_filter( 'mcp_adapter_prompts_list', $access_control, 'gate_mcp_prompts_list', 10, 3 );
+
 		$transport_default = \AcrossAI_MCP_Manager\Includes\AccessControl\TransportPermissionDefault::instance();
 		$this->loader->add_filter( 'mcp_adapter_default_transport_permission_user_capability', $transport_default, 'filter_default_capability', 10, 2 );
 
