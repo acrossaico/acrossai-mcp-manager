@@ -22,8 +22,20 @@
  * Fixing that properly needs WordPress stubs as a dev dependency; this test
  * needs nothing and covers the specific failure that reached users.
  *
+ * A third shape exists and is the nastiest: an UNQUALIFIED name that silently
+ * resolves to the file's own namespace. `MessagePage` called
+ * `CacheHeaders::send_no_store()` with no import, so PHP looked for
+ * `OAuth\\CacheHeaders` — a class F095 deliberately did not port, because the
+ * `Utilities` copy is a superset. Every other file in that namespace imports
+ * it correctly. The call site reads as perfectly ordinary code, and it fataled
+ * `/authorize` plus every OAuth error page. The two checks above could not see
+ * it: there is no backslash and no `use` line to inspect.
+ *
  * Resolution is by PSR-4 path, not `class_exists()`: loading these files
- * requires WordPress, and this suite deliberately runs without it.
+ * requires WordPress, and this suite deliberately runs without it. The
+ * unqualified check tokenizes rather than pattern-matching, because class
+ * names appear constantly in docblocks and comments and a regex over raw
+ * source reports hundreds of them.
  *
  * @package    AcrossAI_MCP_Manager
  * @subpackage Tests\PHPUnit\RenameGate
@@ -143,6 +155,168 @@ final class NoDanglingClassReferenceTest extends TestCase {
 	private function relative( string $path ): string {
 		$root = realpath( self::PLUGIN_ROOT );
 		return false === $root ? $path : ltrim( str_replace( $root, '', (string) realpath( $path ) ), '/' );
+	}
+
+	/**
+	 * Unqualified names that resolve to the file's own namespace.
+	 *
+	 * Only real code counts, so this walks the token stream: `Foo::` and
+	 * `new Foo(` where `Foo` carries no leading separator and no matching
+	 * `use` import. Anything resolving outside the PSR-4 roots is ignored —
+	 * that is vendor and WordPress core, which this test knows nothing about.
+	 */
+	public function test_no_dangling_unqualified_references(): void {
+		$bad = array();
+
+		foreach ( $this->source_files() as $file ) {
+			$tokens    = token_get_all( (string) file_get_contents( $file ) );
+			$namespace = $this->namespace_of( $tokens );
+
+			if ( '' === $namespace ) {
+				continue;
+			}
+
+			$imported = $this->imported_short_names( $tokens );
+			$count    = count( $tokens );
+
+			for ( $i = 0; $i < $count; $i++ ) {
+				$token = $tokens[ $i ];
+				if ( ! is_array( $token ) || T_STRING !== $token[0] ) {
+					continue;
+				}
+
+				$previous = $this->neighbour( $tokens, $i, -1 );
+				if ( is_array( $previous ) && in_array(
+					$previous[0],
+					array( T_NS_SEPARATOR, T_OBJECT_OPERATOR, T_DOUBLE_COLON, T_FUNCTION, T_CLASS, T_CONST, T_INTERFACE, T_TRAIT ),
+					true
+				) ) {
+					continue;
+				}
+
+				$next      = $this->neighbour( $tokens, $i, 1 );
+				$is_new    = is_array( $previous ) && T_NEW === $previous[0];
+				$is_static = is_array( $next ) && T_DOUBLE_COLON === $next[0];
+				if ( ! $is_new && ! $is_static ) {
+					continue;
+				}
+
+				$name = $token[1];
+				if ( in_array( strtolower( $name ), array( 'self', 'static', 'parent' ), true ) ) {
+					continue;
+				}
+				if ( isset( $imported[ strtolower( $name ) ] ) ) {
+					continue;
+				}
+
+				$path = $this->psr4_path( $namespace . '\\' . $name );
+				if ( null !== $path && ! file_exists( $path ) ) {
+					$bad[] = $this->relative( $file ) . ':' . $token[2] . ' → ' . $namespace . '\\' . $name;
+				}
+			}
+		}
+
+		$this->assertSame( array(), array_values( array_unique( $bad ) ), $this->explain() );
+	}
+
+	/**
+	 * @param array<int, mixed> $tokens Token stream.
+	 * @return string Declared namespace, or '' when the file declares none.
+	 */
+	private function namespace_of( array $tokens ): string {
+		$count = count( $tokens );
+		for ( $i = 0; $i < $count; $i++ ) {
+			if ( ! is_array( $tokens[ $i ] ) || T_NAMESPACE !== $tokens[ $i ][0] ) {
+				continue;
+			}
+			$buffer = '';
+			for ( $j = $i + 1; $j < $count; $j++ ) {
+				if ( ! is_array( $tokens[ $j ] ) ) {
+					if ( ';' === $tokens[ $j ] || '{' === $tokens[ $j ] ) {
+						break;
+					}
+					continue;
+				}
+				if ( T_WHITESPACE === $tokens[ $j ][0] ) {
+					continue;
+				}
+				$buffer .= $tokens[ $j ][1];
+			}
+			return trim( $buffer );
+		}
+		return '';
+	}
+
+	/**
+	 * Short names bound by `use` — the alias when aliased, last segment otherwise.
+	 *
+	 * @param array<int, mixed> $tokens Token stream.
+	 * @return array<string, int> Lowercased short name => 1.
+	 */
+	private function imported_short_names( array $tokens ): array {
+		$imported = array();
+		$count    = count( $tokens );
+
+		for ( $i = 0; $i < $count; $i++ ) {
+			if ( ! is_array( $tokens[ $i ] ) || T_USE !== $tokens[ $i ][0] ) {
+				continue;
+			}
+			$buffer = '';
+			$alias  = null;
+			for ( $j = $i + 1; $j < $count; $j++ ) {
+				if ( ! is_array( $tokens[ $j ] ) ) {
+					if ( ';' === $tokens[ $j ] ) {
+						break;
+					}
+					if ( '(' === $tokens[ $j ] ) {
+						// `function () use ( $x )` — a closure binding, not an import.
+						$buffer = '';
+						break;
+					}
+					continue;
+				}
+				if ( T_WHITESPACE === $tokens[ $j ][0] ) {
+					continue;
+				}
+				if ( T_AS === $tokens[ $j ][0] ) {
+					$alias = '';
+					continue;
+				}
+				if ( null !== $alias ) {
+					$alias .= $tokens[ $j ][1];
+					continue;
+				}
+				$buffer .= $tokens[ $j ][1];
+			}
+			if ( '' === $buffer ) {
+				continue;
+			}
+			if ( null !== $alias && '' !== $alias ) {
+				$short = $alias;
+			} else {
+				$segments = explode( '\\', $buffer );
+				$short    = (string) end( $segments );
+			}
+			$imported[ strtolower( $short ) ] = 1;
+		}
+
+		return $imported;
+	}
+
+	/**
+	 * Nearest non-whitespace token in $direction, or null at the stream edge.
+	 *
+	 * @param array<int, mixed> $tokens    Token stream.
+	 * @param int               $index     Starting index.
+	 * @param int               $direction -1 or 1.
+	 * @return mixed
+	 */
+	private function neighbour( array $tokens, int $index, int $direction ) {
+		$i = $index + $direction;
+		while ( isset( $tokens[ $i ] ) && is_array( $tokens[ $i ] ) && T_WHITESPACE === $tokens[ $i ][0] ) {
+			$i += $direction;
+		}
+		return $tokens[ $i ] ?? null;
 	}
 
 	private function explain(): string {

@@ -28,6 +28,16 @@ final class OAuthRouter {
 	 */
 	public const RESOURCE_VAR = 'acrossai_mcp_oauth_resource';
 
+	/**
+	 * Stores the plugin version whose rewrite rules are currently flushed.
+	 *
+	 * Autoloaded `false` — it is read once per admin request and never on the
+	 * front end.
+	 *
+	 * @var string
+	 */
+	private const FLUSH_OPTION = 'acrossai_mcp_oauth_rewrite_version';
+
 	/** @var OAuthRouter|null */
 	private static $instance = null;
 
@@ -47,6 +57,45 @@ final class OAuthRouter {
 			self::$instance = new self();
 		}
 		return self::$instance;
+	}
+
+	/**
+	 * Flush rewrite rules once per plugin version.
+	 *
+	 * `Activator::activate()` flushes, and that covers a fresh install — but
+	 * WordPress does NOT run activation hooks on plugin UPDATE. Without this,
+	 * every site upgrading into a release that adds or changes a rewrite rule
+	 * keeps serving the stored `rewrite_rules` option, and all five OAuth
+	 * routes 404 until someone re-saves Settings → Permalinks. F095 shipped
+	 * exactly that: `.well-known/oauth-authorization-server`,
+	 * `.well-known/oauth-protected-resource`, `/authorize` and `/token` were
+	 * all registered correctly on `init` and all 404ed, so discovery and the
+	 * whole authorization flow were unreachable after upgrade. Verified on a
+	 * real site: 404 before the flush, 200 after, with no code change.
+	 *
+	 * Keyed on the plugin version rather than a boolean, so a future release
+	 * that changes the rules re-flushes without needing a new option. Called
+	 * from `Main::reconcile_database_schemas()` on `admin_init` priority 3 —
+	 * the same one-shot lane as the other upgrade routines, and after `init`
+	 * has registered the rules, which is what makes the flush meaningful.
+	 *
+	 * Admin-side only, matching the house pattern: a front-end request never
+	 * pays for it.
+	 *
+	 * @return void
+	 */
+	public static function maybe_flush_rewrites(): void {
+		$current = defined( 'ACROSSAI_MCP_MANAGER_VERSION' ) ? (string) \ACROSSAI_MCP_MANAGER_VERSION : '';
+		if ( '' === $current ) {
+			return;
+		}
+
+		if ( get_option( self::FLUSH_OPTION ) === $current ) {
+			return;
+		}
+
+		flush_rewrite_rules( false );
+		update_option( self::FLUSH_OPTION, $current, false );
 	}
 
 	/**

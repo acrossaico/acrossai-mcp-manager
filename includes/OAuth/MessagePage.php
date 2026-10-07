@@ -18,6 +18,12 @@ declare( strict_types = 1 );
 
 namespace AcrossAI_MCP_Manager\Includes\OAuth;
 
+// F095 did not port the companion's OAuth\CacheHeaders — the Utilities copy
+// is a superset. Every other file in this namespace imports it; this one was
+// missed, so the unqualified name resolved to OAuth\CacheHeaders and every
+// render() call fataled, taking out /authorize and all OAuth error pages.
+use AcrossAI_MCP_Manager\Includes\Utilities\CacheHeaders;
+
 defined( 'ABSPATH' ) || exit;
 
 final class MessagePage {

@@ -304,6 +304,12 @@ final class Main {
 		// before anything is copied into them. Gated on a done-option, so this is
 		// a single option read on every site after the first successful run.
 		\AcrossAI_MCP_Manager\Includes\Database\OAuthDataMigration::maybe_migrate();
+
+		// F095 — flush rewrites once per version. Activation flushes, but a
+		// plugin UPDATE does not fire activation hooks, so without this the
+		// five OAuth routes 404 after upgrade until someone re-saves
+		// permalinks. Runs after `init` registered them; see the method.
+		\AcrossAI_MCP_Manager\Includes\OAuth\OAuthRouter::maybe_flush_rewrites();
 	}
 
 	/**
