@@ -300,15 +300,17 @@ final class AIConnectorsTab extends AbstractServerTab {
 	 * @return string
 	 */
 	private function panel_url( array $server, string $panel ): string {
-		// Feature 020: chain `&panel=` onto whichever address shape the installed
-		// host uses — `?tab=connect&method=ai-connectors` on a Connect-capable
-		// host, `?tab=ai-connectors` on an older one. HostCapabilities returns a
-		// RAW url by contract precisely so this chaining works; it is esc_url()'d
-		// at the output sites above.
+		// Feature 020 chained `&panel=` onto whichever address shape the
+		// installed host used, asking the cross-plugin `HostCapabilities` shim
+		// which one that was. F095 removed the shim with the rest of the
+		// companion-only wiring: this plugin IS the host, so the Connect-tab
+		// shape is the only shape and ConnectTab owns it. `method_url()`
+		// returns a RAW url by contract precisely so this chaining works; it is
+		// esc_url()'d at the output sites above.
 		return add_query_arg(
 			'panel',
 			sanitize_key( $panel ),
-			\AcrossAI_MCP_Manager\Includes\HostCapabilities::method_url( $server, 'ai-connectors' )
+			ConnectTab::method_url( $server, 'ai-connectors' )
 		);
 	}
 

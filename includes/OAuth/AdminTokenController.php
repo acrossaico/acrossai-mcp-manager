@@ -32,7 +32,7 @@
 namespace AcrossAI_MCP_Manager\Includes\OAuth;
 
 use AcrossAI_MCP_Manager\Includes\Database\MCPServer\Query as MCPServerQuery;
-use AcrossAI_MCP_Manager\Admin\ServerTabs\N8nTab;
+use AcrossAI_MCP_Manager\Admin\Partials\ServerTabs\N8nTab;
 use AcrossAI_MCP_Manager\Includes\Connectors\AbstractConnectorProfile;
 use AcrossAI_MCP_Manager\Includes\Database\OAuthTokens\Query as TokensQuery;
 use AcrossAI_MCP_Manager\Includes\Utilities\CacheHeaders;

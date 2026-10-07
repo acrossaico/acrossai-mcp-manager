@@ -221,12 +221,12 @@ final class N8nTab extends AbstractServerTab {
 	 * @return string
 	 */
 	private function panel_url( array $server, string $panel ): string {
-		// Feature 020 — see AIConnectorsTab::panel_url(). Chains onto the host's
-		// address shape rather than hard-coding `?tab=n8n`.
+		// Feature 020 — see AIConnectorsTab::panel_url(). Builds the address
+		// through ConnectTab rather than hard-coding `?tab=n8n`.
 		return add_query_arg(
 			'panel',
 			sanitize_key( $panel ),
-			\AcrossAI_MCP_Manager\Includes\HostCapabilities::method_url( $server, 'n8n' )
+			ConnectTab::method_url( $server, 'n8n' )
 		);
 	}
 
