@@ -120,6 +120,37 @@ abstract class AbstractMCPClient {
 	}
 
 	/**
+	 * Per-OS config file paths, keyed by OS slug (`macos`, `windows`, `linux`).
+	 *
+	 * Issue #159: `get_config_file()` returns ONE string, so every client could
+	 * only ever express one platform's path. The Clients tab showed a macOS
+	 * path to Windows users with no qualifier — a path that does not exist on
+	 * their machine, presented as authoritative.
+	 *
+	 * The map is deliberately PARTIAL. A client with no build for an OS must
+	 * omit that key rather than invent a path: Claude Desktop ships for macOS
+	 * and Windows only, and guessing a Linux location would be worse than
+	 * saying nothing. The renderer states the absence explicitly.
+	 *
+	 * Default is an EMPTY array, meaning "this client has not declared per-OS
+	 * paths yet" — the renderer then falls back to the single
+	 * `get_config_file()` string exactly as before. That is why adopting this
+	 * is safe one client at a time, and why the default is not
+	 * `[ 'macos' => get_config_file() ]`: several clients' paths (`~/.claude.json`
+	 * and friends) are not macOS-specific, and labelling them so would trade
+	 * one wrong answer for another.
+	 *
+	 * Every path added here MUST be cited against the client's own upstream
+	 * documentation in the overriding method's docblock (F078 discipline).
+	 *
+	 * @since 0.3.9
+	 * @return array<string, string> OS slug => path. Empty when undeclared.
+	 */
+	public function get_config_files(): array {
+		return array();
+	}
+
+	/**
 	 * JSON/TOML top-level key the snippet gets pasted under (e.g. `mcpServers`).
 	 * Untranslated. Empty when unset.
 	 *

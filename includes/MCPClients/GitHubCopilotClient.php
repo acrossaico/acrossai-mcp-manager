@@ -81,6 +81,32 @@ final class GitHubCopilotClient extends AbstractMCPClient {
 
 	/**
 	 * {@inheritDoc}
+	 *
+	 * GitHub Copilot is configured through VS Code, so it reads the same
+	 * `mcp.json`. Verified 2026-10-07. `mcp.json` lives beside `settings.json` in VS Code's
+	 * user-profile folder, whose three locations are documented at
+	 * {@link https://code.visualstudio.com/docs/configure/settings}:
+	 *
+	 *   macOS   ~/Library/Application Support/Code/User/
+	 *   Windows %APPDATA%\\Code\\User\\
+	 *   Linux   ~/.config/Code/User/
+	 *
+	 * This is the first client where the three paths genuinely diverge rather
+	 * than being one home-relative path written three ways.
+	 *
+	 * @since 0.3.9
+	 * @return array<string, string>
+	 */
+	public function get_config_files(): array {
+		return array(
+			'macos'   => '~/Library/Application Support/Code/User/mcp.json',
+			'windows' => '%APPDATA%\\Code\\User\\mcp.json',
+			'linux'   => '~/.config/Code/User/mcp.json',
+		);
+	}
+
+	/**
+	 * {@inheritDoc}
 	 */
 	public function get_top_level_key(): string {
 		return 'servers';
