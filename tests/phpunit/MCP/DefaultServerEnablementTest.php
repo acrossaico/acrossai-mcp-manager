@@ -128,22 +128,45 @@ final class DefaultServerEnablementTest extends WP_UnitTestCase {
 	/**
 	 * Ask the filter what it answers while a given hook is mid-flight.
 	 *
-	 * `doing_action()` is only true inside the hook, so the callback has to run
-	 * from within a real `do_action()` rather than being called directly.
+	 * `doing_action()` is the thing under test and is only true inside a real
+	 * `do_action()`, so the probe has to run from within one rather than being
+	 * called directly.
+	 *
+	 * The hook is fired with ONLY the probe attached. Running the real
+	 * subscribers would re-register what the bootstrap already registered, and
+	 * the ability-category registry emits `_doing_it_wrong` on a duplicate —
+	 * which `WP_UnitTestCase` turns into a failure having nothing to do with
+	 * the assertion ("Ability category \"acrossai-mcp\" is already
+	 * registered"). Detaching keeps the probe honest and the hook side-effect
+	 * free; `do_action()` still sets `$wp_current_filter`, which is all
+	 * `doing_action()` reads.
 	 *
 	 * @param string $hook Hook to fire.
 	 * @return bool The filter's answer, captured from inside the hook.
 	 */
 	private function filter_answer_during( string $hook ): bool {
+		global $wp_filter;
+
+		$saved = isset( $wp_filter[ $hook ] ) ? $wp_filter[ $hook ] : null;
+		unset( $wp_filter[ $hook ] );
+
 		$answer = null;
 
-		$probe = static function () use ( &$answer ) {
-			$answer = Controller::instance()->filter_create_default_server( true );
-		};
+		add_action(
+			$hook,
+			static function () use ( &$answer ) {
+				$answer = Controller::instance()->filter_create_default_server( true );
+			}
+		);
 
-		add_action( $hook, $probe );
-		do_action( $hook );
-		remove_action( $hook, $probe );
+		try {
+			do_action( $hook );
+		} finally {
+			unset( $wp_filter[ $hook ] );
+			if ( null !== $saved ) {
+				$wp_filter[ $hook ] = $saved;
+			}
+		}
 
 		$this->assertNotNull( $answer, sprintf( 'The probe never ran — "%s" did not fire, so this test proved nothing.', $hook ) );
 
