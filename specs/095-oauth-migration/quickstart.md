@@ -56,7 +56,8 @@ SHOW TABLES LIKE 'wp_acrossai_pro_mcp_%';
 - **Idempotency**: `DELETE FROM wp_options WHERE option_name = 'acrossai_mcp_oauth_migration_done';` then load wp-admin again. Row counts must be unchanged — no duplicates.
 - **Resumability**: set the cursor to a mid-table id, clear the done-flag, reload wp-admin. The migration must resume from the cursor rather than restarting, and still reach correct totals.
 - **Companion absent**: on the clean site, confirm the migration sets its done-flag, writes no cursor state, creates no empty churn, and shows no admin notice.
-- **The F083 race**: on a site where `acrossai_mcp_legacy_oauth_cleanup_done` is unset, upgrade and confirm the four new tables **exist and were not dropped**. This is the specific failure FR-004 exists to prevent.
+- **The F083 race** (SC-010): on a site where `acrossai_mcp_legacy_oauth_cleanup_done` is unset, upgrade and confirm the four new tables **exist and were not dropped**. This is the specific failure FR-004 exists to prevent.
+- **A stall is visible from Site Health alone** (SC-011): while the forced failure below is in effect, confirm Site Health reports the migration as failing once the attempt counter passes its threshold, and that a completed or cleanly-skipped migration reports nothing at all. The point of the criterion is that an operator never has to read a log or open the database to learn the migration is stuck.
 - **Diagnostics disclose nothing** (SEC-002, FR-012): force a batch failure — rename a destination table mid-run, or revoke INSERT on it — then inspect both the Site Health message and `debug.log`. Neither may contain a 64-character hex string, any column value, or the failing statement. Assert mechanically rather than by eye:
   ```bash
   grep -nE '[0-9a-f]{64}' wp-content/debug.log && echo "FAIL: digest leaked" || echo "OK"
@@ -146,9 +147,11 @@ On the clean site:
 
 ---
 
-## Test 6 — All five profiles plus n8n
+## Test 6 — All five profiles
 
-Claude, ChatGPT, Gemini, Grok and Cursor each complete a connection end to end. Then issue an n8n bearer token and make an authenticated MCP call with it; confirm the token is shown once and stored only as a hash.
+Claude, ChatGPT, Gemini, Grok and Cursor each complete a connection end to end. Confirm each tab shows its icon (T093 shipped the five SVGs; a broken-image placeholder means the asset is missing again).
+
+**n8n is NOT tested here.** It returned to the companion in T086, so there is no n8n tab and `POST /servers/{id}/n8n/bearer/token` 404s on this plugin alone. Attempting it will look like a regression and is not one — it belongs to the companion's release checklist. See `specs/095-oauth-migration/acrossai-pro-issue-113.md`.
 
 ---
 
@@ -173,6 +176,18 @@ npm run lint:js
 npm run build
 npm run validate-packages
 ```
+
+Plus the externally-observable surface diff (SC-006) — compare the live route,
+endpoint, event and option-key inventory against the pre-move capture. The only
+permitted difference is the n8n bearer-token route, which moved back to the
+companion in T086:
+
+```bash
+diff <(sort contracts/pre-move-surface.txt) <(sort /tmp/post-move-surface.txt) \
+  | grep -v 'n8n/bearer/token'
+```
+
+Anything else in that diff is identifier drift and breaks live clients.
 
 Plus the namespace and text-domain gate — must return nothing but the documented migration-source exceptions:
 

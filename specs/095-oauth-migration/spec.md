@@ -67,18 +67,11 @@ A site owner reviews which AI clients are connected, which users approved them, 
 
 ---
 
-### User Story 4 - An automation platform connects with an admin-issued token (Priority: P3)
+### ~~User Story 4 - An automation platform connects with an admin-issued token (Priority: P3)~~ — WITHDRAWN
 
-A site owner issues a bearer token for n8n and uses it to drive the MCP server from a workflow.
+**Withdrawn 2026-10-07 (T086).** Connectors go free; n8n stays a paid capability in the companion, so this story belongs to the companion's spec. Its acceptance scenarios (token shown once, stored only as a hash, authorised for the bound server only) still hold — they are just not this plugin's to satisfy.
 
-**Why this priority**: A distinct, narrower audience than the interactive AI clients, and it shares the token tables with Stories 1–3, so splitting it out would cost more than including it.
-
-**Independent Test**: Issue a token from the n8n screen and make an authenticated MCP call with it.
-
-**Acceptance Scenarios**:
-
-1. **Given** an operator on the n8n screen, **When** they issue a bearer token, **Then** the token is shown once and stored only as a hash.
-2. **Given** that token, **When** it is presented on an MCP request, **Then** the request is authorised for the bound server only.
+What this plugin still owes n8n, and MUST NOT regress: the `?tab=n8n` legacy address mapping in `ConnectTab::LEGACY_TAB_METHODS`, connect-method priority 40 held reserved and unseeded, the filter excluding `connector_slug = 'n8n'` rows from the connectors panel, and `AccessTokenRepository::MAX_ADMIN_TTL_SECONDS` — which is now the LAST line of defence on admin-issued token TTL rather than a second one, because the controller that also validated it lives in another plugin.
 
 ---
 
@@ -104,13 +97,14 @@ A site owner issues a bearer token for n8n and uses it to drive the MCP server f
 
 - **FR-001**: The plugin MUST provide the complete OAuth 2.1 authorization-server capability — authorization, token issuance and refresh, dynamic client registration, discovery metadata, bearer validation, consent, and cleanup — without requiring any other plugin.
 - **FR-002**: The plugin MUST provide one-click connection profiles for Claude, ChatGPT, Gemini, Grok and Cursor.
-- **FR-003**: The plugin MUST provide admin-issued bearer tokens for automation platforms, scoped to a single server.
+- **FR-003**: Admin-issued bearer tokens for automation platforms (n8n) are explicitly OUT of scope for this plugin. ~~The plugin MUST provide admin-issued bearer tokens for automation platforms, scoped to a single server.~~ **Reversed 2026-10-07 (T086)**: connectors go free, n8n stays a paid capability in the companion. This plugin MUST NOT ship an n8n tab, an admin-token controller, or a global-integration registry. It MUST continue to provide the host-side support n8n depends on: the `?tab=n8n` legacy route mapping, connect-method priority 40 held reserved and unseeded, and the filter keeping `connector_slug = 'n8n'` rows off the connectors panel.
 
 **Safety preconditions**
 
 - **FR-004**: The one-shot orphan sweeper that drops the four OAuth table names during normal admin-side operation MUST be deleted, and its invocation unwired, **before** any table of those names is created. Its existing guards (empty-only, run-once) do NOT make it safe — a newly created, still-empty table on a site that has not yet run the sweep is exactly its target.
 - **FR-005**: The four OAuth table names MUST **remain** in the uninstall drop-list, and MUST NOT be removed. Their justification changes rather than disappearing: they were listed as orphan cleanup from a previous era, and become the plugin's own tables. Removing them would leak four tables on uninstall; the accompanying comment MUST be rewritten so the next reader does not mistake them for stale orphan entries and delete them. The uninstall path is not part of the live hazard in FR-004 — it runs only at uninstall, never during normal operation.
-- **FR-006**: The companion's OAuth capability MUST become inert automatically once this plugin owns OAuth, with no release coordination and no operator action. No route, tab, cron event or rewrite rule may be registered twice.
+- **FR-006**: The companion's OAuth capability MUST become inert automatically once this plugin owns OAuth, with no operator action. No route, tab, cron event or rewrite rule may be registered twice.
+  **Amended 2026-10-07 (T087).** The original wording said "with no release coordination", and that is false. The companion's probe is all-or-nothing: `bootstrap_oauth_hooks()` returns early as a unit, so its n8n stack (tab, connect method, `AdminTokenController` routes, token audit) goes dormant alongside its OAuth. Since FR-003 was reversed, nothing in this plugin replaces it. **Releasing this plugin alone therefore breaks n8n for every customer who has the companion.** The companion MUST ship first with its n8n registrations lifted out of the OAuth-dormancy block. Stand-down remains automatic for OAuth, discovery, validation and the connectors tab — the coordination requirement is specific to n8n.
 
 **Data continuity**
 
@@ -150,7 +144,7 @@ A site owner issues a bearer token for n8n and uses it to drive the MCP server f
 
 - **FR-025**: No code may be deleted from the companion plugin in this feature.
 - **FR-026**: The companion's data MUST NOT be dropped or altered.
-- **FR-027**: The connector option namespace MUST remain excluded from this plugin's uninstall sweep in this release, because the companion still owns those options until its OAuth is stripped in a follow-up.
+- **FR-027**: The connector option namespace MUST remain excluded from this plugin's uninstall sweep, because the companion owns those options. **Amended 2026-10-07**: the original rationale said "until its OAuth is stripped in a follow-up", implying a transitional state. Under the option C split the companion keeps its `oauth_tokens` and `oauth_clients` tables **permanently** to serve n8n, so this exclusion is co-ownership, not a temporary measure, and MUST NOT be removed on the assumption that the follow-up release retires it.
 - **FR-028**: The declared PHP and WordPress minimums MUST NOT change.
 
 ### WordPress Requirements
@@ -191,7 +185,7 @@ All routes keep the existing namespace `acrossai-mcp-manager/v1` — **unchanged
 | `POST` | `/oauth/revoke-client-tokens`, `/oauth/revoke-grant`, `/oauth/revoke-connector-tokens`, `/oauth/revoke-server-tokens`, `/oauth/revoke-server-approval`, `/oauth/revoke-user-approval`, `/oauth/revoke-client-tokens-all-servers`, `/oauth/delete-client` | `manage_options` | Revocation surface |
 | `POST` | `/oauth/approve-pending-consent`, `/oauth/deny-pending-consent`, `/oauth/approve-server-pending`, `/oauth/deny-server-pending` | `manage_options` | Approval workflow |
 | `GET`/`POST` | `/oauth/server-settings` | `manage_options` | Per-server OAuth settings |
-| `POST` | `/servers/{server_id}/n8n/bearer/token` | `manage_options` | Admin-issued automation token |
+| ~~`POST`~~ | ~~`/servers/{server_id}/n8n/bearer/token`~~ | — | **Not served by this plugin** — withdrawn 2026-10-07 (T086). The companion serves it from this same namespace. |
 
 **Non-REST endpoints** (served via rewrite rules, not the REST API, and equally contractual):
 `/.well-known/oauth-authorization-server`, `/.well-known/oauth-protected-resource`, `/.well-known/oauth-protected-resource/{server}`, `/authorize`, `/token`.
@@ -268,9 +262,9 @@ All routes keep the existing namespace `acrossai-mcp-manager/v1` — **unchanged
 - **SC-003**: Row counts for clients, tokens, auth codes and approvals match exactly between source and destination after migration.
 - **SC-004**: Running the upgrade twice produces identical results to running it once — no duplicate rows, no repeated work.
 - **SC-005**: On a site that never had the companion, upgrade completes with zero errors and zero admin notices about migration.
-- **SC-006**: Zero externally observable identifiers change — a byte-level comparison of the route, endpoint, event and option-key inventory before and after is identical.
+- **SC-006**: Zero externally observable identifiers change **for capabilities this plugin retains** — a byte-level comparison against `contracts/pre-move-surface.txt` is identical except for the one deliberate removal recorded there. **Narrowed 2026-10-07**: as originally written this was unsatisfiable, because the inventory was captured before T086 and includes `POST /servers/{server_id}/n8n/bearer/token`, which this plugin no longer serves. That endpoint moving back to the companion is a scope decision, not identifier drift.
 - **SC-007**: With both plugins active, every route, tab, scheduled event and rewrite rule is registered exactly once.
-- **SC-008**: All five connector vendors plus the automation-token path complete a connection end to end.
+- **SC-008**: All five connector vendors complete a connection end to end. **Narrowed 2026-10-07 (T086)**: the automation-token path belongs to the companion and is verified in its release, not this one.
 - **SC-009**: Zero promotional copy for connector functionality remains in any screen or built asset.
 - **SC-010**: The four storage tables survive upgrade on a site that has never run the legacy cleanup sweep.
 - **SC-011**: A migration that has stalled is identifiable from Site Health alone, without reading logs or inspecting the database; a migration that completed or was correctly skipped produces no operator-visible output at all.

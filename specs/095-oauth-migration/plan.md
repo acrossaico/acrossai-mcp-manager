@@ -175,8 +175,9 @@ admin/Partials/ServerTabs/
 └── Connect/MethodRegistry.php      # MODIFIED — seed real tab at slug ai-connectors pri 10
 
 templates/oauth/{consent,message}.php   # NEW
-src/js/{ai-connectors,n8n-admin}.js     # NEW
-src/scss/{ai-connectors,n8n}.scss       # NEW
+src/js/ai-connectors.js                 # NEW  (n8n-admin.js withdrawn, T086)
+src/scss/ai-connectors.scss             # NEW  (n8n.scss withdrawn, T086)
+assets/{claude,chatgpt,gemini,grok,cursor}-icon.svg   # NEW (T093)
 src/js/quick-connect/steps/Step8_ProPromo.jsx   # DELETED
 src/js/quick-connect/steps/Step9_ProSetup.jsx   # DELETED
 uninstall.php                           # MODIFIED — sweeper entries kept, comment rewritten (FR-005)

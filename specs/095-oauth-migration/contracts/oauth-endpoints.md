@@ -55,7 +55,7 @@ The namespace is **unchanged**. The companion already registered under this plug
 | `POST` | `/oauth/deny-pending-consent` | deny a pending user |
 | `POST` | `/oauth/approve-server-pending` | approve at server level |
 | `POST` | `/oauth/deny-server-pending` | deny at server level |
-| `POST` | `/servers/{server_id}/n8n/bearer/token` | admin-issued automation token |
+| ~~`POST`~~ | ~~`/servers/{server_id}/n8n/bearer/token`~~ | **NOT served by this plugin.** Withdrawn 2026-10-07 (T086) — n8n stayed with the companion, which serves this route from the same `acrossai-mcp-manager/v1` namespace. Listed here so the namespace collision is visible, not as a contract of ours. |
 
 **Tenant-binding invariant (`D31`, `B37`)**: every per-server route requires *and validates* `server_id`. A mismatch returns `WP_Error` `acrossai_mcp_oauth_cross_server` with status 403 and fires a 4-arg `acrossai_mcp_oauth_cross_server_attempted` — which **must never include the owning `server_id`** (SEC-032-001). Accepting only a tenant-scoped identifier without validating the binding is the `B37` cross-tenant escalation pattern.
 
