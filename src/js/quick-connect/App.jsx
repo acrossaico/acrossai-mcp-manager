@@ -36,8 +36,6 @@ import Step4_AbilitiesManager from './steps/Step4_AbilitiesManager.jsx';
 import Step5_Abilities from './steps/Step5_Abilities.jsx';
 import Step6_EnableServer from './steps/Step6_EnableServer.jsx';
 import Step7_MethodGrid from './steps/Step7_MethodGrid.jsx';
-import Step8_ProPromo from './steps/Step8_ProPromo.jsx';
-import Step9_ProSetup from './steps/Step9_ProSetup.jsx';
 import Step10_ConnectorsDetail from './steps/Step10_ConnectorsDetail.jsx';
 import Step11_ClientDetail from './steps/Step11_ClientDetail.jsx';
 import Step12_NpmDetail from './steps/Step12_NpmDetail.jsx';
@@ -61,8 +59,6 @@ const stepRegistry = {
 	'5': () => <Step5_Abilities />,
 	'6': () => <Step6_EnableServer />,
 	'7': () => <Step7_MethodGrid />,
-	'8': () => <Step8_ProPromo />,
-	'9': () => <Step9_ProSetup />,
 	'10': () => <Step10_ConnectorsDetail />,
 	'11': () => <Step11_ClientDetail />,
 	'12': () => <Step12_NpmDetail />,
@@ -110,11 +106,6 @@ const App = () => {
 	);
 
 	const method = state.wizardState.method;
-	const proState = state.plugins.acrossaiPro; // 'missing' | 'inactive' | 'active'
-	// F074 — a licence (paid or trial) connected via Freemius. Plugin-active
-	// alone is not enough to use Connectors; see skipProSetup below.
-	const proLicensed = !! state.plugins.acrossaiProLicensed;
-
 	// Skip predicates — recomputed whenever the underlying state changes so
 	// advance/back always walk past the right steps.
 	const skips = useMemo( () => ( {
@@ -142,31 +133,14 @@ const App = () => {
 		// Steps 8-13 are one-of-many terminal method-specific screens. Only
 		// the branch matching the user's picked method + pro state renders.
 		// Step 8 = Pro pitch (missing); Step 9 = Pro install/activate/licence;
-		// Step 10 = Connectors detail (active + licensed); 11 = Client; 12 = npm;
-		// 13 = WP-CLI.
-		// Step 8 (the pitch + "Start free trial" CTA) stays available until Pro
-		// is fully usable — installed AND licensed. Showing it only while the
-		// plugin was 'missing' meant anyone who had installed acrossai-pro but
-		// never connected a licence had no route to the trial CTA at all.
-		skipProPromo: ! (
-			method === 'connectors' &&
-			! ( proState === 'active' && proLicensed )
-		),
-		// Step 9 is the single "get Pro working" screen — install,
-		// activate, licence. It stays up until acrossai-pro is BOTH active
-		// and licensed, because the plugin registers zero connector profiles
-		// without a licence; treating merely-active as done would drop the
-		// user on a Connectors screen that cannot work. Step 10
-		// correspondingly requires active AND licensed.
-		skipProSetup: ! (
-			method === 'connectors' &&
-			! ( proState === 'active' && proLicensed )
-		),
-		skipConnectorsDetail: ! (
-			method === 'connectors' &&
-			proState === 'active' &&
-			proLicensed
-		),
+		// Step 10 = Connectors detail; 11 = Client; 12 = npm; 13 = WP-CLI.
+		//
+		// F095 removed steps 8 and 9 (the Pro pitch and the install/activate/
+		// licence screen) along with the licence gate behind them. Connectors
+		// is a free capability now, so the method grid leads straight to the
+		// connector detail screen and the only question left is which method
+		// the user picked.
+		skipConnectorsDetail: method !== 'connectors',
 		skipClient: method !== 'client',
 		skipNpm: method !== 'npm',
 		skipWpcli: method !== 'wpcli',
@@ -178,8 +152,6 @@ const App = () => {
 		state.abilities.enabledForServer,
 		selectedServer,
 		method,
-		proState,
-		proLicensed,
 	] );
 
 	// Auto-skip effect — silently forwards the user past any skipped step
@@ -208,20 +180,10 @@ const App = () => {
 			router.advance( { skips } );
 			return;
 		}
-		// Steps 8-13 are method-specific one-of-many detail/gate screens.
-		// When a user lands on one whose skip predicate is true (e.g. they
-		// picked Connectors + Pro is active → step 8 (pitch) is skipped;
-		// they landed on step 11 (Client) but their method is npm → skip)
-		// walk forward until we hit the branch matching the current state.
-		if ( router.step === '8' && skips.skipProPromo ) {
-			router.advance( { skips } );
-			return;
-		}
-		// Step 9 parks the operator until Pro is active AND licensed.
-		if ( router.step === '9' && skips.skipProSetup ) {
-			router.advance( { skips } );
-			return;
-		}
+		// Steps 10-13 are method-specific one-of-many detail screens. When a
+		// user lands on one whose skip predicate is true (e.g. they landed on
+		// step 11 (Client) but their method is npm) walk forward until we hit
+		// the branch matching the current state.
 		if ( router.step === '10' && skips.skipConnectorsDetail ) {
 			router.advance( { skips } );
 			return;
@@ -237,7 +199,7 @@ const App = () => {
 		if ( router.step === '13' && skips.skipWpcli ) {
 			router.advance( { skips } );
 		}
-	}, [ router.step, state.status, skips, router, proState ] );
+	}, [ router.step, state.status, skips, router ] );
 
 	// Deep-link precondition guard — anything past Step 1 requires a chosen
 	// server (or create_intent en route to Step 2).
@@ -273,8 +235,6 @@ const App = () => {
 		{ id: 5, skip: skips.skipAbilities },
 		{ id: 6, skip: skips.skipEnable },
 		{ id: 7, skip: false },
-		{ id: 8, skip: skips.skipProPromo },
-		{ id: 9, skip: skips.skipProSetup },
 		{ id: 10, skip: skips.skipConnectorsDetail },
 		{ id: 11, skip: skips.skipClient },
 		{ id: 12, skip: skips.skipNpm },

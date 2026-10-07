@@ -54,20 +54,29 @@ if ( class_exists( '\WPBoilerplate\AccessControl\Database\Rule\RuleQuery' ) ) {
 	}
 }
 
-// Feature 040 moved OAuth ownership to the companion plugin. The companion
-// (acrossai-pro) CREATES ITS OWN fresh tables under the
-// `acrossai_pro_mcp_oauth_*` / `acrossai_pro_mcp_connector_approved_users`
-// namespace — it never reads, migrates, renames, or drops the old names
-// (verified: zero old-table-name references in its codebase; its
-// uninstall.php drops only the `acrossai_pro_mcp_*` names). That leaves the
-// four OLD-name tables (`wp_acrossai_mcp_oauth_clients`, `_oauth_tokens`,
-// `_oauth_auth_codes`, `wp_acrossai_mcp_connector_approved_users`) created
-// by pre-F040 builds of THIS plugin abandoned in place with no owner. F083
-// restores them to this drop list as an idempotent safety net: `DROP TABLE
-// IF EXISTS` no-ops on installs that never had them, and cannot collide
-// with the companion's live data because the companion's table names
-// differ. (The companion still OWNS the `acrossai_mcp_connector_%`
-// *option* namespace — the LIKE-sweep exclusion below stays per A20.)
+// Feature 095 took OAuth ownership back from the companion plugin. The four
+// `acrossai_mcp_oauth_*` / `acrossai_mcp_connector_approved_users` tables are
+// now THIS plugin's own, created by includes/Database/OAuth{Clients,Tokens,
+// AuthCodes}/ and ConnectorApprovedUsers/, so dropping them here is simply
+// correct uninstall behaviour.
+//
+// DO NOT REMOVE THESE FOUR ENTRIES. They were originally added by F083 as a
+// safety net for orphans left behind by the F040 split, and that justification
+// is now obsolete — but the entries themselves are not. Reading the old
+// rationale and concluding they are stale would silently leak four tables on
+// uninstall, which is exactly the B44 failure mode (adding a BerlinDB Table
+// subclass does not automatically add its table here, and nothing fails to
+// compile if it is missing).
+//
+// What F095 DID remove is the separate one-shot sweeper that dropped these
+// same names during normal admin_init operation. That was a live hazard: a
+// freshly created, still-empty table on a site that had not yet run the sweep
+// was precisely its target. uninstall.php runs only at uninstall, so it was
+// never part of that hazard.
+//
+// The companion still OWNS the `acrossai_mcp_connector_%` *option* namespace
+// until its OAuth is stripped (tracked at acrossaico/acrossai-pro#113) — the
+// LIKE-sweep exclusion below stays per A20 and FR-027.
 $tables = array(
 	$wpdb->prefix . 'acrossai_mcp_servers',
 	$wpdb->prefix . 'acrossai_mcp_cli_auth_logs',
@@ -75,8 +84,7 @@ $tables = array(
 	$wpdb->prefix . 'acrossai_mcp_server_abilities', // F017 per-server ability overrides.
 	$wpdb->prefix . 'acrossai_mcp_server_tools',     // F020 per-server tool selection.
 	$wpdb->prefix . 'acrossai_mcp_servers_meta',     // F037 MCPServerMeta — per-server key/value settings (Embeds tab, etc).
-	// F083 — orphans from pre-F040 builds (OAuth subsystem now lives in
-	// acrossai-pro under different table names). See comment above.
+	// F095 — this plugin's own OAuth tables. See the DO NOT REMOVE note above.
 	$wpdb->prefix . 'acrossai_mcp_oauth_clients',
 	$wpdb->prefix . 'acrossai_mcp_oauth_tokens',
 	$wpdb->prefix . 'acrossai_mcp_oauth_auth_codes',

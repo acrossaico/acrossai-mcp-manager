@@ -170,6 +170,90 @@ class Notices {
 			);
 		}
 
+		// ── F095: OAuth operational warnings ────────────────────────────────
+		// Ported from the companion. Each is a soft warning about a hosting
+		// condition that silently degrades OAuth rather than breaking it
+		// loudly — which is exactly the kind of failure an operator will not
+		// otherwise connect back to this plugin.
+
+		if ( ! is_ssl() && ! ( defined( 'FORCE_SSL_ADMIN' ) && \FORCE_SSL_ADMIN ) ) {
+			$notices[] = array(
+				'id'      => 'acrossai_mcp_manager_oauth_https_missing',
+				'title'   => __( 'HTTPS is not configured', 'acrossai-mcp-manager' ),
+				'message' => __( 'OAuth tokens will be issued over plaintext HTTP — passive network attackers can intercept them. Configure SSL / FORCE_SSL_ADMIN before exposing the OAuth endpoints to production traffic.', 'acrossai-mcp-manager' ),
+				'type'    => 'warning',
+				'source'  => __( 'Connectors/Integrations', 'acrossai-mcp-manager' ),
+			);
+		}
+
+		if ( defined( 'DISABLE_WP_CRON' ) && true === \DISABLE_WP_CRON ) {
+			$notices[] = array(
+				'id'      => 'acrossai_mcp_manager_wp_cron_disabled',
+				'title'   => __( 'WP-Cron is disabled', 'acrossai-mcp-manager' ),
+				'message' => __( 'DISABLE_WP_CRON=true prevents the daily OAuth cleanup from running automatically — expired access tokens and auth codes will accumulate. Either remove the DISABLE_WP_CRON constant, or configure a real cron entry to run <code>wp cron event run acrossai_mcp_manager_oauth_cleanup</code> daily.', 'acrossai-mcp-manager' ),
+				'type'    => 'warning',
+				'source'  => __( 'Connectors/Integrations', 'acrossai-mcp-manager' ),
+			);
+		}
+
+		// Wordfence per-IP throttling silently rate-limits bursty MCP polling
+		// and OAuth token exchanges. Any of the three knobs set to something
+		// other than DISABLED is enough.
+		if ( class_exists( '\\wfConfig' ) ) {
+			foreach ( array( 'maxGlobalRequests', 'maxRequestsHumans', 'maxRequestsCrawlers' ) as $wf_key ) {
+				$wf_val = \wfConfig::get( $wf_key, 'DISABLED' );
+				if ( 'DISABLED' !== $wf_val && '' !== $wf_val ) {
+					$notices[] = array(
+						'id'      => 'acrossai_mcp_manager_wordfence_rate_limit_enabled',
+						'title'   => __( 'Wordfence rate limiting may throttle Connectors traffic', 'acrossai-mcp-manager' ),
+						'message' => __( 'Wordfence per-IP rate limiting is enabled and can silently throttle bursty MCP polling from AI assistants plus OAuth token exchanges. Add <code>/wp-json/mcp/*</code> and <code>/wp-json/acrossai-mcp-manager/v1/oauth/*</code> under <strong>Wordfence → Firewall → Rate Limiting → Whitelisted URLs</strong>. Dismiss this notice once configured.', 'acrossai-mcp-manager' ),
+						'type'    => 'warning',
+						'source'  => __( 'Connectors/Integrations', 'acrossai-mcp-manager' ),
+					);
+					break;
+				}
+			}
+		}
+
+		// Full-page caches serve stale OAuth responses, which carry
+		// per-request nonces, client_ids and bearer tokens. CacheHeaders sends
+		// no-store on those responses and most caches respect it; excluding
+		// the paths outright is the belt-and-braces posture. WP_CACHE is the
+		// reliable signal — core only loads advanced-cache.php when it is
+		// truthy, so every plugin-based cache sets it. Edge and host caches
+		// cannot be detected this way and are covered in the docs instead.
+		if ( defined( 'WP_CACHE' ) && true === \WP_CACHE ) {
+			$notices[] = array(
+				'id'      => 'acrossai_mcp_manager_page_cache_exclusions_required',
+				'title'   => __( 'Page cache detected — exclude OAuth + REST URLs', 'acrossai-mcp-manager' ),
+				'message' => __( 'A full-page cache is enabled on this site (<code>WP_CACHE=true</code>). MCP and OAuth responses carry per-request state (nonces, client_ids, bearer tokens) and MUST NOT be served from cache. Add <code>/wp-json/*</code> and <code>/.well-known/*</code> to your cache plugin\'s do-not-cache list. Dismiss this notice once configured.', 'acrossai-mcp-manager' ),
+				'type'    => 'warning',
+				'source'  => __( 'Connectors/Integrations', 'acrossai-mcp-manager' ),
+			);
+		}
+
+		// A competing OAuth discovery implementation claims the same
+		// .well-known URLs. DiscoveryConflictGuard disables it; this explains
+		// why, because the symptom otherwise looks like our bug.
+		if ( \AcrossAI_MCP_Manager\Includes\OAuth\DiscoveryConflictGuard::conflict_detected() ) {
+			$conflict_source = \AcrossAI_MCP_Manager\Includes\OAuth\DiscoveryConflictGuard::conflicting_plugin_name();
+			if ( '' === $conflict_source ) {
+				$conflict_source = __( 'Another active plugin', 'acrossai-mcp-manager' );
+			}
+
+			$notices[] = array(
+				'id'      => 'acrossai_mcp_manager_oauth_discovery_conflict',
+				'title'   => __( 'Another plugin also serves OAuth discovery', 'acrossai-mcp-manager' ),
+				'message' => sprintf(
+					/* translators: %s: name of the conflicting plugin. */
+					__( '<strong>%s</strong> bundles its own MCP OAuth server, which claims the same <code>/.well-known/oauth-protected-resource</code> and <code>/.well-known/oauth-authorization-server</code> URLs. Its documents advertise a single hardcoded server and no <code>registration_endpoint</code>, so AI assistants could not register against your MCP servers. This plugin has taken discovery back. To opt out, add <code>add_filter( \'acrossai_mcp_manager_take_over_oauth_discovery\', \'__return_false\' );</code>.', 'acrossai-mcp-manager' ),
+					$conflict_source
+				),
+				'type'    => 'warning',
+				'source'  => __( 'Connectors/Integrations', 'acrossai-mcp-manager' ),
+			);
+		}
+
 		return $notices;
 	}
 }

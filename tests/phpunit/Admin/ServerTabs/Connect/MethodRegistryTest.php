@@ -160,7 +160,47 @@ final class MethodRegistryTest extends WP_UnitTestCase {
 			),
 			$priorities
 		);
-		$this->assertNotContains( 40, $priorities, 'Priority 40 is reserved for the companion n8n method.' );
+	}
+
+	/**
+	 * Priority 40 is reserved for the companion's n8n method and left unseeded.
+	 *
+	 * F095 briefly brought n8n into this plugin and then handed it back, so
+	 * both halves need pinning. Seeding anything at 40 would collide with the
+	 * companion on every site that has it; renumbering the gap away would
+	 * silently move n8n in the navigation the moment the companion registers.
+	 */
+	public function test_priority_40_is_reserved_for_the_companion_and_unseeded(): void {
+		$slugs = array_map(
+			static fn ( $method ) => $method->slug(),
+			MethodRegistry::instance()->all_methods()
+		);
+
+		$this->assertNotContains(
+			'n8n',
+			$slugs,
+			'n8n belongs to acrossai-pro. Seeding it here collides with the companion.'
+		);
+
+		// The companion's registration must land in the reserved gap.
+		add_filter(
+			MethodRegistry::FILTER_NAME,
+			static function ( array $methods ): array {
+				$methods[] = array(
+					'slug'            => 'n8n',
+					'label'           => 'n8n',
+					'priority'        => 40,
+					'render_callback' => static fn () => print( 'n8n body' ),
+				);
+				return $methods;
+			}
+		);
+
+		$this->assertSame(
+			array( 'ai-connectors', 'clients', 'npm', 'n8n', 'wp-cli' ),
+			$this->visible_slugs(),
+			'Priority 40 MUST slot between npm (30) and wp-cli (50).'
+		);
 	}
 
 	/**

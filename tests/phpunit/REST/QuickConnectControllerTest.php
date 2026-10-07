@@ -109,7 +109,6 @@ final class QuickConnectControllerTest extends WP_UnitTestCase {
 
 		$this->assertIsArray( $data['servers'] );
 		$this->assertArrayHasKey( 'total', $data['abilities'] );
-		$this->assertArrayHasKey( 'acrossaiPro', $data['plugins'] );
 		$this->assertArrayHasKey( 'abilitiesManager', $data['plugins'] );
 		$this->assertArrayHasKey( 'npm', $data['methods'] );
 		$this->assertArrayHasKey( 'clients', $data['methods'] );
@@ -395,24 +394,34 @@ final class QuickConnectControllerTest extends WP_UnitTestCase {
 	}
 
 	// ─────────────────────────────────────────────────────────────────────
-	// GET /state — trialEndDate field
+	// GET /state — plugin states
 	// ─────────────────────────────────────────────────────────────────────
 
-	public function test_get_state_includes_trial_end_date(): void {
+	/**
+	 * F095 — the payload reports abilities-manager only.
+	 *
+	 * Replaces test_get_state_includes_trial_end_date(). `trialEndDate`,
+	 * `acrossaiPro`, `acrossaiProLicensed` and `acrossaiProActivateUrl` are
+	 * gone: connectors is a free capability, so the wizard has nothing left to
+	 * gate on and the two steps that consumed those fields were removed.
+	 * Asserting their ABSENCE is the point — a payload that quietly starts
+	 * advertising a trial again should fail here.
+	 */
+	public function test_get_state_reports_no_pro_or_trial_fields(): void {
 		wp_set_current_user( $this->admin_id );
-		$req = new WP_REST_Request( 'GET', '/acrossai-mcp-manager/v1/quick-connect/state' );
+		$req      = new WP_REST_Request( 'GET', '/acrossai-mcp-manager/v1/quick-connect/state' );
 		$response = rest_get_server()->dispatch( $req );
 
 		$this->assertSame( 200, $response->get_status() );
 		$plugins = $response->get_data()['plugins'];
-		$this->assertArrayHasKey( 'trialEndDate', $plugins );
-		$this->assertNotEmpty( $plugins['trialEndDate'] );
-		// Date format: "F j, Y" → e.g. "September 16, 2026". Sanity-check the
-		// shape without pinning to an exact date (test would break tomorrow).
-		$this->assertMatchesRegularExpression(
-			'/^[A-Z][a-z]+ \d{1,2}, \d{4}$/',
-			$plugins['trialEndDate']
-		);
+
+		foreach ( array( 'trialEndDate', 'acrossaiPro', 'acrossaiProLicensed', 'acrossaiProActivateUrl' ) as $gone ) {
+			$this->assertArrayNotHasKey( $gone, $plugins, sprintf( '%s must no longer be reported.', $gone ) );
+		}
+
+		// The abilities-manager entries stay — that plugin IS still optional.
+		$this->assertArrayHasKey( 'abilitiesManager', $plugins );
+		$this->assertArrayHasKey( 'abilitiesManagerActivateUrl', $plugins );
 	}
 
 	// ─────────────────────────────────────────────────────────────────────

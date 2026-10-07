@@ -113,7 +113,6 @@ final class QuickConnectController {
 	 */
 	private const INSTALLABLE_PLUGIN_SLUGS = array(
 		'acrossai-abilities-manager',
-		'acrossai-pro',
 	);
 
 	/**
@@ -963,59 +962,22 @@ final class QuickConnectController {
 	 * @return array<string,mixed>
 	 */
 	private function collect_plugin_states(): array {
-		$pro_file     = 'acrossai-pro/acrossai-pro.php';
-		$manager_file = 'acrossai-abilities-manager/acrossai-abilities-manager.php';
-
-		$pro_state     = $this->plugin_activation_state( $pro_file );
+		// F095 — no Pro state is reported any more. Connectors is a free
+		// capability, so the wizard has nothing to gate on and the steps that
+		// consumed `acrossaiPro`, `acrossaiProLicensed` and `trialEndDate`
+		// are gone. The abilities-manager entries stay: that plugin is still a
+		// genuine optional dependency.
+		$manager_file  = 'acrossai-abilities-manager/acrossai-abilities-manager.php';
 		$manager_state = $this->plugin_activation_state( $manager_file );
 
 		return array(
-			'acrossaiPro'                 => $pro_state,
-			// F074 Step 9 — activating the plugin is only half the job; until
-			// a licence (or trial) is connected, acrossai-pro registers no
-			// connector profiles, so "active" alone must NOT let the wizard
-			// walk on to the Connectors screen.
-			'acrossaiProLicensed'         => $this->pro_license_active(),
-			'acrossaiProActivateUrl'      => 'inactive' === $pro_state
-				? $this->plugin_activate_url( $pro_file )
-				: null,
 			'abilitiesManager'            => $manager_state,
 			'abilitiesManagerActivateUrl' => 'inactive' === $manager_state
 				? $this->plugin_activate_url( $manager_file )
 				: null,
-			// F069 Step 7 promo bar — computed each request so the "free
-			// through" date always shows today + 30 days without needing a
-			// cron / cache-invalidation dance. wp_date() respects the site
-			// timezone (unlike raw date()).
-			'trialEndDate'                => wp_date( 'F j, Y', strtotime( '+30 days' ) ),
 		);
 	}
 
-	/**
-	 * Whether acrossai-pro currently has a usable licence (paid or trial).
-	 *
-	 * Delegates to the Pro plugin's own Freemius gate — `can_use_premium_code()`
-	 * is the exact predicate acrossai-pro uses to decide whether to register
-	 * its connector profiles (see acrossai-pro/includes/Main.php), so the
-	 * wizard and the plugin can never disagree about what "licensed" means.
-	 * Opting into the free version returns false, which is the point: the
-	 * Connectors flow is unusable without a licence.
-	 *
-	 * Returns false whenever the plugin is inactive or its Freemius SDK is
-	 * missing — the accessor only exists once acrossai-pro has loaded.
-	 *
-	 * @return bool
-	 */
-	private function pro_license_active(): bool {
-		if ( ! function_exists( 'acrossai_pro' ) ) {
-			return false;
-		}
-		$fs = \acrossai_pro();
-		if ( ! $fs || ! method_exists( $fs, 'can_use_premium_code' ) ) {
-			return false;
-		}
-		return (bool) $fs->can_use_premium_code();
-	}
 
 	/**
 	 * Build a nonced `plugins.php?action=activate&plugin=...` URL.
@@ -1030,7 +992,7 @@ final class QuickConnectController {
 
 	/**
 	 * Resolve one plugin's activation state to `'missing'|'inactive'|'active'`.
-	 * Mirrors F040 AIConnectorsPromoTab tri-state semantics.
+	 * Mirrors the F040 promo card's tri-state semantics.
 	 *
 	 * @param string $plugin_file Relative plugin file (e.g. `foo/foo.php`).
 	 * @return string

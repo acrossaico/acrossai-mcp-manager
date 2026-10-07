@@ -1,0 +1,2419 @@
+parameters:
+	ignoreErrors:
+		-
+			message: '#^Function AcrossAI_MCP_Manager\\acrossai_mcp_manager_activate\(\) has no return type specified\.$#'
+			identifier: missingType.return
+			count: 1
+			path: acrossai-mcp-manager.php
+
+		-
+			message: '#^Function AcrossAI_MCP_Manager\\acrossai_mcp_manager_deactivate\(\) has no return type specified\.$#'
+			identifier: missingType.return
+			count: 1
+			path: acrossai-mcp-manager.php
+
+		-
+			message: '#^Function AcrossAI_MCP_Manager\\acrossai_mcp_manager_run\(\) has no return type specified\.$#'
+			identifier: missingType.return
+			count: 1
+			path: acrossai-mcp-manager.php
+
+		-
+			message: '#^Parameter \#2 \$callback of function add_action expects callable\(\)\: mixed, array\{AcrossAI_MCP_Manager\\Includes\\AcrossAI_MCP_Manager, ''run''\} given\.$#'
+			identifier: argument.type
+			count: 1
+			path: acrossai-mcp-manager.php
+
+		-
+			message: '#^Access to an undefined property object\:\:\$server_slug\.$#'
+			identifier: property.notFound
+			count: 3
+			path: admin/Main.php
+
+		-
+			message: '#^Cannot access offset 0 on int\<min, \-1\>\|int\<1, max\>\|non\-empty\-list\<object\>\.$#'
+			identifier: offsetAccess.nonOffsetAccessible
+			count: 3
+			path: admin/Main.php
+
+		-
+			message: '#^Parameter \#1 \$handle of function wp_enqueue_script expects non\-empty\-string, string given\.$#'
+			identifier: argument.type
+			count: 1
+			path: admin/Main.php
+
+		-
+			message: '#^Parameter \#3 \$deps of function wp_enqueue_script expects array\<non\-empty\-string\>, array\<string\> given\.$#'
+			identifier: argument.type
+			count: 6
+			path: admin/Main.php
+
+		-
+			message: '#^Property AcrossAI_MCP_Manager\\Admin\\Main\:\:\$version is never read, only written\.$#'
+			identifier: property.onlyWritten
+			count: 1
+			path: admin/Main.php
+
+		-
+			message: '#^Access to an undefined property object\:\:\$server_name\.$#'
+			identifier: property.notFound
+			count: 1
+			path: admin/Partials/ApplicationPasswords.php
+
+		-
+			message: '#^Cannot access offset 0 on int\<min, \-1\>\|int\<1, max\>\|non\-empty\-list\<object\>\.$#'
+			identifier: offsetAccess.nonOffsetAccessible
+			count: 1
+			path: admin/Partials/ApplicationPasswords.php
+
+		-
+			message: '#^Offset ''created'' on array\{uuid\: string, app_id\: string, name\: string, password\: string, created\: int, last_used\: int\|null, last_ip\: string\|null\} in isset\(\) always exists and is not nullable\.$#'
+			identifier: isset.offset
+			count: 1
+			path: admin/Partials/ApplicationPasswords.php
+
+		-
+			message: '#^Offset ''name'' on array\{uuid\: string, app_id\: string, name\: string, password\: string, created\: int, last_used\: int\|null, last_ip\: string\|null\} in isset\(\) always exists and is not nullable\.$#'
+			identifier: isset.offset
+			count: 2
+			path: admin/Partials/ApplicationPasswords.php
+
+		-
+			message: '#^Offset ''name'' on array\{uuid\: string, app_id\: string, name\: string, password\: string, created\: int, last_used\: int\|null, last_ip\: string\|null\} on left side of \?\? always exists and is not nullable\.$#'
+			identifier: nullCoalesce.offset
+			count: 1
+			path: admin/Partials/ApplicationPasswords.php
+
+		-
+			message: '#^Offset ''uuid'' on array\{uuid\: string, app_id\: string, name\: string, password\: string, created\: int, last_used\: null, last_ip\: null\} on left side of \?\? always exists and is not nullable\.$#'
+			identifier: nullCoalesce.offset
+			count: 1
+			path: admin/Partials/ApplicationPasswords.php
+
+		-
+			message: '#^Ternary operator condition is always true\.$#'
+			identifier: ternary.alwaysTrue
+			count: 1
+			path: admin/Partials/ApplicationPasswords.php
+
+		-
+			message: '#^Method AcrossAI_MCP_Manager\\Admin\\Partials\\CliAuthLogListTable\:\:column_created_at\(\) has parameter \$item with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: admin/Partials/CliAuthLogListTable.php
+
+		-
+			message: '#^Method AcrossAI_MCP_Manager\\Admin\\Partials\\CliAuthLogListTable\:\:column_default\(\) has parameter \$item with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: admin/Partials/CliAuthLogListTable.php
+
+		-
+			message: '#^Method AcrossAI_MCP_Manager\\Admin\\Partials\\CliAuthLogListTable\:\:column_detail\(\) has parameter \$item with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: admin/Partials/CliAuthLogListTable.php
+
+		-
+			message: '#^Method AcrossAI_MCP_Manager\\Admin\\Partials\\CliAuthLogListTable\:\:column_status\(\) has parameter \$item with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: admin/Partials/CliAuthLogListTable.php
+
+		-
+			message: '#^Method AcrossAI_MCP_Manager\\Admin\\Partials\\CliAuthLogListTable\:\:column_user\(\) has parameter \$item with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: admin/Partials/CliAuthLogListTable.php
+
+		-
+			message: '#^Parameter \#1 \$object_or_class of function method_exists expects object\|string, int\|object given\.$#'
+			identifier: argument.type
+			count: 1
+			path: admin/Partials/CliAuthLogListTable.php
+
+		-
+			message: '#^Parameter \#1 \$text of function esc_html expects string, string\|false given\.$#'
+			identifier: argument.type
+			count: 1
+			path: admin/Partials/CliAuthLogListTable.php
+
+		-
+			message: '#^Access to an undefined property object\:\:\$description\.$#'
+			identifier: property.notFound
+			count: 1
+			path: admin/Partials/MCPServerListTable.php
+
+		-
+			message: '#^Access to an undefined property object\:\:\$id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: admin/Partials/MCPServerListTable.php
+
+		-
+			message: '#^Access to an undefined property object\:\:\$registered_from\.$#'
+			identifier: property.notFound
+			count: 1
+			path: admin/Partials/MCPServerListTable.php
+
+		-
+			message: '#^Access to an undefined property object\:\:\$server_name\.$#'
+			identifier: property.notFound
+			count: 1
+			path: admin/Partials/MCPServerListTable.php
+
+		-
+			message: '#^Access to an undefined property object\:\:\$server_route\.$#'
+			identifier: property.notFound
+			count: 1
+			path: admin/Partials/MCPServerListTable.php
+
+		-
+			message: '#^Access to an undefined property object\:\:\$server_route_namespace\.$#'
+			identifier: property.notFound
+			count: 1
+			path: admin/Partials/MCPServerListTable.php
+
+		-
+			message: '#^Access to an undefined property object\:\:\$server_slug\.$#'
+			identifier: property.notFound
+			count: 1
+			path: admin/Partials/MCPServerListTable.php
+
+		-
+			message: '#^Access to an undefined property object\:\:\$server_type\.$#'
+			identifier: property.notFound
+			count: 1
+			path: admin/Partials/MCPServerListTable.php
+
+		-
+			message: '#^Access to an undefined property object\:\:\$server_version\.$#'
+			identifier: property.notFound
+			count: 1
+			path: admin/Partials/MCPServerListTable.php
+
+		-
+			message: '#^Parameter \#2 \$array of function array_map expects array, int\|list\<object\> given\.$#'
+			identifier: argument.type
+			count: 1
+			path: admin/Partials/MCPServerListTable.php
+
+		-
+			message: '#^Property AcrossAI_MCP_Manager\\Admin\\Partials\\Menu\:\:\$plugin_name is never read, only written\.$#'
+			identifier: property.onlyWritten
+			count: 1
+			path: admin/Partials/Menu.php
+
+		-
+			message: '#^Property AcrossAI_MCP_Manager\\Admin\\Partials\\Menu\:\:\$version is never read, only written\.$#'
+			identifier: property.onlyWritten
+			count: 1
+			path: admin/Partials/Menu.php
+
+		-
+			message: '#^Found usage of constant FORCE_SSL_ADMIN\. Use force_ssl_admin\(\) instead\.$#'
+			identifier: phpstanWP.wpConstant.fetch
+			count: 1
+			path: admin/Partials/Notices.php
+
+		-
+			message: '#^Offset ''connector_slug'' on array\{token_family_id\: string, user_id\: int, connector_slug\: string, client_ids\: array\<int, string\>, token_count\: int, access_count\: int, refresh_count\: int, first_created_at\: string, \.\.\.\} in isset\(\) always exists and is not nullable\.$#'
+			identifier: isset.offset
+			count: 1
+			path: admin/Partials/ServerTabs/AIConnectorsTab.php
+
+		-
+			message: '#^Offset ''first_created_at'' on array\{token_family_id\: string, user_id\: int, connector_slug\: string, client_ids\: array\<int, string\>, token_count\: int, access_count\: int, refresh_count\: int, first_created_at\: string, \.\.\.\} on left side of \?\? always exists and is not nullable\.$#'
+			identifier: nullCoalesce.offset
+			count: 1
+			path: admin/Partials/ServerTabs/AIConnectorsTab.php
+
+		-
+			message: '#^Offset ''token_family_id'' on array\{token_family_id\: string, user_id\: int, connector_slug\: string, client_ids\: array\<int, string\>, token_count\: int, access_count\: int, refresh_count\: int, first_created_at\: string, \.\.\.\} on left side of \?\? always exists and is not nullable\.$#'
+			identifier: nullCoalesce.offset
+			count: 1
+			path: admin/Partials/ServerTabs/AIConnectorsTab.php
+
+		-
+			message: '#^Method AcrossAI_MCP_Manager\\Admin\\Partials\\ServerTabs\\AbilitiesTab\:\:render_body\(\) has parameter \$server with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: admin/Partials/ServerTabs/AbilitiesTab.php
+
+		-
+			message: '#^Cannot access offset 0 on int\<min, \-1\>\|int\<1, max\>\|non\-empty\-list\<object\>\.$#'
+			identifier: offsetAccess.nonOffsetAccessible
+			count: 1
+			path: admin/Partials/ServerTabs/AbstractReactMountServerTab.php
+
+		-
+			message: '#^Method AcrossAI_MCP_Manager\\Admin\\Partials\\ServerTabs\\AbstractReactMountServerTab\:\:build_bootstrap_payload\(\) has parameter \$server with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: admin/Partials/ServerTabs/AbstractReactMountServerTab.php
+
+		-
+			message: '#^Method AcrossAI_MCP_Manager\\Admin\\Partials\\ServerTabs\\AbstractReactMountServerTab\:\:get_noscript_summary_rows\(\) has parameter \$server with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: admin/Partials/ServerTabs/AbstractReactMountServerTab.php
+
+		-
+			message: '#^Method AcrossAI_MCP_Manager\\Admin\\Partials\\ServerTabs\\AbstractReactMountServerTab\:\:set_state_for_server\(\) has parameter \$submitted with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: admin/Partials/ServerTabs/AbstractReactMountServerTab.php
+
+		-
+			message: '#^Parameter \#1 \$handle of function wp_enqueue_script expects non\-empty\-string, string given\.$#'
+			identifier: argument.type
+			count: 1
+			path: admin/Partials/ServerTabs/AbstractReactMountServerTab.php
+
+		-
+			message: '#^Parameter \#1 \$route_namespace of function register_rest_route expects non\-falsy\-string, string given\.$#'
+			identifier: argument.type
+			count: 1
+			path: admin/Partials/ServerTabs/AbstractReactMountServerTab.php
+
+		-
+			message: '#^Parameter \#2 \$route of function register_rest_route expects non\-falsy\-string, string given\.$#'
+			identifier: argument.type
+			count: 1
+			path: admin/Partials/ServerTabs/AbstractReactMountServerTab.php
+
+		-
+			message: '#^Method AcrossAI_MCP_Manager\\Admin\\Partials\\ServerTabs\\AbstractServerTab\:\:get_noscript_summary_rows\(\) has parameter \$server with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: admin/Partials/ServerTabs/AbstractServerTab.php
+
+		-
+			message: '#^Method AcrossAI_MCP_Manager\\Admin\\Partials\\ServerTabs\\AbstractServerTab\:\:get_react_root_data\(\) has parameter \$server with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: admin/Partials/ServerTabs/AbstractServerTab.php
+
+		-
+			message: '#^Method AcrossAI_MCP_Manager\\Admin\\Partials\\ServerTabs\\AbstractServerTab\:\:json_config_block\(\) has parameter \$config with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: admin/Partials/ServerTabs/AbstractServerTab.php
+
+		-
+			message: '#^Method AcrossAI_MCP_Manager\\Admin\\Partials\\ServerTabs\\AbstractServerTab\:\:json_config_block\(\) has parameter \$server with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: admin/Partials/ServerTabs/AbstractServerTab.php
+
+		-
+			message: '#^Method AcrossAI_MCP_Manager\\Admin\\Partials\\ServerTabs\\AbstractServerTab\:\:nonce_field\(\) has parameter \$server with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: admin/Partials/ServerTabs/AbstractServerTab.php
+
+		-
+			message: '#^Method AcrossAI_MCP_Manager\\Admin\\Partials\\ServerTabs\\AbstractServerTab\:\:open_form\(\) has parameter \$server with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: admin/Partials/ServerTabs/AbstractServerTab.php
+
+		-
+			message: '#^Method AcrossAI_MCP_Manager\\Admin\\Partials\\ServerTabs\\AbstractServerTab\:\:render\(\) has parameter \$server with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: admin/Partials/ServerTabs/AbstractServerTab.php
+
+		-
+			message: '#^Method AcrossAI_MCP_Manager\\Admin\\Partials\\ServerTabs\\AbstractServerTab\:\:render_body\(\) has parameter \$server with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: admin/Partials/ServerTabs/AbstractServerTab.php
+
+		-
+			message: '#^Method AcrossAI_MCP_Manager\\Admin\\Partials\\ServerTabs\\AbstractServerTab\:\:render_content\(\) has parameter \$server with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: admin/Partials/ServerTabs/AbstractServerTab.php
+
+		-
+			message: '#^Method AcrossAI_MCP_Manager\\Admin\\Partials\\ServerTabs\\AbstractServerTab\:\:render_noscript_fallback\(\) has parameter \$server with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: admin/Partials/ServerTabs/AbstractServerTab.php
+
+		-
+			message: '#^Method AcrossAI_MCP_Manager\\Admin\\Partials\\ServerTabs\\AbstractServerTab\:\:server_edit_url\(\) has parameter \$server with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: admin/Partials/ServerTabs/AbstractServerTab.php
+
+		-
+			message: '#^Method AcrossAI_MCP_Manager\\Admin\\Partials\\ServerTabs\\AbstractServerTab\:\:visible_for\(\) has parameter \$server with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: admin/Partials/ServerTabs/AbstractServerTab.php
+
+		-
+			message: '#^Offset ''label'' on array\{label\: string, value\: string\} on left side of \?\? always exists and is not nullable\.$#'
+			identifier: nullCoalesce.offset
+			count: 1
+			path: admin/Partials/ServerTabs/AbstractServerTab.php
+
+		-
+			message: '#^Offset ''value'' on array\{label\: string, value\: string\} on left side of \?\? always exists and is not nullable\.$#'
+			identifier: nullCoalesce.offset
+			count: 1
+			path: admin/Partials/ServerTabs/AbstractServerTab.php
+
+		-
+			message: '#^Method AcrossAI_MCP_Manager\\Admin\\Partials\\ServerTabs\\AccessControlTab\:\:render_body\(\) has parameter \$server with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: admin/Partials/ServerTabs/AccessControlTab.php
+
+		-
+			message: '#^Method AcrossAI_MCP_Manager\\Admin\\Partials\\ServerTabs\\AccessControlTab\:\:render_permission_override_form\(\) has parameter \$server with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: admin/Partials/ServerTabs/AccessControlTab.php
+
+		-
+			message: '#^Method AcrossAI_MCP_Manager\\Admin\\Partials\\ServerTabs\\ClientsTab\:\:render_body\(\) has parameter \$server with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: admin/Partials/ServerTabs/ClientsTab.php
+
+		-
+			message: '#^Call to function is_array\(\) with array\<int, array\<string, mixed\>\> will always evaluate to true\.$#'
+			identifier: function.alreadyNarrowedType
+			count: 1
+			path: admin/Partials/ServerTabs/Connect/MethodRegistry.php
+
+		-
+			message: '#^Method AcrossAI_MCP_Manager\\Admin\\Partials\\ServerTabs\\DangerZoneTab\:\:render_body\(\) has parameter \$server with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: admin/Partials/ServerTabs/DangerZoneTab.php
+
+		-
+			message: '#^Method AcrossAI_MCP_Manager\\Admin\\Partials\\ServerTabs\\DangerZoneTab\:\:visible_for\(\) has parameter \$server with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: admin/Partials/ServerTabs/DangerZoneTab.php
+
+		-
+			message: '#^Call to function is_array\(\) with array\<string, mixed\> will always evaluate to true\.$#'
+			identifier: function.alreadyNarrowedType
+			count: 3
+			path: admin/Partials/ServerTabs/EmbedsTab.php
+
+		-
+			message: '#^Method AcrossAI_MCP_Manager\\Admin\\Partials\\ServerTabs\\EmbedsTab\:\:set_state_for_server\(\) has parameter \$submitted with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: admin/Partials/ServerTabs/EmbedsTab.php
+
+		-
+			message: '#^Method AcrossAI_MCP_Manager\\Admin\\Partials\\ServerTabs\\EmbedsTab\:\:summary_rows_from_state\(\) has parameter \$state with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: admin/Partials/ServerTabs/EmbedsTab.php
+
+		-
+			message: '#^Parameter \#1 \$array \(non\-empty\-list\<non\-falsy\-string\>\) of array_values is already a list, call has no effect\.$#'
+			identifier: arrayValues.list
+			count: 1
+			path: admin/Partials/ServerTabs/EmbedsTab.php
+
+		-
+			message: '#^Method AcrossAI_MCP_Manager\\Admin\\Partials\\ServerTabs\\McpTrackerTab\:\:render_body\(\) has parameter \$server with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: admin/Partials/ServerTabs/McpTrackerTab.php
+
+		-
+			message: '#^Method AcrossAI_MCP_Manager\\Admin\\Partials\\ServerTabs\\NpmTab\:\:render_body\(\) has parameter \$server with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: admin/Partials/ServerTabs/NpmTab.php
+
+		-
+			message: '#^Method AcrossAI_MCP_Manager\\Admin\\Partials\\ServerTabs\\OverviewTab\:\:render_body\(\) has parameter \$server with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: admin/Partials/ServerTabs/OverviewTab.php
+
+		-
+			message: '#^Method AcrossAI_MCP_Manager\\Admin\\Partials\\ServerTabs\\OverviewTab\:\:render_info_table\(\) has parameter \$server with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: admin/Partials/ServerTabs/OverviewTab.php
+
+		-
+			message: '#^Method AcrossAI_MCP_Manager\\Admin\\Partials\\ServerTabs\\OverviewTab\:\:render_status_control\(\) has parameter \$server with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: admin/Partials/ServerTabs/OverviewTab.php
+
+		-
+			message: '#^Parameter \#1 \$server of static method AcrossAI_MCP_Manager\\Includes\\MCP\\Controller\:\:default_instructions_for\(\) expects AcrossAI_MCP_Manager\\Includes\\Database\\MCPServer\\Row, object given\.$#'
+			identifier: argument.type
+			count: 1
+			path: admin/Partials/ServerTabs/OverviewTab.php
+
+		-
+			message: '#^Call to function is_array\(\) with array\<int, array\<string, mixed\>\> will always evaluate to true\.$#'
+			identifier: function.alreadyNarrowedType
+			count: 1
+			path: admin/Partials/ServerTabs/Registry.php
+
+		-
+			message: '#^Method AcrossAI_MCP_Manager\\Admin\\Partials\\ServerTabs\\ToolsTab\:\:render_body\(\) has parameter \$server with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: admin/Partials/ServerTabs/ToolsTab.php
+
+		-
+			message: '#^Method AcrossAI_MCP_Manager\\Admin\\Partials\\ServerTabs\\UpdateServerTab\:\:render_body\(\) has parameter \$server with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: admin/Partials/ServerTabs/UpdateServerTab.php
+
+		-
+			message: '#^Method AcrossAI_MCP_Manager\\Admin\\Partials\\ServerTabs\\UpdateServerTab\:\:visible_for\(\) has parameter \$server with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: admin/Partials/ServerTabs/UpdateServerTab.php
+
+		-
+			message: '#^Method AcrossAI_MCP_Manager\\Admin\\Partials\\ServerTabs\\WpCliTab\:\:render_body\(\) has parameter \$server with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: admin/Partials/ServerTabs/WpCliTab.php
+
+		-
+			message: '#^Access to an undefined property object\:\:\$is_enabled\.$#'
+			identifier: property.notFound
+			count: 1
+			path: admin/Partials/Settings.php
+
+		-
+			message: '#^Access to an undefined property object\:\:\$server_name\.$#'
+			identifier: property.notFound
+			count: 1
+			path: admin/Partials/Settings.php
+
+		-
+			message: '#^Access to an undefined property object\:\:\$server_slug\.$#'
+			identifier: property.notFound
+			count: 2
+			path: admin/Partials/Settings.php
+
+		-
+			message: '#^Call to an undefined method object\:\:to_array\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: admin/Partials/Settings.php
+
+		-
+			message: '#^Cannot access offset 0 on int\<min, \-1\>\|int\<1, max\>\|non\-empty\-list\<object\>\.$#'
+			identifier: offsetAccess.nonOffsetAccessible
+			count: 1
+			path: admin/Partials/Settings.php
+
+		-
+			message: '#^Cannot access offset 0 on int\|list\<object\>\.$#'
+			identifier: offsetAccess.nonOffsetAccessible
+			count: 3
+			path: admin/Partials/Settings.php
+
+		-
+			message: '#^Property AcrossAI_MCP_Manager\\Admin\\Partials\\Settings\:\:\$plugin_name is never read, only written\.$#'
+			identifier: property.onlyWritten
+			count: 1
+			path: admin/Partials/Settings.php
+
+		-
+			message: '#^Property AcrossAI_MCP_Manager\\Admin\\Partials\\Settings\:\:\$version is never read, only written\.$#'
+			identifier: property.onlyWritten
+			count: 1
+			path: admin/Partials/Settings.php
+
+		-
+			message: '#^Call to function is_array\(\) with array will always evaluate to true\.$#'
+			identifier: function.alreadyNarrowedType
+			count: 1
+			path: admin/Partials/SettingsMenu.php
+
+		-
+			message: '#^Method AcrossAI_MCP_Manager\\Admin\\Partials\\SettingsMenu\:\:register_tab\(\) has parameter \$tabs with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: admin/Partials/SettingsMenu.php
+
+		-
+			message: '#^Method AcrossAI_MCP_Manager\\Admin\\Partials\\SettingsMenu\:\:register_tab\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: admin/Partials/SettingsMenu.php
+
+		-
+			message: '#^Access to an undefined property object\:\:\$id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: includes/Abilities/CurrentServerHolder.php
+
+		-
+			message: '#^Call to function is_object\(\) with WP_REST_Request will always evaluate to true\.$#'
+			identifier: function.alreadyNarrowedType
+			count: 1
+			path: includes/Abilities/CurrentServerHolder.php
+
+		-
+			message: '#^Call to function method_exists\(\) with WP_REST_Request and ''get_route'' will always evaluate to true\.$#'
+			identifier: function.alreadyNarrowedType
+			count: 1
+			path: includes/Abilities/CurrentServerHolder.php
+
+		-
+			message: '#^Cannot access offset 0 on int\<min, \-1\>\|int\<1, max\>\|non\-empty\-list\<object\>\.$#'
+			identifier: offsetAccess.nonOffsetAccessible
+			count: 1
+			path: includes/Abilities/CurrentServerHolder.php
+
+		-
+			message: '#^Call to function is_array\(\) with array\<string, mixed\> will always evaluate to true\.$#'
+			identifier: function.alreadyNarrowedType
+			count: 1
+			path: includes/Abilities/Discover.php
+
+		-
+			message: '#^Call to function method_exists\(\) with WP_Ability and ''get_meta'' will always evaluate to true\.$#'
+			identifier: function.alreadyNarrowedType
+			count: 1
+			path: includes/Abilities/Discover.php
+
+		-
+			message: '#^Parameter \#1 \$array \(list\<array\<string, string\>\>\) of array_values is already a list, call has no effect\.$#'
+			identifier: arrayValues.list
+			count: 1
+			path: includes/Abilities/Discover.php
+
+		-
+			message: '#^Call to function is_array\(\) with array\<string, mixed\> will always evaluate to true\.$#'
+			identifier: function.alreadyNarrowedType
+			count: 1
+			path: includes/Abilities/GetAbilityInfo.php
+
+		-
+			message: '#^Access to an undefined property object\:\:\$override_abilities_permission\.$#'
+			identifier: property.notFound
+			count: 1
+			path: includes/Abilities/PermissionOverrideProcessor.php
+
+		-
+			message: '#^Cannot access offset 0 on int\<min, \-1\>\|int\<1, max\>\|non\-empty\-list\<object\>\.$#'
+			identifier: offsetAccess.nonOffsetAccessible
+			count: 1
+			path: includes/Abilities/PermissionOverrideProcessor.php
+
+		-
+			message: '#^Offset ''mcp\-adapter…''\|''mcp\-adapter/execute…''\|''mcp\-adapter/get…'' on array\{''mcp\-adapter/discover\-abilities''\: string, ''mcp\-adapter/get\-ability\-info''\: string, ''mcp\-adapter/execute\-ability''\: string\} on left side of \?\? always exists and is not nullable\.$#'
+			identifier: nullCoalesce.offset
+			count: 1
+			path: includes/Abilities/ServerGuide.php
+
+		-
+			message: '#^Instanceof between WP_Ability and WP_Ability will always evaluate to true\.$#'
+			identifier: instanceof.alwaysTrue
+			count: 1
+			path: includes/Abilities/Toolset/AbilityGroup.php
+
+		-
+			message: '#^Parameter \#1 \$name of function wp_register_ability expects lowercase\-string&non\-falsy\-string, string given\.$#'
+			identifier: argument.type
+			count: 1
+			path: includes/Abilities/Toolset/Base_Toolset_Ability.php
+
+		-
+			message: '#^Cannot access offset 0 on list\<string\>\|false\.$#'
+			identifier: offsetAccess.nonOffsetAccessible
+			count: 1
+			path: includes/Abilities/Toolset/Guide.php
+
+		-
+			message: '#^Parameter \#1 \$ability of callable passed to call_user_func\(\) expects WP_Ability, object\|null given\.$#'
+			identifier: argument.type
+			count: 1
+			path: includes/Abilities/Toolset/InputNormalizer.php
+
+		-
+			message: '#^Right side of && is always true\.$#'
+			identifier: booleanAnd.rightAlwaysTrue
+			count: 1
+			path: includes/Abilities/Toolset/InputNormalizer.php
+
+		-
+			message: '#^Call to function is_array\(\) with array\<string\> will always evaluate to true\.$#'
+			identifier: function.alreadyNarrowedType
+			count: 1
+			path: includes/Abilities/Toolset/Integrations.php
+
+		-
+			message: '#^Instanceof between AcrossAI_MCP_Manager\\Includes\\Abilities\\Toolset\\Appearance\|AcrossAI_MCP_Manager\\Includes\\Abilities\\Toolset\\Blocks\|AcrossAI_MCP_Manager\\Includes\\Abilities\\Toolset\\Cache\|AcrossAI_MCP_Manager\\Includes\\Abilities\\Toolset\\Configuration\|AcrossAI_MCP_Manager\\Includes\\Abilities\\Toolset\\Content\|AcrossAI_MCP_Manager\\Includes\\Abilities\\Toolset\\Cron\|AcrossAI_MCP_Manager\\Includes\\Abilities\\Toolset\\Database\|AcrossAI_MCP_Manager\\Includes\\Abilities\\Toolset\\Diagnostics\|AcrossAI_MCP_Manager\\Includes\\Abilities\\Toolset\\Files\|AcrossAI_MCP_Manager\\Includes\\Abilities\\Toolset\\Integrations\|AcrossAI_MCP_Manager\\Includes\\Abilities\\Toolset\\Updates\|AcrossAI_MCP_Manager\\Includes\\Abilities\\Toolset\\Users and AcrossAI_MCP_Manager\\Includes\\Abilities\\Toolset\\Base_Toolset_Ability will always evaluate to true\.$#'
+			identifier: instanceof.alwaysTrue
+			count: 1
+			path: includes/Abilities/Toolset/Registrar.php
+
+		-
+			message: '#^Instanceof between WP_Ability and WP_Ability will always evaluate to true\.$#'
+			identifier: instanceof.alwaysTrue
+			count: 1
+			path: includes/Abilities/ToolsetExposureBridge.php
+
+		-
+			message: '#^Access to an undefined property object\:\:\$server_slug\.$#'
+			identifier: property.notFound
+			count: 1
+			path: includes/AccessControl/AcrossAI_MCP_Access_Control.php
+
+		-
+			message: '#^Call to function is_object\(\) with WP_Role will always evaluate to true\.$#'
+			identifier: function.alreadyNarrowedType
+			count: 1
+			path: includes/AccessControl/AcrossAI_MCP_Access_Control.php
+
+		-
+			message: '#^Call to function is_object\(\) with WP_Roles will always evaluate to true\.$#'
+			identifier: function.alreadyNarrowedType
+			count: 1
+			path: includes/AccessControl/AcrossAI_MCP_Access_Control.php
+
+		-
+			message: '#^Cannot access offset 0 on int\<min, \-1\>\|int\<1, max\>\|non\-empty\-list\<object\>\.$#'
+			identifier: offsetAccess.nonOffsetAccessible
+			count: 1
+			path: includes/AccessControl/AcrossAI_MCP_Access_Control.php
+
+		-
+			message: '#^Right side of && is always true\.$#'
+			identifier: booleanAnd.rightAlwaysTrue
+			count: 1
+			path: includes/AccessControl/AcrossAI_MCP_Access_Control.php
+
+		-
+			message: '#^Access to an undefined property object\:\:\$server_slug\.$#'
+			identifier: property.notFound
+			count: 1
+			path: includes/AccessControl/TransportPermissionDefault.php
+
+		-
+			message: '#^Cannot access offset 0 on int\<min, \-1\>\|int\<1, max\>\|non\-empty\-list\<object\>\.$#'
+			identifier: offsetAccess.nonOffsetAccessible
+			count: 1
+			path: includes/AccessControl/TransportPermissionDefault.php
+
+		-
+			message: '#^Method AcrossAI_MCP_Manager\\Includes\\Activator\:\:activate\(\) has no return type specified\.$#'
+			identifier: missingType.return
+			count: 1
+			path: includes/Activator.php
+
+		-
+			message: '#^Method AcrossAI_MCP_Manager\\Includes\\Compat\:\:array_is_list\(\) has parameter \$array with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: includes/Compat.php
+
+		-
+			message: '#^Method AcrossAI_MCP_Manager\\Includes\\Compat\:\:array_key_first\(\) has parameter \$array with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: includes/Compat.php
+
+		-
+			message: '#^Method AcrossAI_MCP_Manager\\Includes\\Compat\:\:array_key_last\(\) has parameter \$array with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: includes/Compat.php
+
+		-
+			message: '#^Call to function is_string\(\) with string will always evaluate to true\.$#'
+			identifier: function.alreadyNarrowedType
+			count: 1
+			path: includes/ConnectorProfiles/CursorConnectorProfile.php
+
+		-
+			message: '#^Call to function is_string\(\) with string will always evaluate to true\.$#'
+			identifier: function.alreadyNarrowedType
+			count: 1
+			path: includes/Connectors/AbstractConnectorProfile.php
+
+		-
+			message: '#^Instanceof between AcrossAI_MCP_Manager\\Includes\\Connectors\\AbstractConnectorProfile and AcrossAI_MCP_Manager\\Includes\\Connectors\\AbstractConnectorProfile will always evaluate to true\.$#'
+			identifier: instanceof.alwaysTrue
+			count: 1
+			path: includes/Connectors/ConnectorProfileRegistry.php
+
+		-
+			message: '#^Parameter \#1 \$array \(list\<AcrossAI_MCP_Manager\\Includes\\Connectors\\AbstractConnectorProfile\>\) of array_values is already a list, call has no effect\.$#'
+			identifier: arrayValues.list
+			count: 1
+			path: includes/Connectors/ConnectorProfileRegistry.php
+
+		-
+			message: '#^Access to an undefined property object\:\:\$id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: includes/Database/CliAuthLog/Recorder.php
+
+		-
+			message: '#^Parameter \#2 \$gmt of function current_time expects bool, int given\.$#'
+			identifier: argument.type
+			count: 2
+			path: includes/Database/CliAuthLog/Recorder.php
+
+		-
+			message: '#^Class AcrossAI_MCP_Manager\\Includes\\Database\\CliAuthLog\\Row has PHPDoc tag @property for property \$properties with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: includes/Database/CliAuthLog/Row.php
+
+		-
+			message: '#^Method AcrossAI_MCP_Manager\\Includes\\Database\\CliAuthLog\\Row\:\:__construct\(\) has parameter \$item with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: includes/Database/CliAuthLog/Row.php
+
+		-
+			message: '#^Parameter \#1 \$args of method BerlinDB\\Database\\Kern\\Row\:\:__construct\(\) expects array\<string, mixed\>, array\|object given\.$#'
+			identifier: argument.type
+			count: 1
+			path: includes/Database/CliAuthLog/Row.php
+
+		-
+			message: '#^PHPDoc type array of property AcrossAI_MCP_Manager\\Includes\\Database\\CliAuthLog\\Schema\:\:\$columns is not covariant with PHPDoc type array\<BerlinDB\\Database\\Kern\\Column\> of overridden property BerlinDB\\Database\\Kern\\Schema\:\:\$columns\.$#'
+			identifier: property.phpDocType
+			count: 1
+			path: includes/Database/CliAuthLog/Schema.php
+
+		-
+			message: '#^PHPDoc type array of property AcrossAI_MCP_Manager\\Includes\\Database\\CliAuthLog\\Schema\:\:\$indexes is not covariant with PHPDoc type array\<BerlinDB\\Database\\Kern\\Index\> of overridden property BerlinDB\\Database\\Kern\\Schema\:\:\$indexes\.$#'
+			identifier: property.phpDocType
+			count: 1
+			path: includes/Database/CliAuthLog/Schema.php
+
+		-
+			message: '#^Property AcrossAI_MCP_Manager\\Includes\\Database\\CliAuthLog\\Schema\:\:\$columns type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: includes/Database/CliAuthLog/Schema.php
+
+		-
+			message: '#^Property AcrossAI_MCP_Manager\\Includes\\Database\\CliAuthLog\\Schema\:\:\$indexes type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: includes/Database/CliAuthLog/Schema.php
+
+		-
+			message: '#^Method AcrossAI_MCP_Manager\\Includes\\Database\\ConnectorApprovedUsers\\Query\:\:find_all_by_server\(\) should return array\<int, AcrossAI_MCP_Manager\\Includes\\Database\\ConnectorApprovedUsers\\Row\> but returns list\<object\>\.$#'
+			identifier: return.type
+			count: 1
+			path: includes/Database/ConnectorApprovedUsers/Query.php
+
+		-
+			message: '#^Method AcrossAI_MCP_Manager\\Includes\\Database\\ConnectorApprovedUsers\\Query\:\:find_by_server_and_connector\(\) should return array\<int, AcrossAI_MCP_Manager\\Includes\\Database\\ConnectorApprovedUsers\\Row\> but returns list\<object\>\.$#'
+			identifier: return.type
+			count: 1
+			path: includes/Database/ConnectorApprovedUsers/Query.php
+
+		-
+			message: '#^Method AcrossAI_MCP_Manager\\Includes\\Database\\ConnectorApprovedUsers\\Row\:\:__construct\(\) has parameter \$item with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: includes/Database/ConnectorApprovedUsers/Row.php
+
+		-
+			message: '#^Parameter \#1 \$args of method BerlinDB\\Database\\Kern\\Row\:\:__construct\(\) expects array\<string, mixed\>, array\|object given\.$#'
+			identifier: argument.type
+			count: 1
+			path: includes/Database/ConnectorApprovedUsers/Row.php
+
+		-
+			message: '#^PHPDoc type array of property AcrossAI_MCP_Manager\\Includes\\Database\\ConnectorApprovedUsers\\Schema\:\:\$columns is not covariant with PHPDoc type array\<BerlinDB\\Database\\Kern\\Column\> of overridden property BerlinDB\\Database\\Kern\\Schema\:\:\$columns\.$#'
+			identifier: property.phpDocType
+			count: 1
+			path: includes/Database/ConnectorApprovedUsers/Schema.php
+
+		-
+			message: '#^PHPDoc type array of property AcrossAI_MCP_Manager\\Includes\\Database\\ConnectorApprovedUsers\\Schema\:\:\$indexes is not covariant with PHPDoc type array\<BerlinDB\\Database\\Kern\\Index\> of overridden property BerlinDB\\Database\\Kern\\Schema\:\:\$indexes\.$#'
+			identifier: property.phpDocType
+			count: 1
+			path: includes/Database/ConnectorApprovedUsers/Schema.php
+
+		-
+			message: '#^Property AcrossAI_MCP_Manager\\Includes\\Database\\ConnectorApprovedUsers\\Schema\:\:\$columns type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: includes/Database/ConnectorApprovedUsers/Schema.php
+
+		-
+			message: '#^Property AcrossAI_MCP_Manager\\Includes\\Database\\ConnectorApprovedUsers\\Schema\:\:\$indexes type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: includes/Database/ConnectorApprovedUsers/Schema.php
+
+		-
+			message: '#^Call to function is_array\(\) with array\<string, mixed\> will always evaluate to true\.$#'
+			identifier: function.alreadyNarrowedType
+			count: 1
+			path: includes/Database/MCPServer/AbilityDiscovery.php
+
+		-
+			message: '#^Offset ''type'' on array\{type\: string, server\: array\<string, mixed\>, tools\: array\<string\>\} in isset\(\) always exists and is not nullable\.$#'
+			identifier: isset.offset
+			count: 1
+			path: includes/Database/MCPServer/CreatedColumnBackfill.php
+
+		-
+			message: '#^Offset ''tools'' on array\{managed\: array\<string, mixed\>, initial\: array\<string, mixed\>, tools\: array\<string\>\} on left side of \?\? always exists and is not nullable\.$#'
+			identifier: nullCoalesce.offset
+			count: 1
+			path: includes/Database/MCPServer/DefaultServerSeeder.php
+
+		-
+			message: '#^Call to function is_array\(\) with array\<string, mixed\> will always evaluate to true\.$#'
+			identifier: function.alreadyNarrowedType
+			count: 2
+			path: includes/Database/MCPServer/PolicyTransition.php
+
+		-
+			message: '#^Cannot access offset 0 on int\<min, \-1\>\|int\<1, max\>\|non\-empty\-list\<object\>\.$#'
+			identifier: offsetAccess.nonOffsetAccessible
+			count: 1
+			path: includes/Database/MCPServer/PolicyTransition.php
+
+		-
+			message: '#^Access to an undefined property object\:\:\$server_slug\.$#'
+			identifier: property.notFound
+			count: 1
+			path: includes/Database/MCPServer/ProtectedServers.php
+
+		-
+			message: '#^Cannot access offset 0 on int\<min, \-1\>\|int\<1, max\>\|non\-empty\-list\<object\>\.$#'
+			identifier: offsetAccess.nonOffsetAccessible
+			count: 1
+			path: includes/Database/MCPServer/ProtectedServers.php
+
+		-
+			message: '#^Class AcrossAI_MCP_Manager\\Includes\\Database\\MCPServer\\Row has PHPDoc tag @property for property \$properties with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: includes/Database/MCPServer/Row.php
+
+		-
+			message: '#^Method AcrossAI_MCP_Manager\\Includes\\Database\\MCPServer\\Row\:\:__construct\(\) has parameter \$item with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: includes/Database/MCPServer/Row.php
+
+		-
+			message: '#^Parameter \#1 \$args of method BerlinDB\\Database\\Kern\\Row\:\:__construct\(\) expects array\<string, mixed\>, array\|object given\.$#'
+			identifier: argument.type
+			count: 1
+			path: includes/Database/MCPServer/Row.php
+
+		-
+			message: '#^PHPDoc type array of property AcrossAI_MCP_Manager\\Includes\\Database\\MCPServer\\Schema\:\:\$columns is not covariant with PHPDoc type array\<BerlinDB\\Database\\Kern\\Column\> of overridden property BerlinDB\\Database\\Kern\\Schema\:\:\$columns\.$#'
+			identifier: property.phpDocType
+			count: 1
+			path: includes/Database/MCPServer/Schema.php
+
+		-
+			message: '#^PHPDoc type array of property AcrossAI_MCP_Manager\\Includes\\Database\\MCPServer\\Schema\:\:\$indexes is not covariant with PHPDoc type array\<BerlinDB\\Database\\Kern\\Index\> of overridden property BerlinDB\\Database\\Kern\\Schema\:\:\$indexes\.$#'
+			identifier: property.phpDocType
+			count: 1
+			path: includes/Database/MCPServer/Schema.php
+
+		-
+			message: '#^Property AcrossAI_MCP_Manager\\Includes\\Database\\MCPServer\\Schema\:\:\$columns type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: includes/Database/MCPServer/Schema.php
+
+		-
+			message: '#^Property AcrossAI_MCP_Manager\\Includes\\Database\\MCPServer\\Schema\:\:\$indexes type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: includes/Database/MCPServer/Schema.php
+
+		-
+			message: '#^@param string \$reason does not accept actual type of parameter\: int\|string\.$#'
+			identifier: parameter.phpDocType
+			count: 1
+			path: includes/Database/MCPServer/ServerEnablement.php
+
+		-
+			message: '#^Access to an undefined property object\:\:\$server_type\.$#'
+			identifier: property.notFound
+			count: 2
+			path: includes/Database/MCPServer/ServerEnablement.php
+
+		-
+			message: '#^Cannot access offset 0 on int\<min, \-1\>\|int\<1, max\>\|non\-empty\-list\<object\>\.$#'
+			identifier: offsetAccess.nonOffsetAccessible
+			count: 1
+			path: includes/Database/MCPServer/ServerEnablement.php
+
+		-
+			message: '#^Call to function is_array\(\) with array\<string, array\<string, mixed\>\> will always evaluate to true\.$#'
+			identifier: function.alreadyNarrowedType
+			count: 1
+			path: includes/Database/MCPServer/ServerTypes.php
+
+		-
+			message: '#^Parameter \#2 \$callback of function array_filter expects \(callable\(string\)\: bool\)\|null, ''strlen'' given\.$#'
+			identifier: argument.type
+			count: 1
+			path: includes/Database/MCPServer/ToolPolicy.php
+
+		-
+			message: '#^Access to an undefined property object\:\:\$is_exposed\.$#'
+			identifier: property.notFound
+			count: 2
+			path: includes/Database/MCPServerAbility/ExposureResolver.php
+
+		-
+			message: '#^Cannot access offset 0 on int\<min, \-1\>\|int\<1, max\>\|non\-empty\-list\<object\>\.$#'
+			identifier: offsetAccess.nonOffsetAccessible
+			count: 2
+			path: includes/Database/MCPServerAbility/ExposureResolver.php
+
+		-
+			message: '#^Method AcrossAI_MCP_Manager\\Includes\\Database\\MCPServerAbility\\ExposureResolver\:\:resolve_effective\(\) has parameter \$meta with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: includes/Database/MCPServerAbility/ExposureResolver.php
+
+		-
+			message: '#^Method AcrossAI_MCP_Manager\\Includes\\Database\\MCPServerAbility\\ExposureResolver\:\:resolve_row_only\(\) has parameter \$meta with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: includes/Database/MCPServerAbility/ExposureResolver.php
+
+		-
+			message: '#^Access to an undefined property object\:\:\$id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: includes/Database/MCPServerAbility/Query.php
+
+		-
+			message: '#^Cannot access offset 0 on int\<min, \-1\>\|int\<1, max\>\|non\-empty\-list\<object\>\.$#'
+			identifier: offsetAccess.nonOffsetAccessible
+			count: 1
+			path: includes/Database/MCPServerAbility/Query.php
+
+		-
+			message: '#^Method AcrossAI_MCP_Manager\\Includes\\Database\\MCPServerAbility\\Row\:\:__construct\(\) has parameter \$item with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: includes/Database/MCPServerAbility/Row.php
+
+		-
+			message: '#^Parameter \#1 \$args of method BerlinDB\\Database\\Kern\\Row\:\:__construct\(\) expects array\<string, mixed\>, array\|object given\.$#'
+			identifier: argument.type
+			count: 1
+			path: includes/Database/MCPServerAbility/Row.php
+
+		-
+			message: '#^PHPDoc type array of property AcrossAI_MCP_Manager\\Includes\\Database\\MCPServerAbility\\Schema\:\:\$columns is not covariant with PHPDoc type array\<BerlinDB\\Database\\Kern\\Column\> of overridden property BerlinDB\\Database\\Kern\\Schema\:\:\$columns\.$#'
+			identifier: property.phpDocType
+			count: 1
+			path: includes/Database/MCPServerAbility/Schema.php
+
+		-
+			message: '#^PHPDoc type array of property AcrossAI_MCP_Manager\\Includes\\Database\\MCPServerAbility\\Schema\:\:\$indexes is not covariant with PHPDoc type array\<BerlinDB\\Database\\Kern\\Index\> of overridden property BerlinDB\\Database\\Kern\\Schema\:\:\$indexes\.$#'
+			identifier: property.phpDocType
+			count: 1
+			path: includes/Database/MCPServerAbility/Schema.php
+
+		-
+			message: '#^Property AcrossAI_MCP_Manager\\Includes\\Database\\MCPServerAbility\\Schema\:\:\$columns type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: includes/Database/MCPServerAbility/Schema.php
+
+		-
+			message: '#^Property AcrossAI_MCP_Manager\\Includes\\Database\\MCPServerAbility\\Schema\:\:\$indexes type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: includes/Database/MCPServerAbility/Schema.php
+
+		-
+			message: '#^Method AcrossAI_MCP_Manager\\Includes\\Database\\MCPServerMeta\\Row\:\:__construct\(\) has parameter \$item with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: includes/Database/MCPServerMeta/Row.php
+
+		-
+			message: '#^Parameter \#1 \$args of method BerlinDB\\Database\\Kern\\Row\:\:__construct\(\) expects array\<string, mixed\>, array\|object given\.$#'
+			identifier: argument.type
+			count: 1
+			path: includes/Database/MCPServerMeta/Row.php
+
+		-
+			message: '#^PHPDoc type array of property AcrossAI_MCP_Manager\\Includes\\Database\\MCPServerMeta\\Schema\:\:\$columns is not covariant with PHPDoc type array\<BerlinDB\\Database\\Kern\\Column\> of overridden property BerlinDB\\Database\\Kern\\Schema\:\:\$columns\.$#'
+			identifier: property.phpDocType
+			count: 1
+			path: includes/Database/MCPServerMeta/Schema.php
+
+		-
+			message: '#^PHPDoc type array of property AcrossAI_MCP_Manager\\Includes\\Database\\MCPServerMeta\\Schema\:\:\$indexes is not covariant with PHPDoc type array\<BerlinDB\\Database\\Kern\\Index\> of overridden property BerlinDB\\Database\\Kern\\Schema\:\:\$indexes\.$#'
+			identifier: property.phpDocType
+			count: 1
+			path: includes/Database/MCPServerMeta/Schema.php
+
+		-
+			message: '#^Property AcrossAI_MCP_Manager\\Includes\\Database\\MCPServerMeta\\Schema\:\:\$columns type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: includes/Database/MCPServerMeta/Schema.php
+
+		-
+			message: '#^Property AcrossAI_MCP_Manager\\Includes\\Database\\MCPServerMeta\\Schema\:\:\$indexes type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: includes/Database/MCPServerMeta/Schema.php
+
+		-
+			message: '#^Access to an undefined property object\:\:\$ability_slug\.$#'
+			identifier: property.notFound
+			count: 1
+			path: includes/Database/MCPServerTool/Query.php
+
+		-
+			message: '#^Access to an undefined property object\:\:\$id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: includes/Database/MCPServerTool/Query.php
+
+		-
+			message: '#^Cannot access offset 0 on int\<min, \-1\>\|int\<1, max\>\|non\-empty\-list\<object\>\.$#'
+			identifier: offsetAccess.nonOffsetAccessible
+			count: 1
+			path: includes/Database/MCPServerTool/Query.php
+
+		-
+			message: '#^Parameter \#2 \$array of function array_map expects array, int\|list\<object\> given\.$#'
+			identifier: argument.type
+			count: 1
+			path: includes/Database/MCPServerTool/Query.php
+
+		-
+			message: '#^Parameter \#2 \$callback of function array_filter expects \(callable\(string\)\: bool\)\|null, ''strlen'' given\.$#'
+			identifier: argument.type
+			count: 1
+			path: includes/Database/MCPServerTool/Query.php
+
+		-
+			message: '#^Method AcrossAI_MCP_Manager\\Includes\\Database\\MCPServerTool\\Row\:\:__construct\(\) has parameter \$item with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: includes/Database/MCPServerTool/Row.php
+
+		-
+			message: '#^Parameter \#1 \$args of method BerlinDB\\Database\\Kern\\Row\:\:__construct\(\) expects array\<string, mixed\>, array\|object given\.$#'
+			identifier: argument.type
+			count: 1
+			path: includes/Database/MCPServerTool/Row.php
+
+		-
+			message: '#^PHPDoc type array of property AcrossAI_MCP_Manager\\Includes\\Database\\MCPServerTool\\Schema\:\:\$columns is not covariant with PHPDoc type array\<BerlinDB\\Database\\Kern\\Column\> of overridden property BerlinDB\\Database\\Kern\\Schema\:\:\$columns\.$#'
+			identifier: property.phpDocType
+			count: 1
+			path: includes/Database/MCPServerTool/Schema.php
+
+		-
+			message: '#^PHPDoc type array of property AcrossAI_MCP_Manager\\Includes\\Database\\MCPServerTool\\Schema\:\:\$indexes is not covariant with PHPDoc type array\<BerlinDB\\Database\\Kern\\Index\> of overridden property BerlinDB\\Database\\Kern\\Schema\:\:\$indexes\.$#'
+			identifier: property.phpDocType
+			count: 1
+			path: includes/Database/MCPServerTool/Schema.php
+
+		-
+			message: '#^Property AcrossAI_MCP_Manager\\Includes\\Database\\MCPServerTool\\Schema\:\:\$columns type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: includes/Database/MCPServerTool/Schema.php
+
+		-
+			message: '#^Property AcrossAI_MCP_Manager\\Includes\\Database\\MCPServerTool\\Schema\:\:\$indexes type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: includes/Database/MCPServerTool/Schema.php
+
+		-
+			message: '#^Method AcrossAI_MCP_Manager\\Includes\\Database\\OAuthAuthCodes\\Row\:\:__construct\(\) has parameter \$item with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: includes/Database/OAuthAuthCodes/Row.php
+
+		-
+			message: '#^Parameter \#1 \$args of method BerlinDB\\Database\\Kern\\Row\:\:__construct\(\) expects array\<string, mixed\>, array\|object given\.$#'
+			identifier: argument.type
+			count: 1
+			path: includes/Database/OAuthAuthCodes/Row.php
+
+		-
+			message: '#^PHPDoc type array of property AcrossAI_MCP_Manager\\Includes\\Database\\OAuthAuthCodes\\Schema\:\:\$columns is not covariant with PHPDoc type array\<BerlinDB\\Database\\Kern\\Column\> of overridden property BerlinDB\\Database\\Kern\\Schema\:\:\$columns\.$#'
+			identifier: property.phpDocType
+			count: 1
+			path: includes/Database/OAuthAuthCodes/Schema.php
+
+		-
+			message: '#^PHPDoc type array of property AcrossAI_MCP_Manager\\Includes\\Database\\OAuthAuthCodes\\Schema\:\:\$indexes is not covariant with PHPDoc type array\<BerlinDB\\Database\\Kern\\Index\> of overridden property BerlinDB\\Database\\Kern\\Schema\:\:\$indexes\.$#'
+			identifier: property.phpDocType
+			count: 1
+			path: includes/Database/OAuthAuthCodes/Schema.php
+
+		-
+			message: '#^Property AcrossAI_MCP_Manager\\Includes\\Database\\OAuthAuthCodes\\Schema\:\:\$columns type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: includes/Database/OAuthAuthCodes/Schema.php
+
+		-
+			message: '#^Property AcrossAI_MCP_Manager\\Includes\\Database\\OAuthAuthCodes\\Schema\:\:\$indexes type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: includes/Database/OAuthAuthCodes/Schema.php
+
+		-
+			message: '#^Method AcrossAI_MCP_Manager\\Includes\\Database\\OAuthClients\\Query\:\:find_by_client_id_and_server_id\(\) should return AcrossAI_MCP_Manager\\Includes\\Database\\OAuthClients\\Row\|null but returns object\|null\.$#'
+			identifier: return.type
+			count: 1
+			path: includes/Database/OAuthClients/Query.php
+
+		-
+			message: '#^Method AcrossAI_MCP_Manager\\Includes\\Database\\OAuthClients\\Query\:\:find_by_fingerprint\(\) should return AcrossAI_MCP_Manager\\Includes\\Database\\OAuthClients\\Row\|null but returns object\|null\.$#'
+			identifier: return.type
+			count: 1
+			path: includes/Database/OAuthClients/Query.php
+
+		-
+			message: '#^Method AcrossAI_MCP_Manager\\Includes\\Database\\OAuthClients\\Query\:\:find_by_id\(\) should return AcrossAI_MCP_Manager\\Includes\\Database\\OAuthClients\\Row\|null but returns object\|null\.$#'
+			identifier: return.type
+			count: 1
+			path: includes/Database/OAuthClients/Query.php
+
+		-
+			message: '#^Property AcrossAI_MCP_Manager\\Includes\\Database\\OAuthClients\\Query\:\:\$find_by_composite_cache \(array\<string, AcrossAI_MCP_Manager\\Includes\\Database\\OAuthClients\\Row\|null\>\) does not accept array\<string, object\|null\>\.$#'
+			identifier: assign.propertyType
+			count: 1
+			path: includes/Database/OAuthClients/Query.php
+
+		-
+			message: '#^Method AcrossAI_MCP_Manager\\Includes\\Database\\OAuthClients\\Row\:\:__construct\(\) has parameter \$item with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: includes/Database/OAuthClients/Row.php
+
+		-
+			message: '#^Parameter \#1 \$args of method BerlinDB\\Database\\Kern\\Row\:\:__construct\(\) expects array\<string, mixed\>, array\|object given\.$#'
+			identifier: argument.type
+			count: 1
+			path: includes/Database/OAuthClients/Row.php
+
+		-
+			message: '#^PHPDoc type array of property AcrossAI_MCP_Manager\\Includes\\Database\\OAuthClients\\Schema\:\:\$columns is not covariant with PHPDoc type array\<BerlinDB\\Database\\Kern\\Column\> of overridden property BerlinDB\\Database\\Kern\\Schema\:\:\$columns\.$#'
+			identifier: property.phpDocType
+			count: 1
+			path: includes/Database/OAuthClients/Schema.php
+
+		-
+			message: '#^PHPDoc type array of property AcrossAI_MCP_Manager\\Includes\\Database\\OAuthClients\\Schema\:\:\$indexes is not covariant with PHPDoc type array\<BerlinDB\\Database\\Kern\\Index\> of overridden property BerlinDB\\Database\\Kern\\Schema\:\:\$indexes\.$#'
+			identifier: property.phpDocType
+			count: 1
+			path: includes/Database/OAuthClients/Schema.php
+
+		-
+			message: '#^Property AcrossAI_MCP_Manager\\Includes\\Database\\OAuthClients\\Schema\:\:\$columns type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: includes/Database/OAuthClients/Schema.php
+
+		-
+			message: '#^Property AcrossAI_MCP_Manager\\Includes\\Database\\OAuthClients\\Schema\:\:\$indexes type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: includes/Database/OAuthClients/Schema.php
+
+		-
+			message: '#^Method AcrossAI_MCP_Manager\\Includes\\Database\\OAuthTokens\\Query\:\:find_by_hash\(\) should return AcrossAI_MCP_Manager\\Includes\\Database\\OAuthTokens\\Row\|null but returns object\|null\.$#'
+			identifier: return.type
+			count: 1
+			path: includes/Database/OAuthTokens/Query.php
+
+		-
+			message: '#^Method AcrossAI_MCP_Manager\\Includes\\Database\\OAuthTokens\\Row\:\:__construct\(\) has parameter \$item with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: includes/Database/OAuthTokens/Row.php
+
+		-
+			message: '#^Parameter \#1 \$args of method BerlinDB\\Database\\Kern\\Row\:\:__construct\(\) expects array\<string, mixed\>, array\|object given\.$#'
+			identifier: argument.type
+			count: 1
+			path: includes/Database/OAuthTokens/Row.php
+
+		-
+			message: '#^PHPDoc type array of property AcrossAI_MCP_Manager\\Includes\\Database\\OAuthTokens\\Schema\:\:\$columns is not covariant with PHPDoc type array\<BerlinDB\\Database\\Kern\\Column\> of overridden property BerlinDB\\Database\\Kern\\Schema\:\:\$columns\.$#'
+			identifier: property.phpDocType
+			count: 1
+			path: includes/Database/OAuthTokens/Schema.php
+
+		-
+			message: '#^PHPDoc type array of property AcrossAI_MCP_Manager\\Includes\\Database\\OAuthTokens\\Schema\:\:\$indexes is not covariant with PHPDoc type array\<BerlinDB\\Database\\Kern\\Index\> of overridden property BerlinDB\\Database\\Kern\\Schema\:\:\$indexes\.$#'
+			identifier: property.phpDocType
+			count: 1
+			path: includes/Database/OAuthTokens/Schema.php
+
+		-
+			message: '#^Property AcrossAI_MCP_Manager\\Includes\\Database\\OAuthTokens\\Schema\:\:\$columns type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: includes/Database/OAuthTokens/Schema.php
+
+		-
+			message: '#^Property AcrossAI_MCP_Manager\\Includes\\Database\\OAuthTokens\\Schema\:\:\$indexes type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: includes/Database/OAuthTokens/Schema.php
+
+		-
+			message: '#^Instanceof between BerlinDB\\Database\\Kern\\Table and BerlinDB\\Database\\Kern\\Table will always evaluate to true\.$#'
+			identifier: instanceof.alwaysTrue
+			count: 2
+			path: includes/Database/SchemaReconciler.php
+
+		-
+			message: '#^Negated boolean expression is always false\.$#'
+			identifier: booleanNot.alwaysFalse
+			count: 1
+			path: includes/Database/Support/TimezoneHealthCheck.php
+
+		-
+			message: '#^Method AcrossAI_MCP_Manager\\Includes\\Deactivator\:\:deactivate\(\) has no return type specified\.$#'
+			identifier: missingType.return
+			count: 1
+			path: includes/Deactivator.php
+
+		-
+			message: '#^Call to function method_exists\(\) with AcrossAI_MCP_Manager\\Includes\\Connectors\\AbstractConnectorProfile and ''get_mcp_url_setup…'' will always evaluate to true\.$#'
+			identifier: function.alreadyNarrowedType
+			count: 1
+			path: includes/Discovery/DiscoveryConnectorAdapter.php
+
+		-
+			message: '#^Call to function is_string\(\) with class\-string will always evaluate to true\.$#'
+			identifier: function.alreadyNarrowedType
+			count: 1
+			path: includes/Embeds/AbstractEmbedTransport.php
+
+		-
+			message: '#^Call to function is_string\(\) with string will always evaluate to true\.$#'
+			identifier: function.alreadyNarrowedType
+			count: 1
+			path: includes/Embeds/AbstractEmbedTransport.php
+
+		-
+			message: '#^Method AcrossAI_MCP_Manager\\Includes\\I18n\:\:do_load_textdomain\(\) has no return type specified\.$#'
+			identifier: missingType.return
+			count: 1
+			path: includes/I18n.php
+
+		-
+			message: '#^Method AcrossAI_MCP_Manager\\Includes\\Loader\:\:add\(\) has parameter \$hooks with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: includes/Loader.php
+
+		-
+			message: '#^Method AcrossAI_MCP_Manager\\Includes\\Loader\:\:add\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: includes/Loader.php
+
+		-
+			message: '#^Method AcrossAI_MCP_Manager\\Includes\\Loader\:\:add_action\(\) has no return type specified\.$#'
+			identifier: missingType.return
+			count: 1
+			path: includes/Loader.php
+
+		-
+			message: '#^Method AcrossAI_MCP_Manager\\Includes\\Loader\:\:add_filter\(\) has no return type specified\.$#'
+			identifier: missingType.return
+			count: 1
+			path: includes/Loader.php
+
+		-
+			message: '#^Method AcrossAI_MCP_Manager\\Includes\\Loader\:\:run\(\) has no return type specified\.$#'
+			identifier: missingType.return
+			count: 1
+			path: includes/Loader.php
+
+		-
+			message: '#^Parameter \#2 \$callback of function add_action expects callable\(\)\: mixed, array\{mixed, mixed\} given\.$#'
+			identifier: argument.type
+			count: 1
+			path: includes/Loader.php
+
+		-
+			message: '#^Parameter \#2 \$callback of function add_filter expects callable\(\)\: mixed, array\{mixed, mixed\} given\.$#'
+			identifier: argument.type
+			count: 1
+			path: includes/Loader.php
+
+		-
+			message: '#^Property AcrossAI_MCP_Manager\\Includes\\Loader\:\:\$actions type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: includes/Loader.php
+
+		-
+			message: '#^Property AcrossAI_MCP_Manager\\Includes\\Loader\:\:\$filters type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: includes/Loader.php
+
+		-
+			message: '#^Access to an undefined property object\:\:\$id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: includes/MCP/AbilityExposureGate.php
+
+		-
+			message: '#^Cannot access offset 0 on int\<min, \-1\>\|int\<1, max\>\|non\-empty\-list\<object\>\.$#'
+			identifier: offsetAccess.nonOffsetAccessible
+			count: 1
+			path: includes/MCP/AbilityExposureGate.php
+
+		-
+			message: '#^Right side of && is always true\.$#'
+			identifier: booleanAnd.rightAlwaysTrue
+			count: 1
+			path: includes/MCP/AbilityExposureGate.php
+
+		-
+			message: '#^Access to an undefined property object\:\:\$id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: includes/MCP/Controller.php
+
+		-
+			message: '#^Cannot access offset 0 on int\<min, \-1\>\|int\<1, max\>\|non\-empty\-list\<object\>\.$#'
+			identifier: offsetAccess.nonOffsetAccessible
+			count: 1
+			path: includes/MCP/Controller.php
+
+		-
+			message: '#^Method AcrossAI_MCP_Manager\\Includes\\MCP\\Controller\:\:get_enabled_database_servers\(\) should return array\<int, AcrossAI_MCP_Manager\\Includes\\Database\\MCPServer\\Row\> but returns int\|list\<object\>\.$#'
+			identifier: return.type
+			count: 1
+			path: includes/MCP/Controller.php
+
+		-
+			message: '#^Parameter \#1 \$row of static method AcrossAI_MCP_Manager\\Includes\\Database\\MCPServer\\ToolPolicy\:\:compose_effective_tools_for_row\(\) expects AcrossAI_MCP_Manager\\Includes\\Database\\MCPServer\\Row, object given\.$#'
+			identifier: argument.type
+			count: 1
+			path: includes/MCP/Controller.php
+
+		-
+			message: '#^Access to an undefined property object\:\:\$id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: includes/MCP/ToolExposureGate.php
+
+		-
+			message: '#^Cannot access offset 0 on int\<min, \-1\>\|int\<1, max\>\|non\-empty\-list\<object\>\.$#'
+			identifier: offsetAccess.nonOffsetAccessible
+			count: 1
+			path: includes/MCP/ToolExposureGate.php
+
+		-
+			message: '#^Right side of && is always true\.$#'
+			identifier: booleanAnd.rightAlwaysTrue
+			count: 1
+			path: includes/MCP/ToolExposureGate.php
+
+		-
+			message: '#^Call to function is_string\(\) with string will always evaluate to true\.$#'
+			identifier: function.alreadyNarrowedType
+			count: 1
+			path: includes/MCPClients/AbstractMCPClient.php
+
+		-
+			message: '#^Method AcrossAI_MCP_Manager\\Includes\\MCPClients\\AbstractMCPClient\:\:get_config_snippet\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: includes/MCPClients/AbstractMCPClient.php
+
+		-
+			message: '#^Parameter \#1 \$array \(list\<AcrossAI_MCP_Manager\\Includes\\MCPClients\\AbstractMCPClient\>\) of array_values is already a list, call has no effect\.$#'
+			identifier: arrayValues.list
+			count: 1
+			path: includes/MCPClients/AbstractMCPClient.php
+
+		-
+			message: '#^Strict comparison using \=\=\= between false and string will always evaluate to false\.$#'
+			identifier: identical.alwaysFalse
+			count: 1
+			path: includes/MCPClients/AbstractMCPClient.php
+
+		-
+			message: '#^Method AcrossAI_MCP_Manager\\Includes\\Main\:\:define\(\) has no return type specified\.$#'
+			identifier: missingType.return
+			count: 1
+			path: includes/Main.php
+
+		-
+			message: '#^Method AcrossAI_MCP_Manager\\Includes\\Main\:\:define_admin_hooks\(\) has no return type specified\.$#'
+			identifier: missingType.return
+			count: 1
+			path: includes/Main.php
+
+		-
+			message: '#^Method AcrossAI_MCP_Manager\\Includes\\Main\:\:define_constants\(\) has no return type specified\.$#'
+			identifier: missingType.return
+			count: 1
+			path: includes/Main.php
+
+		-
+			message: '#^Method AcrossAI_MCP_Manager\\Includes\\Main\:\:define_public_hooks\(\) has no return type specified\.$#'
+			identifier: missingType.return
+			count: 1
+			path: includes/Main.php
+
+		-
+			message: '#^Method AcrossAI_MCP_Manager\\Includes\\Main\:\:get_autoloader\(\) has invalid return type AcrossAI_MCP_Manager\\Includes\\Autoloader\.$#'
+			identifier: class.notFound
+			count: 1
+			path: includes/Main.php
+
+		-
+			message: '#^Method AcrossAI_MCP_Manager\\Includes\\Main\:\:instance\(\) has invalid return type AcrossAI_MCP_Manager\\Includes\\AcrossAI_MCP_Manager\.$#'
+			identifier: class.notFound
+			count: 1
+			path: includes/Main.php
+
+		-
+			message: '#^Method AcrossAI_MCP_Manager\\Includes\\Main\:\:instance\(\) should return AcrossAI_MCP_Manager\\Includes\\AcrossAI_MCP_Manager but returns AcrossAI_MCP_Manager\\Includes\\AcrossAI_MCP_Manager\|AcrossAI_MCP_Manager\\Includes\\Main\.$#'
+			identifier: return.type
+			count: 1
+			path: includes/Main.php
+
+		-
+			message: '#^Method AcrossAI_MCP_Manager\\Includes\\Main\:\:load_composer_dependencies\(\) has no return type specified\.$#'
+			identifier: missingType.return
+			count: 1
+			path: includes/Main.php
+
+		-
+			message: '#^Method AcrossAI_MCP_Manager\\Includes\\Main\:\:load_dependencies\(\) has no return type specified\.$#'
+			identifier: missingType.return
+			count: 1
+			path: includes/Main.php
+
+		-
+			message: '#^Method AcrossAI_MCP_Manager\\Includes\\Main\:\:load_hooks\(\) has no return type specified\.$#'
+			identifier: missingType.return
+			count: 1
+			path: includes/Main.php
+
+		-
+			message: '#^Method AcrossAI_MCP_Manager\\Includes\\Main\:\:run\(\) has no return type specified\.$#'
+			identifier: missingType.return
+			count: 1
+			path: includes/Main.php
+
+		-
+			message: '#^Method AcrossAI_MCP_Manager\\Includes\\Main\:\:set_locale\(\) has no return type specified\.$#'
+			identifier: missingType.return
+			count: 1
+			path: includes/Main.php
+
+		-
+			message: '#^Parameter \#2 \$component of method AcrossAI_MCP_Manager\\Includes\\Loader\:\:add_action\(\) expects object, string given\.$#'
+			identifier: argument.type
+			count: 9
+			path: includes/Main.php
+
+		-
+			message: '#^Parameter \#2 \$component of method AcrossAI_MCP_Manager\\Includes\\Loader\:\:add_filter\(\) expects object, string given\.$#'
+			identifier: argument.type
+			count: 4
+			path: includes/Main.php
+
+		-
+			message: '#^Property AcrossAI_MCP_Manager\\Includes\\Main\:\:\$_instance has unknown class AcrossAI_MCP_Manager\\Includes\\AcrossAI_MCP_Manager as its type\.$#'
+			identifier: class.notFound
+			count: 1
+			path: includes/Main.php
+
+		-
+			message: '#^Property AcrossAI_MCP_Manager\\Includes\\Main\:\:\$autoloader has unknown class AcrossAI_MCP_Manager\\Includes\\Autoloader as its type\.$#'
+			identifier: class.notFound
+			count: 1
+			path: includes/Main.php
+
+		-
+			message: '#^Static property AcrossAI_MCP_Manager\\Includes\\Main\:\:\$_instance \(AcrossAI_MCP_Manager\\Includes\\AcrossAI_MCP_Manager\) does not accept AcrossAI_MCP_Manager\\Includes\\Main\.$#'
+			identifier: assign.propertyType
+			count: 1
+			path: includes/Main.php
+
+		-
+			message: '#^Access to an undefined property object\:\:\$id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: includes/OAuth/AuthorizationController.php
+
+		-
+			message: '#^Access to an undefined property object\:\:\$server_route\.$#'
+			identifier: property.notFound
+			count: 1
+			path: includes/OAuth/AuthorizationController.php
+
+		-
+			message: '#^Access to an undefined property object\:\:\$server_route_namespace\.$#'
+			identifier: property.notFound
+			count: 1
+			path: includes/OAuth/AuthorizationController.php
+
+		-
+			message: '#^Argument of an invalid type int\<min, \-1\>\|int\<1, max\>\|list\<object\> supplied for foreach, only iterables are supported\.$#'
+			identifier: foreach.nonIterable
+			count: 1
+			path: includes/OAuth/AuthorizationController.php
+
+		-
+			message: '#^Call to function is_string\(\) with string will always evaluate to true\.$#'
+			identifier: function.alreadyNarrowedType
+			count: 1
+			path: includes/OAuth/BearerChallengeHeader.php
+
+		-
+			message: '#^Call to function is_array\(\) with array\<string, array\{client_ids\: array\<int, string\>, host\: string\}\> will always evaluate to true\.$#'
+			identifier: function.alreadyNarrowedType
+			count: 1
+			path: includes/OAuth/CimdRegistry.php
+
+		-
+			message: '#^Offset ''host'' on array\{client_ids\: array\<int, string\>, host\: string\} on left side of \?\? always exists and is not nullable\.$#'
+			identifier: nullCoalesce.offset
+			count: 1
+			path: includes/OAuth/CimdRegistry.php
+
+		-
+			message: '#^Cannot cast array\|string to string\.$#'
+			identifier: cast.string
+			count: 1
+			path: includes/OAuth/CimdResolver.php
+
+		-
+			message: '#^Access to an undefined property object\:\:\$id\.$#'
+			identifier: property.notFound
+			count: 2
+			path: includes/OAuth/ClientRegistrationController.php
+
+		-
+			message: '#^Access to an undefined property object\:\:\$server_route\.$#'
+			identifier: property.notFound
+			count: 1
+			path: includes/OAuth/ClientRegistrationController.php
+
+		-
+			message: '#^Access to an undefined property object\:\:\$server_route_namespace\.$#'
+			identifier: property.notFound
+			count: 1
+			path: includes/OAuth/ClientRegistrationController.php
+
+		-
+			message: '#^Argument of an invalid type int\<min, \-1\>\|int\<1, max\>\|list\<object\> supplied for foreach, only iterables are supported\.$#'
+			identifier: foreach.nonIterable
+			count: 1
+			path: includes/OAuth/ClientRegistrationController.php
+
+		-
+			message: '#^Call to function is_array\(\) with array will always evaluate to true\.$#'
+			identifier: function.alreadyNarrowedType
+			count: 1
+			path: includes/OAuth/ClientRegistrationController.php
+
+		-
+			message: '#^Call to function is_array\(\) with object will always evaluate to false\.$#'
+			identifier: function.impossibleType
+			count: 1
+			path: includes/OAuth/ClientRegistrationController.php
+
+		-
+			message: '#^Expression on left side of \?\? is not nullable\.$#'
+			identifier: nullCoalesce.expr
+			count: 1
+			path: includes/OAuth/ClientRegistrationController.php
+
+		-
+			message: '#^Offset ''value'' might not exist on array\|null\.$#'
+			identifier: offsetAccess.notFound
+			count: 1
+			path: includes/OAuth/ClientRegistrationController.php
+
+		-
+			message: '#^Undefined variable\: \$resource$#'
+			identifier: variable.undefined
+			count: 1
+			path: includes/OAuth/ClientRegistrationController.php
+
+		-
+			message: '#^Access to an undefined property object\:\:\$client_id\.$#'
+			identifier: property.notFound
+			count: 2
+			path: includes/OAuth/ConnectorAdminController.php
+
+		-
+			message: '#^Access to an undefined property object\:\:\$server_id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: includes/OAuth/ConnectorAdminController.php
+
+		-
+			message: '#^Method AcrossAI_MCP_Manager\\Includes\\OAuth\\ConnectorAdminController\:\:validate_server_and_slug\(\) should return array\{int, string\}\|WP_Error but returns array\{int\<1, max\>, non\-empty\-string\|null\}\.$#'
+			identifier: return.type
+			count: 1
+			path: includes/OAuth/ConnectorAdminController.php
+
+		-
+			message: '#^Parameter \#1 \$slug of method AcrossAI_MCP_Manager\\Includes\\Connectors\\ConnectorProfileRegistry\:\:get_profile\(\) expects string, string\|null given\.$#'
+			identifier: argument.type
+			count: 1
+			path: includes/OAuth/ConnectorAdminController.php
+
+		-
+			message: '#^Parameter \#2 \$subject of function preg_match expects string, string\|null given\.$#'
+			identifier: argument.type
+			count: 1
+			path: includes/OAuth/ConnectorAdminController.php
+
+		-
+			message: '#^Parameter \#1 \$objectOrClass of class ReflectionClass constructor expects \\WPMedia\\MCP\\OAuth\\Bootstrap\|class\-string\<\\WPMedia\\MCP\\OAuth\\Bootstrap\>, string given\.$#'
+			identifier: argument.type
+			count: 1
+			path: includes/OAuth/DiscoveryConflictGuard.php
+
+		-
+			message: '#^Strict comparison using \=\=\= between '''' and non\-empty\-string will always evaluate to false\.$#'
+			identifier: identical.alwaysFalse
+			count: 1
+			path: includes/OAuth/DiscoveryConflictGuard.php
+
+		-
+			message: '#^Access to an undefined property object\:\:\$server_route\.$#'
+			identifier: property.notFound
+			count: 1
+			path: includes/OAuth/DiscoveryController.php
+
+		-
+			message: '#^Access to an undefined property object\:\:\$server_route_namespace\.$#'
+			identifier: property.notFound
+			count: 1
+			path: includes/OAuth/DiscoveryController.php
+
+		-
+			message: '#^Cannot access offset 0 on int\<min, \-1\>\|int\<1, max\>\|non\-empty\-list\<object\>\.$#'
+			identifier: offsetAccess.nonOffsetAccessible
+			count: 1
+			path: includes/OAuth/DiscoveryController.php
+
+		-
+			message: '#^Cannot cast array\|string to string\.$#'
+			identifier: cast.string
+			count: 2
+			path: includes/OAuth/DiscoveryHealthCheck.php
+
+		-
+			message: '#^Negated boolean expression is always false\.$#'
+			identifier: booleanNot.alwaysFalse
+			count: 1
+			path: includes/OAuth/DiscoveryHealthCheck.php
+
+		-
+			message: '#^Offset ''client_id'' on array\{user_id\: int, client_id\: string, token_type\: string, created_at\: string, token_family_id\: string, client_name\: string, redirect_uris\: string, connector_slug\: string\} on left side of \?\? always exists and is not nullable\.$#'
+			identifier: nullCoalesce.offset
+			count: 2
+			path: includes/OAuth/Repositories/AccessTokenRepository.php
+
+		-
+			message: '#^Offset ''created_at'' on array\{user_id\: int, client_id\: string, token_type\: string, created_at\: string, token_family_id\: string, client_name\: string, redirect_uris\: string, connector_slug\: string\} on left side of \?\? always exists and is not nullable\.$#'
+			identifier: nullCoalesce.offset
+			count: 2
+			path: includes/OAuth/Repositories/AccessTokenRepository.php
+
+		-
+			message: '#^Offset ''token_family_id'' on array\{user_id\: int, client_id\: string, token_type\: string, created_at\: string, token_family_id\: string, client_name\: string, redirect_uris\: string, connector_slug\: string\} on left side of \?\? always exists and is not nullable\.$#'
+			identifier: nullCoalesce.offset
+			count: 1
+			path: includes/OAuth/Repositories/AccessTokenRepository.php
+
+		-
+			message: '#^Offset ''token_type'' on array\{user_id\: int, client_id\: string, token_type\: string, created_at\: string, token_family_id\: string, client_name\: string, redirect_uris\: string, connector_slug\: string\} on left side of \?\? always exists and is not nullable\.$#'
+			identifier: nullCoalesce.offset
+			count: 2
+			path: includes/OAuth/Repositories/AccessTokenRepository.php
+
+		-
+			message: '#^Offset ''user_id'' on array\{user_id\: int, client_id\: string, token_type\: string, created_at\: string, token_family_id\: string, client_name\: string, redirect_uris\: string, connector_slug\: string\} on left side of \?\? always exists and is not nullable\.$#'
+			identifier: nullCoalesce.offset
+			count: 2
+			path: includes/OAuth/Repositories/AccessTokenRepository.php
+
+		-
+			message: '#^Call to function is_string\(\) with string will always evaluate to true\.$#'
+			identifier: function.alreadyNarrowedType
+			count: 1
+			path: includes/OAuth/Security/RateLimiter.php
+
+		-
+			message: '#^Cannot access property \$client_id on AcrossAI_MCP_Manager\\Includes\\Database\\OAuthAuthCodes\\Row\|null\.$#'
+			identifier: property.nonObject
+			count: 1
+			path: includes/OAuth/TokenController.php
+
+		-
+			message: '#^Cannot access property \$client_id on AcrossAI_MCP_Manager\\Includes\\Database\\OAuthTokens\\Row\|null\.$#'
+			identifier: property.nonObject
+			count: 1
+			path: includes/OAuth/TokenController.php
+
+		-
+			message: '#^Cannot access property \$code_challenge on AcrossAI_MCP_Manager\\Includes\\Database\\OAuthAuthCodes\\Row\|null\.$#'
+			identifier: property.nonObject
+			count: 1
+			path: includes/OAuth/TokenController.php
+
+		-
+			message: '#^Cannot access property \$connector_slug on AcrossAI_MCP_Manager\\Includes\\Database\\OAuthClients\\Row\|null\.$#'
+			identifier: property.nonObject
+			count: 3
+			path: includes/OAuth/TokenController.php
+
+		-
+			message: '#^Cannot access property \$expires_at on AcrossAI_MCP_Manager\\Includes\\Database\\OAuthTokens\\Row\|null\.$#'
+			identifier: property.nonObject
+			count: 1
+			path: includes/OAuth/TokenController.php
+
+		-
+			message: '#^Cannot access property \$id on AcrossAI_MCP_Manager\\Includes\\Database\\OAuthTokens\\Row\|null\.$#'
+			identifier: property.nonObject
+			count: 1
+			path: includes/OAuth/TokenController.php
+
+		-
+			message: '#^Cannot access property \$redirect_uri on AcrossAI_MCP_Manager\\Includes\\Database\\OAuthAuthCodes\\Row\|null\.$#'
+			identifier: property.nonObject
+			count: 1
+			path: includes/OAuth/TokenController.php
+
+		-
+			message: '#^Cannot access property \$resource on AcrossAI_MCP_Manager\\Includes\\Database\\OAuthAuthCodes\\Row\|null\.$#'
+			identifier: property.nonObject
+			count: 1
+			path: includes/OAuth/TokenController.php
+
+		-
+			message: '#^Cannot access property \$resource on AcrossAI_MCP_Manager\\Includes\\Database\\OAuthTokens\\Row\|null\.$#'
+			identifier: property.nonObject
+			count: 1
+			path: includes/OAuth/TokenController.php
+
+		-
+			message: '#^Cannot access property \$revoked on AcrossAI_MCP_Manager\\Includes\\Database\\OAuthTokens\\Row\|null\.$#'
+			identifier: property.nonObject
+			count: 1
+			path: includes/OAuth/TokenController.php
+
+		-
+			message: '#^Cannot access property \$scope on AcrossAI_MCP_Manager\\Includes\\Database\\OAuthAuthCodes\\Row\|null\.$#'
+			identifier: property.nonObject
+			count: 2
+			path: includes/OAuth/TokenController.php
+
+		-
+			message: '#^Cannot access property \$scope on AcrossAI_MCP_Manager\\Includes\\Database\\OAuthTokens\\Row\|null\.$#'
+			identifier: property.nonObject
+			count: 2
+			path: includes/OAuth/TokenController.php
+
+		-
+			message: '#^Cannot access property \$server_id on AcrossAI_MCP_Manager\\Includes\\Database\\OAuthAuthCodes\\Row\|null\.$#'
+			identifier: property.nonObject
+			count: 1
+			path: includes/OAuth/TokenController.php
+
+		-
+			message: '#^Cannot access property \$server_id on AcrossAI_MCP_Manager\\Includes\\Database\\OAuthClients\\Row\|null\.$#'
+			identifier: property.nonObject
+			count: 1
+			path: includes/OAuth/TokenController.php
+
+		-
+			message: '#^Cannot access property \$server_id on AcrossAI_MCP_Manager\\Includes\\Database\\OAuthTokens\\Row\|null\.$#'
+			identifier: property.nonObject
+			count: 2
+			path: includes/OAuth/TokenController.php
+
+		-
+			message: '#^Cannot access property \$token_endpoint_auth_method on AcrossAI_MCP_Manager\\Includes\\Database\\OAuthClients\\Row\|null\.$#'
+			identifier: property.nonObject
+			count: 2
+			path: includes/OAuth/TokenController.php
+
+		-
+			message: '#^Cannot access property \$token_family_id on AcrossAI_MCP_Manager\\Includes\\Database\\OAuthTokens\\Row\|null\.$#'
+			identifier: property.nonObject
+			count: 2
+			path: includes/OAuth/TokenController.php
+
+		-
+			message: '#^Cannot access property \$user_id on AcrossAI_MCP_Manager\\Includes\\Database\\OAuthAuthCodes\\Row\|null\.$#'
+			identifier: property.nonObject
+			count: 1
+			path: includes/OAuth/TokenController.php
+
+		-
+			message: '#^Cannot access property \$user_id on AcrossAI_MCP_Manager\\Includes\\Database\\OAuthTokens\\Row\|null\.$#'
+			identifier: property.nonObject
+			count: 1
+			path: includes/OAuth/TokenController.php
+
+		-
+			message: '#^Parameter \#1 \$client of static method AcrossAI_MCP_Manager\\Includes\\OAuth\\Repositories\\ClientRepository\:\:verify_secret\(\) expects AcrossAI_MCP_Manager\\Includes\\Database\\OAuthClients\\Row, AcrossAI_MCP_Manager\\Includes\\Database\\OAuthClients\\Row\|null given\.$#'
+			identifier: argument.type
+			count: 2
+			path: includes/OAuth/TokenController.php
+
+		-
+			message: '#^Call to function is_array\(\) with array will always evaluate to true\.$#'
+			identifier: function.alreadyNarrowedType
+			count: 2
+			path: includes/OAuth/TokenValidator.php
+
+		-
+			message: '#^Access to an undefined property object\:\:\$ability_slug\.$#'
+			identifier: property.notFound
+			count: 1
+			path: includes/REST/AbilitiesController.php
+
+		-
+			message: '#^Access to an undefined property object\:\:\$is_exposed\.$#'
+			identifier: property.notFound
+			count: 1
+			path: includes/REST/AbilitiesController.php
+
+		-
+			message: '#^Argument of an invalid type int\|list\<object\> supplied for foreach, only iterables are supported\.$#'
+			identifier: foreach.nonIterable
+			count: 1
+			path: includes/REST/AbilitiesController.php
+
+		-
+			message: '#^Call to function is_array\(\) with array\<string, mixed\> will always evaluate to true\.$#'
+			identifier: function.alreadyNarrowedType
+			count: 1
+			path: includes/REST/AbilitiesController.php
+
+		-
+			message: '#^Cannot access offset 0 on int\<min, \-1\>\|int\<1, max\>\|non\-empty\-list\<object\>\.$#'
+			identifier: offsetAccess.nonOffsetAccessible
+			count: 1
+			path: includes/REST/AbilitiesController.php
+
+		-
+			message: '#^Access to an undefined property object\:\:\$description\.$#'
+			identifier: property.notFound
+			count: 1
+			path: includes/REST/CliController.php
+
+		-
+			message: '#^Access to an undefined property object\:\:\$is_enabled\.$#'
+			identifier: property.notFound
+			count: 1
+			path: includes/REST/CliController.php
+
+		-
+			message: '#^Access to an undefined property object\:\:\$server_name\.$#'
+			identifier: property.notFound
+			count: 1
+			path: includes/REST/CliController.php
+
+		-
+			message: '#^Access to an undefined property object\:\:\$server_route\.$#'
+			identifier: property.notFound
+			count: 1
+			path: includes/REST/CliController.php
+
+		-
+			message: '#^Access to an undefined property object\:\:\$server_route_namespace\.$#'
+			identifier: property.notFound
+			count: 1
+			path: includes/REST/CliController.php
+
+		-
+			message: '#^Access to an undefined property object\:\:\$server_slug\.$#'
+			identifier: property.notFound
+			count: 3
+			path: includes/REST/CliController.php
+
+		-
+			message: '#^Access to an undefined property object\:\:\$server_version\.$#'
+			identifier: property.notFound
+			count: 1
+			path: includes/REST/CliController.php
+
+		-
+			message: '#^Cannot access offset 0 on int\<min, \-1\>\|int\<1, max\>\|non\-empty\-list\<object\>\.$#'
+			identifier: offsetAccess.nonOffsetAccessible
+			count: 2
+			path: includes/REST/CliController.php
+
+		-
+			message: '#^Instanceof between WP_User and WP_User will always evaluate to true\.$#'
+			identifier: instanceof.alwaysTrue
+			count: 1
+			path: includes/REST/CliController.php
+
+		-
+			message: '#^Offset ''uuid'' on array\{uuid\: string, app_id\: string, name\: string, password\: string, created\: int, last_used\: null, last_ip\: null\} on left side of \?\? always exists and is not nullable\.$#'
+			identifier: nullCoalesce.offset
+			count: 1
+			path: includes/REST/CliController.php
+
+		-
+			message: '#^Offset 0 on array\{string, array\{uuid\: string, app_id\: string, name\: string, password\: string, created\: int, last_used\: null, last_ip\: null\}\} in isset\(\) always exists and is not nullable\.$#'
+			identifier: isset.offset
+			count: 1
+			path: includes/REST/CliController.php
+
+		-
+			message: '#^Offset 1 on array\{string, array\{uuid\: string, app_id\: string, name\: string, password\: string, created\: int, last_used\: null, last_ip\: null\}\} in isset\(\) always exists and is not nullable\.$#'
+			identifier: isset.offset
+			count: 1
+			path: includes/REST/CliController.php
+
+		-
+			message: '#^Right side of && is always true\.$#'
+			identifier: booleanAnd.rightAlwaysTrue
+			count: 1
+			path: includes/REST/CliController.php
+
+		-
+			message: '#^Method AcrossAI_MCP_Manager\\Includes\\REST\\ClientRendererController\:\:dispatch_render_action\(\) has parameter \$context with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: includes/REST/ClientRendererController.php
+
+		-
+			message: '#^Offset ''uuid'' on array\{uuid\: string, app_id\: string, name\: string, password\: string, created\: int, last_used\: null, last_ip\: null\} on left side of \?\? always exists and is not nullable\.$#'
+			identifier: nullCoalesce.offset
+			count: 1
+			path: includes/REST/ClientRendererController.php
+
+		-
+			message: '#^Access to an undefined property object\:\:\$server_type\.$#'
+			identifier: property.notFound
+			count: 2
+			path: includes/REST/QuickConnectController.php
+
+		-
+			message: '#^Call to an undefined method object\:\:to_array\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: includes/REST/QuickConnectController.php
+
+		-
+			message: '#^Call to function is_array\(\) with array\<string, mixed\> will always evaluate to true\.$#'
+			identifier: function.alreadyNarrowedType
+			count: 1
+			path: includes/REST/QuickConnectController.php
+
+		-
+			message: '#^Call to function is_string\(\) with string will always evaluate to true\.$#'
+			identifier: function.alreadyNarrowedType
+			count: 1
+			path: includes/REST/QuickConnectController.php
+
+		-
+			message: '#^Cannot access offset 0 on int\<min, \-1\>\|int\<1, max\>\|non\-empty\-list\<object\>\.$#'
+			identifier: offsetAccess.nonOffsetAccessible
+			count: 3
+			path: includes/REST/QuickConnectController.php
+
+		-
+			message: '#^Cannot access property \$download_link on array\|object\.$#'
+			identifier: property.nonObject
+			count: 1
+			path: includes/REST/QuickConnectController.php
+
+		-
+			message: '#^Method AcrossAI_MCP_Manager\\Includes\\REST\\QuickConnectController\:\:apply_step_1\(\) has parameter \$data with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: includes/REST/QuickConnectController.php
+
+		-
+			message: '#^Method AcrossAI_MCP_Manager\\Includes\\REST\\QuickConnectController\:\:apply_step_1\(\) has parameter \$scratchpad with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: includes/REST/QuickConnectController.php
+
+		-
+			message: '#^Method AcrossAI_MCP_Manager\\Includes\\REST\\QuickConnectController\:\:apply_step_1\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: includes/REST/QuickConnectController.php
+
+		-
+			message: '#^Method AcrossAI_MCP_Manager\\Includes\\REST\\QuickConnectController\:\:apply_step_2\(\) has parameter \$data with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: includes/REST/QuickConnectController.php
+
+		-
+			message: '#^Method AcrossAI_MCP_Manager\\Includes\\REST\\QuickConnectController\:\:apply_step_2\(\) has parameter \$scratchpad with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: includes/REST/QuickConnectController.php
+
+		-
+			message: '#^Method AcrossAI_MCP_Manager\\Includes\\REST\\QuickConnectController\:\:apply_step_2\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: includes/REST/QuickConnectController.php
+
+		-
+			message: '#^Method AcrossAI_MCP_Manager\\Includes\\REST\\QuickConnectController\:\:apply_step_5\(\) has parameter \$data with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: includes/REST/QuickConnectController.php
+
+		-
+			message: '#^Method AcrossAI_MCP_Manager\\Includes\\REST\\QuickConnectController\:\:apply_step_5\(\) has parameter \$scratchpad with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: includes/REST/QuickConnectController.php
+
+		-
+			message: '#^Method AcrossAI_MCP_Manager\\Includes\\REST\\QuickConnectController\:\:apply_step_5\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: includes/REST/QuickConnectController.php
+
+		-
+			message: '#^Method AcrossAI_MCP_Manager\\Includes\\REST\\QuickConnectController\:\:apply_step_6\(\) has parameter \$data with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: includes/REST/QuickConnectController.php
+
+		-
+			message: '#^Method AcrossAI_MCP_Manager\\Includes\\REST\\QuickConnectController\:\:apply_step_6\(\) has parameter \$scratchpad with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: includes/REST/QuickConnectController.php
+
+		-
+			message: '#^Method AcrossAI_MCP_Manager\\Includes\\REST\\QuickConnectController\:\:apply_step_6\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: includes/REST/QuickConnectController.php
+
+		-
+			message: '#^Method AcrossAI_MCP_Manager\\Includes\\REST\\QuickConnectController\:\:handle_state\(\) never returns WP_Error so it can be removed from the return type\.$#'
+			identifier: return.unusedType
+			count: 1
+			path: includes/REST/QuickConnectController.php
+
+		-
+			message: '#^Strict comparison using \=\=\= between null and true will always evaluate to false\.$#'
+			identifier: identical.alwaysFalse
+			count: 1
+			path: includes/REST/QuickConnectController.php
+
+		-
+			message: '#^Call to function is_array\(\) with array\<string, mixed\> will always evaluate to true\.$#'
+			identifier: function.alreadyNarrowedType
+			count: 1
+			path: includes/REST/ToolsController.php
+
+		-
+			message: '#^Cannot access offset 0 on int\<min, \-1\>\|int\<1, max\>\|non\-empty\-list\<object\>\.$#'
+			identifier: offsetAccess.nonOffsetAccessible
+			count: 1
+			path: includes/REST/ToolsController.php
+
+		-
+			message: '#^Method AcrossAI_MCP_Manager\\Includes\\REST\\ToolsController\:\:fetch_server_row\(\) should return AcrossAI_MCP_Manager\\Includes\\Database\\MCPServer\\Row\|WP_Error but returns object\.$#'
+			identifier: return.type
+			count: 1
+			path: includes/REST/ToolsController.php
+
+		-
+			message: '#^Call to function is_array\(\) with array\<string\> will always evaluate to true\.$#'
+			identifier: function.alreadyNarrowedType
+			count: 1
+			path: includes/Utilities/LocalEnvironment.php
+
+		-
+			message: '#^Call to function is_array\(\) with array\<int, array\<string, mixed\>\> will always evaluate to true\.$#'
+			identifier: function.alreadyNarrowedType
+			count: 1
+			path: public/Discovery/ConnectionMethodRegistry.php
+
+		-
+			message: '#^Call to function is_array\(\) with array\<string, mixed\> will always evaluate to true\.$#'
+			identifier: function.alreadyNarrowedType
+			count: 1
+			path: public/Discovery/ConnectionMethodRegistry.php
+
+		-
+			message: '#^Method AcrossAI_MCP_Manager\\Public\\Discovery\\ConnectionMethodRegistry\:\:get_all\(\) should return array\{npm\: array\<int, array\<string, mixed\>\>, clients\: array\<int, array\<string, mixed\>\>, ai_connectors\: array\<int, array\<string, mixed\>\>\} but returns array\<string, array\<int, array\<string, mixed\>\>\>\.$#'
+			identifier: return.type
+			count: 2
+			path: public/Discovery/ConnectionMethodRegistry.php
+
+		-
+			message: '#^Access to an undefined property object\:\:\$id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: public/Partials/FrontendAuth.php
+
+		-
+			message: '#^Cannot access offset 0 on int\<min, \-1\>\|int\<1, max\>\|non\-empty\-list\<object\>\.$#'
+			identifier: offsetAccess.nonOffsetAccessible
+			count: 1
+			path: public/Partials/FrontendAuth.php
+
+		-
+			message: '#^Method AcrossAI_MCP_Manager\\Public\\Partials\\FrontendAuth\:\:render_branded_card\(\) has parameter \$cta with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: public/Partials/FrontendAuth.php
+
+		-
+			message: '#^Call to an undefined method object\:\:to_array\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: public/Renderers/AbstractClientRenderer.php
+
+		-
+			message: '#^Cannot access offset 0 on int\<min, \-1\>\|int\<1, max\>\|non\-empty\-list\<object\>\.$#'
+			identifier: offsetAccess.nonOffsetAccessible
+			count: 1
+			path: public/Renderers/AbstractClientRenderer.php
+
+		-
+			message: '#^Method AcrossAI_MCP_Manager\\Public\\Renderers\\AbstractClientRenderer\:\:config_json_pre_block\(\) has parameter \$config with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: public/Renderers/AbstractClientRenderer.php
+
+		-
+			message: '#^Method AcrossAI_MCP_Manager\\Public\\Renderers\\AbstractClientRenderer\:\:config_json_pre_block\(\) has parameter \$server with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: public/Renderers/AbstractClientRenderer.php
+
+		-
+			message: '#^Method AcrossAI_MCP_Manager\\Public\\Renderers\\AbstractClientRenderer\:\:passwords_generate_button\(\) has parameter \$context with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: public/Renderers/AbstractClientRenderer.php
+
+		-
+			message: '#^Method AcrossAI_MCP_Manager\\Public\\Renderers\\AbstractClientRenderer\:\:passwords_generate_button\(\) has parameter \$server with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: public/Renderers/AbstractClientRenderer.php
+
+		-
+			message: '#^Method AcrossAI_MCP_Manager\\Public\\Renderers\\AbstractClientRenderer\:\:render\(\) has parameter \$context with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: public/Renderers/AbstractClientRenderer.php
+
+		-
+			message: '#^Method AcrossAI_MCP_Manager\\Public\\Renderers\\AbstractClientRenderer\:\:render_body\(\) has parameter \$context with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: public/Renderers/AbstractClientRenderer.php
+
+		-
+			message: '#^Method AcrossAI_MCP_Manager\\Public\\Renderers\\AbstractClientRenderer\:\:render_body\(\) has parameter \$server with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: public/Renderers/AbstractClientRenderer.php
+
+		-
+			message: '#^Method AcrossAI_MCP_Manager\\Public\\Renderers\\AbstractClientRenderer\:\:resolve_context\(\) has parameter \$context with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: public/Renderers/AbstractClientRenderer.php
+
+		-
+			message: '#^Method AcrossAI_MCP_Manager\\Public\\Renderers\\AbstractClientRenderer\:\:resolve_context\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: public/Renderers/AbstractClientRenderer.php
+
+		-
+			message: '#^Method AcrossAI_MCP_Manager\\Public\\Renderers\\AccessControlBlock\:\:render_body\(\) has parameter \$context with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: public/Renderers/AccessControlBlock.php
+
+		-
+			message: '#^Method AcrossAI_MCP_Manager\\Public\\Renderers\\AccessControlBlock\:\:render_body\(\) has parameter \$server with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: public/Renderers/AccessControlBlock.php
+
+		-
+			message: '#^Access to an undefined property object\:\:\$id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: public/Renderers/EmbedBlock/EmbedBlockRenderer.php
+
+		-
+			message: '#^Call to function is_array\(\) with array\<string, mixed\> will always evaluate to true\.$#'
+			identifier: function.alreadyNarrowedType
+			count: 2
+			path: public/Renderers/EmbedBlock/EmbedBlockRenderer.php
+
+		-
+			message: '#^Cannot access offset 0 on int\<min, \-1\>\|int\<1, max\>\|non\-empty\-list\<object\>\.$#'
+			identifier: offsetAccess.nonOffsetAccessible
+			count: 1
+			path: public/Renderers/EmbedBlock/EmbedBlockRenderer.php
+
+		-
+			message: '#^Method AcrossAI_MCP_Manager\\Public\\Renderers\\EmbedBlock\\EmbedBlockRenderer\:\:render_shortcode\(\) has parameter \$atts_raw with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: public/Renderers/EmbedBlock/EmbedBlockRenderer.php
+
+		-
+			message: '#^Method AcrossAI_MCP_Manager\\Public\\Renderers\\MCPClientsBlock\:\:render_body\(\) has parameter \$context with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: public/Renderers/MCPClientsBlock.php
+
+		-
+			message: '#^Method AcrossAI_MCP_Manager\\Public\\Renderers\\MCPClientsBlock\:\:render_body\(\) has parameter \$server with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: public/Renderers/MCPClientsBlock.php
+
+		-
+			message: '#^Method AcrossAI_MCP_Manager\\Public\\Renderers\\MCPClientsBlock\:\:render_client_details\(\) has parameter \$context with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: public/Renderers/MCPClientsBlock.php
+
+		-
+			message: '#^Method AcrossAI_MCP_Manager\\Public\\Renderers\\MCPClientsBlock\:\:render_client_details\(\) has parameter \$server with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: public/Renderers/MCPClientsBlock.php
+
+		-
+			message: '#^Method AcrossAI_MCP_Manager\\Public\\Renderers\\MCPClientsBlock\:\:render_subnav\(\) has parameter \$context with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: public/Renderers/MCPClientsBlock.php
+
+		-
+			message: '#^Method AcrossAI_MCP_Manager\\Public\\Renderers\\NpmClientBlock\:\:render_body\(\) has parameter \$context with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: public/Renderers/NpmClientBlock.php
+
+		-
+			message: '#^Method AcrossAI_MCP_Manager\\Public\\Renderers\\NpmClientBlock\:\:render_body\(\) has parameter \$server with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: public/Renderers/NpmClientBlock.php
+
+		-
+			message: '#^Method AcrossAI_MCP_Manager\\Public\\Renderers\\NpmClientBlock\:\:render_cli_connection_log\(\) has parameter \$server with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: public/Renderers/NpmClientBlock.php
+
+		-
+			message: '#^Method AcrossAI_MCP_Manager\\Public\\Renderers\\NpmClientBlock\:\:render_command_ui\(\) has parameter \$server with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: public/Renderers/NpmClientBlock.php
+
+		-
+			message: '#^Access to an undefined property object\:\:\$id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: public/Renderers/UserServers/AbstractUserServersRenderer.php
+
+		-
+			message: '#^Access to an undefined property object\:\:\$server_name\.$#'
+			identifier: property.notFound
+			count: 1
+			path: public/Renderers/UserServers/AbstractUserServersRenderer.php
+
+		-
+			message: '#^Access to an undefined property object\:\:\$server_slug\.$#'
+			identifier: property.notFound
+			count: 1
+			path: public/Renderers/UserServers/AbstractUserServersRenderer.php
+
+		-
+			message: '#^Argument of an invalid type int\<min, \-1\>\|int\<1, max\>\|list\<object\> supplied for foreach, only iterables are supported\.$#'
+			identifier: foreach.nonIterable
+			count: 1
+			path: public/Renderers/UserServers/AbstractUserServersRenderer.php
+
+		-
+			message: '#^Call to function is_array\(\) with array\<int, array\<string, mixed\>\> will always evaluate to true\.$#'
+			identifier: function.alreadyNarrowedType
+			count: 1
+			path: public/Renderers/UserServers/AbstractUserServersRenderer.php
+
+		-
+			message: '#^Call to function is_array\(\) with array\<string, mixed\> will always evaluate to true\.$#'
+			identifier: function.alreadyNarrowedType
+			count: 1
+			path: public/Renderers/UserServers/AbstractUserServersRenderer.php
+
+		-
+			message: '#^Call to function is_array\(\) with array\<int, array\<string, mixed\>\> will always evaluate to true\.$#'
+			identifier: function.alreadyNarrowedType
+			count: 1
+			path: public/Renderers/UserServers/UserServersBlock.php
+
+		-
+			message: '#^Call to function is_array\(\) with array\<string, mixed\> will always evaluate to true\.$#'
+			identifier: function.alreadyNarrowedType
+			count: 1
+			path: public/Renderers/UserServers/UserServersBlock.php
+
+		-
+			message: '#^Method AcrossAI_MCP_Manager\\Public\\Renderers\\UserServers\\UserServersBlock\:\:render_shortcode\(\) has parameter \$atts_raw with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: public/Renderers/UserServers/UserServersBlock.php

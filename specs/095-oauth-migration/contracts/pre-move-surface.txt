@@ -1,0 +1,61 @@
+acrossai-pro/includes/OAuth/AdminTokenController.php:62:		register_rest_route(
+acrossai-pro/includes/OAuth/AdminTokenController.php:201:				do_action( 'acrossai_mcp_manager_oauth_token_revoked', (int) $revoked_id, 'n8n_admin_regenerated' );
+acrossai-pro/includes/OAuth/AdminTokenController.php:223:				do_action(
+acrossai-pro/includes/OAuth/Cleanup.php:68:			do_action( 'acrossai_mcp_manager_oauth_cleanup' );
+acrossai-pro/includes/OAuth/UserLifecycle.php:68:			do_action( 'acrossai_mcp_manager_oauth_token_revoked', (int) $token_id, 'user_deleted' );
+acrossai-pro/includes/OAuth/DiscoveryConflictGuard.php:8: * `add_rewrite_rule( '^\.well-known/oauth-protected-resource$', …, 'top' )` and
+acrossai-pro/includes/OAuth/DiscoveryConflictGuard.php:84:		if ( ! (bool) apply_filters( 'acrossai_pro_take_over_oauth_discovery', true ) ) {
+acrossai-pro/includes/OAuth/CimdRegistry.php:141:		$filtered = apply_filters( 'acrossai_pro_cimd_trusted_publishers', $publishers );
+acrossai-pro/includes/OAuth/OAuthRouter.php:76:		add_rewrite_rule(
+acrossai-pro/includes/OAuth/OAuthRouter.php:81:		add_rewrite_rule(
+acrossai-pro/includes/OAuth/OAuthRouter.php:86:		add_rewrite_rule(
+acrossai-pro/includes/OAuth/OAuthRouter.php:91:		add_rewrite_rule(
+acrossai-pro/includes/OAuth/OAuthRouter.php:96:		add_rewrite_rule(
+acrossai-pro/includes/OAuth/Security/RateLimiter.php:70:		$trusted_proxies = (array) apply_filters( 'acrossai_mcp_manager_trusted_proxies', array() );
+acrossai-pro/includes/OAuth/TokenController.php:189:		do_action( 'acrossai_mcp_manager_oauth_token_issued', (int) $access['id'], $client_id, $user_id, (string) $client->connector_slug );
+acrossai-pro/includes/OAuth/TokenController.php:235:					do_action( 'acrossai_mcp_manager_oauth_token_revoked', (int) $token_id, 'family_reuse_detected' );
+acrossai-pro/includes/OAuth/TokenController.php:288:		do_action( 'acrossai_mcp_manager_oauth_token_revoked', (int) $row->id, 'refresh_rotation' );
+acrossai-pro/includes/OAuth/TokenController.php:326:		do_action( 'acrossai_mcp_manager_oauth_token_issued', (int) $access['id'], $client_id, $user_id, (string) $client->connector_slug );
+acrossai-pro/includes/OAuth/AuthorizationController.php:207:					do_action(
+acrossai-pro/includes/OAuth/AuthorizationController.php:239:				do_action(
+acrossai-pro/includes/OAuth/AuthorizationController.php:312:			do_action( 'acrossai_mcp_manager_oauth_authorization_denied', $params['client_id'], $params['redirect_uri'], 'user_denied' );
+acrossai-pro/includes/OAuth/AuthorizationController.php:421:		$cimd_on = (bool) apply_filters( 'acrossai_pro_cimd_enabled', false, $client_id );
+acrossai-pro/includes/OAuth/ClientRegistrationController.php:62:		register_rest_route(
+acrossai-pro/includes/OAuth/ClientRegistrationController.php:93:		register_rest_route(
+acrossai-pro/includes/OAuth/ClientRegistrationController.php:220:					do_action( 'acrossai_mcp_manager_oauth_token_revoked', (int) $token_id, 'client_regenerated' );
+acrossai-pro/includes/OAuth/ClientRegistrationController.php:616:		$native_schemes = apply_filters( 'acrossai_pro_native_app_redirect_schemes', array() );
+acrossai-pro/includes/OAuth/ClientRegistrationController.php:691:			do_action(
+acrossai-pro/includes/OAuth/ConnectorAdminController.php:63:		register_rest_route(
+acrossai-pro/includes/OAuth/ConnectorAdminController.php:73:		register_rest_route(
+acrossai-pro/includes/OAuth/ConnectorAdminController.php:83:		register_rest_route(
+acrossai-pro/includes/OAuth/ConnectorAdminController.php:96:		register_rest_route(
+acrossai-pro/includes/OAuth/ConnectorAdminController.php:106:		register_rest_route(
+acrossai-pro/includes/OAuth/ConnectorAdminController.php:119:		register_rest_route(
+acrossai-pro/includes/OAuth/ConnectorAdminController.php:129:		register_rest_route(
+acrossai-pro/includes/OAuth/ConnectorAdminController.php:144:		register_rest_route(
+acrossai-pro/includes/OAuth/ConnectorAdminController.php:158:		register_rest_route(
+acrossai-pro/includes/OAuth/ConnectorAdminController.php:168:		register_rest_route(
+acrossai-pro/includes/OAuth/ConnectorAdminController.php:178:		register_rest_route(
+acrossai-pro/includes/OAuth/ConnectorAdminController.php:191:		register_rest_route(
+acrossai-pro/includes/OAuth/ConnectorAdminController.php:205:		register_rest_route(
+acrossai-pro/includes/OAuth/ConnectorAdminController.php:220:		register_rest_route(
+acrossai-pro/includes/OAuth/ConnectorAdminController.php:406:			do_action(
+acrossai-pro/includes/OAuth/ConnectorAdminController.php:442:				do_action( 'acrossai_mcp_manager_oauth_token_revoked', (int) $token_id, 'server_nuclear_revoke' );
+acrossai-pro/includes/OAuth/ConnectorAdminController.php:476:			do_action(
+acrossai-pro/includes/OAuth/ConnectorAdminController.php:500:			do_action( 'acrossai_mcp_manager_oauth_token_revoked', (int) $token_id, 'admin_revoke' );
+acrossai-pro/includes/OAuth/ConnectorAdminController.php:528:			do_action( 'acrossai_mcp_manager_oauth_token_revoked', (int) $token_id, 'admin_revoke_grant' );
+acrossai-pro/includes/OAuth/ConnectorAdminController.php:552:			do_action(
+acrossai-pro/includes/OAuth/ConnectorAdminController.php:582:			do_action( 'acrossai_mcp_manager_oauth_token_revoked', (int) $token_id, $reason );
+acrossai-pro/includes/OAuth/ConnectorAdminController.php:625:			do_action( 'acrossai_mcp_manager_oauth_token_revoked', (int) $token_id, 'admin_revoke_all_servers' );
+acrossai-pro/includes/OAuth/ConnectorAdminController.php:637:		do_action(
+acrossai-pro/includes/OAuth/ConnectorAdminController.php:763:		do_action(
+acrossai-pro/includes/OAuth/ConnectorAdminController.php:811:		if ( ! apply_filters( 'acrossai_mcp_connector_revoke_tokens_on_approval_revoked', true, $server_id, $connector_slug, $user_id, $revoked_by ) ) {
+acrossai-pro/includes/OAuth/ConnectorAdminController.php:841:			do_action( 'acrossai_mcp_manager_oauth_token_revoked', (int) $token_id, 'approval_revoked' );
+acrossai-pro/includes/OAuth/ConnectorAdminController.php:904:				do_action( 'acrossai_mcp_manager_oauth_token_revoked', (int) $token_id, $reason );
+acrossai-pro/includes/OAuth/ConnectorAdminController.php:941:				do_action( 'acrossai_mcp_manager_oauth_token_revoked', (int) $token_id, $reason );
+acrossai-pro/includes/Connectors/ConnectorProfileRegistry.php:6: *   apply_filters( 'acrossai_mcp_manager_connector_profiles', [] )
+acrossai-pro/includes/Connectors/ConnectorProfileRegistry.php:81:		$contributed = (array) apply_filters( 'acrossai_mcp_manager_connector_profiles', array() );
+acrossai-pro/includes/Connectors/ConnectorProfileRegistry.php:82:		$contributed = (array) apply_filters( 'acrossai_pro_profiles', $contributed );
+acrossai-pro/includes/Main.php:182:		apply_filters( 'acrossai_pro_load', true );
+acrossai-pro/includes/Main.php:1257:			wp_schedule_event( time() + DAY_IN_SECONDS, 'daily', 'acrossai_mcp_manager_oauth_cleanup' );
+acrossai-pro/includes/Main.php:1357:			do_action( 'acrossai_pro_ownership_taken', $transfer_at );

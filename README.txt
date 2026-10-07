@@ -4,7 +4,7 @@ Tags: ai assistant, chatgpt, claude, mcp, mcp-server
 Requires at least: 7.0
 Requires PHP: 8.1
 Tested up to: 7.1
-Stable tag: 0.3.8
+Stable tag: 0.4.0
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -111,10 +111,10 @@ Create as many servers as you need, each with its own route, namespace, version,
 
 Everything above this point is free. [AcrossAI Pro](https://acrossai.co/pricing/) is a separate plugin that adds the following, and nothing here is required to run an MCP server:
 
-* **One-click AI connectors *(Pro)*** — **ChatGPT**, **Claude**, **Grok**, **Gemini** and **Cursor**. Paste one URL into the AI client, approve the consent screen on your own site, and you are connected. No config file, no Application Password to copy.
+* **One-click AI connectors** — **ChatGPT**, **Claude**, **Grok**, **Gemini** and **Cursor**. Paste one URL into the AI client, approve the consent screen on your own site, and you are connected. No config file, no Application Password to copy.
 * **n8n connection — Beta *(Pro)*** — connect your site to n8n workflows using a generated bearer token or an Application Password, with a chosen lifetime and one-click revocation. Off by default, and labelled Beta in the plugin itself: n8n's own MCP OAuth credential is not yet OAuth 2.1 compliant, so this path is deliberately token-based rather than OAuth.
-* **An OAuth 2.1 authorization server, on your own site *(Pro)*** — authorization and token endpoints, mandatory PKCE (S256), refresh-token rotation with reuse detection, dynamic client registration, and metadata discovery. The clients, tokens and authorization codes are rows in **your** database. This is what makes one-click connectors possible without a vendor relay.
-* **Connections dashboard *(Pro)*** — see every AI client currently connected to each server, and revoke any one of them.
+* **An OAuth 2.1 authorization server, on your own site** — authorization and token endpoints, mandatory PKCE (S256), refresh-token rotation with reuse detection, dynamic client registration, and metadata discovery. The clients, tokens and authorization codes are rows in **your** database. This is what makes one-click connectors possible without a vendor relay.
+* **Connections dashboard** — see every AI client currently connected to each server, and revoke any one of them.
 * **Membership-aware access control *(Pro)*** — gate an MCP server by membership or course enrolment instead of only by WordPress role, across **10 platforms**: BuddyBoss, MemberPress, LearnDash, LifterLMS, Paid Memberships Pro, Restrict Content Pro, WooCommerce Memberships, s2Member, Wishlist Member and Memberium.
 * **276 more abilities *(Pro)*** — deep coverage for **LearnDash** (74), **BuddyBoss** (60), **MailerPress** (89 plus 28 for MailerPress Pro) and **GeoDirectory** (25), each active only when that plugin is.
 
@@ -166,7 +166,7 @@ Clients, server tabs, connect methods and server types are all registered throug
 * Filter-based extension surface for clients, tabs, connect methods and server types
 * Works with the free AcrossAI Abilities Manager add-on for 357+ abilities across 14 toolsets
 
-Optionally, with [AcrossAI Pro](https://acrossai.co/pricing/): one-click connectors for five AI vendors, an OAuth 2.1 server on your own site, a connections dashboard, membership-aware access control across 10 platforms, 276 more abilities, and an n8n connection in Beta. See the section above for detail.
+Optionally, with [AcrossAI Pro](https://acrossai.co/pricing/): membership-aware access control across 10 platforms, 276 more abilities, and an n8n connection in Beta. See the section above for detail.
 
 = Requirements =
 
@@ -193,7 +193,7 @@ Full FAQ + troubleshooting lives at [acrossai.co/docs/mcp-faq-troubleshooting](h
 
 Yes, entirely — and so is the [AcrossAI Abilities Manager](https://wordpress.org/plugins/acrossai-abilities-manager/) add-on that supplies the abilities. Both are on WordPress.org under GPL.
 
-The only paid piece is [AcrossAI Pro](https://acrossai.co/pricing/), which adds one-click connectors for ChatGPT, Claude, Grok, Gemini and Cursor, an n8n connection, an OAuth 2.1 server that runs on your own site, a connections dashboard, membership-aware access control across 10 platforms, and extra plugin toolsets. It starts with a 30-day free trial and no card. Everything else described on this page works without paying anyone.
+The only paid piece is [AcrossAI Pro](https://acrossai.co/pricing/), which adds an n8n connection, membership-aware access control across 10 platforms, and extra plugin toolsets. It starts with a 30-day free trial and no card. Everything else described on this page works without paying anyone.
 
 = Does my content go to a third party? =
 
@@ -292,6 +292,14 @@ Delete its Application Password from your WordPress profile page, or disable the
 10. Global settings, including CLI connections and a deliberately non-destructive uninstall that keeps your data unless you opt out.
 
 == Upgrade Notice ==
+
+= 0.4.0 =
+* **New — connecting Claude, ChatGPT, Gemini, Grok or Cursor is now part of this plugin, free.** Paste one URL, approve the consent screen, done. The **Connectors** tab that used to advertise the paid add-on now does the job itself.
+* **Please note — load wp-admin once after updating.** Your existing connections are moved across on the first admin page load. Until that happens, connected AI clients cannot authenticate — so if your site auto-updates, sign in once.
+* **Unchanged — existing connections keep working.** No reconnecting, no re-approving. Tokens already issued stay valid.
+* **Changed — Quick Connect no longer asks you to buy anything.** The add-on pitch and setup screens are gone; choosing one-click connection goes straight to the connector screen.
+* **AcrossAI Pro is still useful** for its abilities library and access control — just not needed for connectors. It stands aside on its own.
+* **Database — four tables added.** Existing data from the paid plugin is copied across; its tables are left untouched.
 
 = 0.3.8 =
 The **AcrossAI** server is recommended again — badged and pinned to the top of the servers list, and preselected in Quick Connect. New servers now start on the **AcrossAI** server type where the AcrossAI Abilities Manager add-on is installed, and on **MCP Adapter** where it is not. Existing servers are untouched and there is no database change.

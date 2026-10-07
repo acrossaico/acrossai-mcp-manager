@@ -70,6 +70,15 @@ jobs:
       - name: Run PHPUnit — mcpclients suite (pure, no WP)
         run: vendor/bin/phpunit --testsuite mcpclients
 
+      # F095 — OAuth suites ported from acrossai-pro. Pure: each ships its own
+      # bootstrap stubbing the WP functions it needs, so no WordPress install
+      # is involved. Run separately because each overrides the bootstrap.
+      - name: Run PHPUnit — oauth-discovery suite (pure, no WP)
+        run: vendor/bin/phpunit --bootstrap tests/phpunit/OAuthDiscovery/bootstrap.php --testsuite oauth-discovery
+
+      - name: Run PHPUnit — oauth-unit suite (pure, no WP)
+        run: vendor/bin/phpunit --bootstrap tests/phpunit/OAuthDiscovery/bootstrap.php --testsuite oauth-unit
+
       # F080 rename gate — also pure (no WP bootstrap). It existed in
       # phpunit.xml.dist but was never wired into CI, so the canary that is
       # supposed to catch a "quick-setup" identifier creeping back has never

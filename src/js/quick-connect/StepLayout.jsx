@@ -26,8 +26,6 @@ const STEP_TITLES = {
 	'5': 'Enable abilities',
 	'6': 'Enable server',
 	'7': 'Pick a connection method',
-	'8': 'Get AcrossAI Pro',
-	'9': 'Set up AcrossAI Pro',
 	'10': 'One-click OAuth setup',
 	'11': 'MCP Client setup',
 	'12': 'npm setup',

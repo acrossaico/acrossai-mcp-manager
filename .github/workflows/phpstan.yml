@@ -29,4 +29,8 @@ jobs:
       - run: composer install --prefer-dist --no-progress
 
       - name: Run PHPStan
-        run: vendor/bin/phpstan analyse --level=8 --error-format=github
+        # --memory-limit is load-bearing: the 128M default is exhausted
+        # part-way through this codebase and PHPStan then reports an
+        # INCOMPLETE run rather than failing, which reads as success.
+        # Level comes from phpstan.neon.dist (8, per constitution III).
+        run: vendor/bin/phpstan analyse --memory-limit=1G --error-format=github

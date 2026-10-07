@@ -6,10 +6,15 @@ use AcrossAI_MCP_Manager\Includes\Database\MCPServer\Table as MCPServerTable;
 use AcrossAI_MCP_Manager\Includes\Database\MCPServer\CreatedColumnBackfill;
 use AcrossAI_MCP_Manager\Includes\Database\MCPServer\DefaultServerSeeder;
 use AcrossAI_MCP_Manager\Includes\Database\SchemaReconciler;
+use AcrossAI_MCP_Manager\Includes\Database\OAuthDataMigration;
 use AcrossAI_MCP_Manager\Includes\Database\CliAuthLog\Table as CliAuthLogTable;
 use AcrossAI_MCP_Manager\Includes\Database\MCPServerAbility\Table as MCPServerAbilityTable;
 use AcrossAI_MCP_Manager\Includes\Database\MCPServerTool\Table as MCPServerToolTable;
 use AcrossAI_MCP_Manager\Includes\Database\MCPServerMeta\Table as MCPServerMetaTable;
+use AcrossAI_MCP_Manager\Includes\Database\OAuthTokens\Table as OAuthTokensTable;
+use AcrossAI_MCP_Manager\Includes\Database\OAuthAuthCodes\Table as OAuthAuthCodesTable;
+use AcrossAI_MCP_Manager\Includes\Database\OAuthClients\Table as OAuthClientsTable;
+use AcrossAI_MCP_Manager\Includes\Database\ConnectorApprovedUsers\Table as ConnectorApprovedUsersTable;
 use AcrossAI_MCP_Manager\Public\Partials\FrontendAuth;
 use WPBoilerplate\AccessControl\Database\Rule\RuleTable as WPB_AccessControl_RuleTable;
 
@@ -84,6 +89,20 @@ class Activator {
 		// feature reads `_embeds_enabled` — ran against a missing table.
 		MCPServerMetaTable::instance()->maybe_upgrade();
 
+		// F095 — OAuth tables. Created here for exactly the reason the F037 note
+		// above records: a table that waits for admin_init@3 does not exist
+		// between activation and the first wp-admin request, and every read in
+		// that window hits "table doesn't exist". For OAuth that window is the
+		// token endpoint, so the failure would be connected clients unable to
+		// authenticate. Co-commit invariant with the Main.php request-time boot
+		// (DEC-BERLINDB-TABLE-REQUEST-BOOT).
+		//
+		// Order is Tokens -> AuthCodes -> Clients per D31 (F032).
+		OAuthTokensTable::instance()->maybe_upgrade();
+		OAuthAuthCodesTable::instance()->maybe_upgrade();
+		OAuthClientsTable::instance()->maybe_upgrade();
+		ConnectorApprovedUsersTable::instance()->maybe_upgrade();
+
 		// F091 — heal any column a migration could not deliver, THEN give the
 		// just-created columns their values, and only then seed. All three
 		// orderings are load-bearing: the backfill consumes the reconciler's
@@ -102,6 +121,18 @@ class Activator {
 		CreatedColumnBackfill::apply( $created['acrossai_mcp_servers'] ?? array() );
 
 		DefaultServerSeeder::seed();
+
+		// F095 — copy OAuth rows from the companion. After the seeder for the
+		// same reason as in Main::reconcile_database_schemas(): destinations must
+		// be present and current first.
+		OAuthDataMigration::maybe_migrate();
+
+		// F095 — daily expiry sweep for OAuth tokens and auth codes. Hook name is
+		// a contract preserved from before the F040 split, and Deactivator already
+		// clears this exact name.
+		if ( ! wp_next_scheduled( 'acrossai_mcp_manager_oauth_cleanup' ) ) {
+			wp_schedule_event( time() + HOUR_IN_SECONDS, 'daily', 'acrossai_mcp_manager_oauth_cleanup' );
+		}
 
 		// Feature 015 — Access Control v2 adoption. Create the
 		// {$wpdb->prefix}mcp_access_control table via the vendor-owned

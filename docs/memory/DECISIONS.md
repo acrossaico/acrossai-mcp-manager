@@ -2984,3 +2984,55 @@ from "activate". Both are equally unmet to the gate.
 **Related**: `B32` (canonical resolver), `D41` (last-wins registry dedup), the 2026-09-17 BUGS
 entry on conventions that hold only for shipped cases — same fix, other half.
 
+
+---
+
+### 2026-10-07 — D59 / DEC-N8N-STAYS-IN-COMPANION-WITH-ITS-OWN-TABLES
+
+**Status**
+Active
+
+**Context**
+F095's clarification answer was "everything the promo card promises, **plus n8n**". The n8n half was
+reversed on 2026-10-07: connectors go free, n8n stays a paid capability in `acrossai-pro`. Of the
+options considered, the companion keeps its **own** `oauth_tokens` and `oauth_clients` tables
+(option C) rather than calling this plugin's `AccessTokenRepository` — a paid feature must not
+depend on a free-plugin repository class.
+
+**Decision**
+n8n is the companion's, at the data layer and not merely in the UI. This plugin ships no n8n tab, no
+admin-token controller and no global-integration registry.
+
+**Two consequences that are easy to miss**
+
+1. **Un-gating the companion's hooks is not sufficient.** Its n8n registrations sit inside
+   `bootstrap_oauth_hooks()`, behind an all-or-nothing `mcp_manager_still_owns_oauth()` probe that
+   flips the moment this plugin's `AuthorizationController` exists. But even once un-gated, this
+   plugin's `TokenValidator` reads `acrossai_mcp_oauth_tokens` while the companion's
+   `AdminTokenController` writes `acrossai_pro_mcp_oauth_tokens` — so a token is issued successfully
+   and then fails every authentication. Silent, and worse than the visible 404 it replaces.
+2. **Moving scope relocates security properties.** `AccessTokenRepository::MAX_ADMIN_TTL_SECONDS`
+   (90 days) was defence-in-depth *behind* that controller's args validator. With the controller
+   gone it is the only enforcement left here, so it must not be relaxed on "the controller already
+   checks" grounds — that controller is in another plugin now.
+
+**Host-side support this plugin retains and must not regress**
+`ConnectTab::LEGACY_TAB_METHODS['n8n']`; connect-method **priority 40 reserved and unseeded**; the
+filter excluding `connector_slug = 'n8n'` rows from the connectors panel.
+
+**Accepted risk**
+F095 copied rather than moved, so every pre-split n8n token exists in **both** tables with
+`connector_slug = 'n8n'`. Until n8n moves onto this plugin's tables (a later release, decided
+2026-10-07), revoking such a token here does not revoke the companion's copy. Bounded to pre-F095
+rows, all expiring within their original TTL of at most 90 days.
+
+**Tradeoffs**
+- Gained: clean ownership — "n8n belongs to the companion" is true at the data layer, and the free
+  plugin carries no paid-feature code.
+- Cost: two token tables on one site, two validators on `determine_current_user`, and the companion's
+  tables can never be dropped by the OAuth-strip cleanup.
+- Reconsider: when n8n moves onto this plugin's tables, at which point the revocation divergence
+  closes and the companion's two tables become droppable.
+
+**Related**: `D31` (OAuth `server_id` first-class), `D32` (approval-revoke cascade),
+`D22` (`acrossai_n8n_enabled` is a frozen public string), `B67`.

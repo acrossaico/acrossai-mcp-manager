@@ -1,41 +1,49 @@
 <!--
   SYNC IMPACT REPORT
   ==================
-  Version change:    1.0.0 → 1.1.0
-  Bump type:         MINOR — Principle IV materially expanded with a new
-                     "Connector picker card layout" exception paragraph;
-                     Principle VII DoD checklist item wording updated to
-                     reference the new exception explicitly.
+  Version change:    1.1.0 → 1.1.1
+  Bump type:         PATCH — factual correction to Principle I's Rationale.
+                     No normative rule added, removed, or altered: the MUST
+                     ("each map to exactly one module") is unchanged, and
+                     OAuth / AI Connectors already satisfies it. Only the
+                     enumeration of which areas are active was stale.
 
   Principles added:    none
   Principles removed:  none
   Principles modified:
-    IV. User-Centric Design (NON-NEGOTIABLE) — new exception paragraph added
-        after the "MCP Manager parent menu" exception. Formalizes the narrow
-        deviation for the AI Connectors tab and its nested Level 2 + Level 3
-        panels; keeps DataViews/DataForm mandatory for anything that actually
-        needs filtering/sorting/pagination.
-    VII. Definition of Done — DoD checklist item wording updated:
-        "All new data input uses DataForm from @wordpress/dataviews
-         (exceptions: MCP Manager parent menu; AI Connectors tab card layout)".
+    I. Modular Architecture — Rationale only. "OAuth / Claude Connectors"
+       was listed as retired (F016, D21). F095 (2026-10-07) reinstated it:
+       48 files across includes/OAuth/, includes/Connectors/,
+       includes/ConnectorProfiles/, includes/Discovery/ and four BerlinDB
+       modules, delivering the plugin's headline free capability. The area
+       is now listed as active and its modules enumerated, with the full
+       retire → move → reinstate history preserved so D21 is not re-cited
+       as current.
 
   Sections added:      none
   Sections removed:    none
 
   Templates reviewed:
     - .specify/templates/plan-template.md  ✅ no update needed
-      (Constitution Check section is generic; principle text now covers the
-       AI Connectors card layout without further template edits.)
-    - .specify/templates/spec-template.md  ⚠ updated — §Admin UI Requirements
-      "Pre-approved WP_List_Table exception" block extended to mention the
-      new AI Connectors exception; DoD gate at line 163 updated to reference
-      both exceptions.
+      (no reference to the active-feature-area list)
+    - .specify/templates/spec-template.md  ✅ no update needed
+      (its only OAuth mention is the token-hashing DoD item, untouched here)
     - .specify/templates/tasks-template.md ✅ no update needed
 
-  Deferred TODOs:      none.
+  Deferred TODOs:
+    §III consent-surface exception, condition 3 ("operator-gated via a
+    default-OFF option"). F095's OAuth consent screen is a browser-mediated
+    surface where the user consents on their own behalf, but it is ON by
+    default — a deliberate product decision recorded as C5 in
+    specs/095-oauth-migration/plan.md — so it does not satisfy condition 3
+    as written. Scoping that condition to credentials exceeding the
+    consenting user's own authority would resolve it, but that LOOSENS a
+    NON-NEGOTIABLE security principle and is therefore MINOR, not PATCH.
+    Deliberately NOT folded into this amendment; it needs its own proposal
+    and its own approval.
 
   Suggested commit:
-    docs: amend constitution to v1.1.0 (AI Connectors card layout exception)
+    docs: amend constitution to v1.1.1 (reinstate OAuth / AI Connectors as an active feature area)
 -->
 
 # AcrossAI MCP Manager Constitution
@@ -51,9 +59,17 @@ No code duplication between modules is permitted under any circumstance.
 
 **Rationale**: Enables parallel development, isolated testing, and safe iteration on any single feature
 without risking regressions in others. The active feature areas (MCP Server Management, CLI Auth,
-Frontend Auth, Access Control) MUST each map to exactly one module.
-(*Historical: "OAuth / Claude Connectors" was a 5th active area prior to F016 2026-07-07;
-retired per DECISIONS.md D21 fresh-install-only retirement pattern.*)
+Frontend Auth, Access Control, OAuth / AI Connectors) MUST each map to exactly one module.
+
+The OAuth / AI Connectors area comprises `includes/OAuth/` (authorization server, discovery,
+token validation), `includes/Connectors/` (profile abstraction, settings, registry),
+`includes/ConnectorProfiles/` (the five vendor profiles), `includes/Discovery/`, and the four
+BerlinDB modules `includes/Database/{OAuthClients,OAuthTokens,OAuthAuthCodes,ConnectorApprovedUsers}/`.
+
+(*History: a 5th active area until F016 2026-07-07, then retired per DECISIONS.md D21
+fresh-install-only retirement pattern; moved to the acrossai-pro companion by F040 2026-08-02;
+**reinstated here by F095 2026-10-07**, which brought the OAuth server and connectors back into
+this plugin as a free capability. The D21 retirement is spent — do not cite it as current.*)
 
 ### II. WordPress Standards Compliance
 
@@ -304,4 +320,4 @@ constitution. Any implementation that appears to violate a principle MUST either
 include documented justification in the feature plan explaining why a compliant approach was not
 feasible.
 
-**Version**: 1.1.0 | **Ratified**: 2026-05-28 | **Last Amended**: 2026-07-12
+**Version**: 1.1.1 | **Ratified**: 2026-05-28 | **Last Amended**: 2026-10-07

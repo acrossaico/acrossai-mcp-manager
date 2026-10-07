@@ -23,7 +23,7 @@ import { getQueryArg, addQueryArgs, removeQueryArgs } from '@wordpress/url';
 
 const STEP_ORDER = [
 	'1', '2', '3', '4', '5', '6', '7',
-	'8', '9', '10', '11', '12', '13',
+	'10', '11', '12', '13',
 	'done',
 ];
 
@@ -33,11 +33,7 @@ const STEP_ORDER = [
  *   - 4  (abilities-manager gate) — skip when plugin is already active
  *   - 5  (abilities picker) — skip when all abilities are already enabled
  *   - 6  (enable endpoint) — skip when server is already enabled
- *   - 8  (Pro pitch) — skip unless method=connectors AND pro state=missing
- *   - 9  (Pro install/activate/licence) — skip unless method=connectors AND
- *     Pro is not yet both active and licensed
- *   - 10 (Connectors detail) — skip unless method=connectors AND pro state=active
- *     AND a licence is connected
+ *   - 10 (Connectors detail) — skip unless method=connectors
  *   - 11 (Client detail) — skip unless method=client
  *   - 12 (npm detail) — skip unless method=npm
  *   - 13 (WP-CLI detail) — skip unless method=wpcli
@@ -49,9 +45,6 @@ const STEP_ORDER = [
  * @param {Object} skips
  */
 const shouldSkip = ( step, skips ) => {
-	if ( step === '9' && skips.skipProSetup ) {
-		return true;
-	}
 	if ( step === '2' && skips.skipCreate ) {
 		return true;
 	}
@@ -62,9 +55,6 @@ const shouldSkip = ( step, skips ) => {
 		return true;
 	}
 	if ( step === '6' && skips.skipEnable ) {
-		return true;
-	}
-	if ( step === '8' && skips.skipProPromo ) {
 		return true;
 	}
 	if ( step === '10' && skips.skipConnectorsDetail ) {
@@ -150,11 +140,15 @@ const useWizardRouter = () => {
 	}, [] );
 
 	// `mode` is normally cleared on step navigation (it's a per-step sub-view),
-	// but a caller can seed the destination's mode in the same hop — Step 8's
-	// trial handoff uses goTo( '9', null, 'trial' ) so Step 9 knows the
-	// operator arrived from a completed checkout rather than plain Continue.
-	// Passing it here (rather than a follow-up setMode) keeps it to ONE
-	// history entry, so Back still takes one press.
+	// but a caller can seed the destination's mode in the same hop. Passing it
+	// here (rather than a follow-up setMode) keeps it to ONE history entry, so
+	// Back still takes one press.
+	//
+	// F095 removed the only caller that used it: the deleted add-on steps
+	// handed off a 'trial' mode across a step boundary. The third argument is
+	// kept because the one-hop-one-entry property is the reason it exists, and
+	// re-deriving it at the next call site is how double history entries get
+	// reintroduced. Steps still change their own sub-view via setMode.
 	const goTo = useCallback( ( step, method = null, mode = null ) => {
 		if ( ! STEP_ORDER.includes( step ) ) {
 			return;
