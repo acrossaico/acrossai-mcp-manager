@@ -136,12 +136,17 @@ final class Controller {
 		foreach ( $servers as $server ) {
 			$slug = (string) $server->server_slug;
 
-			if ( '' === $slug ) {
+			// Falsy, not merely empty. Adapter 0.7.0 narrowed create_server()'s
+			// $server_route_namespace and $server_route to `non-falsy-string`,
+			// and the literal string '0' is non-empty but falsy — so '0' must
+			// be rejected here the same way '' is. The slug is guarded too
+			// because $route falls back to it immediately below.
+			if ( ! $slug ) {
 				continue;
 			}
 
-			$namespace = '' !== $server->server_route_namespace ? $server->server_route_namespace : 'mcp';
-			$route     = '' !== $server->server_route ? $server->server_route : $slug;
+			$namespace = $server->server_route_namespace ? $server->server_route_namespace : 'mcp';
+			$route     = $server->server_route ? $server->server_route : $slug;
 			$version   = '' !== $server->server_version ? $server->server_version : 'v1.0.0';
 
 			$tools     = ToolPolicy::compose_effective_tools_for_row( $server );
