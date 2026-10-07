@@ -159,9 +159,8 @@ class Main {
 		// view or any per-server-edit tab.
 		$this->maybe_enqueue_quick_connect_app();
 
-		// F095 — AI Connectors and n8n tab bundles.
+		// F095 — AI Connectors tab bundle.
 		$this->maybe_enqueue_ai_connectors_app();
-		$this->maybe_enqueue_n8n_admin_app();
 	}
 
 	/**
@@ -597,76 +596,5 @@ class Main {
 				'copy'              => __( 'Copy', 'acrossai-mcp-manager' ),
 			)
 		);
-	}
-
-	/**
-	 * F095 — n8n tab bundle.
-	 *
-	 * The Connections panel reuses the AI Connectors bundle's revoke/delete
-	 * handlers, so that bundle is enqueued alongside this one on that panel.
-	 * Without it the read-only table still renders but its buttons are inert.
-	 *
-	 * @return void
-	 */
-	private function maybe_enqueue_n8n_admin_app(): void {
-		// phpcs:disable WordPress.Security.NonceVerification.Recommended -- Read-only routing check.
-		$is_edit = isset( $_GET['action'] ) && 'edit' === sanitize_key( wp_unslash( $_GET['action'] ) );
-		$is_n8n  = isset( $_GET['tab'] ) && 'n8n' === sanitize_key( wp_unslash( $_GET['tab'] ) );
-		$panel   = isset( $_GET['panel'] ) ? sanitize_key( wp_unslash( $_GET['panel'] ) ) : '';
-		// phpcs:enable
-
-		if ( ! $is_edit || ! $is_n8n || ! current_user_can( 'manage_options' ) ) {
-			return;
-		}
-
-		$asset = $this->read_asset_manifest( 'build/js/n8n-admin.asset.php' );
-		if ( null === $asset ) {
-			return;
-		}
-
-		$handle = $this->plugin_name . '-n8n-admin';
-		wp_enqueue_script(
-			$handle,
-			esc_url( \ACROSSAI_MCP_MANAGER_PLUGIN_URL . 'build/js/n8n-admin.js' ),
-			$asset['dependencies'],
-			$asset['version'],
-			true
-		);
-
-		$css_path = \ACROSSAI_MCP_MANAGER_PLUGIN_PATH . 'build/css/n8n.css';
-		if ( file_exists( $css_path ) ) {
-			wp_enqueue_style(
-				$handle,
-				esc_url( \ACROSSAI_MCP_MANAGER_PLUGIN_URL . 'build/css/n8n.css' ),
-				array(),
-				$asset['version']
-			);
-		}
-
-		wp_localize_script(
-			$handle,
-			'acrossaiMcpN8n',
-			array(
-				'restEndpoint' => esc_url_raw( rest_url( 'acrossai-mcp-manager/v1' ) ),
-				'namespace'    => 'acrossai-mcp-manager/v1',
-				'copied'       => __( 'Copied!', 'acrossai-mcp-manager' ),
-				'working'      => __( 'Generating token…', 'acrossai-mcp-manager' ),
-				'failed'       => __( 'Failed to generate the token. Please try again.', 'acrossai-mcp-manager' ),
-			)
-		);
-
-		// Connections panel borrows the AI Connectors handlers.
-		if ( 'connections' === $panel ) {
-			$connectors_asset = $this->read_asset_manifest( 'build/js/ai-connectors.asset.php' );
-			if ( null !== $connectors_asset ) {
-				wp_enqueue_script(
-					$this->plugin_name . '-ai-connectors',
-					esc_url( \ACROSSAI_MCP_MANAGER_PLUGIN_URL . 'build/js/ai-connectors.js' ),
-					$connectors_asset['dependencies'],
-					$connectors_asset['version'],
-					true
-				);
-			}
-		}
 	}
 }

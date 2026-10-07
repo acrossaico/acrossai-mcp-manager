@@ -26,10 +26,14 @@ final class AccessTokenRepository {
 	private const TTL_SECONDS = 3600;
 
 	/**
-	 * Hard cap on admin-issued token TTL (90 days). Feature 013 (n8n admin
-	 * bearer tokens). Enforced at the repository layer as defense-in-depth
-	 * beyond the REST controller's args-validator enum, so a bypass of the
-	 * validator cannot mint a longer-lived token.
+	 * Hard cap on admin-issued token TTL (90 days). Enforced at the repository
+	 * layer as defense-in-depth beyond any caller's args validation, so a
+	 * bypass of that validation cannot mint a longer-lived token.
+	 *
+	 * The only admin-issued flow today is the acrossai-pro companion's n8n
+	 * tab, whose controller does NOT live here — so this cap is the last line
+	 * of defence rather than a second one, and must not be relaxed because
+	 * "the controller already checks". That controller is in another plugin.
 	 */
 	public const MAX_ADMIN_TTL_SECONDS = 7776000;
 

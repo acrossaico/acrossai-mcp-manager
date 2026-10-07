@@ -156,7 +156,6 @@ final class MethodRegistryTest extends WP_UnitTestCase {
 				'ai-connectors' => 10,
 				'clients'       => 20,
 				'npm'           => 30,
-				'n8n'           => 40,
 				'wp-cli'        => 50,
 			),
 			$priorities
@@ -164,30 +163,44 @@ final class MethodRegistryTest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * n8n is seeded but hidden until an operator enables it (F095).
+	 * Priority 40 is reserved for the companion's n8n method and left unseeded.
 	 *
-	 * The two halves pull apart deliberately: it occupies priority 40 in the
-	 * unfiltered list so third parties cannot claim that slot, while
-	 * `visible_methods()` excludes it because `N8nTab::visible_for()` resolves
-	 * to the default-OFF `acrossai_n8n_enabled` option. Asserting only one
-	 * half would let the other regress unnoticed.
+	 * F095 briefly brought n8n into this plugin and then handed it back, so
+	 * both halves need pinning. Seeding anything at 40 would collide with the
+	 * companion on every site that has it; renumbering the gap away would
+	 * silently move n8n in the navigation the moment the companion registers.
 	 */
-	public function test_n8n_is_seeded_but_hidden_until_enabled(): void {
+	public function test_priority_40_is_reserved_for_the_companion_and_unseeded(): void {
 		$slugs = array_map(
 			static fn ( $method ) => $method->slug(),
 			MethodRegistry::instance()->all_methods()
 		);
 
-		$this->assertContains( 'n8n', $slugs, 'n8n MUST hold its reserved slot in the unfiltered list.' );
-		$this->assertNotContains( 'n8n', $this->visible_slugs(), 'n8n MUST stay hidden while the option is off.' );
+		$this->assertNotContains(
+			'n8n',
+			$slugs,
+			'n8n belongs to acrossai-pro. Seeding it here collides with the companion.'
+		);
 
-		// is_enabled() reads the option fresh on every call — only the
-		// descriptor list is memoized, and that does not change here.
-		update_option( 'acrossai_n8n_enabled', 1 );
+		// The companion's registration must land in the reserved gap.
+		add_filter(
+			MethodRegistry::FILTER_NAME,
+			static function ( array $methods ): array {
+				$methods[] = array(
+					'slug'            => 'n8n',
+					'label'           => 'n8n',
+					'priority'        => 40,
+					'render_callback' => static fn () => print( 'n8n body' ),
+				);
+				return $methods;
+			}
+		);
 
-		$this->assertContains( 'n8n', $this->visible_slugs(), 'Enabling the option MUST reveal the method.' );
-
-		delete_option( 'acrossai_n8n_enabled' );
+		$this->assertSame(
+			array( 'ai-connectors', 'clients', 'npm', 'n8n', 'wp-cli' ),
+			$this->visible_slugs(),
+			'Priority 40 MUST slot between npm (30) and wp-cli (50).'
+		);
 	}
 
 	/**

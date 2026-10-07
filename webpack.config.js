@@ -101,8 +101,6 @@ module.exports = {
 			'src/js',
 			'ai-connectors.js',
 		),
-		// F095 — n8n tab entry, same shape.
-		'js/n8n-admin': path.resolve( process.cwd(), 'src/js', 'n8n-admin.js' ),
 		// F037 — Embeds tab React entry (mounts the ToggleControl-driven
 		// master + per-transport UI). Consumes GET+POST on
 		// `/acrossai-mcp-manager/v1/servers/{server_id}/embeds` via

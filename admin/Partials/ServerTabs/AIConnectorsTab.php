@@ -330,10 +330,12 @@ final class AIConnectorsTab extends AbstractServerTab {
 		$groups    = AccessTokenRepository::group_by_grant_for_server( $server_id );
 
 		// Feature 013: n8n admin-issued bearer tokens live in the same
-		// oauth_tokens table and are grouped by the shared helper, but
-		// they belong on the dedicated n8n tab's Connections sub-panel
-		// (?tab=n8n&panel=connections) — not here. Strip them out so this
-		// panel only shows the OAuth-based AI connectors (Claude / ChatGPT /
+		// oauth_tokens table and are grouped by the shared helper, but they
+		// belong on the n8n tab's Connections sub-panel, not here. That tab
+		// is the acrossai-pro companion's — this filter stays regardless,
+		// because the rows it hides are written to OUR table by whoever owns
+		// n8n, and showing them here would be wrong either way. Leaves this
+		// panel showing only OAuth-based AI connectors (Claude / ChatGPT /
 		// Cursor / Gemini / Grok / DCR-inferred / Others).
 		$groups = array_values(
 			array_filter(

@@ -36,7 +36,6 @@ use AcrossAI_MCP_Manager\Admin\Partials\ServerTabs\AbstractServerTab;
 use AcrossAI_MCP_Manager\Admin\Partials\ServerTabs\AIConnectorsTab;
 use AcrossAI_MCP_Manager\Admin\Partials\ServerTabs\ClientsTab;
 use AcrossAI_MCP_Manager\Admin\Partials\ServerTabs\FilteredServerTab;
-use AcrossAI_MCP_Manager\Admin\Partials\ServerTabs\N8nTab;
 use AcrossAI_MCP_Manager\Admin\Partials\ServerTabs\NpmTab;
 use AcrossAI_MCP_Manager\Admin\Partials\ServerTabs\WpCliTab;
 use AcrossAI_MCP_Manager\Includes\Utilities\RegistryEntryNormalizer;
@@ -59,8 +58,10 @@ final class MethodRegistry {
 	 * Entry shape mirrors `ServerTabs\Registry::FILTER_NAME` key-for-key, so a
 	 * developer who knows one knows the other. Reserved priority scale:
 	 * `ai-connectors` 10, `clients` 20, `npm` 30, `n8n` 40, `wp-cli` 50.
-	 * Third parties should register at >= 60. (Before F095, 40 was reserved
-	 * for the acrossai-pro companion's n8n method; that method is now ours.)
+	 * Third parties should register at >= 60. Priority 40 stays RESERVED and
+	 * unseeded: `n8n` is the acrossai-pro companion's method and it registers
+	 * there. F095 briefly brought n8n in-plugin and then handed it back, so
+	 * the slot is held open rather than reused.
 	 *
 	 * @since 0.4.0
 	 * @var string
@@ -114,7 +115,9 @@ final class MethodRegistry {
 			new AIConnectorsTab(),
 			new ClientsTab(),
 			new NpmTab(),
-			new N8nTab(),
+			// No n8n entry — priority 40 belongs to the companion (see
+			// FILTER_NAME above). Last-wins dedup means it simply appears
+			// between npm and wp-cli when acrossai-pro registers it.
 			new WpCliTab(),
 		);
 	}

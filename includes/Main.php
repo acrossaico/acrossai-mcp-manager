@@ -939,9 +939,6 @@ final class Main {
 		$oauth_connector_admin = \AcrossAI_MCP_Manager\Includes\OAuth\ConnectorAdminController::instance();
 		$this->loader->add_action( 'rest_api_init', $oauth_connector_admin, 'register_routes' );
 
-		$oauth_admin_token = \AcrossAI_MCP_Manager\Includes\OAuth\AdminTokenController::instance();
-		$this->loader->add_action( 'rest_api_init', $oauth_admin_token, 'register_routes' );
-
 		// Revoking a user's approval cascades to their tokens (D32). Default-secure;
 		// opt out via `acrossai_mcp_connector_revoke_tokens_on_approval_revoked`.
 		$this->loader->add_action(
@@ -950,15 +947,6 @@ final class Main {
 			'cascade_revoke_tokens_on_approval_revoked',
 			10,
 			4
-		);
-
-		// Opt-in audit trail for admin-issued n8n tokens.
-		$this->loader->add_action(
-			'acrossai_mcp_manager_oauth_token_issued',
-			\AcrossAI_MCP_Manager\Includes\OAuth\AdminTokenController::class,
-			'maybe_log_token_issuance',
-			10,
-			5
 		);
 
 		// Site Health. DiscoveryHealthCheck is what tells an operator a competing
@@ -1000,16 +988,6 @@ final class Main {
 			'acrossai_mcp_manager_discovery_ai_connector_instructions',
 			$oauth_discovery_adapter,
 			'provide_ai_connector_instructions',
-			10,
-			1
-		);
-
-		// n8n descriptor for the global-integration registry. Default OFF: the
-		// tab stays hidden until an operator enables it on the settings page.
-		$this->loader->add_filter(
-			'acrossai_mcp_manager_global_integrations',
-			\AcrossAI_MCP_Manager\Admin\Partials\ServerTabs\N8nTab::class,
-			'register_global_integration',
 			10,
 			1
 		);
