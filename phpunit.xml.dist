@@ -112,6 +112,17 @@
             version guard. Requires WP for $wpdb, INFORMATION_SCHEMA reads,
             get_option / update_option — use tests/bootstrap-wp.php.
         -->
+        <!-- F095 — ported from acrossai-pro. Pure suites: each ships its own
+             bootstrap stubbing the WP functions it needs, so they run without
+             a WordPress install (CI overrides the bootstrap per suite). -->
+        <testsuite name="oauth-discovery">
+            <directory>tests/phpunit/OAuthDiscovery</directory>
+            <exclude>tests/phpunit/OAuthDiscovery/bootstrap.php</exclude>
+            <exclude>tests/phpunit/OAuthDiscovery/ServerFixtureTrait.php</exclude>
+        </testsuite>
+        <testsuite name="oauth-unit">
+            <directory>tests/phpunit/OAuthUnit</directory>
+        </testsuite>
         <testsuite name="database">
             <directory>tests/phpunit/Database</directory>
         </testsuite>

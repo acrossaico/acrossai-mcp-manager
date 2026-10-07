@@ -50,6 +50,7 @@
 - [x] T016 [P] Write `tests/phpunit/Database/OAuth/LegacyCleanupRemovedTest.php` — asserts `LegacyOAuthCleanup` no longer exists, and that the four names **are still present** in `uninstall.php`'s drop list (guards both halves of T004/T006 against future "tidying").
 
 - [ ] T076 [P] Replace the 28 `window.alert()` / `window.confirm()` calls in `src/js/ai-connectors.js` with `@wordpress/components` modals. Ported verbatim and currently behind a file-level `eslint-disable no-alert` with a stated reason. Most are confirmations in front of destructive revoke/delete actions, so the replacement must keep a confirmation step — this is a UI feature, not a lint fix.
+- [ ] T077 [P] Port the Connectors test suite. Requires deciding whether to add `brain/monkey` as a dev dependency (needed by `ConnectorSettingsTest`), and rewriting `ConnectorProfileRegistryTest` — four of its tests assert the `acrossai_pro_profiles` BC cascade that no longer exists.
 - [ ] T075 [P] Extend `tests/phpunit/Database/SchemaManifestTest.php` — its provider derives from a `SCHEMAS` constant holding a full expected column manifest per table, so the four new modules need their manifests added. Not done alongside the other three providers because it needs each table's complete column list transcribed, not just a class reference.
 
 **Checkpoint**: tables exist and install cleanly; nothing drops them.
@@ -108,9 +109,9 @@
 
 ### Tests for User Story 2
 
-- [ ] T031 [P] [US2] Port the companion's `tests/Unit/OAuth/` suite into `tests/phpunit/OAuth/`, namespace-rewritten.
-- [ ] T032 [P] [US2] Port the companion's `tests/Unit/OAuthDiscovery/` suite into `tests/phpunit/OAuth/Discovery/`.
-- [ ] T033 [P] [US2] Port the companion's `tests/Unit/Connectors/` suite and the five profile tests into `tests/phpunit/Connectors/`.
+- [x] T031 [P] [US2] Port the companion's `tests/Unit/OAuth/` suite into `tests/phpunit/OAuth/`, namespace-rewritten.
+- [x] T032 [P] [US2] Port the companion's `tests/Unit/OAuthDiscovery/` suite into `tests/phpunit/OAuth/Discovery/`.
+- [~] T033 [P] [US2] **Blocked — needs rework, not a port.** The Connectors suite does not transfer cleanly for two reasons. (1) `ConnectorSettingsTest` depends on `brain/monkey`, which this repo does not have as a dev dependency; adding it is a real decision, not a side effect of a migration. (2) Four of the eight tests in `ConnectorProfileRegistryTest` assert the dual-filter BC cascade that T047 deliberately removed, plus five further errors need separate investigation. Tracked as T077.
 - [ ] T034 [P] [US2] Write `tests/phpunit/OAuth/ContractSurfaceTest.php` — asserts every identifier in `contracts/oauth-endpoints.md` is registered: REST namespace and route paths, five rewrite rules, query vars, cron hook, action and filter names (FR-015). **Add a second assertion over the same route table: walk `rest_get_server()->get_routes()` for the namespace and assert that the set of routes using `__return_true` is exactly the three documented public protocol endpoints — discovery metadata, DCR registration, token** (SEC-T02, `S2`, §III). Registration alone is not enough: a route ported with its `permission_callback` silently dropped still has the right path, so a contract test that only checks paths would pass while the route stands open.
 
 ### Implementation for User Story 2
