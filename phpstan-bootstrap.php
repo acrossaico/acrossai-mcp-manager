@@ -26,3 +26,9 @@ defined( 'ACROSSAI_MCP_MANAGER_VERSION' ) || define( 'ACROSSAI_MCP_MANAGER_VERSI
 defined( 'ACROSSAI_MCP_MANAGER_PLUGIN_FILE' ) || define( 'ACROSSAI_MCP_MANAGER_PLUGIN_FILE', __DIR__ . '/acrossai-mcp-manager.php' );
 defined( 'ACROSSAI_MCP_MANAGER_PLUGIN_PATH' ) || define( 'ACROSSAI_MCP_MANAGER_PLUGIN_PATH', __DIR__ . '/' );
 defined( 'ACROSSAI_MCP_MANAGER_PLUGIN_URL' ) || define( 'ACROSSAI_MCP_MANAGER_PLUGIN_URL', 'https://example.test/wp-content/plugins/acrossai-mcp-manager/' );
+defined( 'ACROSSAI_MCP_MANAGER_PLUGIN_BASENAME' ) || define( 'ACROSSAI_MCP_MANAGER_PLUGIN_BASENAME', 'acrossai-mcp-manager/acrossai-mcp-manager.php' );
+defined( 'ACROSSAI_MCP_MANAGER_PLUGIN_NAME_SLUG' ) || define( 'ACROSSAI_MCP_MANAGER_PLUGIN_NAME_SLUG', 'acrossai-mcp-manager' );
+
+// wp-config constants the analysed code reads. Values are irrelevant to
+// static analysis; only their existence is.
+defined( 'DB_NAME' ) || define( 'DB_NAME', 'wordpress' );

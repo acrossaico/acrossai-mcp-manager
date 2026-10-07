@@ -56,7 +56,7 @@ final class Main {
 	 *
 	 * @since    0.0.1
 	 * @access   protected
-	 * @var      AcrossAI_MCP_Manager_Loader    $loader    Maintains and registers all hooks for the plugin.
+	 * @var      Loader    $loader    Maintains and registers all hooks for the plugin.
 	 */
 	protected $loader;
 
@@ -1138,7 +1138,7 @@ final class Main {
 	 * The reference to the class that orchestrates the hooks with the plugin.
 	 *
 	 * @since     0.0.1
-	 * @return    AcrossAI_MCP_Manager_Loader    Orchestrates the hooks of the plugin.
+	 * @return    Loader    Orchestrates the hooks of the plugin.
 	 */
 	public function get_loader() {
 		return $this->loader;

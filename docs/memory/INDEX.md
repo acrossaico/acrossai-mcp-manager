@@ -231,6 +231,7 @@ This is a compact routing map for durable memory. Keep it short. It points to so
 ## Security Reviews
 | File | Phase | Date | Risk | Findings | Constraints |
 |---|---|---|---|---|---|
+| docs/security-reviews/2026-10-07-095-oauth-migration-branch.md | branch | 2026-10-07 | MODERATE | C:0 H:0 M:2 L:2 | A01,A05,A06 |
 | docs/security-reviews/2026-09-06-082-staged.md | staged | 2026-09-06 | MODERATE | C:0 H:0 M:2 L:3 | A02,A03,A05,A08 |
 | docs/security-reviews/2026-07-02-011-berlindb-migration-plan.md | plan | 2026-07-02 | LOW | C:0 H:0 M:0 L:3 | A02,A04,A05,A08,A09 |
 | docs/security-reviews/2026-07-03-012-mcp-settings-tab-plan.md | plan | 2026-07-03 | LOW | C:0 H:0 M:0 L:3 | A02,A05,A08,A09 |

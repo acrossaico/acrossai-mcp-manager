@@ -48,7 +48,7 @@ class Loader {
 	/**
 	 * The single instance of the class.
 	 *
-	 * @var AcrossAI_MCP_Manager_Loader
+	 * @var self|null
 	 * @since 0.0.1
 	 */
 	protected static $_instance = null;
@@ -65,14 +65,14 @@ class Loader {
 	}
 
 	/**
-	 * Main AcrossAI_MCP_Manager_Loader Instance.
+	 * Main Loader instance.
 	 *
 	 * Ensures only one instance of WooCommerce is loaded or can be loaded.
 	 *
 	 * @since 0.0.1
 	 * @static
-	 * @see AcrossAI_MCP_Manager_Loader()
-	 * @return AcrossAI_MCP_Manager_Loader - Main instance.
+	 * @see Loader::instance()
+	 * @return self Main instance.
 	 */
 	public static function instance() {
 		if ( null === self::$_instance ) {
