@@ -13,6 +13,28 @@ This is not a changelog. Do not record routine releases, version bumps, or imple
 
 ---
 
+### 2026-10-07 - A scope reversal must sweep the task list, not just the spec
+
+- **Why durable**: F095 reversed a clarified decision mid-flight (n8n moved back to the companion).
+  The reversal was recorded in `tasks.md` and nowhere else, and the two governance passes that
+  followed each found a fresh crop of contradictions downstream of that single omission —
+  `/speckit-analyze` surfaced six (FR-003 contradicted by shipped code, FR-006 asserting "no release
+  coordination" when coordination had become mandatory, US4, SC-006, SC-008, FR-027, plus a stale
+  contract row, plan file tree and quickstart step), and the architecture review surfaced two more.
+- **What future mistake it prevents**: treating the spec as the thing to update. The most dangerous
+  stale artifact is an **open task**, not a stale requirement. A stale requirement misleads whoever
+  reads it; `T064` and `T065` sat open instructing the next person to re-add the n8n bundles, the
+  webpack entries and an `AdminTokenController` test — anyone working the list top-down would have
+  silently undone the decision. Withdraw obsolete tasks visibly (strike them, keep the original
+  text) rather than deleting, so the reversal stays auditable.
+- **Evidence**: T086 (the reversal), T097/T098 (spec reconciliation), architecture review V1/V2,
+  and the three completed tasks whose recorded test paths had never matched where the files landed.
+- **Second-order lesson**: a scope move relocates security properties too. See `D59` —
+  `MAX_ADMIN_TTL_SECONDS` silently became the only enforcement when its controller moved to
+  another plugin, and the migration's copy-not-move left the same token live in two tables.
+
+---
+
 ### 2026-09-19 - Phase B: the core Toolset layer moved to the transport, as a deliberate no-op
 
 - **Why durable**: the pattern for moving code between two independently-updated plugins. It cannot
