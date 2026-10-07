@@ -969,6 +969,16 @@ final class Main {
 		$oauth_timezone_health = \AcrossAI_MCP_Manager\Includes\Database\Support\TimezoneHealthCheck::instance();
 		$this->loader->add_filter( 'site_status_tests', $oauth_timezone_health, 'add_test' );
 
+		// n8n descriptor for the global-integration registry. Default OFF: the
+		// tab stays hidden until an operator enables it on the settings page.
+		$this->loader->add_filter(
+			'acrossai_mcp_manager_global_integrations',
+			\AcrossAI_MCP_Manager\Admin\Partials\ServerTabs\N8nTab::class,
+			'register_global_integration',
+			10,
+			1
+		);
+
 		/**
 		 * Phase 6 — REST CLI Authentication Controller + Phase 6.0 FrontendAuth.
 		 *

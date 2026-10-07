@@ -164,11 +164,38 @@ final class MethodRegistryTest extends WP_UnitTestCase {
 	}
 
 	/**
+	 * n8n is seeded but hidden until an operator enables it (F095).
+	 *
+	 * The two halves pull apart deliberately: it occupies priority 40 in the
+	 * unfiltered list so third parties cannot claim that slot, while
+	 * `visible_methods()` excludes it because `N8nTab::visible_for()` resolves
+	 * to the default-OFF `acrossai_n8n_enabled` option. Asserting only one
+	 * half would let the other regress unnoticed.
+	 */
+	public function test_n8n_is_seeded_but_hidden_until_enabled(): void {
+		$slugs = array_map(
+			static fn ( $method ) => $method->slug(),
+			MethodRegistry::instance()->all_methods()
+		);
+
+		$this->assertContains( 'n8n', $slugs, 'n8n MUST hold its reserved slot in the unfiltered list.' );
+		$this->assertNotContains( 'n8n', $this->visible_slugs(), 'n8n MUST stay hidden while the option is off.' );
+
+		// is_enabled() reads the option fresh on every call — only the
+		// descriptor list is memoized, and that does not change here.
+		update_option( 'acrossai_n8n_enabled', 1 );
+
+		$this->assertContains( 'n8n', $this->visible_slugs(), 'Enabling the option MUST reveal the method.' );
+
+		delete_option( 'acrossai_n8n_enabled' );
+	}
+
+	/**
 	 * Methods come back sorted ascending by priority.
 	 */
 	public function test_visible_methods_are_priority_ordered(): void {
 		$this->assertSame(
-			array( 'ai-connectors', 'clients', 'npm', 'n8n', 'wp-cli' ),
+			array( 'ai-connectors', 'clients', 'npm', 'wp-cli' ),
 			$this->visible_slugs()
 		);
 	}
@@ -195,7 +222,7 @@ final class MethodRegistryTest extends WP_UnitTestCase {
 		);
 
 		$this->assertSame(
-			array( 'ai-connectors', 'clients', 'ftp', 'npm', 'n8n', 'wp-cli' ),
+			array( 'ai-connectors', 'clients', 'ftp', 'npm', 'wp-cli' ),
 			$this->visible_slugs(),
 			'Priority 25 slots between clients (20) and npm (30).'
 		);
@@ -296,7 +323,7 @@ final class MethodRegistryTest extends WP_UnitTestCase {
 		$slugs = $this->visible_slugs();
 		$this->assertNotContains( 'no-label', $slugs );
 		$this->assertNotContains( 'no-callback', $slugs );
-		$this->assertSame( array( 'ai-connectors', 'clients', 'npm', 'n8n', 'wp-cli' ), $slugs );
+		$this->assertSame( array( 'ai-connectors', 'clients', 'npm', 'wp-cli' ), $slugs );
 	}
 
 	/**
@@ -305,7 +332,7 @@ final class MethodRegistryTest extends WP_UnitTestCase {
 	public function test_non_array_filter_return_falls_back_to_builtins(): void {
 		add_filter( MethodRegistry::FILTER_NAME, static fn (): string => 'garbage' );
 
-		$this->assertSame( array( 'ai-connectors', 'clients', 'npm', 'n8n', 'wp-cli' ), $this->visible_slugs() );
+		$this->assertSame( array( 'ai-connectors', 'clients', 'npm', 'wp-cli' ), $this->visible_slugs() );
 	}
 
 	/**

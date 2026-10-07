@@ -27,6 +27,7 @@ namespace AcrossAI_MCP_Manager\Admin\Partials\ServerTabs;
 use AcrossAI_MCP_Manager\Includes\Connectors\AbstractConnectorProfile;
 use AcrossAI_MCP_Manager\Includes\OAuth\Repositories\AccessTokenRepository;
 use AcrossAI_MCP_Manager\Admin\Partials\ServerTabs\AbstractServerTab;
+use AcrossAI_MCP_Manager\Includes\Integrations\GlobalIntegration;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -97,6 +98,53 @@ final class N8nTab extends AbstractServerTab {
 	 *
 	 * @since 0.10.0
 	 */
+	/**
+	 * Contributes the n8n descriptor to the global-integration registry.
+	 *
+	 * Loader-wired on `acrossai_mcp_manager_global_integrations` rather than
+	 * registered from a closure, so A1 holds: the hook is declared in Main.php
+	 * and the descriptor lives with the feature it describes.
+	 *
+	 * The descriptor only tells the settings page what to render and which
+	 * option to read. Whether the TAB appears is still decided by
+	 * `is_enabled()` plus the capability checks on the method registration.
+	 *
+	 * `option` is passed verbatim and MUST NOT be derived from the slug:
+	 * `acrossai_n8n_enabled` is a frozen public string (memory A3), and
+	 * deriving it would orphan every existing install's stored value.
+	 *
+	 * @param  mixed $integrations Contributed descriptors.
+	 * @return array<int, GlobalIntegration>
+	 */
+	public static function register_global_integration( $integrations ): array {
+		if ( ! is_array( $integrations ) ) {
+			$integrations = array();
+		}
+
+		$integrations[] = new GlobalIntegration(
+			array(
+				'slug'          => self::CONNECTOR_SLUG,
+				'option'        => 'acrossai_n8n_enabled',
+				'filter'        => 'acrossai_mcp_manager_n8n_enabled',
+				'default'       => false,
+				'priority'      => 10,
+				'section_title' => __( 'n8n Integration', 'acrossai-mcp-manager' ),
+				'beta'          => true,
+				'section_intro' => __( 'The n8n integration is currently in Beta — the OAuth token issuance and audit-log paths are fully tested, but real-world workflow integrations across self-hosted / cloud / team n8n deployments are still being validated. Feature complete, not yet SLA-covered.', 'acrossai-mcp-manager' ),
+				'field_label'   => __( 'Enable n8n Tab', 'acrossai-mcp-manager' ),
+				'toggle_label'  => __( 'Show the n8n tab on every MCP server admin screen.', 'acrossai-mcp-manager' ),
+
+				// Load-bearing copy (C8 / SEC-002): without it a rushed operator
+				// responding to an incident may leave up to 90 days of live
+				// tokens in the field believing "toggle off = feature off =
+				// tokens dead."
+				'toggle_description' => __( 'Disabling hides the tab and blocks new token generation but does NOT revoke previously-minted tokens. Existing tokens remain valid until their expiry (max 90 days). To revoke immediately, regenerate the token from each admin\'s account, then disable.', 'acrossai-mcp-manager' ),
+			)
+		);
+
+		return $integrations;
+	}
+
 	public static function is_enabled(): bool {
 		return \AcrossAI_MCP_Manager\Includes\Integrations\GlobalIntegrationRegistry::is_enabled( self::CONNECTOR_SLUG );
 	}
