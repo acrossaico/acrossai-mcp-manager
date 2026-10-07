@@ -42,6 +42,15 @@ final class TransportPermissionRoleMatrixTest extends WP_UnitTestCase {
 
 	private const NAMESPACE_SLUG = 'acrossai-mcp-manager';
 
+	/**
+	 * Sentinel catalogue fed to the list gates.
+	 *
+	 * Contents are irrelevant — the gates either pass the array through or
+	 * replace it with `array()`, so three opaque entries make "intact" and
+	 * "emptied" unambiguous in an assertion.
+	 */
+	private const CATALOGUE = array( 'tool-a', 'tool-b', 'tool-c' );
+
 	/** @var int */
 	private $admin_id;
 	/** @var int */
@@ -438,7 +447,68 @@ final class TransportPermissionRoleMatrixTest extends WP_UnitTestCase {
 		}
 
 		// Layer 2 — F015 tool-call gate (unchanged; enforces the operator's rule).
-		$fake_server = new class( $server_slug ) {
+		$result = AcrossAI_MCP_Access_Control::instance()->gate_mcp_tool_call(
+			array( 'test' => true ),
+			'test-tool',
+			null,
+			$this->fake_server( $server_slug )
+		);
+		return ! is_wp_error( $result );
+	}
+
+	/**
+	 * Composes Layer 1 with the DISCOVERY gate, the way `user_can_reach()`
+	 * composes it with the call gate.
+	 *
+	 * Reading `tools/list` is reaching the server. The original matrix defined
+	 * "reach" as transport + `tools/call` only, which is exactly why the list
+	 * leak survived it: Layer 1 hands back the vendor default `read` the moment
+	 * any rule exists, every logged-in user holds `read`, so only the call gate
+	 * ever said no — and nothing gated discovery. Measured against a live
+	 * "Editor only" server before the fix, a subscriber received 14 tools with
+	 * names and descriptions while `tools/call` denied.
+	 *
+	 * @param int    $user_id     User to evaluate as.
+	 * @param string $server_slug Fixture server slug.
+	 * @return array<mixed> The catalogue this user would receive.
+	 */
+	private function discovered_tools( int $user_id, string $server_slug ): array {
+		wp_set_current_user( $user_id );
+
+		// Layer 1 — transport permission (fires the real filter chain).
+		$request = new WP_REST_Request( 'POST', '/mcp/' . $server_slug );
+		$ctx     = new HttpRequestContext( $request );
+		/** @var string $cap */
+		$cap = apply_filters(
+			'mcp_adapter_default_transport_permission_user_capability',
+			'read',
+			$ctx
+		);
+		if ( ! current_user_can( $cap ) ) {
+			// Transport refused outright — the handler never runs, so the
+			// catalogue is unreachable regardless of the list gate.
+			return array();
+		}
+
+		return (array) AcrossAI_MCP_Access_Control::instance()->gate_mcp_tools_list(
+			self::CATALOGUE,
+			$this->fake_server( $server_slug ),
+			null
+		);
+	}
+
+	/**
+	 * Minimal stand-in for `WP\MCP\Core\McpServer`.
+	 *
+	 * The gates only ever call `get_server_id()`, and deliberately duck-type
+	 * rather than `instanceof` the vendor class, so this stays valid across
+	 * adapter upgrades.
+	 *
+	 * @param string $server_slug Slug the fake server reports.
+	 * @return object
+	 */
+	private function fake_server( string $server_slug ) {
+		return new class( $server_slug ) {
 			/** @var string */
 			private $slug;
 
@@ -450,14 +520,6 @@ final class TransportPermissionRoleMatrixTest extends WP_UnitTestCase {
 				return $this->slug;
 			}
 		};
-
-		$result = AcrossAI_MCP_Access_Control::instance()->gate_mcp_tool_call(
-			array( 'test' => true ),
-			'test-tool',
-			null,
-			$fake_server
-		);
-		return ! is_wp_error( $result );
 	}
 
 	// ─────────────────────────────────────────────────────────────────────────
@@ -481,6 +543,124 @@ final class TransportPermissionRoleMatrixTest extends WP_UnitTestCase {
 				return 0;
 			default:
 				$this->fail( "Unknown role key: {$role_key}" );
+		}
+	}
+
+	// ─────────────────────────────────────────────────────────────────────────
+	// Group G — Discovery. Reading the catalogue is reaching the server.
+	//
+	// Regression anchor for the list-gate leak: before these gates existed,
+	// configuring ANY rule dropped Layer 1 to the vendor default `read`, and
+	// `tools/list` ran ungated — so every excluded-but-logged-in user could
+	// enumerate the whole catalogue. Verified live against an "Editor only"
+	// server: subscriber saw 14 tools (names + descriptions) pre-fix, 0 after.
+	// ─────────────────────────────────────────────────────────────────────────
+
+	public function test_tools_list_is_emptied_for_roles_the_rule_excludes(): void {
+		$slug = $this->make_server( 'discover-role-' . uniqid() );
+		$this->set_rule_for( $slug, 'wp_role', array( 'editor' ) );
+
+		$this->assertCount( 3, $this->discovered_tools( $this->admin_id, $slug ), 'admin bypass keeps the catalogue' );
+		$this->assertCount( 3, $this->discovered_tools( $this->editor_id, $slug ), 'editor is listed — catalogue intact' );
+
+		$this->assertSame( array(), $this->discovered_tools( $this->subscriber_id, $slug ), 'subscriber NOT listed — catalogue hidden' );
+		$this->assertSame( array(), $this->discovered_tools( $this->author_id, $slug ), 'author NOT listed — catalogue hidden' );
+		$this->assertSame( array(), $this->discovered_tools( $this->contributor_id, $slug ), 'contributor NOT listed — catalogue hidden' );
+	}
+
+	public function test_user_id_rule_hides_the_catalogue_from_unlisted_users(): void {
+		$slug = $this->make_server( 'discover-user-' . uniqid() );
+		$this->set_rule_for( $slug, 'wp_user', array( (string) $this->subscriber_id ) );
+
+		// A user-ID rule is precisely what Layer 1 cannot express as a
+		// capability string, which is why it defers — and so precisely the
+		// shape that leaked.
+		$this->assertCount( 3, $this->discovered_tools( $this->subscriber_id, $slug ), 'subscriber is allow-listed by ID' );
+		$this->assertSame( array(), $this->discovered_tools( $this->editor_id, $slug ), 'editor is NOT allow-listed by ID' );
+	}
+
+	public function test_resources_and_prompts_lists_are_gated_too_not_just_tools(): void {
+		$slug = $this->make_server( 'discover-all-' . uniqid() );
+		$this->set_rule_for( $slug, 'wp_role', array( 'editor' ) );
+
+		wp_set_current_user( $this->subscriber_id );
+		$ac     = AcrossAI_MCP_Access_Control::instance();
+		$server = $this->fake_server( $slug );
+
+		$this->assertSame( array(), (array) $ac->gate_mcp_resources_list( self::CATALOGUE, $server, null ), 'resources/list must be gated' );
+		$this->assertSame( array(), (array) $ac->gate_mcp_prompts_list( self::CATALOGUE, $server, null ), 'prompts/list must be gated' );
+
+		wp_set_current_user( $this->editor_id );
+		$this->assertCount( 3, (array) $ac->gate_mcp_resources_list( self::CATALOGUE, $server, null ), 'allowed role keeps resources' );
+		$this->assertCount( 3, (array) $ac->gate_mcp_prompts_list( self::CATALOGUE, $server, null ), 'allowed role keeps prompts' );
+	}
+
+	public function test_a_server_with_no_rule_never_empties_the_catalogue(): void {
+		$slug = $this->make_server( 'discover-norule-' . uniqid() );
+		$this->purge_rule_for( $slug );
+
+		// With no rule, Layer 1 hard-locks the transport to admins, so only an
+		// admin ever reaches the handler — and the list gate must not then
+		// strip the catalogue out from under them. Guards the fail-open
+		// posture: a misconfiguration must never blank every server on a site.
+		$this->assertCount( 3, $this->discovered_tools( $this->admin_id, $slug ), 'admin on a no-rule server keeps the catalogue' );
+	}
+
+	/**
+	 * The invariant that stops the two halves drifting apart again: for every
+	 * role, if execution is denied then discovery must be empty, and if
+	 * execution is allowed the catalogue must be intact. The original leak was
+	 * exactly a violation of this — denied execution, full discovery.
+	 *
+	 * @dataProvider provide_every_role
+	 */
+	public function test_discovery_and_execution_always_agree( string $role_key ): void {
+		$slug = $this->make_server( 'discover-agree-' . uniqid() );
+		$this->set_rule_for( $slug, 'wp_role', array( 'editor' ) );
+
+		$user_id = $this->user_id_for( $role_key );
+
+		$can_execute  = $this->user_can_reach( $user_id, $slug );
+		$discovered   = $this->discovered_tools( $user_id, $slug );
+		$can_discover = array() !== $discovered;
+
+		$this->assertSame(
+			$can_execute,
+			$can_discover,
+			sprintf(
+				'%s: discovery (%s) and execution (%s) disagree — a user must not be able to read a catalogue they cannot use, nor be blinded to one they can.',
+				$role_key,
+				$can_discover ? 'visible' : 'hidden',
+				$can_execute ? 'allowed' : 'denied'
+			)
+		);
+	}
+
+	/**
+	 * @return array<string, array{0: string}>
+	 */
+	public function provide_every_role(): array {
+		return array(
+			'administrator' => array( 'administrator' ),
+			'editor'        => array( 'editor' ),
+			'author'        => array( 'author' ),
+			'contributor'   => array( 'contributor' ),
+			'subscriber'    => array( 'subscriber' ),
+		);
+	}
+
+	private function user_id_for( string $role_key ): int {
+		switch ( $role_key ) {
+			case 'administrator':
+				return $this->admin_id;
+			case 'editor':
+				return $this->editor_id;
+			case 'author':
+				return $this->author_id;
+			case 'contributor':
+				return $this->contributor_id;
+			default:
+				return $this->subscriber_id;
 		}
 	}
 

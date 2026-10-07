@@ -312,6 +312,138 @@ final class AcrossAI_MCP_Access_Control {
 	}
 
 	/**
+	 * Filter callback for `mcp_adapter_tools_list` — the discovery sibling of
+	 * {@see self::gate_mcp_tool_call()}.
+	 *
+	 * The three pre-dispatch gates above stop a denied user *executing*, but
+	 * they never ran for `tools/list`, so an excluded user could still read the
+	 * whole catalogue. That mattered because configuring ANY rule drops the
+	 * transport gate from `manage_options` to the vendor default `read`
+	 * ({@see TransportPermissionDefault::filter_default_capability()} — rule
+	 * present means "defer to the call-time gate"), and every logged-in user
+	 * holds `read`. Measured on a server whose rule was "Editor only": a
+	 * subscriber completed `initialize` and received 14 tools with names and
+	 * descriptions, while `tools/call` correctly denied. Disclosure, not
+	 * privilege escalation — but the operator asked for those users to be kept
+	 * out, so the list has to be empty for them too.
+	 *
+	 * Same reasoning that added {@see self::gate_mcp_resource_read()} in 0.2.8.
+	 *
+	 * Returns an EMPTY list rather than a WP_Error: `tools/list` has no error
+	 * contract a client must honour, and an empty catalogue is the
+	 * minimum-disclosure answer — a denied user cannot tell a server they may
+	 * not see from one that simply exposes nothing.
+	 *
+	 * @since 0.3.9
+	 *
+	 * @param array<mixed>                 $tools  Tool records about to be returned.
+	 * @param \WP\MCP\Core\McpServer|mixed $server The McpServer instance.
+	 * @param mixed                        $schema Selected schema (unused; 0.7.0 third arg).
+	 * @return array<mixed> Original list on allow / fail-open; empty array on deny.
+	 */
+	public function gate_mcp_tools_list( $tools, $server, $schema = null ) {
+		unset( $schema );
+		return $this->hide_list_from_current_user( $server, 'mcp_tools_list' ) ? array() : $tools;
+	}
+
+	/**
+	 * Filter callback for `mcp_adapter_resources_list`.
+	 *
+	 * Sibling of {@see self::gate_mcp_tools_list()}; see that method for why
+	 * the list primitives need gating at all.
+	 *
+	 * @since 0.3.9
+	 *
+	 * @param array<mixed>                 $resources Resource records about to be returned.
+	 * @param \WP\MCP\Core\McpServer|mixed $server    The McpServer instance.
+	 * @param mixed                        $schema    Selected schema (unused).
+	 * @return array<mixed> Original list on allow / fail-open; empty array on deny.
+	 */
+	public function gate_mcp_resources_list( $resources, $server, $schema = null ) {
+		unset( $schema );
+		return $this->hide_list_from_current_user( $server, 'mcp_resources_list' ) ? array() : $resources;
+	}
+
+	/**
+	 * Filter callback for `mcp_adapter_prompts_list`.
+	 *
+	 * Sibling of {@see self::gate_mcp_tools_list()}; see that method for why
+	 * the list primitives need gating at all.
+	 *
+	 * @since 0.3.9
+	 *
+	 * @param array<mixed>                 $prompts Prompt records about to be returned.
+	 * @param \WP\MCP\Core\McpServer|mixed $server  The McpServer instance.
+	 * @param mixed                        $schema  Selected schema (unused).
+	 * @return array<mixed> Original list on allow / fail-open; empty array on deny.
+	 */
+	public function gate_mcp_prompts_list( $prompts, $server, $schema = null ) {
+		unset( $schema );
+		return $this->hide_list_from_current_user( $server, 'mcp_prompts_list' ) ? array() : $prompts;
+	}
+
+	/**
+	 * Shared predicate behind the three list gates.
+	 *
+	 * Deliberately mirrors {@see self::apply_ac_gate()}'s resolution and
+	 * fail-open ladder so a user can never be denied discovery on a server
+	 * where they would have been allowed execution — the two would drift if
+	 * each re-derived access independently.
+	 *
+	 * Every uncertain branch returns FALSE (show the list). Hiding is reserved
+	 * for a definite "the operator's rule excludes this user": library present,
+	 * server object usable, row still in the F011 DB, manager booted, and
+	 * `user_has_access()` false. That is the same posture as the call-time
+	 * gates — a configuration problem must not silently empty every catalogue
+	 * on the site.
+	 *
+	 * @since 0.3.9
+	 *
+	 * @param \WP\MCP\Core\McpServer|mixed $server The McpServer instance.
+	 * @param string                       $gate   Gate slug for the audit actions.
+	 * @return bool True only when the list must be hidden from the current user.
+	 */
+	private function hide_list_from_current_user( $server, string $gate ): bool {
+		if ( ! $this->is_available() ) {
+			return false;
+		}
+
+		if ( ! is_object( $server ) || ! method_exists( $server, 'get_server_id' ) ) {
+			return false;
+		}
+
+		$server_slug = (string) $server->get_server_id();
+		$user_id     = get_current_user_id();
+
+		$rows = MCPServerQuery::instance()->query(
+			array(
+				'server_slug' => $server_slug,
+				'number'      => 1,
+			)
+		);
+
+		if ( empty( $rows ) ) {
+			/** This action is documented in includes/AccessControl/AcrossAI_MCP_Access_Control.php */
+			do_action( 'acrossai_mcp_access_control_missing_server', $server_slug, '', $user_id );
+			return false;
+		}
+
+		$manager = $this->get_manager();
+		if ( null === $manager ) {
+			return false;
+		}
+
+		if ( $manager->user_has_access( $user_id, 'acrossai-mcp-manager', $server_slug ) ) {
+			return false;
+		}
+
+		/** This action is documented in includes/AccessControl/AcrossAI_MCP_Access_Control.php */
+		do_action( 'acrossai_mcp_access_control_denied', $user_id, $server_slug, '', $gate );
+
+		return true;
+	}
+
+	/**
 	 * Shared enforcement for the three MCP pre-dispatch filters
 	 * (`pre_tool_call`, `pre_resource_read`, `pre_prompt_get`).
 	 *

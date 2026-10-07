@@ -18,11 +18,11 @@
     ],
     "require": {
         "php": ">=8.1",
-        "automattic/jetpack-autoloader": "^5.0",
-        "wpboilerplate/wpb-access-control": "^3.1.0",
+        "automattic/jetpack-autoloader": "^6.0",
+        "wpboilerplate/wpb-access-control": "^3.2.0",
         "berlindb/core": "^3.0.0",
-        "acrossai-co/main-menu": "0.0.33",
-        "wordpress/mcp-adapter": "^0.6.1"
+        "acrossai-co/main-menu": "0.0.34",
+        "wordpress/mcp-adapter": "^0.7.0"
     },
     "keywords": [
         "wordpress",

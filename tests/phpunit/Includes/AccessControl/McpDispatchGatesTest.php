@@ -31,6 +31,29 @@ use WP_UnitTestCase;
 final class McpDispatchGatesTest extends WP_UnitTestCase {
 
 	/**
+	 * Gate points the coverage canary must always rediscover.
+	 *
+	 * Proves the scan still understands the adapter. One is pre-dispatch and
+	 * one is discovery, so losing either naming convention trips the canary
+	 * rather than quietly shrinking what it checks.
+	 */
+	private const SENTINEL_GATE_POINTS = array(
+		'mcp_adapter_pre_tool_call',
+		'mcp_adapter_tools_list',
+	);
+
+	/**
+	 * Gate points that deliberately carry no Access Control gate.
+	 *
+	 * Empty by design: every per-request adapter hook currently needs one.
+	 * Adding an entry is a decision to leave a primitive ungated, so it must
+	 * carry a comment saying why that is safe.
+	 *
+	 * @var string[]
+	 */
+	private const UNGATED_BY_DESIGN = array();
+
+	/**
 	 * Reset observability action listeners between tests so an assertion in
 	 * one test can't be masked by a stale listener registered by another.
 	 */
@@ -227,6 +250,118 @@ final class McpDispatchGatesTest extends WP_UnitTestCase {
 	// ─────────────────────────────────────────────────────────────────────────
 	// Helpers
 	// ─────────────────────────────────────────────────────────────────────────
+
+	/**
+	 * Coverage canary — every per-request gate point the INSTALLED adapter
+	 * exposes must have a plugin gate on it.
+	 *
+	 * This exists because the same bug has now shipped twice. In 0.2.8 only
+	 * `mcp_adapter_pre_tool_call` was hooked, leaving `resources/read` and
+	 * `prompts/get` open. In 0.3.9 the three list primitives (`tools/list` and
+	 * siblings) were found open the same way: any Access Control rule drops the
+	 * transport gate to the vendor default `read`, which every logged-in user
+	 * holds, so a user the operator had excluded could still enumerate the
+	 * whole catalogue. Both times the per-hook tests passed — because they only
+	 * ever asserted the hooks someone had remembered to write.
+	 *
+	 * So this test does not hardcode a list. It reads the adapter's own
+	 * handler sources and derives the gate points, which means a NEW primitive
+	 * arriving in a future adapter release fails CI on arrival instead of
+	 * shipping unguarded. "Gate point" is any `mcp_adapter_*` filter in the
+	 * handler layer that is either pre-dispatch (`mcp_adapter_pre_*`) or
+	 * discovery (`*_list`) — exactly the per-request, per-server moments where
+	 * an operator's rule has to be consulted. Lifecycle and configuration
+	 * filters elsewhere in the adapter are not gate points and are not scanned.
+	 *
+	 * If this fails for a hook that genuinely needs no gate, add it to
+	 * UNGATED_BY_DESIGN with the reason — do not delete the assertion.
+	 */
+	public function test_every_vendor_gate_point_has_a_plugin_gate(): void {
+		$handlers_dir = dirname( __DIR__, 4 ) . '/vendor/wordpress/mcp-adapter/includes/Handlers';
+
+		if ( ! is_dir( $handlers_dir ) ) {
+			$this->markTestSkipped( 'mcp-adapter vendor package not installed.' );
+		}
+
+		$discovered = $this->scan_vendor_gate_points( $handlers_dir );
+
+		// Guard against a vacuous pass. If the adapter is restructured and the
+		// scan silently matches nothing, an empty "ungated" list would look
+		// like success while covering zero hooks — which is precisely how a
+		// dead gate test lets a real bug through.
+		$this->assertNotEmpty(
+			$discovered,
+			'Scanned the adapter handler layer and found no gate points at all. The vendor layout or the filter naming changed — fix this scan before trusting any gate coverage.'
+		);
+
+		foreach ( self::SENTINEL_GATE_POINTS as $sentinel ) {
+			$this->assertContains(
+				$sentinel,
+				$discovered,
+				sprintf( 'Known gate point "%s" vanished from the scan. The scan has drifted from the adapter and is no longer proving what it claims.', $sentinel )
+			);
+		}
+
+		$ungated = array();
+		foreach ( $discovered as $hook ) {
+			if ( in_array( $hook, self::UNGATED_BY_DESIGN, true ) ) {
+				continue;
+			}
+			if ( false === has_filter( $hook ) ) {
+				$ungated[] = $hook;
+			}
+		}
+
+		$this->assertSame(
+			array(),
+			$ungated,
+			sprintf(
+				"These mcp-adapter gate points have NO filter attached, so the operator's Access Control rule is never consulted for them:\n  - %s\nWire each one in Main::define_public_hooks(), or add it to UNGATED_BY_DESIGN with a documented reason.",
+				implode( "\n  - ", $ungated )
+			)
+		);
+	}
+
+	/**
+	 * Extract per-request gate-point filter names from the adapter handlers.
+	 *
+	 * @param string $dir Absolute path to the adapter's Handlers directory.
+	 * @return string[] Sorted, unique hook names.
+	 */
+	private function scan_vendor_gate_points( string $dir ): array {
+		$hooks = array();
+
+		$files = new \RecursiveIteratorIterator( new \RecursiveDirectoryIterator( $dir ) );
+
+		foreach ( $files as $file ) {
+			if ( ! $file->isFile() || 'php' !== strtolower( $file->getExtension() ) ) {
+				continue;
+			}
+
+			$src = file_get_contents( $file->getPathname() );
+			if ( false === $src ) {
+				continue;
+			}
+
+			if ( ! preg_match_all( "/apply_filters\(\s*'(mcp_adapter_[a-z0-9_]+)'/", $src, $matches ) ) {
+				continue;
+			}
+
+			foreach ( $matches[1] as $hook ) {
+				$is_pre_dispatch = 0 === strpos( $hook, 'mcp_adapter_pre_' );
+				$is_discovery    = (bool) preg_match( '/_list$/', $hook );
+
+				if ( $is_pre_dispatch || $is_discovery ) {
+					$hooks[ $hook ] = true;
+				}
+			}
+		}
+
+		$hooks = array_keys( $hooks );
+		sort( $hooks );
+
+		return $hooks;
+	}
 
 	/**
 	 * Build a fake object satisfying the mcp-adapter contract (get_server_id).

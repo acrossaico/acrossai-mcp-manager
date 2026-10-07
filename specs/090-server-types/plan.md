@@ -34,7 +34,7 @@ at `mcp_adapter_init` — because the vendor resolves tools before
 ## Technical Context
 
 **Language/Version**: PHP 8.1+ · JavaScript (ES2020, `@wordpress/*` packages)
-**Primary Dependencies**: `wordpress/mcp-adapter` ^0.6.1, `berlindb/core` ^3.0, WP Abilities
+**Primary Dependencies**: `wordpress/mcp-adapter` ^0.7.0, `berlindb/core` ^3.0, WP Abilities
 API (WP 7.1), `automattic/jetpack-autoloader` ^5.0
 **Storage**: Custom BerlinDB table `{prefix}acrossai_mcp_servers` — two new columns.
 Companion presence rows in `{prefix}acrossai_mcp_server_tools` (unchanged).
