@@ -3,6 +3,14 @@ includes:
     - phpstan-baseline.neon
 
 parameters:
+    # REGENERATING THE BASELINE: clear the result cache first
+    # (`vendor/bin/phpstan clear-result-cache`). A warm cache can attribute an
+    # error to the wrong file, producing a baseline that passes locally and
+    # fails in CI — which starts cold every run. That happened once: an
+    # `is_array()` always-true error was pinned to ToolsetExposureBridge.php
+    # when it actually belongs to GetAbilityInfo.php, and CI rejected both the
+    # unmatched pattern and the unbaselined error.
+    #
     # Constitution §III / §VII mandate level 8. The baseline below records the
     # pre-existing debt so the gate runs TODAY and fails on anything new; the
     # backlog is paid down separately. Before 2026-10-07 this file bootstrapped

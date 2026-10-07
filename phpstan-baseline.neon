@@ -601,6 +601,12 @@ parameters:
 			path: includes/Abilities/Discover.php
 
 		-
+			message: '#^Call to function is_array\(\) with array\<string, mixed\> will always evaluate to true\.$#'
+			identifier: function.alreadyNarrowedType
+			count: 1
+			path: includes/Abilities/GetAbilityInfo.php
+
+		-
 			message: '#^Access to an undefined property object\:\:\$override_abilities_permission\.$#'
 			identifier: property.notFound
 			count: 1
@@ -659,12 +665,6 @@ parameters:
 			identifier: instanceof.alwaysTrue
 			count: 1
 			path: includes/Abilities/Toolset/Registrar.php
-
-		-
-			message: '#^Call to function is_array\(\) with array\<string, mixed\> will always evaluate to true\.$#'
-			identifier: function.alreadyNarrowedType
-			count: 1
-			path: includes/Abilities/ToolsetExposureBridge.php
 
 		-
 			message: '#^Instanceof between WP_Ability and WP_Ability will always evaluate to true\.$#'
