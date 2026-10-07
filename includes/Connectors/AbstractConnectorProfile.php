@@ -171,34 +171,14 @@ abstract class AbstractConnectorProfile {
 			'<section class="acrossai-mcp-connector acrossai-mcp-connector--%1$s" data-acrossai-connector-slug="%1$s">',
 			esc_attr( $slug )
 		);
-		$this->render_card_header( $server );
+		// No card header. The tab strip above already names the connector, so an
+		// icon plus the same name repeated under it was pure duplication. The
+		// icons still ship and `get_icon_url()` is unchanged — Discovery DTOs
+		// carry it to the wizard, which has its own presentation.
 		echo '<div class="acrossai-mcp-connector__body">';
 		$this->render_card_body( $server );
 		echo '</div>';
 		echo '</section>';
-	}
-
-	/**
-	 * Render the card header — icon + connector name. Companions can
-	 * override for a differently-shaped header (e.g., adding a status pill).
-	 *
-	 * @experimental May change without notice before 1.0.0.
-	 * @since 0.1.0 (Phase 9)
-	 *
-	 * @param array<string, mixed> $server Server row.
-	 * @return void
-	 */
-	protected function render_card_header( array $server ): void { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter -- Subclass overrides may consume $server.
-		echo '<header class="acrossai-mcp-connector__header">';
-		printf(
-			'<img class="acrossai-mcp-connector__icon" src="%1$s" alt="" width="32" height="32">',
-			esc_url( $this->get_icon_url() )
-		);
-		printf(
-			'<h3 class="acrossai-mcp-connector__title">%s</h3>',
-			esc_html( $this->get_name() )
-		);
-		echo '</header>';
 	}
 
 	/**
