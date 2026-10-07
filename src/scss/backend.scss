@@ -536,3 +536,49 @@
 	// Container for whatever the step needs: a button, an input, a textarea.
 	// No forced alignment — the child element controls its own width.
 }
+
+// ─── Per-OS config paths (issue #159) ────────────────────────────────────
+//
+// A two-column definition list: OS label, then the path. Every supported OS is
+// visible at once — an earlier tabbed switcher was rejected on review, and
+// with two short paths there is nothing to gain by hiding one behind a click.
+//
+// Grid rather than float/table so the paths align on a single column edge
+// regardless of label width, and so it collapses to stacked rows on narrow
+// screens without a media query fighting it.
+
+.qs-os-paths {
+	display: grid;
+	grid-template-columns: max-content minmax(0, 1fr);
+	gap: 6px 12px;
+	margin: 0;
+	align-items: baseline;
+}
+
+.qs-os-paths__os {
+	margin: 0;
+	font-size: 13px;
+	font-weight: 600;
+	line-height: 1.5;
+	color: #1e1e1e;
+	white-space: nowrap;
+}
+
+.qs-os-paths__path {
+	margin: 0;
+	min-width: 0;
+
+	code {
+		display: inline-block;
+		max-width: 100%;
+		padding: 2px 8px;
+		background: #f6f7f7;
+		border-radius: 3px;
+		font-size: 12px;
+		line-height: 1.5;
+		color: #1e1e1e;
+		// Paths are long and must stay readable and selectable; wrap rather
+		// than truncate, since a half-shown path is worse than a wrapped one.
+		overflow-wrap: anywhere;
+	}
+}

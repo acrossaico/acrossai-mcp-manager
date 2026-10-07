@@ -75,6 +75,25 @@ final class CursorClient extends AbstractMCPClient {
 
 	/**
 	 * {@inheritDoc}
+	 *
+	 * The global (not project) Cursor config. Home-relative on every platform: the client resolves `~` itself, but `~`
+	 * is unix shorthand a Windows user cannot paste into Explorer, so the
+	 * Windows row spells out `%USERPROFILE%` with backslashes (issue #159).
+	 * Linux uses the same location as macOS.
+	 *
+	 * @since 0.3.9
+	 * @return array<string, string>
+	 */
+	public function get_config_files(): array {
+		return array(
+			'macos'   => '~/.cursor/mcp.json',
+			'windows' => '%USERPROFILE%\\.cursor\\mcp.json',
+			'linux'   => '~/.cursor/mcp.json',
+		);
+	}
+
+	/**
+	 * {@inheritDoc}
 	 */
 	public function get_top_level_key(): string {
 		return 'mcpServers';

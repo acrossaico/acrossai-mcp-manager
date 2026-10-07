@@ -80,6 +80,28 @@ final class OpenCodeClient extends AbstractMCPClient {
 
 	/**
 	 * {@inheritDoc}
+	 *
+	 * Verified 2026-10-07 against {@link https://opencode.ai/docs/config/}, which
+	 * states "Place your global OpenCode config in ~/.config/opencode/opencode.json"
+	 * and gives no platform-specific variants — the same home-relative path on
+	 * all three. Home-relative on every platform: the client resolves `~` itself, but `~`
+	 * is unix shorthand a Windows user cannot paste into Explorer, so the
+	 * Windows row spells out `%USERPROFILE%` with backslashes (issue #159).
+	 * Linux uses the same location as macOS.
+	 *
+	 * @since 0.3.9
+	 * @return array<string, string>
+	 */
+	public function get_config_files(): array {
+		return array(
+			'macos'   => '~/.config/opencode/opencode.json',
+			'windows' => '%USERPROFILE%\\.config\\opencode\\opencode.json',
+			'linux'   => '~/.config/opencode/opencode.json',
+		);
+	}
+
+	/**
+	 * {@inheritDoc}
 	 */
 	public function get_top_level_key(): string {
 		return 'mcp';

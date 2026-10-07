@@ -78,6 +78,19 @@ final class CustomClient extends AbstractMCPClient {
 
 	/**
 	 * {@inheritDoc}
+	 *
+	 * The generic fallback has no real path — `get_config_file()` returns a
+	 * descriptive placeholder, not a location. Nothing per-OS to express.
+	 *
+	 * @since 0.3.9
+	 * @return array<string, string>
+	 */
+	public function get_config_files(): array {
+		return array();
+	}
+
+	/**
+	 * {@inheritDoc}
 	 */
 	public function get_top_level_key(): string {
 		return 'depends on your client';

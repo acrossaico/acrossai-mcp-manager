@@ -77,6 +77,25 @@ final class AntigravityClient extends AbstractMCPClient {
 
 	/**
 	 * {@inheritDoc}
+	 *
+	 * Antigravity shares Gemini's dotfile tree. Home-relative on every platform: the client resolves `~` itself, but `~`
+	 * is unix shorthand a Windows user cannot paste into Explorer, so the
+	 * Windows row spells out `%USERPROFILE%` with backslashes (issue #159).
+	 * Linux uses the same location as macOS.
+	 *
+	 * @since 0.3.9
+	 * @return array<string, string>
+	 */
+	public function get_config_files(): array {
+		return array(
+			'macos'   => '~/.gemini/config/mcp_config.json',
+			'windows' => '%USERPROFILE%\\.gemini\\config\\mcp_config.json',
+			'linux'   => '~/.gemini/config/mcp_config.json',
+		);
+	}
+
+	/**
+	 * {@inheritDoc}
 	 */
 	public function get_top_level_key(): string {
 		return 'mcpServers';
