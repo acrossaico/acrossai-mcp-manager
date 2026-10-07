@@ -1030,7 +1030,7 @@ final class QuickConnectController {
 
 	/**
 	 * Resolve one plugin's activation state to `'missing'|'inactive'|'active'`.
-	 * Mirrors F040 AIConnectorsPromoTab tri-state semantics.
+	 * Mirrors the F040 promo card's tri-state semantics.
 	 *
 	 * @param string $plugin_file Relative plugin file (e.g. `foo/foo.php`).
 	 * @return string

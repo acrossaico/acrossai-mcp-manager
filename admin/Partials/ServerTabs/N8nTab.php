@@ -60,7 +60,10 @@ final class N8nTab extends AbstractServerTab {
 	 * @return int
 	 */
 	public function priority(): int {
-		return 36;
+		// 40 — the slot MethodRegistry's scale already reserved for n8n. The
+		// companion returned 36 because it registered on the top-level tab
+		// filter, a different scale.
+		return 40;
 	}
 
 	/**

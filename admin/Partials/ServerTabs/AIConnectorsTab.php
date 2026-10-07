@@ -55,7 +55,7 @@ final class AIConnectorsTab extends AbstractServerTab {
 
 	/**
 	 * Returns the tab label. Matches mcp-manager's
-	 * `AIConnectorsPromoTab::label()` so the tab keeps the same name
+	 * the F040 promo placeholder's label so the tab keeps the same name
 	 * before and after this plugin is activated.
 	 *
 	 * @since 0.1.0
@@ -72,7 +72,13 @@ final class AIConnectorsTab extends AbstractServerTab {
 	 * @return int
 	 */
 	public function priority(): int {
-		return 35;
+		// 10 on Connect\MethodRegistry's level-2 scale (ai-connectors 10,
+		// clients 20, npm 30, n8n 40, wp-cli 50). The companion returned 35
+		// because it contributed through the TOP-LEVEL
+		// `acrossai_mcp_manager_server_tabs` filter, which is a different
+		// scale entirely. Seeding directly into MethodRegistry means the
+		// level-2 numbering applies, and 10 is the slot the promo tab held.
+		return 10;
 	}
 
 	/**

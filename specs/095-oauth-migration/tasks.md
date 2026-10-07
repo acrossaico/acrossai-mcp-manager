@@ -129,9 +129,9 @@
 - [x] T047 [P] [US2] Port the five profiles to `includes/ConnectorProfiles/{Claude,ChatGPT,Cursor,Gemini,Grok}ConnectorProfile.php` (R4). Drop the companion's `acrossai_pro_profiles` filter alias; keep `acrossai_mcp_manager_connector_profiles`.
 - [x] T048 [P] [US2] Port `includes/Discovery/DiscoveryConnectorAdapter.php` and hook it to the existing seam `acrossai_mcp_manager_discovery_ai_connectors` at `public/Discovery/ConnectionMethodRegistry.php:306`.
 - [x] T049 [US2] Rehome every registration from the companion's `bootstrap_oauth_hooks()` into `includes/Main.php::define_admin_hooks()` / `define_public_hooks()` via the Loader, resolving each singleton to a named variable first. **No `add_action` / `add_filter` inside any ported class** (A1, FR-021, constitution §Boot Flow Rule).
-- [ ] T050 [US2] Delete `admin/Partials/ServerTabs/AIConnectorsPromoTab.php` (583 LOC).
+- [x] T050 [US2] Delete `admin/Partials/ServerTabs/AIConnectorsPromoTab.php` (583 LOC).
 - [x] T051 [US2] Port `admin/ServerTabs/AIConnectorsTab.php` → `admin/Partials/ServerTabs/AIConnectorsTab.php`, now extending the local `AbstractServerTab`.
-- [ ] T052 [US2] In `admin/Partials/ServerTabs/Connect/MethodRegistry.php`, drop the `new AIConnectorsPromoTab()` seed (line ~112) and its import (line ~36); seed the real tab. **Slot identity must not change**: slug `ai-connectors`, priority `10`.
+- [x] T052 [US2] In `admin/Partials/ServerTabs/Connect/MethodRegistry.php`, drop the `new AIConnectorsPromoTab()` seed (line ~112) and its import (line ~36); seed the real tab. **Slot identity must not change**: slug `ai-connectors`, priority `10`.
 - [ ] T053 [US2] Delete `src/js/quick-connect/steps/Step8_ProPromo.jsx` and `Step9_ProSetup.jsx`, and remove the gate behind them — the method grid's paid marking in `Step7_MethodGrid.jsx`, the `skipProSetup` predicate in `App.jsx`, the routing in `useWizardRouter.js`, and the licence check in `includes/REST/QuickConnectController.php` (~lines 960–1017). Route Step 7 → Step 10 directly (FR-017).
 - [ ] T054 [US2] Port `src/js/ai-connectors.js` and `src/scss/ai-connectors.scss`; restore the `js/ai-connectors` entry in `webpack.config.js`, replacing the F040 tombstone comment. **Shares `webpack.config.js` with T064 — not parallel-safe against it** (SEC-T05).
 - [ ] T055 [US2] Add `maybe_enqueue_ai_connectors_app()` to `admin/Main.php`, matching the shape of the existing `maybe_enqueue_tools_app()`.
@@ -164,7 +164,7 @@
 **Independent test**: issue a token from the n8n screen and make an authenticated MCP call.
 
 - [~] T062 [US4] Port `includes/OAuth/AdminTokenController.php`, preserving **both** guards in `permission_callback`: `wp_verify_nonce( $nonce, 'wp_rest' )` and `current_user_can( 'manage_options' )`.
-- [~] T063 [US4] Port `admin/ServerTabs/N8nTab.php` → `admin/Partials/ServerTabs/N8nTab.php`.
+- [x] T063 [US4] Port `admin/ServerTabs/N8nTab.php` → `admin/Partials/ServerTabs/N8nTab.php`.
 - [ ] T064 [US4] Port `src/js/n8n-admin.js` and `src/scss/n8n.scss`; restore the `js/n8n-admin` and `css/n8n` entries in `webpack.config.js`. **Shares `webpack.config.js` with T054 — not parallel-safe against it** (SEC-T05).
 - [ ] T065 [P] [US4] Write `tests/phpunit/OAuth/AdminTokenTest.php` — asserts the token is returned once, stored only as a hash, and bound to the requested server.
 

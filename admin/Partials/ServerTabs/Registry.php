@@ -22,7 +22,7 @@
  * filter priority) replaces any earlier entry with the same slug, including
  * built-in placeholder tabs. This matches WP-native filter-override
  * semantics and enables the "built-in placeholder → companion overrides
- * when active" pattern used by AIConnectorsPromoTab (F040 promo card falls
+ * when active" pattern used by the F040 promo card (which falls
  * back when the acrossai-pro add-on is not installed).
  *
  * Normalization + dedup mirrors vendor `\AcrossAI_Main_Menu\Tabs::get_tabs()`
@@ -116,7 +116,7 @@ final class Registry {
 	 * at priority 20, where they became level-2 `?method=` choices.
 	 *
 	 * The placeholder-override pattern moved down with them: the
-	 * `AIConnectorsPromoTab` entry now seeds
+	 * the former promo entry now seeds
 	 * `Connect\MethodRegistry::all_methods()` at method priority 10, and when
 	 * the acrossai-pro companion is active it registers its real
 	 * `AIConnectorsTab` on `acrossai_mcp_manager_connect_methods` at the same
@@ -130,7 +130,7 @@ final class Registry {
 	public function all_tabs(): array {
 		return array(
 			new OverviewTab(),
-			// F084 — NpmTab, ClientsTab, AIConnectorsPromoTab and WpCliTab moved
+			// F084 — NpmTab, ClientsTab, the AI-connectors entry and WpCliTab moved
 			// one level down into ConnectTab's `?method=` navigation. The four
 			// classes are unchanged and still instantiable; only their
 			// membership here and their priority() slot changed (D48). They are

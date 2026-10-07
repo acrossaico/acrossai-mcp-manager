@@ -91,7 +91,7 @@ final class ConnectTabTest extends WP_UnitTestCase {
 		$html = $this->render();
 
 		$positions = array();
-		foreach ( array( 'ai-connectors', 'clients', 'npm', 'wp-cli' ) as $slug ) {
+		foreach ( array( 'ai-connectors', 'clients', 'npm', 'n8n', 'wp-cli' ) as $slug ) {
 			$pos = strpos( $html, 'method=' . $slug );
 			$this->assertNotFalse( $pos, sprintf( 'Method "%s" MUST appear in the nav.', $slug ) );
 			$positions[] = $pos;

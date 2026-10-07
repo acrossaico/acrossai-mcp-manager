@@ -33,9 +33,10 @@
 namespace AcrossAI_MCP_Manager\Admin\Partials\ServerTabs\Connect;
 
 use AcrossAI_MCP_Manager\Admin\Partials\ServerTabs\AbstractServerTab;
-use AcrossAI_MCP_Manager\Admin\Partials\ServerTabs\AIConnectorsPromoTab;
+use AcrossAI_MCP_Manager\Admin\Partials\ServerTabs\AIConnectorsTab;
 use AcrossAI_MCP_Manager\Admin\Partials\ServerTabs\ClientsTab;
 use AcrossAI_MCP_Manager\Admin\Partials\ServerTabs\FilteredServerTab;
+use AcrossAI_MCP_Manager\Admin\Partials\ServerTabs\N8nTab;
 use AcrossAI_MCP_Manager\Admin\Partials\ServerTabs\NpmTab;
 use AcrossAI_MCP_Manager\Admin\Partials\ServerTabs\WpCliTab;
 use AcrossAI_MCP_Manager\Includes\Utilities\RegistryEntryNormalizer;
@@ -57,9 +58,9 @@ final class MethodRegistry {
 	 *
 	 * Entry shape mirrors `ServerTabs\Registry::FILTER_NAME` key-for-key, so a
 	 * developer who knows one knows the other. Reserved priority scale:
-	 * `ai-connectors` 10, `clients` 20, `npm` 30, **40 reserved for the
-	 * acrossai-pro companion's n8n**, `wp-cli` 50. Third parties should
-	 * register at >= 60.
+	 * `ai-connectors` 10, `clients` 20, `npm` 30, `n8n` 40, `wp-cli` 50.
+	 * Third parties should register at >= 60. (Before F095, 40 was reserved
+	 * for the acrossai-pro companion's n8n method; that method is now ours.)
 	 *
 	 * @since 0.4.0
 	 * @var string
@@ -107,12 +108,13 @@ final class MethodRegistry {
 	 */
 	public function all_methods(): array {
 		return array(
-			// F040 placeholder — the acrossai-pro companion overrides this via
-			// last-wins dedup (D41) when active.
-			new AIConnectorsPromoTab(),
+			// F095 — the real connector UI. This replaced the F040 promo
+			// placeholder in place: same slug, same priority 10, same label,
+			// so the swap is invisible in the navigation.
+			new AIConnectorsTab(),
 			new ClientsTab(),
 			new NpmTab(),
-			// Priority 40 is reserved for the companion's n8n method.
+			new N8nTab(),
 			new WpCliTab(),
 		);
 	}

@@ -156,11 +156,11 @@ final class MethodRegistryTest extends WP_UnitTestCase {
 				'ai-connectors' => 10,
 				'clients'       => 20,
 				'npm'           => 30,
+				'n8n'           => 40,
 				'wp-cli'        => 50,
 			),
 			$priorities
 		);
-		$this->assertNotContains( 40, $priorities, 'Priority 40 is reserved for the companion n8n method.' );
 	}
 
 	/**
@@ -168,7 +168,7 @@ final class MethodRegistryTest extends WP_UnitTestCase {
 	 */
 	public function test_visible_methods_are_priority_ordered(): void {
 		$this->assertSame(
-			array( 'ai-connectors', 'clients', 'npm', 'wp-cli' ),
+			array( 'ai-connectors', 'clients', 'npm', 'n8n', 'wp-cli' ),
 			$this->visible_slugs()
 		);
 	}
@@ -195,7 +195,7 @@ final class MethodRegistryTest extends WP_UnitTestCase {
 		);
 
 		$this->assertSame(
-			array( 'ai-connectors', 'clients', 'ftp', 'npm', 'wp-cli' ),
+			array( 'ai-connectors', 'clients', 'ftp', 'npm', 'n8n', 'wp-cli' ),
 			$this->visible_slugs(),
 			'Priority 25 slots between clients (20) and npm (30).'
 		);
@@ -296,7 +296,7 @@ final class MethodRegistryTest extends WP_UnitTestCase {
 		$slugs = $this->visible_slugs();
 		$this->assertNotContains( 'no-label', $slugs );
 		$this->assertNotContains( 'no-callback', $slugs );
-		$this->assertSame( array( 'ai-connectors', 'clients', 'npm', 'wp-cli' ), $slugs );
+		$this->assertSame( array( 'ai-connectors', 'clients', 'npm', 'n8n', 'wp-cli' ), $slugs );
 	}
 
 	/**
@@ -305,7 +305,7 @@ final class MethodRegistryTest extends WP_UnitTestCase {
 	public function test_non_array_filter_return_falls_back_to_builtins(): void {
 		add_filter( MethodRegistry::FILTER_NAME, static fn (): string => 'garbage' );
 
-		$this->assertSame( array( 'ai-connectors', 'clients', 'npm', 'wp-cli' ), $this->visible_slugs() );
+		$this->assertSame( array( 'ai-connectors', 'clients', 'npm', 'n8n', 'wp-cli' ), $this->visible_slugs() );
 	}
 
 	/**
