@@ -248,6 +248,13 @@ final class ConnectionMethodRegistry {
 				'restartStep'  => $client->get_restart_step_text(),
 				'meta'         => array(
 					'config_file'   => $client->get_config_file(),
+					// Issue #159 — per-OS paths, keyed macos/windows/linux.
+					// ADDITIVE: `config_file` above is unchanged, so existing
+					// consumers keep working untouched. Empty for clients whose
+					// path is workspace-relative or a placeholder, and PARTIAL
+					// for clients that do not build for every OS — a consumer
+					// must read the keys present rather than assume all three.
+					'config_files'  => $client->get_config_files(),
 					'top_level_key' => $client->get_top_level_key(),
 					'class'         => get_class( $client ),
 				),

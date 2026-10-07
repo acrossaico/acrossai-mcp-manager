@@ -75,6 +75,25 @@ final class CodexClient extends AbstractMCPClient {
 
 	/**
 	 * {@inheritDoc}
+	 *
+	 * TOML rather than JSON, but the same home-relative shape. Home-relative on every platform: the client resolves `~` itself, but `~`
+	 * is unix shorthand a Windows user cannot paste into Explorer, so the
+	 * Windows row spells out `%USERPROFILE%` with backslashes (issue #159).
+	 * Linux uses the same location as macOS.
+	 *
+	 * @since 0.3.9
+	 * @return array<string, string>
+	 */
+	public function get_config_files(): array {
+		return array(
+			'macos'   => '~/.codex/config.toml',
+			'windows' => '%USERPROFILE%\\.codex\\config.toml',
+			'linux'   => '~/.codex/config.toml',
+		);
+	}
+
+	/**
+	 * {@inheritDoc}
 	 */
 	public function get_top_level_key(): string {
 		return 'mcp_servers';

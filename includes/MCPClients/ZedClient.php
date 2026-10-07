@@ -80,6 +80,30 @@ final class ZedClient extends AbstractMCPClient {
 
 	/**
 	 * {@inheritDoc}
+	 *
+	 * Zed uses an XDG-style `~/.config/zed/` directory on BOTH macOS and Linux,
+	 * which is unusual enough to be worth stating rather than leaving the
+	 * single old value to imply macOS only.
+	 *
+	 * NO `windows` key. Zed's docs (checked 2026-10-07) document extension and
+	 * data directories per OS but never state where `settings.json` lives on
+	 * Windows. Rather than infer `%APPDATA%\\Zed\\settings.json` from the
+	 * neighbouring paths and present a guess as fact, the row is omitted until
+	 * someone can cite it — same rule applied to Claude Desktop's absent Linux
+	 * path.
+	 *
+	 * @since 0.3.9
+	 * @return array<string, string>
+	 */
+	public function get_config_files(): array {
+		return array(
+			'macos' => '~/.config/zed/settings.json',
+			'linux' => '~/.config/zed/settings.json',
+		);
+	}
+
+	/**
+	 * {@inheritDoc}
 	 */
 	public function get_top_level_key(): string {
 		return 'context_servers';

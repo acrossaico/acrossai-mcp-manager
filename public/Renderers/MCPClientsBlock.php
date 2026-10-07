@@ -162,6 +162,63 @@ final class MCPClientsBlock extends AbstractClientRenderer {
 	}
 
 	/**
+	 * Supported OS slugs in display order, mapped to their human labels.
+	 *
+	 * @var array<string, string>
+	 */
+	private const OS_LABELS = array(
+		'macos'   => 'macOS',
+		'windows' => 'Windows',
+		'linux'   => 'Linux',
+	);
+
+	/**
+	 * STEP 2's per-OS path list (issue #159).
+	 *
+	 * Every supported OS is shown at once, labelled. An earlier revision used
+	 * a tabbed switcher with the visitor's OS auto-selected; it was rejected on
+	 * review and the simpler form is better: with two or three short paths
+	 * there is nothing to gain by hiding all but one, and a Windows user should
+	 * not have to click anything to see a Windows path. The issue sanctions
+	 * this form directly ("listing all three labelled paths is acceptable if a
+	 * switcher is overkill").
+	 *
+	 * Consequently there is no OS detection here at all. Nothing is hidden, so
+	 * nothing needs guessing — and a User-Agent sniff that can be wrong is not
+	 * worth carrying for a layout that does not depend on it.
+	 *
+	 * Only the OSes the client actually ships for are listed. A client omits an
+	 * OS it has no build for; the absence of a Linux row IS the answer for
+	 * Claude Desktop, which ships for macOS and Windows only.
+	 *
+	 * @since 0.3.9
+	 * @param array<string, string> $config_files OS slug => path. Non-empty.
+	 * @return void
+	 */
+	private function render_os_config_paths( array $config_files ): void {
+		// Order by OS_LABELS, not by however the client wrote its array.
+		$ordered = array();
+		foreach ( self::OS_LABELS as $os => $label ) {
+			if ( isset( $config_files[ $os ] ) && '' !== $config_files[ $os ] ) {
+				$ordered[ $os ] = $config_files[ $os ];
+			}
+		}
+		if ( array() === $ordered ) {
+			return;
+		}
+
+		echo '<dl class="qs-os-paths">';
+		foreach ( $ordered as $os => $path ) {
+			printf(
+				'<dt class="qs-os-paths__os">%1$s</dt><dd class="qs-os-paths__path"><code>%2$s</code></dd>',
+				esc_html( self::OS_LABELS[ $os ] ),
+				esc_html( $path )
+			);
+		}
+		echo '</dl>';
+	}
+
+	/**
 	 * Renders the selected client's details: heading + description + generate
 	 * button + Config File row + Top-Level Key row + Configuration JSON block +
 	 * Copy button + instructions callout.
@@ -213,18 +270,24 @@ final class MCPClientsBlock extends AbstractClientRenderer {
 		echo '</div></div>';
 
 		// ─── STEP 2 — Open the config file ──────────────────────────────────
-		if ( '' !== $config_file ) {
+		$config_files = $client->get_config_files();
+		if ( array() !== $config_files || '' !== $config_file ) {
 			echo '<div class="qs-step">';
 			printf(
 				'<h3 class="qs-step-heading"><span class="qs-step-heading__num">%1$s</span>%2$s</h3>',
 				esc_html__( 'Step 2', 'acrossai-mcp-manager' ),
 				esc_html__( 'Open the config file', 'acrossai-mcp-manager' )
 			);
-			printf(
-				'<div class="qs-step-body"><input type="text" class="widefat code" readonly value="%s" /></div>',
-				esc_attr( $config_file )
-			);
-			echo '</div>';
+			echo '<div class="qs-step-body">';
+			if ( array() !== $config_files ) {
+				$this->render_os_config_paths( $config_files );
+			} else {
+				printf(
+					'<input type="text" class="widefat code" readonly value="%s" />',
+					esc_attr( $config_file )
+				);
+			}
+			echo '</div></div>';
 		}
 
 		// ─── STEP 3 — Locate the top-level key ──────────────────────────────

@@ -76,6 +76,26 @@ final class AmazonQClient extends AbstractMCPClient {
 
 	/**
 	 * {@inheritDoc}
+	 *
+	 * Amazon Q Developer CLI keeps its global MCP config in the AWS dotfile
+	 * tree. Home-relative on every platform: the client resolves `~` itself, but `~`
+	 * is unix shorthand a Windows user cannot paste into Explorer, so the
+	 * Windows row spells out `%USERPROFILE%` with backslashes (issue #159).
+	 * Linux uses the same location as macOS.
+	 *
+	 * @since 0.3.9
+	 * @return array<string, string>
+	 */
+	public function get_config_files(): array {
+		return array(
+			'macos'   => '~/.aws/amazonq/mcp.json',
+			'windows' => '%USERPROFILE%\\.aws\\amazonq\\mcp.json',
+			'linux'   => '~/.aws/amazonq/mcp.json',
+		);
+	}
+
+	/**
+	 * {@inheritDoc}
 	 */
 	public function get_top_level_key(): string {
 		return 'mcpServers';

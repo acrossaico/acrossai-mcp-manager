@@ -76,6 +76,19 @@ final class KiloCodeClient extends AbstractMCPClient {
 
 	/**
 	 * {@inheritDoc}
+	 *
+	 * Workspace-relative (`.kilocode/mcp.json`); identical on every OS. Declared
+	 * empty explicitly so a later reader can see this was decided, not missed.
+	 *
+	 * @since 0.3.9
+	 * @return array<string, string>
+	 */
+	public function get_config_files(): array {
+		return array();
+	}
+
+	/**
+	 * {@inheritDoc}
 	 */
 	public function get_top_level_key(): string {
 		return 'mcpServers';
