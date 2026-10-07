@@ -4,7 +4,7 @@ Tags: ai assistant, chatgpt, claude, mcp, mcp-server
 Requires at least: 7.0
 Requires PHP: 8.1
 Tested up to: 7.1
-Stable tag: 0.3.8
+Stable tag: 0.4.0
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -292,6 +292,15 @@ Delete its Application Password from your WordPress profile page, or disable the
 10. Global settings, including CLI connections and a deliberately non-destructive uninstall that keeps your data unless you opt out.
 
 == Upgrade Notice ==
+
+= 0.4.0 =
+* **New — connecting Claude, ChatGPT, Gemini, Grok or Cursor is now part of this plugin, free.** Paste one URL, approve the consent screen, done. The **Connectors** tab that used to advertise the paid add-on now does the job itself.
+* **Please note — load wp-admin once after updating.** Your existing connections are moved across on the first admin page load. Until that happens, connected AI clients cannot authenticate — so if your site auto-updates, sign in once.
+* **Unchanged — existing connections keep working.** No reconnecting, no re-approving. Tokens already issued stay valid.
+* **Changed — Quick Connect no longer asks you to buy anything.** The add-on pitch and setup screens are gone; choosing one-click connection goes straight to the connector screen.
+* **New — the n8n integration is included**, switched off by default.
+* **AcrossAI Pro is still useful** for its abilities library and access control — just not needed for connectors. It stands aside on its own.
+* **Database — four tables added.** Existing data from the paid plugin is copied across; its tables are left untouched.
 
 = 0.3.8 =
 The **AcrossAI** server is recommended again — badged and pinned to the top of the servers list, and preselected in Quick Connect. New servers now start on the **AcrossAI** server type where the AcrossAI Abilities Manager add-on is installed, and on **MCP Adapter** where it is not. Existing servers are untouched and there is no database change.

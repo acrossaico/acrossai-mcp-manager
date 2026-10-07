@@ -1116,18 +1116,25 @@ html.wp-toolbar:has(body.acrossai-mcp-quick-connect-fullpage) {
 // ─────────────────────────────────────────────────────────────────────────────
 // F081 — Connector walkthrough panels (Step 10).
 //
-// Source of truth: acrossai-pro/includes/Connectors/AbstractConnectorProfile.php
-// print_setup_styles() at lines 510-637. The paid plugin emits these rules
-// as an inline <style> tag on the per-server AI Connectors tab. This bundle
-// ports them into the wizard's own stylesheet so Step 10 renders the same
-// walkthrough HTML with byte-for-byte visual parity when acrossai-pro's
-// DiscoveryConnectorAdapter emits the walkthrough_html DTO field.
+// DUPLICATED — and, as of F095, duplicated WITHOUT a reason.
 //
-// If a future acrossai-pro release changes any of these visuals, the change
-// MUST be mirrored here — cross-plugin visual contract per D50 (cross-surface
-// visual parity via shared markup contract, F077). Duplicated over a shared
-// SCSS partial because the free plugin cannot depend on the paid plugin's
-// source tree.
+// Source of truth: includes/Connectors/AbstractConnectorProfile.php
+// print_setup_styles(), which emits these same rules as an inline <style> on
+// the per-server AI Connectors tab. This copy exists so the wizard's Step 10
+// renders the walkthrough HTML identically.
+//
+// Until F095 both sides lived in different plugins, and D51 was explicit that
+// duplication beat a shared partial because the free plugin could not depend
+// on the paid plugin's source tree. That boundary is gone — AbstractConnectorProfile
+// now sits in THIS repo — so D51 no longer applies and D50's intra-plugin rule
+// does: 10+ shared rules belong in a shared SCSS partial.
+//
+// Not resolved inside F095 deliberately. Collapsing these into one partial
+// means deleting the PHP inline emitter and proving both surfaces still render
+// identically, which needs visual verification rather than a blind edit at the
+// end of a migration. Tracked as T078.
+//
+// Until then: a change on either side MUST be mirrored on the other.
 // ─────────────────────────────────────────────────────────────────────────────
 
 .acrossai-mcp-connector-panel__setup {

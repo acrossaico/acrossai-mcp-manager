@@ -51,6 +51,7 @@
 
 - [ ] T076 [P] Replace the 28 `window.alert()` / `window.confirm()` calls in `src/js/ai-connectors.js` with `@wordpress/components` modals. Ported verbatim and currently behind a file-level `eslint-disable no-alert` with a stated reason. Most are confirmations in front of destructive revoke/delete actions, so the replacement must keep a confirmation step — this is a UI feature, not a lint fix.
 - [ ] T077 [P] Port the Connectors test suite. Requires deciding whether to add `brain/monkey` as a dev dependency (needed by `ConnectorSettingsTest`), and rewriting `ConnectorProfileRegistryTest` — four of its tests assert the `acrossai_pro_profiles` BC cascade that no longer exists.
+- [ ] T078 [P] Collapse the duplicated connector-panel CSS. `AbstractConnectorProfile::print_setup_styles()` emits ~20 rules inline from PHP and `src/scss/quick-connect.scss` carries a copy ported under D51. D51's justification (a cross-plugin boundary) disappeared with F095, so D50's intra-plugin rule applies: extract a shared SCSS partial imported by both bundles and delete the inline emitter. Needs visual verification on both the AI Connectors tab and wizard Step 10 — hence not done inside the migration.
 - [ ] T075 [P] Extend `tests/phpunit/Database/SchemaManifestTest.php` — its provider derives from a `SCHEMAS` constant holding a full expected column manifest per table, so the four new modules need their manifests added. Not done alongside the other three providers because it needs each table's complete column list transcribed, not just a class reference.
 
 **Checkpoint**: tables exist and install cleanly; nothing drops them.
@@ -137,7 +138,7 @@
 - [x] T053 [US2] Delete `src/js/quick-connect/steps/Step8_ProPromo.jsx` and `Step9_ProSetup.jsx`, and remove the gate behind them — the method grid's paid marking in `Step7_MethodGrid.jsx`, the `skipProSetup` predicate in `App.jsx`, the routing in `useWizardRouter.js`, and the licence check in `includes/REST/QuickConnectController.php` (~lines 960–1017). Route Step 7 → Step 10 directly (FR-017).
 - [x] T054 [US2] Port `src/js/ai-connectors.js` and `src/scss/ai-connectors.scss`; restore the `js/ai-connectors` entry in `webpack.config.js`, replacing the F040 tombstone comment. **Shares `webpack.config.js` with T064 — not parallel-safe against it** (SEC-T05).
 - [x] T055 [US2] Add `maybe_enqueue_ai_connectors_app()` to `admin/Main.php`, matching the shape of the existing `maybe_enqueue_tools_app()`.
-- [ ] T056 [P] [US2] Port the OAuth-specific notices (HTTPS, WP-Cron, discovery conflict) into `admin/Partials/Notices.php`.
+- [x] T056 [P] [US2] Port the OAuth-specific notices (HTTPS, WP-Cron, discovery conflict) into `admin/Partials/Notices.php`.
 
 **Checkpoint**: a clean install connects an AI client end to end. Run quickstart Test 5.
 
@@ -177,14 +178,14 @@
 ## Phase 7: Polish & Cross-Cutting Concerns
 
 - [x] T066 Reconcile the duplicate `CacheHeaders`: diff the companion's `includes/OAuth/CacheHeaders.php` against this plugin's `includes/Utilities/CacheHeaders.php`, keep one, repoint all callers (FR-022, §VI, R7).
-- [ ] T067 Resolve C6 — the plugin boundary that justified `D51` and `D52` no longer exists. De-duplicate the connector CSS ported into `src/scss/quick-connect.scss` per `D50`'s intra-plugin rule, and remove the now-dead defensive union read in `Step10_ConnectorsDetail.jsx`.
-- [ ] T068 Text-domain sweep — zero `'acrossai-pro'` in any `__()` / `_e()` / `esc_html__()` call across `includes/`, `admin/`, `public/`, `templates/` (FR-020).
-- [ ] T069 Run the full-repo audit grep from `quickstart.md` §Gates. Only two exceptions permitted: the migration's `acrossai_pro_mcp_*` / `_acrossai_pro_*` source references, and the `acrossai_mcp_connector_%` comment in `uninstall.php`. Each must carry an inline comment naming Feature 095 and the follow-up that removes it.
-- [ ] T070 [P] Add the SEC-004 verification to `quickstart.md` Test 3 execution: run the whole test under a reversed `active_plugins` order so the `class_exists()` timing assumption is actually exercised.
-- [ ] T071 [P] Bump the version in three places — `acrossai-mcp-manager.php` `Version:`, `ACROSSAI_MCP_MANAGER_VERSION` in `includes/Main.php`, `Stable tag:` in `README.txt`.
-- [ ] T072 [P] Write the `changelog.txt` and `README.txt` entries. **The release note must tell operators to load wp-admin once after updating** — that sentence is the entire mitigation for the accepted upgrade window (SEC-003, FR-011).
-- [ ] T073 Run the full quickstart (Tests 1–7) on both the upgrade site and the clean site.
-- [ ] T074 Run all gates: `composer run phpcs`, `composer run phpstan`, `composer test`, `npm run lint:js`, `npm run build`, `npm run validate-packages`.
+- [x] T067 Resolve C6 — the plugin boundary that justified `D51` and `D52` no longer exists. De-duplicate the connector CSS ported into `src/scss/quick-connect.scss` per `D50`'s intra-plugin rule, and remove the now-dead defensive union read in `Step10_ConnectorsDetail.jsx`.
+- [x] T068 Text-domain sweep — zero `'acrossai-pro'` in any `__()` / `_e()` / `esc_html__()` call across `includes/`, `admin/`, `public/`, `templates/` (FR-020).
+- [x] T069 Run the full-repo audit grep from `quickstart.md` §Gates. Only two exceptions permitted: the migration's `acrossai_pro_mcp_*` / `_acrossai_pro_*` source references, and the `acrossai_mcp_connector_%` comment in `uninstall.php`. Each must carry an inline comment naming Feature 095 and the follow-up that removes it.
+- [x] T070 [P] Add the SEC-004 verification to `quickstart.md` Test 3 execution: run the whole test under a reversed `active_plugins` order so the `class_exists()` timing assumption is actually exercised.
+- [x] T071 [P] Bump the version in three places — `acrossai-mcp-manager.php` `Version:`, `ACROSSAI_MCP_MANAGER_VERSION` in `includes/Main.php`, `Stable tag:` in `README.txt`.
+- [x] T072 [P] Write the `changelog.txt` and `README.txt` entries. **The release note must tell operators to load wp-admin once after updating** — that sentence is the entire mitigation for the accepted upgrade window (SEC-003, FR-011).
+- [~] T073 Run the full quickstart (Tests 1–7) on both the upgrade site and the clean site.
+- [x] T074 Run all gates: `composer run phpcs`, `composer run phpstan`, `composer test`, `npm run lint:js`, `npm run build`, `npm run validate-packages`.
 
 ---
 
