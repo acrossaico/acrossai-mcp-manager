@@ -3019,3 +3019,114 @@ Compare lengths only when BOTH sides report one. Assert restored column types wi
 **Related**
 - `tests/phpunit/Database/MCPServer/PermissionOverrideColumnUpgradeTest.php` already documented this
   behaviour; F091 is the second feature to trip over it, which is why it is now written down here.
+
+---
+
+### B66 — A bulk namespace rewrite leaves references to classes that never came with it
+
+**Symptom**
+Three separate runtime fatals during F095, each from a reference that is syntactically perfect and
+passes `php -l`, phpcs and the full test suite:
+
+- `\AcrossAI_MCP_Manager\Includes\HostCapabilities::method_url()` in two `panel_url()` helpers —
+  the whole AI Connectors tab rendered as *"The 'ai-connectors' connection method could not render."*
+- `use AcrossAI_MCP_Manager\Admin\ServerTabs\N8nTab;` — one segment short of
+  `Admin\Partials\ServerTabs\N8nTab`. That is the class the n8n token permission gate calls, so
+  issuance would have fataled instead of returning 403.
+- `CacheHeaders::send_no_store()` written **unqualified** inside `Includes\OAuth`, resolving to
+  `OAuth\CacheHeaders` — deliberately not ported, because the `Utilities` copy is a superset.
+  Fataled `/authorize` and every OAuth error page: the single most important endpoint in the feature.
+
+**Root Cause**
+A rewrite turns `\Old\Ns\Foo` into `\New\Ns\Foo` whether or not `Foo` was ported. Companion-only
+classes dropped on purpose are exactly the ones that leave danglers behind.
+
+**Prevention**
+`tests/phpunit/RenameGate/NoDanglingClassReferenceTest.php` resolves all three shapes against the
+PSR-4 map on disk. Shape three is the nastiest and needs its own check: an unqualified name has no
+backslash and no `use` line, so the other two checks are blind to it. That check must **tokenize** —
+a regex over raw source matches class names in docblocks and reports hundreds of false positives.
+Resolution is by path rather than `class_exists()` because loading these files requires WordPress
+and the rename-gate suite deliberately runs without it.
+
+**Related**: `B67` (why static analysis did not catch any of this).
+
+---
+
+### B67 — A gate can report success having examined nothing
+
+**Symptom**
+PHPStan reported clean for this project's entire history while analysing zero files. Two independent
+mechanisms, both of which survive a casual glance at a green log:
+
+1. `phpstan.neon.dist` listed the plugin entry point under `bootstrapFiles`. That file opens with
+   `if ( ! defined( 'WPINC' ) ) { die; }`, so PHP exited during bootstrap — no findings, no
+   `[OK] No errors` line, exit code 0.
+2. Once it did run, `Loader.php` and `Main.php` declared the loader as
+   `AcrossAI_MCP_Manager\Includes\AcrossAI_MCP_Manager_Loader` — a class that has never existed; the
+   real one is `Loader`. `$this->loader` therefore had an unknown type and **every one of the 75
+   `add_action()` / `add_filter()` calls in `Main.php` was unanalysable**. The A1 hook mechanism for
+   the entire plugin was invisible to static analysis.
+
+CI compounded it: the workflow ran `phpstan analyse` with no `--memory-limit`. The 128 MB default is
+exhausted part-way through this codebase, and PHPStan then reports an **incomplete** run rather than
+failing — which reads as success in a workflow log.
+
+**Prevention**
+Never trust a gate that has only ever passed. Prove it fails: break something it must catch and watch
+it go red. Two specific tells — exit 0 with no result line at all, and `$?` read *after a pipe*,
+which reports the pipe's status rather than the tool's. A wrong docblock type is as effective at
+disabling analysis as switching the tool off, and far quieter.
+
+**Related**: `B66` (the bugs this let through), `D5` (phpcs baseline — a different tool, same trap).
+
+---
+
+### B68 — Activation hooks do not run on plugin update
+
+**Symptom**
+After upgrading to F095, all five OAuth rewrite rules 404'd — both `.well-known` documents,
+`/authorize` and `/token` — leaving discovery and the whole authorization flow unreachable until
+someone re-saved Settings → Permalinks. Every CI check was green.
+
+**Root Cause**
+WordPress fires activation hooks on *activation*, not on *update*. `flush_rewrite_rules()` existed
+only in `Activator::activate()`, so the rules were registered correctly on `init` but the stored
+`rewrite_rules` option was never regenerated for existing sites. Note this is the gap `D2` does not
+cover: `D2` concerns the activation path, which works fine.
+
+**Prevention**
+Any one-shot upgrade work — rewrite flush, option seeding, schema reconcile — needs a version-gated
+run on `admin_init`, not an activator-only call. Key it on the plugin version rather than a boolean
+so a later release that changes the same thing re-runs without needing a new option. See
+`OAuthRouter::maybe_flush_rewrites()`. Verify by reproducing the real pre-upgrade state (strip the
+rules from the stored option), not by clearing it — an empty `rewrite_rules` makes WordPress rebuild
+on the next request and masks the bug.
+
+---
+
+### B69 — Local's nginx blocks the entire OAuth path, and both causes look like plugin bugs
+
+**Symptom**
+On a Local (Flywheel) site: every bearer token and application password resolves to user 0, and both
+`.well-known` discovery documents return 404. Presents exactly as broken authentication and broken
+routing in the plugin. Two unrelated nginx defaults, both in
+`~/Library/Application Support/Local/run/<site-id>/conf/nginx/`:
+
+1. The PHP-FPM block in `site.conf` enumerates `fastcgi_param` explicitly and never sets
+   `HTTP_AUTHORIZATION` (it does not `include fastcgi_params`). No `Authorization` header reaches
+   PHP, so `TokenValidator` can never see a token and WordPress never resolves an application
+   password. `debug.log` shows `User ID 0 does not have capability manage_options`.
+2. `includes/restrictions.conf` carries `location ~ /\. { deny all; return 404; }`, which 404s every
+   dot-segment path — `.well-known` included — before WordPress is reached.
+
+**Fix**
+Add `fastcgi_param HTTP_AUTHORIZATION $http_authorization;` to the PHP-FPM block, and a
+`location ^~ /.well-known/ { allow all; try_files $uri $uri/ /index.php$is_args$args; }` — the `^~`
+prefix match beats the regex location regardless of order. Reload with `kill -HUP <nginx master>`.
+**Local regenerates `site.conf` when site settings change, so this is not durable.**
+
+**Prevention**
+Before treating an OAuth 401 or a `.well-known` 404 on a Local site as a plugin defect, confirm the
+header arrives and the path reaches WordPress. Both of these were initially read as F095
+regressions, and one of them masked a real bug (`B68`) sitting behind it.
