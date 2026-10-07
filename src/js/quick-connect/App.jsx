@@ -152,8 +152,6 @@ const App = () => {
 		state.abilities.enabledForServer,
 		selectedServer,
 		method,
-		proState,
-		proLicensed,
 	] );
 
 	// Auto-skip effect — silently forwards the user past any skipped step
@@ -201,7 +199,7 @@ const App = () => {
 		if ( router.step === '13' && skips.skipWpcli ) {
 			router.advance( { skips } );
 		}
-	}, [ router.step, state.status, skips, router, proState ] );
+	}, [ router.step, state.status, skips, router ] );
 
 	// Deep-link precondition guard — anything past Step 1 requires a chosen
 	// server (or create_intent en route to Step 2).
