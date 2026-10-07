@@ -13,15 +13,15 @@
  * Each tab shows the plugin's canonical MCP URL for the current server
  * with a Copy button.
  *
- * F082 — under each tab's URL row, the pro plugin's rich per-provider
- * walkthrough panel ("How to connect Claude" etc.) is rendered via
- * useBelowFooter() so it sits AFTER the Back / Finish footer. Placing the
- * long walkthrough above the footer would push the primary CTA below the
- * fold and hide Finish. HTML is read from
- * state.methods.ai_connector_instructions, a sibling discovery lane
- * populated by acrossai-pro. Falls back to the "DCR-only" notice (in the
- * main content area, ABOVE the footer) when the map is empty (pro not
- * installed OR on a pre-F082 version) — zero regression on that path.
+ * F082 — under each tab's URL row, the rich per-provider walkthrough panel
+ * ("How to connect Claude" etc.) is rendered via useBelowFooter() so it sits
+ * AFTER the Back / Finish footer. Placing the long walkthrough above the
+ * footer would push the primary CTA below the fold and hide Finish. HTML is
+ * read from state.methods.ai_connector_instructions, a sibling discovery
+ * lane. F095 moved the producer into this plugin, so the lane is populated
+ * on every install rather than only where the companion was present. Falls
+ * back to the "DCR-only" notice (in the main content area, ABOVE the footer)
+ * when the map is empty.
  *
  * @package AcrossAI_MCP_Manager
  */
@@ -63,22 +63,23 @@ const Step10_ConnectorsDetail = () => {
 
 	// F082 — walkthrough HTML flows through its own discovery lane
 	// (`state.methods.ai_connector_instructions`), a `{slug => html}` map
-	// populated by acrossai-pro's DiscoveryConnectorAdapter::provide_ai_connector_instructions().
+	// populated by DiscoveryConnectorAdapter::provide_ai_connector_instructions().
 	// Mirrors the pattern used for the connector list itself — different
 	// filter, same producer/consumer contract. Falls back to the DCR-only
 	// notice (rendered inline in the main content area, above the footer)
-	// when the map is empty (pro plugin not installed OR on a pre-F082
-	// version) — zero regression.
+	// when the map is empty.
 	//
-	// The pro plugin emits the HTML with the sentinel token
+	// The producer emits the HTML with the sentinel token
 	// `__ACROSSAI_MCP_URL__` wherever the MCP URL should appear (its
 	// discovery pass has no per-server context). We substitute the token
 	// with the currently-selected server's real URL, HTML-escaped so a
 	// pathological server URL cannot inject markup.
 	//
-	// Trust boundary: acrossai-pro guarantees the string has passed through
+	// Trust boundary: the string is guaranteed to have passed through
 	// wp_kses_post at write time (docblock note on get_mcp_url_setup_html +
-	// enforced in provide_ai_connector_instructions).
+	// enforced in provide_ai_connector_instructions). F095 brought the
+	// producer in-plugin, but the guarantee is still enforced at the adapter
+	// rather than assumed here — third parties can also feed this filter.
 	const instructionsMap = state.methods.ai_connector_instructions || {};
 	const rawInstructions = activeConnector
 		? ( instructionsMap[ activeConnector.slug ] || '' )
@@ -120,7 +121,7 @@ const Step10_ConnectorsDetail = () => {
 		return (
 			<Notice status="info">
 				{ __(
-					'No AI connectors registered on this site yet. Install AcrossAI Pro to enable connector providers.',
+					'No AI connectors are available on this site.',
 					'acrossai-mcp-manager'
 				) }
 			</Notice>

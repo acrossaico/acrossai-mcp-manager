@@ -210,23 +210,11 @@ class Main {
 			'acrossai-mcp-manager-quick-connect',
 			'acrossaiMcpQuickConnect',
 			array(
-				'restUrl'          => esc_url_raw( rest_url( 'acrossai-mcp-manager/v1/quick-connect' ) ),
-				'restNonce'        => wp_create_nonce( 'wp_rest' ),
-				'adminUrl'         => esc_url_raw( admin_url( 'admin.php?page=acrossai_mcp_manager' ) ),
-				// F069 Step 9 — landing page for activating AcrossAI Pro.
-				// The wizard's Pro-activation gate links here so the user
-				// ends up on the AcrossAI Add-ons page rather than the raw
-				// Plugins list.
-				'addonsUrl'        => esc_url_raw( admin_url( 'admin.php?page=acrossai-addons' ) ),
-				// F074 Step 8 — after starting the Pro trial the operator's
-				// next job is installing the plugin they were just emailed,
-				// so the trial-started state swaps Continue for a link to
-				// the Add Plugins screen (upload-zip lives behind it).
-				// Localized rather than derived client-side so subdirectory
-				// installs and custom admin URLs resolve correctly.
-				'pluginInstallUrl' => esc_url_raw( admin_url( 'plugin-install.php' ) ),
-				'siteUrl'          => esc_url_raw( untrailingslashit( home_url() ) ),
-				'logoUrl'          => esc_url_raw( \ACROSSAI_MCP_MANAGER_PLUGIN_URL . 'assets/quick-connect/acrossai-logo.svg' ),
+				'restUrl'      => esc_url_raw( rest_url( 'acrossai-mcp-manager/v1/quick-connect' ) ),
+				'restNonce'    => wp_create_nonce( 'wp_rest' ),
+				'adminUrl'     => esc_url_raw( admin_url( 'admin.php?page=acrossai_mcp_manager' ) ),
+				'siteUrl'      => esc_url_raw( untrailingslashit( home_url() ) ),
+				'logoUrl'      => esc_url_raw( \ACROSSAI_MCP_MANAGER_PLUGIN_URL . 'assets/quick-connect/acrossai-logo.svg' ),
 				// F069 — square brand icon shown on the initial-hydrate
 				// loading screen. Kept at assets/quick-connect/icon.svg (a
 				// direct copy of .wordpress-org/icon.svg — that dotfile
@@ -234,25 +222,14 @@ class Main {
 				// so pointing the browser there 404s on real installs).
 				// When updating the icon, replace BOTH files so the WP.org
 				// plugin listing and the wizard stay in sync.
-				'iconUrl'          => esc_url_raw( \ACROSSAI_MCP_MANAGER_PLUGIN_URL . 'assets/quick-connect/icon.svg' ),
+				'iconUrl'      => esc_url_raw( \ACROSSAI_MCP_MANAGER_PLUGIN_URL . 'assets/quick-connect/icon.svg' ),
 				// Access Control wiring — MUST mirror the values passed to
 				// the per-server-edit tab bootstrap (see the AC-tab enqueue
 				// block above) so the wizard's Step 2 uses the same slug +
 				// REST root the server tab does.
-				'acPluginSlug'     => \AcrossAI_MCP_Manager\Includes\AccessControl\AcrossAI_MCP_Access_Control::TABLE_SLUG,
-				'acNamespace'      => 'acrossai-mcp-manager',
-				'restApiRoot'      => esc_url_raw( untrailingslashit( rest_url() ) ),
-				// F074 — Freemius Checkout credentials for Step 8's Pro trial
-				// CTA. All three values are PUBLIC identifiers per Freemius
-				// conventions (safe to ship in a WP.org plugin — analogous
-				// to Stripe pk_live_* keys). Consumed by
-				// src/js/quick-connect/steps/Step8_ProPromo.jsx which calls
-				// `new FS.Checkout({product_id, public_key}).open({plan_id, trial: 'free', …})`.
-				'freemiusPro'      => array(
-					'product_id' => '34763',
-					'public_key' => 'pk_22d5131412bed600815c5b30ae044',
-					'plan_id'    => '60904',
-				),
+				'acPluginSlug' => \AcrossAI_MCP_Manager\Includes\AccessControl\AcrossAI_MCP_Access_Control::TABLE_SLUG,
+				'acNamespace'  => 'acrossai-mcp-manager',
+				'restApiRoot'  => esc_url_raw( untrailingslashit( rest_url() ) ),
 				// F075 — local-dev TLS bypass affordance. When `enabled` is true,
 				// Step 11 renders a warning callout above the client config code
 				// block. The JSON string itself already contains
@@ -260,28 +237,13 @@ class Main {
 				// calls get_config_snippet() which routes through
 				// AbstractMCPClient::build_env() (same source-of-truth as the
 				// per-server tab notice — copy MUST match MCPClientsBlock).
-				'tlsBypass'        => array(
+				'tlsBypass'    => array(
 					'enabled'  => LocalEnvironment::needs_tls_bypass(),
 					'message'  => __( 'Local dev — added NODE_TLS_REJECT_UNAUTHORIZED: "0" for local testing (never use on a live site).', 'acrossai-mcp-manager' ),
 					'linkText' => __( 'More info', 'acrossai-mcp-manager' ),
 					'docUrl'   => LocalEnvironment::troubleshooting_doc_url(),
 				),
 			)
-		);
-
-		// F074 — Freemius Checkout script for Step 8's Pro trial modal.
-		// Same enqueue pattern as the Freemius plugin's own Buy Button block
-		// (wp-content/plugins/freemius/includes/class-freemius-button.php:78).
-		// Gated on the same `?quick-connect=1` check as the wizard bundle
-		// enqueue above, so it never loads on any other admin surface.
-		// window.FS.Checkout becomes available before the wizard mounts
-		// Step 8 — no dep chain needed on the wizard bundle.
-		wp_enqueue_script(
-			'acrossai-mcp-manager-freemius-checkout',
-			'https://checkout.freemius.com/js/v1/',
-			array(),
-			'v1',
-			true
 		);
 	}
 
@@ -707,5 +669,4 @@ class Main {
 			}
 		}
 	}
-
 }

@@ -170,7 +170,6 @@ class Notices {
 			);
 		}
 
-
 		// ── F095: OAuth operational warnings ────────────────────────────────
 		// Ported from the companion. Each is a soft warning about a hosting
 		// condition that silently degrades OAuth rather than breaking it

@@ -21,10 +21,12 @@ final class DiscoveryConnectorAdapter {
 	 * Filter callback for `acrossai_mcp_manager_discovery_ai_connectors`.
 	 *
 	 * Reads every registered ConnectorProfile from the local registry and
-	 * appends a matching DTO. Freemius premium gating is enforced upstream
-	 * in the `acrossai_mcp_manager_profiles` filter, so an unlicensed install
-	 * naturally returns zero profiles → zero DTOs → the `ai_connector`
-	 * category is omitted from Discovery.
+	 * appends a matching DTO. There is no licence lane: the companion gated
+	 * the registration filter on Freemius, so an unlicensed install produced
+	 * zero profiles → zero DTOs → no `ai_connector` category. F095 made the
+	 * connectors free and registration unconditional, so the category is now
+	 * always present. An empty result means a third party filtered the
+	 * profiles out, not that the site is unlicensed.
 	 *
 	 * NOT filtered by per-server enablement (`ConnectorSettings::is_slug_enabled_on_server`),
 	 * unlike the AI Connectors tab and the OAuth gates. Two reasons, in order:

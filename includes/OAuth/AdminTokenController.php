@@ -141,7 +141,10 @@ final class AdminTokenController {
 	 *   1. nonce (401 rest_cookie_invalid_nonce)
 	 *   2. manage_options (403 rest_forbidden)
 	 *   3. N8nTab::is_enabled() (403 rest_n8n_disabled)
-	 *   4. Freemius premium (403 rest_n8n_premium_required)
+	 *
+	 * The companion had a fourth step here — a Freemius premium check returning
+	 * 403 rest_n8n_premium_required. F095 made n8n free, so it is gone. Three
+	 * gates, no licence lane.
 	 */
 	public function permission_callback( \WP_REST_Request $request ) {
 		$nonce = $request->get_header( 'x_wp_nonce' );

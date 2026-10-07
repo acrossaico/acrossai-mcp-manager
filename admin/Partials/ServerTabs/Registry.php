@@ -21,9 +21,10 @@
  * last-wins: a filter callback registered later (or at a higher WordPress
  * filter priority) replaces any earlier entry with the same slug, including
  * built-in placeholder tabs. This matches WP-native filter-override
- * semantics and enables the "built-in placeholder → companion overrides
- * when active" pattern used by the F040 promo card (which falls
- * back when the acrossai-pro add-on is not installed).
+ * semantics. It once carried the "built-in placeholder → companion overrides
+ * when active" pattern behind the F040 promo card; F095 brought the real tab
+ * in-plugin, so nothing ships a placeholder today. The last-wins rule stays
+ * because third parties still rely on it to override a built-in tab.
  *
  * Normalization + dedup mirrors vendor `\AcrossAI_Main_Menu\Tabs::get_tabs()`
  * (extracted from `TabbedPageRenderer::resolve_tabs()` in 0.0.13 into a
@@ -115,14 +116,12 @@ final class Registry {
 	 * `clients`, `ai-connectors` and `wp-cli` into the single `ConnectTab`
 	 * at priority 20, where they became level-2 `?method=` choices.
 	 *
-	 * The placeholder-override pattern moved down with them: the
-	 * the former promo entry now seeds
-	 * `Connect\MethodRegistry::all_methods()` at method priority 10, and when
-	 * the acrossai-pro companion is active it registers its real
-	 * `AIConnectorsTab` on `acrossai_mcp_manager_connect_methods` at the same
-	 * priority, where last-wins dedup (F040 follow-up, D41) replaces the
-	 * placeholder. When the companion is missing or inactive, the placeholder
-	 * still renders its promo card pointing at the add-on.
+	 * The placeholder-override pattern that moved down with them is gone:
+	 * F095 deleted the promo entry and `Connect\MethodRegistry::all_methods()`
+	 * now seeds the real `AIConnectorsTab` at method priority 10 directly.
+	 * There is no companion to override it and no promo card to fall back to.
+	 * Last-wins dedup on `acrossai_mcp_manager_connect_methods` (F040
+	 * follow-up, D41) is still in force for third-party overrides.
 	 *
 	 * @since 0.0.6
 	 * @return AbstractServerTab[]

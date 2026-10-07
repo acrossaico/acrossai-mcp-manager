@@ -140,11 +140,15 @@ const useWizardRouter = () => {
 	}, [] );
 
 	// `mode` is normally cleared on step navigation (it's a per-step sub-view),
-	// but a caller can seed the destination's mode in the same hop — Step 8's
-	// trial handoff uses goTo( '9', null, 'trial' ) so Step 9 knows the
-	// operator arrived from a completed checkout rather than plain Continue.
-	// Passing it here (rather than a follow-up setMode) keeps it to ONE
-	// history entry, so Back still takes one press.
+	// but a caller can seed the destination's mode in the same hop. Passing it
+	// here (rather than a follow-up setMode) keeps it to ONE history entry, so
+	// Back still takes one press.
+	//
+	// F095 removed the only caller that used it: the deleted add-on steps
+	// handed off a 'trial' mode across a step boundary. The third argument is
+	// kept because the one-hop-one-entry property is the reason it exists, and
+	// re-deriving it at the next call site is how double history entries get
+	// reintroduced. Steps still change their own sub-view via setMode.
 	const goTo = useCallback( ( step, method = null, mode = null ) => {
 		if ( ! STEP_ORDER.includes( step ) ) {
 			return;

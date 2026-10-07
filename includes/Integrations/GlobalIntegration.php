@@ -48,21 +48,14 @@ final class GlobalIntegration {
 	 * omit the presentational keys and still get a working toggle, and so
 	 * adding a key later is not a signature break for third-party callers.
 	 *
-	 * Required keys: `slug`, `option`, `filter`. The rest default.
+	 * The array shape is kept on ONE line deliberately: Squiz reads a
+	 * multi-line `array{...}` as a missing parameter name, so collapsing it is
+	 * what lets the shape coexist with phpcs without an exclude. Note the
+	 * shape is documentation today, not a gate — this project runs PHPStan at
+	 * level 5, which does not reject an unknown key here (verified by canary).
+	 * It starts enforcing if the level is raised.
 	 *
-	 * @param array{
-	 *     slug: string,
-	 *     option: string,
-	 *     filter: string,
-	 *     default?: bool,
-	 *     priority?: int,
-	 *     section_title?: string,
-	 *     beta?: bool,
-	 *     section_intro?: string,
-	 *     field_label?: string,
-	 *     toggle_label?: string,
-	 *     toggle_description?: string
-	 * } $args Descriptor fields.
+	 * @param array{slug: string, option: string, filter: string, default?: bool, priority?: int, section_title?: string, beta?: bool, section_intro?: string, field_label?: string, toggle_label?: string, toggle_description?: string} $args Descriptor fields.
 	 */
 	public function __construct( array $args ) {
 		$this->slug               = isset( $args['slug'] ) ? (string) $args['slug'] : '';

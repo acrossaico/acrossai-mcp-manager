@@ -123,16 +123,16 @@ final class N8nTab extends AbstractServerTab {
 
 		$integrations[] = new GlobalIntegration(
 			array(
-				'slug'          => self::CONNECTOR_SLUG,
-				'option'        => 'acrossai_n8n_enabled',
-				'filter'        => 'acrossai_mcp_manager_n8n_enabled',
-				'default'       => false,
-				'priority'      => 10,
-				'section_title' => __( 'n8n Integration', 'acrossai-mcp-manager' ),
-				'beta'          => true,
-				'section_intro' => __( 'The n8n integration is currently in Beta — the OAuth token issuance and audit-log paths are fully tested, but real-world workflow integrations across self-hosted / cloud / team n8n deployments are still being validated. Feature complete, not yet SLA-covered.', 'acrossai-mcp-manager' ),
-				'field_label'   => __( 'Enable n8n Tab', 'acrossai-mcp-manager' ),
-				'toggle_label'  => __( 'Show the n8n tab on every MCP server admin screen.', 'acrossai-mcp-manager' ),
+				'slug'               => self::CONNECTOR_SLUG,
+				'option'             => 'acrossai_n8n_enabled',
+				'filter'             => 'acrossai_mcp_manager_n8n_enabled',
+				'default'            => false,
+				'priority'           => 10,
+				'section_title'      => __( 'n8n Integration', 'acrossai-mcp-manager' ),
+				'beta'               => true,
+				'section_intro'      => __( 'The n8n integration is currently in Beta — the OAuth token issuance and audit-log paths are fully tested, but real-world workflow integrations across self-hosted / cloud / team n8n deployments are still being validated. Feature complete, not yet SLA-covered.', 'acrossai-mcp-manager' ),
+				'field_label'        => __( 'Enable n8n Tab', 'acrossai-mcp-manager' ),
+				'toggle_label'       => __( 'Show the n8n tab on every MCP server admin screen.', 'acrossai-mcp-manager' ),
 
 				// Load-bearing copy (C8 / SEC-002): without it a rushed operator
 				// responding to an incident may leave up to 90 days of live
@@ -145,6 +145,16 @@ final class N8nTab extends AbstractServerTab {
 		return $integrations;
 	}
 
+	/**
+	 * Whether the operator has switched the n8n integration on.
+	 *
+	 * Default OFF — the descriptor registered above ships `'default' => false`,
+	 * so a fresh install shows no n8n tab until the settings toggle is set. The
+	 * REST permission gate reads this too, which is why it is static: a 403
+	 * must be decidable without instantiating the tab.
+	 *
+	 * @return bool
+	 */
 	public static function is_enabled(): bool {
 		return \AcrossAI_MCP_Manager\Includes\Integrations\GlobalIntegrationRegistry::is_enabled( self::CONNECTOR_SLUG );
 	}

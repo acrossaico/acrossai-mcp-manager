@@ -659,7 +659,7 @@ final class ClientRegistrationController {
 	 * TWO-STEP CHECK per FR-027 / SEC-032-002 remediation. Origin verification
 	 * precedes path resolution:
 	 *
-	 *   Step 1 (origin verification): wp_parse_url on both $resource and home_url();
+	 *   Step 1 (origin verification): wp_parse_url on both $resource_url and home_url();
 	 *     compare scheme + host (case-insensitive) + port. On mismatch: fire
 	 *     `acrossai_mcp_oauth_dcr_resource_url_origin_mismatch` action + return 0.
 	 *     Blocks phishing DCR bodies that pass a path from this site but an
@@ -670,16 +670,16 @@ final class ClientRegistrationController {
 	 *
 	 * Caller converts 0 return into `WP_Error( 'invalid_target', 400 )`.
 	 *
-	 * @param string $resource RFC 8707 resource URL submitted in the DCR body.
+	 * @param string $resource_url RFC 8707 resource URL submitted in the DCR body.
 	 * @return int Matched server row id, or 0 on origin-mismatch OR path-mismatch.
 	 */
-	public static function resolve_server_id_from_resource_url( string $resource ): int {
-		if ( '' === $resource ) {
+	public static function resolve_server_id_from_resource_url( string $resource_url ): int {
+		if ( '' === $resource_url ) {
 			return 0;
 		}
 
 		// Step 1 — ORIGIN VERIFICATION (FR-027 / SEC-032-002).
-		$resource_parts = wp_parse_url( $resource );
+		$resource_parts = wp_parse_url( $resource_url );
 		$home_parts     = wp_parse_url( home_url() );
 
 		if (
@@ -694,7 +694,7 @@ final class ClientRegistrationController {
 			// Fire scoped observability action for differentiation from path-mismatch.
 			do_action(
 				'acrossai_mcp_oauth_dcr_resource_url_origin_mismatch',
-				$resource,
+				$resource_url,
 				get_current_user_id(),
 				time()
 			);

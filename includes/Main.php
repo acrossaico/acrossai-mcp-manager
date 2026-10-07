@@ -969,6 +969,41 @@ final class Main {
 		$oauth_timezone_health = \AcrossAI_MCP_Manager\Includes\Database\Support\TimezoneHealthCheck::instance();
 		$this->loader->add_filter( 'site_status_tests', $oauth_timezone_health, 'add_test' );
 
+		// The five built-in connector profiles. `ConnectorProfileRegistry` builds
+		// its list purely from this filter, so without this line every surface
+		// that lists connectors is empty — the AI Connectors tab, its Settings
+		// checkboxes, and Quick Connect Step 10. The companion contributed them
+		// from a closure gated on Freemius and a host probe; F095 dropped both
+		// gates and rehomed the registration here per A1.
+		$this->loader->add_filter(
+			'acrossai_mcp_manager_connector_profiles',
+			\AcrossAI_MCP_Manager\Includes\Connectors\ConnectorProfileRegistry::class,
+			'register_builtin_profiles',
+			10,
+			1
+		);
+
+		// Bridge the registry into the Discovery API (F040 filter-inversion).
+		// `ConnectionMethodRegistry` fires these two and contributes nothing
+		// itself, so Quick Connect Step 10 depends on both: the first supplies
+		// the connector tabs, the second the per-connector walkthrough HTML
+		// (F082). Step 10 renders an empty state when either is unwired.
+		$oauth_discovery_adapter = \AcrossAI_MCP_Manager\Includes\Discovery\DiscoveryConnectorAdapter::class;
+		$this->loader->add_filter(
+			'acrossai_mcp_manager_discovery_ai_connectors',
+			$oauth_discovery_adapter,
+			'provide_ai_connectors',
+			10,
+			1
+		);
+		$this->loader->add_filter(
+			'acrossai_mcp_manager_discovery_ai_connector_instructions',
+			$oauth_discovery_adapter,
+			'provide_ai_connector_instructions',
+			10,
+			1
+		);
+
 		// n8n descriptor for the global-integration registry. Default OFF: the
 		// tab stays hidden until an operator enables it on the settings page.
 		$this->loader->add_filter(

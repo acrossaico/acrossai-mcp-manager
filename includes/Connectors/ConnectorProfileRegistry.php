@@ -5,8 +5,11 @@
  * ONE public filter is the ONLY registration path:
  *   apply_filters( 'acrossai_mcp_manager_connector_profiles', [] )
  *
- * The base plugin ships zero profiles — every AI connector is a companion
- * plugin. FR-029, FR-030.
+ * Until F095 this plugin shipped zero profiles and every AI connector lived
+ * in the acrossai-pro companion. The five built-ins now ship here, and
+ * `register_builtin_profiles()` below is the callback that contributes them.
+ * The filter remains the only registration path, so third parties still add
+ * (or remove) profiles exactly as before.
  *
  * @package AcrossAI_MCP_Manager
  * @subpackage Includes\Connectors
@@ -155,5 +158,34 @@ final class ConnectorProfileRegistry {
 			}
 		}
 		return null;
+	}
+
+	/**
+	 * Contribute the five built-in profiles. Wired to the registration filter
+	 * by `Includes\Main::define_public_hooks()` (A1 — classes never hook
+	 * themselves).
+	 *
+	 * The companion registered these from an inline closure gated on Freemius
+	 * `can_use_premium_code()` and a host-dependency probe. F095 dropped both
+	 * gates — the connectors are free and there is no sibling to probe — so
+	 * this callback is unconditional. It exists as a named static method
+	 * rather than a closure because the Loader cannot carry a closure.
+	 *
+	 * @param mixed $profiles Incoming profiles from earlier callbacks. Anything
+	 *                        that is not an array is normalized to [].
+	 * @return array<int, AbstractConnectorProfile>
+	 */
+	public static function register_builtin_profiles( $profiles ): array {
+		if ( ! is_array( $profiles ) ) {
+			$profiles = array();
+		}
+
+		$profiles[] = \AcrossAI_MCP_Manager\Includes\ConnectorProfiles\ClaudeConnectorProfile::instance();
+		$profiles[] = \AcrossAI_MCP_Manager\Includes\ConnectorProfiles\GrokConnectorProfile::instance();
+		$profiles[] = \AcrossAI_MCP_Manager\Includes\ConnectorProfiles\ChatGPTConnectorProfile::instance();
+		$profiles[] = \AcrossAI_MCP_Manager\Includes\ConnectorProfiles\GeminiConnectorProfile::instance();
+		$profiles[] = \AcrossAI_MCP_Manager\Includes\ConnectorProfiles\CursorConnectorProfile::instance();
+
+		return $profiles;
 	}
 }

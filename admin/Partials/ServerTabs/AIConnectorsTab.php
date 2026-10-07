@@ -750,15 +750,21 @@ final class AIConnectorsTab extends AbstractServerTab {
 
 	/**
 	 * Empty state — centered card matching the AcrossAI Ability Library
-	 * pattern (circular icon, heading, description, primary button,
-	 * dashed separator, tip). Emits self-scoped CSS so this tab doesn't
-	 * depend on an external stylesheet.
+	 * pattern (circular icon, heading, description, dashed separator, tip).
+	 * Emits self-scoped CSS so this tab doesn't depend on an external
+	 * stylesheet.
+	 *
+	 * Before F095 this was the normal state of a free install and the card
+	 * sold the add-on that supplied the profiles. The five profiles now ship
+	 * here, so reaching this state means something unregistered them on the
+	 * `acrossai_mcp_manager_connector_profiles` filter — a developer problem,
+	 * not a purchase. The add-on CTA is gone (FR-018); the filter docs link
+	 * stays, because it is now the only thing that can explain the state.
 	 *
 	 * @return void
 	 */
 	private function render_empty_state(): void {
-		$addons_url = admin_url( 'admin.php?page=acrossai-addons' );
-		$docs_url   = 'https://github.com/acrossai-co/acrossai-mcp-manager/blob/main/docs/extending-connector-profiles.md';
+		$docs_url = 'https://github.com/acrossai-co/acrossai-mcp-manager/blob/main/docs/extending-connector-profiles.md';
 
 		?>
 		<style>
@@ -852,20 +858,11 @@ final class AIConnectorsTab extends AbstractServerTab {
 				<p class="acrossai-mcp-empty__body">
 					<?php
 					esc_html_e(
-						'Connector profiles are provided by AcrossAI add-ons. Install and activate an add-on such as "AcrossAI Claude Connectors" to see connector cards appear on this tab.',
+						'This plugin ships profiles for Claude, ChatGPT, Gemini, Grok and Cursor, so this tab is normally populated. An empty list means a plugin or theme on this site removed them.',
 						'acrossai-mcp-manager'
 					);
 					?>
 				</p>
-
-				<a class="button button-primary acrossai-mcp-empty__button" href="<?php echo esc_url( $addons_url ); ?>">
-					<?php esc_html_e( 'Browse add-ons', 'acrossai-mcp-manager' ); ?>
-					<svg class="acrossai-mcp-empty__button-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-						<path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
-						<polyline points="15 3 21 3 21 9"/>
-						<line x1="10" y1="14" x2="21" y2="3"/>
-					</svg>
-				</a>
 
 				<hr class="acrossai-mcp-empty__divider">
 
@@ -873,7 +870,7 @@ final class AIConnectorsTab extends AbstractServerTab {
 					<?php
 					printf(
 						/* translators: %s: link to the docs on writing a connector profile plugin */
-						esc_html__( 'Tip: open the Add-ons page and install "AcrossAI Claude Connectors" (or any other connector plugin you need) to populate this tab. Companion plugins register profiles via the %s.', 'acrossai-mcp-manager' ),
+						esc_html__( 'Tip: profiles are contributed through the %s. Deactivate recently added plugins to find the one filtering them out, or use the same filter to register your own.', 'acrossai-mcp-manager' ),
 						'<a href="' . esc_url( $docs_url ) . '" target="_blank" rel="noopener noreferrer">' . esc_html__( 'connector-profile filter', 'acrossai-mcp-manager' ) . '</a>'
 					);
 					?>
