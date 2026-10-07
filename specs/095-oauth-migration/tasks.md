@@ -49,6 +49,7 @@
 - [x] T015 [P] ~~Write a new `TableInstallationTest`~~ — **delivered differently, deliberately.** Four existing tests already parameterise over the Table subclasses via `@dataProvider provideTables`, with hardcoded lists of five. Writing a parallel test would have duplicated that coverage (§VI) and left the originals silently stale — the `B48` drift pattern. Instead the providers in `SchemaParityTest`, `SchemaReconcilerTest` and `PhantomVersionGuardTest` were extended so the four new tables inherit the existing schema-parity, reconciler and phantom-version-guard coverage. **Discovered follow-up: T075.**
 - [x] T016 [P] Write `tests/phpunit/Database/OAuth/LegacyCleanupRemovedTest.php` — asserts `LegacyOAuthCleanup` no longer exists, and that the four names **are still present** in `uninstall.php`'s drop list (guards both halves of T004/T006 against future "tidying").
 
+- [ ] T076 [P] Replace the 28 `window.alert()` / `window.confirm()` calls in `src/js/ai-connectors.js` with `@wordpress/components` modals. Ported verbatim and currently behind a file-level `eslint-disable no-alert` with a stated reason. Most are confirmations in front of destructive revoke/delete actions, so the replacement must keep a confirmation step — this is a UI feature, not a lint fix.
 - [ ] T075 [P] Extend `tests/phpunit/Database/SchemaManifestTest.php` — its provider derives from a `SCHEMAS` constant holding a full expected column manifest per table, so the four new modules need their manifests added. Not done alongside the other three providers because it needs each table's complete column list transcribed, not just a class reference.
 
 **Checkpoint**: tables exist and install cleanly; nothing drops them.
@@ -132,9 +133,9 @@
 - [x] T050 [US2] Delete `admin/Partials/ServerTabs/AIConnectorsPromoTab.php` (583 LOC).
 - [x] T051 [US2] Port `admin/ServerTabs/AIConnectorsTab.php` → `admin/Partials/ServerTabs/AIConnectorsTab.php`, now extending the local `AbstractServerTab`.
 - [x] T052 [US2] In `admin/Partials/ServerTabs/Connect/MethodRegistry.php`, drop the `new AIConnectorsPromoTab()` seed (line ~112) and its import (line ~36); seed the real tab. **Slot identity must not change**: slug `ai-connectors`, priority `10`.
-- [ ] T053 [US2] Delete `src/js/quick-connect/steps/Step8_ProPromo.jsx` and `Step9_ProSetup.jsx`, and remove the gate behind them — the method grid's paid marking in `Step7_MethodGrid.jsx`, the `skipProSetup` predicate in `App.jsx`, the routing in `useWizardRouter.js`, and the licence check in `includes/REST/QuickConnectController.php` (~lines 960–1017). Route Step 7 → Step 10 directly (FR-017).
-- [ ] T054 [US2] Port `src/js/ai-connectors.js` and `src/scss/ai-connectors.scss`; restore the `js/ai-connectors` entry in `webpack.config.js`, replacing the F040 tombstone comment. **Shares `webpack.config.js` with T064 — not parallel-safe against it** (SEC-T05).
-- [ ] T055 [US2] Add `maybe_enqueue_ai_connectors_app()` to `admin/Main.php`, matching the shape of the existing `maybe_enqueue_tools_app()`.
+- [x] T053 [US2] Delete `src/js/quick-connect/steps/Step8_ProPromo.jsx` and `Step9_ProSetup.jsx`, and remove the gate behind them — the method grid's paid marking in `Step7_MethodGrid.jsx`, the `skipProSetup` predicate in `App.jsx`, the routing in `useWizardRouter.js`, and the licence check in `includes/REST/QuickConnectController.php` (~lines 960–1017). Route Step 7 → Step 10 directly (FR-017).
+- [x] T054 [US2] Port `src/js/ai-connectors.js` and `src/scss/ai-connectors.scss`; restore the `js/ai-connectors` entry in `webpack.config.js`, replacing the F040 tombstone comment. **Shares `webpack.config.js` with T064 — not parallel-safe against it** (SEC-T05).
+- [x] T055 [US2] Add `maybe_enqueue_ai_connectors_app()` to `admin/Main.php`, matching the shape of the existing `maybe_enqueue_tools_app()`.
 - [ ] T056 [P] [US2] Port the OAuth-specific notices (HTTPS, WP-Cron, discovery conflict) into `admin/Partials/Notices.php`.
 
 **Checkpoint**: a clean install connects an AI client end to end. Run quickstart Test 5.

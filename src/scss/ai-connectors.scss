@@ -1,0 +1,432 @@
+/*
+ * F021 Phase 9 — AI Connectors shared card shell.
+ *
+ * Applies to every card rendered by AbstractConnectorProfile::render_default_card.
+ * Companion plugins get this look for free.
+ *
+ * Class-name contract is PUBLIC API — marked @experimental until 1.0.0.
+ * Any breaking change requires a memory entry.
+ */
+
+$card-radius:      6px;
+$card-border:      #dcdcde;
+$card-hint:        #646970;
+$card-muted:       #50575e;
+$accent:           #2271b1;
+$accent-hover:     #135e96;
+$accent-bg:        #eef4fb;
+$accent-callout:   #f0f6fc;
+$accent-callout-b: #c3d9ed;
+
+.acrossai-mcp-ai-connectors {
+	margin-top: 8px;
+
+	> .description {
+		margin: 0 0 20px;
+		color: $card-muted;
+	}
+}
+
+// Narrow panels get the 720px cap. Connections and Approved Users panels
+// intentionally omit it so their multi-column tables have room to breathe.
+// Per-connector Generate panels (ChatGPT / Claude / Grok / Others) also get
+// the cap; their tab id is the connector slug itself, so we can't enumerate
+// them here without coupling to the profile list — instead, the cap is
+// applied on the settings tab and the connector tabs match via :not().
+.acrossai-mcp-ai-connectors__panel--settings,
+.acrossai-mcp-ai-connectors__panel--other,
+.acrossai-mcp-ai-connectors__panel:not(.acrossai-mcp-ai-connectors__panel--connections):not(.acrossai-mcp-ai-connectors__panel--approved-users):not(.acrossai-mcp-ai-connectors__panel--settings) {
+	max-width: 720px;
+}
+
+// ---- Info note (tab intro) --------------------------------------------
+
+.acrossai-mcp-ai-connectors__note {
+	display: flex;
+	align-items: flex-start;
+	gap: 10px;
+	margin: 0 0 20px;
+	padding: 12px 16px;
+	background: $accent-callout;
+	border: 1px solid $accent-callout-b;
+	border-left: 4px solid $accent;
+	border-radius: 4px;
+	color: #1d2327;
+	font-size: 13px;
+	line-height: 1.5;
+}
+
+.acrossai-mcp-ai-connectors__note-icon {
+	flex-shrink: 0;
+	color: $accent;
+	margin-top: 1px;
+}
+
+.acrossai-mcp-ai-connectors__note-text {
+	flex: 1;
+}
+
+.acrossai-mcp-connector {
+	background: #fff;
+	border: 1px solid $card-border;
+	border-radius: $card-radius;
+	padding: 28px 32px;
+	margin: 0 0 20px;
+	box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+// ---- Header (icon + name) ---------------------------------------------
+
+.acrossai-mcp-connector__header {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	margin: 0 0 20px;
+	padding: 0 0 16px;
+	border-bottom: 1px solid #f0f0f1;
+}
+
+.acrossai-mcp-connector__icon {
+	display: block;
+	width: 32px;
+	height: 32px;
+	flex-shrink: 0;
+	object-fit: contain;
+}
+
+.acrossai-mcp-connector__title {
+	margin: 0;
+	font-size: 16px;
+	font-weight: 600;
+	line-height: 1.3;
+	color: #1d2327;
+}
+
+// ---- Body -------------------------------------------------------------
+
+.acrossai-mcp-connector__body {
+	display: flex;
+	flex-direction: column;
+	gap: 16px;
+}
+
+.acrossai-mcp-connector__label {
+	margin: 0 0 6px;
+	font-size: 13px;
+	font-weight: 500;
+	color: #1d2327;
+}
+
+.acrossai-mcp-connector__hint,
+.acrossai-mcp-connector__description {
+	margin: 0;
+	font-size: 12px;
+	line-height: 1.5;
+	color: $card-hint;
+}
+
+// ---- Copy row (input + button inline) ---------------------------------
+
+.acrossai-mcp-connector__copy-row {
+	display: flex;
+	align-items: stretch;
+	gap: 8px;
+}
+
+.acrossai-mcp-connector__input {
+	flex: 1;
+	min-width: 0;
+	padding: 6px 10px;
+	font-family: Consolas, Monaco, "Andale Mono", "DejaVu Sans Mono", monospace;
+	font-size: 13px;
+	line-height: 1.4;
+	background: #f6f7f7;
+	border: 1px solid $card-border;
+	border-radius: 4px;
+	color: #1d2327;
+
+	&:focus {
+		outline: 2px solid $accent;
+		outline-offset: 1px;
+		border-color: $accent;
+	}
+}
+
+.acrossai-mcp-connector__copy-btn {
+	flex-shrink: 0;
+	min-width: 64px;
+
+	&--copied {
+		background: #00a32a !important;
+		border-color: #007a1f !important;
+		color: #fff !important;
+	}
+}
+
+// ---- Credentials block (already exists) -------------------------------
+
+.acrossai-mcp-connector__credentials {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+
+	&--fresh {
+		padding: 16px;
+		background: $accent-callout;
+		border: 1px solid $accent-callout-b;
+		border-radius: 4px;
+	}
+}
+
+.acrossai-mcp-connector__actions {
+	margin: 8px 0 0;
+}
+
+// ---- Generate row -----------------------------------------------------
+
+.acrossai-mcp-connector__generate-row {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	margin: 4px 0 0;
+	flex-wrap: wrap;
+
+	.description {
+		margin: 0;
+		color: $card-hint;
+		font-size: 13px;
+		flex: 1 1 240px;
+		min-width: 200px;
+	}
+}
+
+.acrossai-mcp-connector__generate-btn,
+.acrossai-mcp-connector__regenerate-btn {
+	white-space: nowrap;
+}
+
+// ---- AJAX result block ------------------------------------------------
+
+.acrossai-mcp-connector__result:empty {
+	display: none;
+}
+
+.acrossai-mcp-connector__result[data-status="pending"] .acrossai-mcp-connector__result-message {
+	color: $card-hint;
+	font-style: italic;
+}
+
+.acrossai-mcp-connector__result[data-status="error"] .acrossai-mcp-connector__result-message {
+	color: #a00;
+	background: #fcf0f1;
+	border-left: 4px solid #a00;
+	padding: 10px 12px;
+	border-radius: 3px;
+}
+
+.acrossai-mcp-connector__result-title {
+	margin: 12px 0;
+	font-size: 14px;
+	font-weight: 600;
+	color: #007a1f;
+}
+
+// ---- Setup instructions (returned by generate/regenerate) -------------
+
+.acrossai-mcp-connector__setup {
+	margin-top: 16px;
+	padding: 16px;
+	background: #f6f7f7;
+	border-left: 4px solid $accent;
+	border-radius: 3px;
+}
+
+.acrossai-mcp-connector__setup-title {
+	margin: 0 0 10px;
+	font-size: 13px;
+	font-weight: 600;
+	color: #1d2327;
+}
+
+// Companions may nest their own <ol> / <ul> / <code> — style neutrally.
+
+.acrossai-mcp-connector__setup ol,
+.acrossai-mcp-connector__setup ul {
+	margin: 0;
+	padding-left: 22px;
+	color: #1d2327;
+	font-size: 13px;
+	line-height: 1.55;
+}
+
+.acrossai-mcp-connector__setup li {
+	margin-bottom: 6px;
+}
+
+.acrossai-mcp-connector__setup code {
+	background: $accent-bg;
+	padding: 1px 6px;
+	border-radius: 3px;
+	font-size: 12px;
+}
+
+// ---- Top-level tab bar (unified, with per-connector vs cross-connector groups) --
+
+.acrossai-mcp-ai-connectors__tabs {
+	margin: 0 0 16px;
+	padding-top: 8px;
+	display: flex;
+	align-items: flex-end;
+	flex-wrap: wrap;
+	gap: 0;
+}
+
+// Visual separator between the connector tabs (ChatGPT | Claude | Grok | Others)
+// and the cross-connector tabs (Connections | Approved Users | Settings).
+// Sits inline within the .nav-tab-wrapper — no floats, no positioning tricks —
+// so it wraps cleanly with the tabs on narrow screens.
+.acrossai-mcp-ai-connectors__tab-sep {
+	display: inline-block;
+	width: 1px;
+	align-self: stretch;
+	margin: 4px 12px 0;
+	background: $card-border;
+}
+
+.acrossai-mcp-ai-connectors__panel {
+	background: transparent;
+}
+
+.acrossai-mcp-ai-connectors__panel--connections .acrossai-mcp-connector-panel__table {
+	width: 100%;
+}
+
+.acrossai-mcp-connector-panel {
+	background: #fff;
+	border: 1px solid $card-border;
+	border-radius: $card-radius;
+	padding: 24px 28px;
+	box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.acrossai-mcp-connector-panel__title {
+	margin: 0 0 20px;
+	font-size: 16px;
+	font-weight: 600;
+	color: #1d2327;
+}
+
+.acrossai-mcp-connector-panel__label {
+	margin: 0 0 8px;
+	font-size: 13px;
+	font-weight: 500;
+	color: #1d2327;
+}
+
+.acrossai-mcp-connector-panel__setup {
+	margin-top: 20px;
+	padding: 16px;
+	background: $accent-callout;
+	border-left: 4px solid $accent;
+	border-radius: 3px;
+
+	p { margin: 0 0 8px; }
+	p:last-child { margin-bottom: 0; }
+	code { background: $accent-bg; padding: 1px 6px; border-radius: 3px; font-size: 12px; }
+}
+
+.acrossai-mcp-connector-panel__advanced {
+	margin-top: 24px;
+	border-top: 1px solid $card-border;
+	padding-top: 16px;
+}
+
+.acrossai-mcp-connector-panel__advanced > summary {
+	cursor: pointer;
+	font-size: 13px;
+	color: $accent;
+	margin-bottom: 12px;
+
+	&:hover { color: $accent-hover; }
+}
+
+.acrossai-mcp-connector-panel__advanced-body {
+	padding-top: 12px;
+
+	.description {
+		font-size: 12px;
+		color: $card-hint;
+		background: #f6f7f7;
+		border-left: 3px solid #dcdcde;
+		padding: 8px 12px;
+		border-radius: 3px;
+		margin: 0 0 16px;
+	}
+}
+
+.acrossai-mcp-connector-panel__table {
+	margin-top: 8px;
+
+	td, th {
+		vertical-align: middle;
+	}
+
+	code {
+		font-size: 12px;
+	}
+}
+
+.acrossai-mcp-connector-panel__empty {
+	padding: 20px;
+	text-align: center;
+	background: #f6f7f7;
+	border: 1px dashed #dcdcde;
+	border-radius: 4px;
+}
+
+.acrossai-mcp-connector-panel__settings-form {
+	margin-bottom: 20px;
+
+	label {
+		display: inline-block;
+		padding: 4px 0;
+	}
+
+	.description {
+		margin: 2px 0 12px 24px;
+		color: $card-hint;
+	}
+}
+
+.acrossai-mcp-connector-panel__pending-list {
+	margin: 0 0 20px;
+	padding: 0 0 0 20px;
+
+	li {
+		margin-bottom: 6px;
+	}
+}
+
+.acrossai-mcp-connector-panel__nuclear-btn {
+	color: #a00 !important;
+	border-color: #a00 !important;
+}
+
+.acrossai-mcp-connector-panel__nuclear-btn:hover {
+	background: #a00 !important;
+	color: #fff !important;
+}
+
+// ---- Responsive collapse ----------------------------------------------
+
+@media (max-width: 560px) {
+	.acrossai-mcp-connector {
+		padding: 20px 18px;
+	}
+	.acrossai-mcp-connector__copy-row {
+		flex-direction: column;
+	}
+	.acrossai-mcp-connector__copy-btn {
+		width: 100%;
+	}
+}

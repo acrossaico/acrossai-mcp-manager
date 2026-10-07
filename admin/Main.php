@@ -158,6 +158,10 @@ class Main {
 		// SC-007: the ~200KB React bundle MUST NOT load on the list-table
 		// view or any per-server-edit tab.
 		$this->maybe_enqueue_quick_connect_app();
+
+		// F095 — AI Connectors and n8n tab bundles.
+		$this->maybe_enqueue_ai_connectors_app();
+		$this->maybe_enqueue_n8n_admin_app();
 	}
 
 	/**
@@ -554,4 +558,154 @@ class Main {
 			)
 		);
 	}
+
+	/**
+	 * F095 — AI Connectors tab bundle.
+	 *
+	 * Written to this plugin's enqueue shape rather than ported verbatim. The
+	 * companion's version carried two things that no longer apply: a
+	 * `class_exists( AuthorizationController )` probe to stand down while
+	 * mcp-manager owned the path — we ARE that class now — and
+	 * `HostCapabilities` helpers that asked the host which method was being
+	 * requested. We are the host, so the routing check is read directly.
+	 *
+	 * Covers both addresses: `?tab=connect&method=ai-connectors` and the bare
+	 * `?tab=connect` default view, where MethodRegistry picks the first method
+	 * by priority — which is this one (10). Gating on a named method alone
+	 * would leave the default view rendering unstyled.
+	 *
+	 * @return void
+	 */
+	private function maybe_enqueue_ai_connectors_app(): void {
+		// phpcs:disable WordPress.Security.NonceVerification.Recommended -- Read-only routing check.
+		$is_edit    = isset( $_GET['action'] ) && 'edit' === sanitize_key( wp_unslash( $_GET['action'] ) );
+		$is_connect = isset( $_GET['tab'] ) && 'connect' === sanitize_key( wp_unslash( $_GET['tab'] ) );
+		$method     = isset( $_GET['method'] ) ? sanitize_key( wp_unslash( $_GET['method'] ) ) : '';
+		// phpcs:enable
+
+		$wants_this_panel = '' === $method || 'ai-connectors' === $method;
+
+		if ( ! $is_edit || ! $is_connect || ! $wants_this_panel || ! current_user_can( 'manage_options' ) ) {
+			return;
+		}
+
+		$asset = $this->read_asset_manifest( 'build/js/ai-connectors.asset.php' );
+		if ( null === $asset ) {
+			return;
+		}
+
+		$handle = $this->plugin_name . '-ai-connectors';
+		wp_enqueue_script(
+			$handle,
+			esc_url( \ACROSSAI_MCP_MANAGER_PLUGIN_URL . 'build/js/ai-connectors.js' ),
+			$asset['dependencies'],
+			$asset['version'],
+			true
+		);
+
+		$css_path = \ACROSSAI_MCP_MANAGER_PLUGIN_PATH . 'build/js/ai-connectors.css';
+		if ( file_exists( $css_path ) ) {
+			wp_enqueue_style(
+				$handle,
+				esc_url( \ACROSSAI_MCP_MANAGER_PLUGIN_URL . 'build/js/ai-connectors.css' ),
+				array(),
+				$asset['version']
+			);
+		}
+
+		// REST namespace stays `acrossai-mcp-manager/v1` — in-field DCR clients
+		// cached this URL, so it is a contract, not a naming preference.
+		wp_localize_script(
+			$handle,
+			'acrossaiMcpConnectors',
+			array(
+				'restEndpoint'      => esc_url_raw( rest_url( 'acrossai-mcp-manager/v1/oauth/generate-client' ) ),
+				'namespace'         => 'acrossai-mcp-manager/v1',
+				'copied'            => __( 'Copied!', 'acrossai-mcp-manager' ),
+				'reveal'            => __( 'Reveal', 'acrossai-mcp-manager' ),
+				'hide'              => __( 'Hide', 'acrossai-mcp-manager' ),
+				'working'           => __( 'Generating credentials…', 'acrossai-mcp-manager' ),
+				'failed'            => __( 'Failed to generate credentials. Please try again.', 'acrossai-mcp-manager' ),
+				'missingCtx'        => __( 'Missing server context. Reload the page and try again.', 'acrossai-mcp-manager' ),
+				'confirmRegenerate' => __( 'Regenerating will revoke every outstanding token for this connector. Continue?', 'acrossai-mcp-manager' ),
+				'issued'            => __( 'Credentials generated', 'acrossai-mcp-manager' ),
+				'clientId'          => __( 'OAuth Client ID', 'acrossai-mcp-manager' ),
+				'secret'            => __( 'OAuth Client Secret (visible once — copy it now)', 'acrossai-mcp-manager' ),
+				'setup'             => __( 'Setup instructions', 'acrossai-mcp-manager' ),
+				'copy'              => __( 'Copy', 'acrossai-mcp-manager' ),
+			)
+		);
+	}
+
+	/**
+	 * F095 — n8n tab bundle.
+	 *
+	 * The Connections panel reuses the AI Connectors bundle's revoke/delete
+	 * handlers, so that bundle is enqueued alongside this one on that panel.
+	 * Without it the read-only table still renders but its buttons are inert.
+	 *
+	 * @return void
+	 */
+	private function maybe_enqueue_n8n_admin_app(): void {
+		// phpcs:disable WordPress.Security.NonceVerification.Recommended -- Read-only routing check.
+		$is_edit = isset( $_GET['action'] ) && 'edit' === sanitize_key( wp_unslash( $_GET['action'] ) );
+		$is_n8n  = isset( $_GET['tab'] ) && 'n8n' === sanitize_key( wp_unslash( $_GET['tab'] ) );
+		$panel   = isset( $_GET['panel'] ) ? sanitize_key( wp_unslash( $_GET['panel'] ) ) : '';
+		// phpcs:enable
+
+		if ( ! $is_edit || ! $is_n8n || ! current_user_can( 'manage_options' ) ) {
+			return;
+		}
+
+		$asset = $this->read_asset_manifest( 'build/js/n8n-admin.asset.php' );
+		if ( null === $asset ) {
+			return;
+		}
+
+		$handle = $this->plugin_name . '-n8n-admin';
+		wp_enqueue_script(
+			$handle,
+			esc_url( \ACROSSAI_MCP_MANAGER_PLUGIN_URL . 'build/js/n8n-admin.js' ),
+			$asset['dependencies'],
+			$asset['version'],
+			true
+		);
+
+		$css_path = \ACROSSAI_MCP_MANAGER_PLUGIN_PATH . 'build/css/n8n.css';
+		if ( file_exists( $css_path ) ) {
+			wp_enqueue_style(
+				$handle,
+				esc_url( \ACROSSAI_MCP_MANAGER_PLUGIN_URL . 'build/css/n8n.css' ),
+				array(),
+				$asset['version']
+			);
+		}
+
+		wp_localize_script(
+			$handle,
+			'acrossaiMcpN8n',
+			array(
+				'restEndpoint' => esc_url_raw( rest_url( 'acrossai-mcp-manager/v1' ) ),
+				'namespace'    => 'acrossai-mcp-manager/v1',
+				'copied'       => __( 'Copied!', 'acrossai-mcp-manager' ),
+				'working'      => __( 'Generating token…', 'acrossai-mcp-manager' ),
+				'failed'       => __( 'Failed to generate the token. Please try again.', 'acrossai-mcp-manager' ),
+			)
+		);
+
+		// Connections panel borrows the AI Connectors handlers.
+		if ( 'connections' === $panel ) {
+			$connectors_asset = $this->read_asset_manifest( 'build/js/ai-connectors.asset.php' );
+			if ( null !== $connectors_asset ) {
+				wp_enqueue_script(
+					$this->plugin_name . '-ai-connectors',
+					esc_url( \ACROSSAI_MCP_MANAGER_PLUGIN_URL . 'build/js/ai-connectors.js' ),
+					$connectors_asset['dependencies'],
+					$connectors_asset['version'],
+					true
+				);
+			}
+		}
+	}
+
 }

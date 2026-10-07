@@ -4,17 +4,14 @@
  * Renders four method cards (Connectors, MCP Client, npm, WP-CLI). Picking
  * a card saves `method` to the scratchpad and advances the wizard — no
  * more inline expansion. The detail screen lives in a dedicated step:
- *   - connectors → step 10 (via step 8 pitch or step 9 activate gate first,
- *                  depending on `state.plugins.acrossaiPro` — App.jsx skip
- *                  predicates route to the right one)
+ *   - connectors → step 10
  *   - client     → step 11
  *   - npm        → step 12
  *   - wpcli      → step 13
  *
- * All four cards are always selectable — even the Connectors card when Pro
- * is missing / inactive. The trial promo bar and PAID badge remain to hint
- * that Connectors needs Pro, and the routing layer forwards Connectors
- * picks through the appropriate gate step.
+ * All four cards are always selectable. F095 removed the two gate steps that
+ * used to sit between this grid and the Connectors detail screen: connectors
+ * is a free capability now, so there is nothing left to gate on.
  *
  * Advance guard: canAdvance = wizardState.method !== null. Picking a card
  * both saves the choice AND advances, so the plain Continue button is a
@@ -72,9 +69,10 @@ const METHODS = [
 
 const Step7_MethodGrid = () => {
 	const { state, saveStep } = useWizardState();
-	const proState = state.plugins.acrossaiPro; // 'missing' | 'inactive' | 'active'
 	const chosenMethod = state.wizardState.method;
-	const showRecommendedBadge = proState !== 'active';
+	// F095 — unconditional. The badge used to appear only while acrossai-pro
+	// was inactive, as a nudge toward the paid add-on. Connectors is free now,
+	// so it is simply the recommended way to connect.
 	const [ picking, setPicking ] = useState( null );
 
 	useAdvanceGuard( chosenMethod !== null );
@@ -140,7 +138,7 @@ const Step7_MethodGrid = () => {
 								<>
 									<Icon size={ 18 } />{ ' ' }
 									{ m.title }
-									{ isConnectors && showRecommendedBadge && (
+									{ isConnectors && (
 										<span className="qs-card__badge">
 											{ __( 'RECOMMENDED', 'acrossai-mcp-manager' ) }
 										</span>

@@ -23,7 +23,7 @@ import { getQueryArg, addQueryArgs, removeQueryArgs } from '@wordpress/url';
 
 const STEP_ORDER = [
 	'1', '2', '3', '4', '5', '6', '7',
-	'8', '9', '10', '11', '12', '13',
+	'10', '11', '12', '13',
 	'done',
 ];
 
@@ -33,11 +33,7 @@ const STEP_ORDER = [
  *   - 4  (abilities-manager gate) — skip when plugin is already active
  *   - 5  (abilities picker) — skip when all abilities are already enabled
  *   - 6  (enable endpoint) — skip when server is already enabled
- *   - 8  (Pro pitch) — skip unless method=connectors AND pro state=missing
- *   - 9  (Pro install/activate/licence) — skip unless method=connectors AND
- *     Pro is not yet both active and licensed
- *   - 10 (Connectors detail) — skip unless method=connectors AND pro state=active
- *     AND a licence is connected
+ *   - 10 (Connectors detail) — skip unless method=connectors
  *   - 11 (Client detail) — skip unless method=client
  *   - 12 (npm detail) — skip unless method=npm
  *   - 13 (WP-CLI detail) — skip unless method=wpcli
@@ -49,9 +45,6 @@ const STEP_ORDER = [
  * @param {Object} skips
  */
 const shouldSkip = ( step, skips ) => {
-	if ( step === '9' && skips.skipProSetup ) {
-		return true;
-	}
 	if ( step === '2' && skips.skipCreate ) {
 		return true;
 	}
@@ -62,9 +55,6 @@ const shouldSkip = ( step, skips ) => {
 		return true;
 	}
 	if ( step === '6' && skips.skipEnable ) {
-		return true;
-	}
-	if ( step === '8' && skips.skipProPromo ) {
 		return true;
 	}
 	if ( step === '10' && skips.skipConnectorsDetail ) {

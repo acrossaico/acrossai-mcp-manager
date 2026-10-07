@@ -93,9 +93,16 @@ module.exports = {
 		// F020 — Tools tab React entry (mounts the hand-rolled shuttle picker).
 		// Matches F017's shape for asset manifest + optional CSS extract.
 		'js/tools': path.resolve( process.cwd(), 'src/js', 'tools.js' ),
-		// F040 — 'js/ai-connectors' entry moved to acrossai-ai-connectors
-		// companion plugin. src/js/ai-connectors.js + src/scss/ai-connectors.scss
-		// deleted from this plugin; companion's webpack.config.js builds them.
+		// F095 — AI Connectors tab entry, returned from the companion. Imports
+		// ../scss/ai-connectors.scss, which mini-css-extract emits alongside as
+		// build/js/ai-connectors.css (admin/Main.php enqueues it on file_exists).
+		'js/ai-connectors': path.resolve(
+			process.cwd(),
+			'src/js',
+			'ai-connectors.js',
+		),
+		// F095 — n8n tab entry, same shape.
+		'js/n8n-admin': path.resolve( process.cwd(), 'src/js', 'n8n-admin.js' ),
 		// F037 — Embeds tab React entry (mounts the ToggleControl-driven
 		// master + per-transport UI). Consumes GET+POST on
 		// `/acrossai-mcp-manager/v1/servers/{server_id}/embeds` via
