@@ -75,7 +75,7 @@ final class DiscoveryConflictGuard {
 		}
 
 		/**
-		 * Filters whether AcrossAI Pro claims the site's OAuth discovery documents
+		 * Filters whether this plugin claims the site's OAuth discovery documents
 		 * when another plugin bundles a competing MCP OAuth server.
 		 *
 		 * @param bool $take_over Default true.

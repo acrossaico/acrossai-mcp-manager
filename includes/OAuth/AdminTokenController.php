@@ -53,6 +53,46 @@ final class AdminTokenController {
 	private static ?self $instance = null;
 
 	/**
+	 * Audit-log an admin-issued n8n token.
+	 *
+	 * Listens on `acrossai_mcp_manager_oauth_token_issued` and ignores every
+	 * flow but its own. Silent unless an operator opts in via
+	 * `ACROSSAI_MCP_MANAGER_AUDIT_LOG` or `WP_DEBUG_LOG`.
+	 *
+	 * Logs identifiers and timings only — never the token or its digest.
+	 *
+	 * @param int|string           $token_id       Issued token row id.
+	 * @param string               $client_id      Owning client.
+	 * @param int                  $user_id        Consenting user.
+	 * @param string               $connector_slug Connector bucket.
+	 * @param array<string, mixed> $metadata       Issuance context.
+	 */
+	public static function maybe_log_token_issuance( $token_id, $client_id, $user_id, $connector_slug, $metadata = array() ): void {
+		unset( $token_id, $client_id, $connector_slug ); // Read from $metadata below.
+
+		if ( ! is_array( $metadata ) || ( $metadata['flow'] ?? '' ) !== 'n8n_admin' ) {
+			return;
+		}
+
+		$enabled = ( defined( 'ACROSSAI_MCP_MANAGER_AUDIT_LOG' ) && ACROSSAI_MCP_MANAGER_AUDIT_LOG )
+				|| ( defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG );
+		if ( ! $enabled ) {
+			return;
+		}
+
+		error_log( // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- Opt-in audit trail; carries identifiers and timings only, never the token.
+			sprintf(
+				'[audit] n8n_token_issued user=%d server=%d ttl=%d expires=%d regen=%s',
+				(int) $user_id,
+				(int) ( $metadata['server_id'] ?? 0 ),
+				(int) ( $metadata['ttl_seconds'] ?? 0 ),
+				(int) ( $metadata['expires_at'] ?? 0 ),
+				! empty( $metadata['regenerated'] ) ? 'true' : 'false'
+			)
+		);
+	}
+
+	/**
 	 * Returns the singleton instance.
 	 *
 	 * @return self

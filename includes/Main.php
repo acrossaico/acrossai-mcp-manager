@@ -890,6 +890,86 @@ final class Main {
 		$this->loader->add_filter( 'determine_current_user', $oauth_token_validator, 'authenticate', 20 );
 
 		/**
+		 * F095 — the rest of the OAuth surface.
+		 *
+		 * Every registration below was rehomed from the companion's own
+		 * `bootstrap_oauth_hooks()`. Per constitution A1 the classes themselves
+		 * register nothing; this is the only place their hooks are declared.
+		 *
+		 * Four of the companion's registrations are deliberately NOT reproduced:
+		 * `register_ai_connectors_tab`, `register_n8n_tab`,
+		 * `register_ai_connectors_method` and `register_n8n_method`. Those existed
+		 * only because an external plugin had to contribute tabs through a filter
+		 * and defer to `HostCapabilities::has_connect_tab()`. The tabs are ours
+		 * now, so they are seeded directly in Connect\MethodRegistry instead —
+		 * one indirection fewer, and no filter round-trip to reason about.
+		 */
+
+		// Stand down any competing `.well-known` implementation bundled by
+		// another plugin. Priority 1 so the decision is settled before anything
+		// else reads the discovery documents.
+		$oauth_conflict_guard = \AcrossAI_MCP_Manager\Includes\OAuth\DiscoveryConflictGuard::instance();
+		$this->loader->add_action( 'plugins_loaded', $oauth_conflict_guard, 'take_over_discovery', 1 );
+
+		// Protocol endpoints. `register_rewrite_rules` MUST run on `init` and not
+		// before: add_rewrite_rule() reaches $wp_rewrite, which is null earlier,
+		// and the failure is a fatal rather than a warning (B42).
+		$oauth_router = \AcrossAI_MCP_Manager\Includes\OAuth\OAuthRouter::instance();
+		$this->loader->add_action( 'init', $oauth_router, 'register_rewrite_rules' );
+		$this->loader->add_filter( 'query_vars', $oauth_router, 'add_query_var' );
+		$this->loader->add_action( 'parse_request', $oauth_router, 'parse_request' );
+
+		// Daily expiry sweep. Hook name is a contract preserved from before the
+		// F040 split; Activator schedules it and Deactivator clears it.
+		$oauth_cleanup = \AcrossAI_MCP_Manager\Includes\OAuth\Cleanup::instance();
+		$this->loader->add_action( 'acrossai_mcp_manager_oauth_cleanup', $oauth_cleanup, 'run' );
+
+		// Deleting a user removes their tokens and approvals.
+		$oauth_user_lifecycle = \AcrossAI_MCP_Manager\Includes\OAuth\UserLifecycle::instance();
+		$this->loader->add_action( 'deleted_user', $oauth_user_lifecycle, 'on_user_deleted', 10 );
+
+		// RFC 6750 — a 401 must say how to authenticate.
+		$oauth_bearer_challenge = \AcrossAI_MCP_Manager\Includes\OAuth\BearerChallengeHeader::instance();
+		$this->loader->add_filter( 'rest_post_dispatch', $oauth_bearer_challenge, 'add_bearer_challenge', 10, 3 );
+
+		// REST surface.
+		$oauth_client_registration = \AcrossAI_MCP_Manager\Includes\OAuth\ClientRegistrationController::instance();
+		$this->loader->add_action( 'rest_api_init', $oauth_client_registration, 'register_routes' );
+
+		$oauth_connector_admin = \AcrossAI_MCP_Manager\Includes\OAuth\ConnectorAdminController::instance();
+		$this->loader->add_action( 'rest_api_init', $oauth_connector_admin, 'register_routes' );
+
+		$oauth_admin_token = \AcrossAI_MCP_Manager\Includes\OAuth\AdminTokenController::instance();
+		$this->loader->add_action( 'rest_api_init', $oauth_admin_token, 'register_routes' );
+
+		// Revoking a user's approval cascades to their tokens (D32). Default-secure;
+		// opt out via `acrossai_mcp_connector_revoke_tokens_on_approval_revoked`.
+		$this->loader->add_action(
+			'acrossai_mcp_connector_user_approval_revoked',
+			\AcrossAI_MCP_Manager\Includes\OAuth\ConnectorAdminController::class,
+			'cascade_revoke_tokens_on_approval_revoked',
+			10,
+			4
+		);
+
+		// Opt-in audit trail for admin-issued n8n tokens.
+		$this->loader->add_action(
+			'acrossai_mcp_manager_oauth_token_issued',
+			\AcrossAI_MCP_Manager\Includes\OAuth\AdminTokenController::class,
+			'maybe_log_token_issuance',
+			10,
+			5
+		);
+
+		// Site Health. DiscoveryHealthCheck is what tells an operator a competing
+		// plugin won the `.well-known` race (FR-016 / SEC-007).
+		$oauth_discovery_health = \AcrossAI_MCP_Manager\Includes\OAuth\DiscoveryHealthCheck::instance();
+		$this->loader->add_filter( 'site_status_tests', $oauth_discovery_health, 'add_test' );
+
+		$oauth_timezone_health = \AcrossAI_MCP_Manager\Includes\Database\Support\TimezoneHealthCheck::instance();
+		$this->loader->add_filter( 'site_status_tests', $oauth_timezone_health, 'add_test' );
+
+		/**
 		 * Phase 6 — REST CLI Authentication Controller + Phase 6.0 FrontendAuth.
 		 *
 		 * Every CLI-flow hook trace MUST be in this method — feature classes

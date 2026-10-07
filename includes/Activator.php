@@ -127,6 +127,13 @@ class Activator {
 		// be present and current first.
 		OAuthDataMigration::maybe_migrate();
 
+		// F095 — daily expiry sweep for OAuth tokens and auth codes. Hook name is
+		// a contract preserved from before the F040 split, and Deactivator already
+		// clears this exact name.
+		if ( ! wp_next_scheduled( 'acrossai_mcp_manager_oauth_cleanup' ) ) {
+			wp_schedule_event( time() + HOUR_IN_SECONDS, 'daily', 'acrossai_mcp_manager_oauth_cleanup' );
+		}
+
 		// Feature 015 — Access Control v2 adoption. Create the
 		// {$wpdb->prefix}mcp_access_control table via the vendor-owned
 		// RuleTable BerlinDB subclass. SEC-015-001 defense-in-depth: the
