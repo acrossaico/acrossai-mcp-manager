@@ -365,7 +365,6 @@ final class GeminiConnectorProfile extends \AcrossAI_MCP_Manager\Includes\Connec
 	 */
 	protected function render_card_body( array $server ): void {
 		parent::render_card_body( $server );
-		parent::print_setup_styles();
 		$mcp_url = self::mcp_url_for_server( $server );
 		echo wp_kses_post( $this->get_mcp_url_setup_html( $mcp_url ) );
 	}
