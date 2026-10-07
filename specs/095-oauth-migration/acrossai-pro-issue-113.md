@@ -32,6 +32,13 @@ So on a site with both plugins today: the **n8n settings toggle still appears an
 
 2. **Keep n8n's token storage in THIS plugin — do not reach into mcp-manager's tables.**
 
+   > **Direction of travel (decided 2026-10-07):** n8n *will* move onto
+   > mcp-manager's tables in a later release. It is explicitly NOT happening
+   > now — this release keeps n8n on this plugin's own tables so the two
+   > plugins can ship independently. Treat the table work below as the
+   > interim state, not the destination, and avoid building anything on top
+   > of `acrossai_pro_mcp_oauth_*` that would be expensive to unpick.
+
    This is the decided approach. The alternative (calling mcp-manager's
    `AccessTokenRepository`) was considered and rejected: it makes a paid feature
    depend on a free-plugin repository class.
@@ -82,6 +89,15 @@ So on a site with both plugins today: the **n8n settings toggle still appears an
 
    Do not leave this implicit. "Both tables have the row and both validators
    accept it" is the state that produces a token nobody can fully revoke.
+
+   **Deferred with the table move (2026-10-07).** No change is being made now.
+   That is a conscious acceptance of the divergence for this release, not an
+   oversight: until n8n moves onto mcp-manager's tables, a pre-split n8n token
+   revoked in mcp-manager's UI stays valid in this plugin's copy. The exposure
+   is bounded — only tokens minted before F095, only `connector_slug = 'n8n'`,
+   and all of them expire within their original TTL (90 days maximum). If that
+   window is not acceptable, option (a) is the small change: have this
+   plugin's narrowed validator ignore rows it did not mint after the split.
 
 3. **Decide the option namespace.** `acrossai_n8n_enabled` is a frozen public string (memory D22). `acrossai-mcp-manager` no longer reads it. Confirm this plugin's `GlobalIntegrationRegistry` is the only reader.
 
