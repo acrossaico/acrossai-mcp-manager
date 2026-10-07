@@ -114,23 +114,23 @@
 
 ### Implementation for User Story 2
 
-- [ ] T035 [P] [US2] Port `includes/OAuth/PKCE.php` and `MessagePage.php`.
-- [ ] T036 [P] [US2] Port `includes/OAuth/{CimdResolver,CimdRegistry}.php`. Preserve `wp_safe_remote_get()` with `redirection => 0` and the capped timeout and response size — this is the SSRF defence on an attacker-supplied URL.
-- [ ] T037 [US2] Port `includes/OAuth/AuthorizationController.php`. Preserve: `is_user_logged_in()` floor, per-server connector-enabled check, `require_admin_approval` toggle semantics, the always-approve-required rule for unrecognised DCR clients, admin self-bypass **and its `acrossai_mcp_connector_admin_self_bypassed` audit action** (FR-014, SC-C6).
-- [ ] T038 [US2] Port `includes/OAuth/TokenController.php`. Preserve `D27` — a `client_secret_post` client submitting no secret falls through to PKCE-only verification rather than `invalid_client`, symmetrically in both grant handlers.
-- [ ] T039 [US2] Port `includes/OAuth/ClientRegistrationController.php` (RFC 7591 DCR + operator client generation).
-- [ ] T040 [P] [US2] Port `includes/OAuth/{DiscoveryController,DiscoveryConflictGuard}.php`.
+- [x] T035 [P] [US2] Port `includes/OAuth/PKCE.php` and `MessagePage.php`.
+- [x] T036 [P] [US2] Port `includes/OAuth/{CimdResolver,CimdRegistry}.php`. Preserve `wp_safe_remote_get()` with `redirection => 0` and the capped timeout and response size — this is the SSRF defence on an attacker-supplied URL.
+- [x] T037 [US2] Port `includes/OAuth/AuthorizationController.php`. Preserve: `is_user_logged_in()` floor, per-server connector-enabled check, `require_admin_approval` toggle semantics, the always-approve-required rule for unrecognised DCR clients, admin self-bypass **and its `acrossai_mcp_connector_admin_self_bypassed` audit action** (FR-014, SC-C6).
+- [x] T038 [US2] Port `includes/OAuth/TokenController.php`. Preserve `D27` — a `client_secret_post` client submitting no secret falls through to PKCE-only verification rather than `invalid_client`, symmetrically in both grant handlers.
+- [x] T039 [US2] Port `includes/OAuth/ClientRegistrationController.php` (RFC 7591 DCR + operator client generation).
+- [x] T040 [P] [US2] Port `includes/OAuth/{DiscoveryController,DiscoveryConflictGuard}.php`.
 - [ ] T041 [US2] Port `includes/OAuth/DiscoveryHealthCheck.php` **and extend it**: compare the served documents' `issuer` / `resource` against this plugin's expected values and report a failure when they differ. Do **not** enumerate competing implementations by name (FR-016, SEC-007, SC-C11).
 - [ ] T042 [P] [US2] Write `tests/phpunit/OAuth/DiscoveryIdentityTest.php` — asserts the health check fails when a competing implementation's document is served, and passes when ours is (SC-013).
-- [ ] T043 [US2] Port `includes/OAuth/OAuthRouter.php` with its five rewrite rules and two query vars. Register from a hook wired in `define_public_hooks()` — **never at class construction or file load**; `add_rewrite_rule()` before `init` fatals (`B42`, R5).
-- [ ] T044 [P] [US2] Port `includes/OAuth/{BearerChallengeHeader,Cleanup,UserLifecycle}.php` and schedule `acrossai_mcp_manager_oauth_cleanup` on activation / clear on deactivation.
-- [ ] T045 [P] [US2] Port `templates/oauth/{consent,message}.php`, updating loader paths. Preserve the nonce field and the server-side sourcing of all displayed state — **no `$_GET` reads** (S9, SC-C7).
+- [x] T043 [US2] Port `includes/OAuth/OAuthRouter.php` with its five rewrite rules and two query vars. Register from a hook wired in `define_public_hooks()` — **never at class construction or file load**; `add_rewrite_rule()` before `init` fatals (`B42`, R5).
+- [x] T044 [P] [US2] Port `includes/OAuth/{BearerChallengeHeader,Cleanup,UserLifecycle}.php` and schedule `acrossai_mcp_manager_oauth_cleanup` on activation / clear on deactivation.
+- [x] T045 [P] [US2] Port `templates/oauth/{consent,message}.php`, updating loader paths. Preserve the nonce field and the server-side sourcing of all displayed state — **no `$_GET` reads** (S9, SC-C7).
 - [x] T046 [P] [US2] **Pulled forward into Phase 3 — task-list dependency error.** `TokenValidator` (T030) consults `ConnectorSettings`/`ConnectorSlugDisplay` to check a token's connector is still enabled, and `AccessTokenRepository` (T027) needs `ConnectorProfileRegistry`. The auth path therefore depends on the Connectors framework, so scheduling it in the UI phase was wrong. Ported `includes/Connectors/{AbstractConnectorProfile,ConnectorSettings,ConnectorProfileRegistry,ConnectorSlugDisplay}.php`.
-- [ ] T047 [P] [US2] Port the five profiles to `includes/ConnectorProfiles/{Claude,ChatGPT,Cursor,Gemini,Grok}ConnectorProfile.php` (R4). Drop the companion's `acrossai_pro_profiles` filter alias; keep `acrossai_mcp_manager_connector_profiles`.
-- [ ] T048 [P] [US2] Port `includes/Discovery/DiscoveryConnectorAdapter.php` and hook it to the existing seam `acrossai_mcp_manager_discovery_ai_connectors` at `public/Discovery/ConnectionMethodRegistry.php:306`.
+- [x] T047 [P] [US2] Port the five profiles to `includes/ConnectorProfiles/{Claude,ChatGPT,Cursor,Gemini,Grok}ConnectorProfile.php` (R4). Drop the companion's `acrossai_pro_profiles` filter alias; keep `acrossai_mcp_manager_connector_profiles`.
+- [x] T048 [P] [US2] Port `includes/Discovery/DiscoveryConnectorAdapter.php` and hook it to the existing seam `acrossai_mcp_manager_discovery_ai_connectors` at `public/Discovery/ConnectionMethodRegistry.php:306`.
 - [ ] T049 [US2] Rehome every registration from the companion's `bootstrap_oauth_hooks()` into `includes/Main.php::define_admin_hooks()` / `define_public_hooks()` via the Loader, resolving each singleton to a named variable first. **No `add_action` / `add_filter` inside any ported class** (A1, FR-021, constitution §Boot Flow Rule).
 - [ ] T050 [US2] Delete `admin/Partials/ServerTabs/AIConnectorsPromoTab.php` (583 LOC).
-- [ ] T051 [US2] Port `admin/ServerTabs/AIConnectorsTab.php` → `admin/Partials/ServerTabs/AIConnectorsTab.php`, now extending the local `AbstractServerTab`.
+- [x] T051 [US2] Port `admin/ServerTabs/AIConnectorsTab.php` → `admin/Partials/ServerTabs/AIConnectorsTab.php`, now extending the local `AbstractServerTab`.
 - [ ] T052 [US2] In `admin/Partials/ServerTabs/Connect/MethodRegistry.php`, drop the `new AIConnectorsPromoTab()` seed (line ~112) and its import (line ~36); seed the real tab. **Slot identity must not change**: slug `ai-connectors`, priority `10`.
 - [ ] T053 [US2] Delete `src/js/quick-connect/steps/Step8_ProPromo.jsx` and `Step9_ProSetup.jsx`, and remove the gate behind them — the method grid's paid marking in `Step7_MethodGrid.jsx`, the `skipProSetup` predicate in `App.jsx`, the routing in `useWizardRouter.js`, and the licence check in `includes/REST/QuickConnectController.php` (~lines 960–1017). Route Step 7 → Step 10 directly (FR-017).
 - [ ] T054 [US2] Port `src/js/ai-connectors.js` and `src/scss/ai-connectors.scss`; restore the `js/ai-connectors` entry in `webpack.config.js`, replacing the F040 tombstone comment. **Shares `webpack.config.js` with T064 — not parallel-safe against it** (SEC-T05).
@@ -147,7 +147,7 @@
 
 **Independent test**: connect a client, revoke it, confirm its next request is rejected.
 
-- [ ] T057 [US3] Port `includes/OAuth/ConnectorAdminController.php` with all 15 routes under namespace `acrossai-mcp-manager/v1`. Every route checks `manage_options`; every per-server route validates `server_id` and returns `acrossai_mcp_oauth_cross_server` 403 on mismatch (SC-C4).
+- [~] T057 [US3] Port `includes/OAuth/ConnectorAdminController.php` with all 15 routes under namespace `acrossai-mcp-manager/v1`. Every route checks `manage_options`; every per-server route validates `server_id` and returns `acrossai_mcp_oauth_cross_server` 403 on mismatch (SC-C4).
 - [ ] T058 [US3] Preserve the `D34` carve-out: `/oauth/revoke-client-tokens-all-servers` takes only `client_id`, fires `acrossai_mcp_oauth_client_revoked_across_all_servers` once, and **must not** fire `acrossai_mcp_oauth_cross_server_attempted` (SC-C5).
 - [ ] T059 [US3] Preserve the `D32` approval-revoke cascade and its `acrossai_mcp_connector_revoke_tokens_on_approval_revoked` filter opt-out.
 - [ ] T060 [P] [US3] Write `tests/phpunit/OAuth/CrossServerBindingTest.php` — asserts a token for server A cannot act on server B, and that the site-wide revoke does not fire the bypass-attempt action (SC-C4, SC-C5, `B37`).
@@ -163,8 +163,8 @@
 
 **Independent test**: issue a token from the n8n screen and make an authenticated MCP call.
 
-- [ ] T062 [US4] Port `includes/OAuth/AdminTokenController.php`, preserving **both** guards in `permission_callback`: `wp_verify_nonce( $nonce, 'wp_rest' )` and `current_user_can( 'manage_options' )`.
-- [ ] T063 [US4] Port `admin/ServerTabs/N8nTab.php` → `admin/Partials/ServerTabs/N8nTab.php`.
+- [~] T062 [US4] Port `includes/OAuth/AdminTokenController.php`, preserving **both** guards in `permission_callback`: `wp_verify_nonce( $nonce, 'wp_rest' )` and `current_user_can( 'manage_options' )`.
+- [~] T063 [US4] Port `admin/ServerTabs/N8nTab.php` → `admin/Partials/ServerTabs/N8nTab.php`.
 - [ ] T064 [US4] Port `src/js/n8n-admin.js` and `src/scss/n8n.scss`; restore the `js/n8n-admin` and `css/n8n` entries in `webpack.config.js`. **Shares `webpack.config.js` with T054 — not parallel-safe against it** (SEC-T05).
 - [ ] T065 [P] [US4] Write `tests/phpunit/OAuth/AdminTokenTest.php` — asserts the token is returned once, stored only as a hash, and bound to the requested server.
 
@@ -174,7 +174,7 @@
 
 ## Phase 7: Polish & Cross-Cutting Concerns
 
-- [ ] T066 Reconcile the duplicate `CacheHeaders`: diff the companion's `includes/OAuth/CacheHeaders.php` against this plugin's `includes/Utilities/CacheHeaders.php`, keep one, repoint all callers (FR-022, §VI, R7).
+- [x] T066 Reconcile the duplicate `CacheHeaders`: diff the companion's `includes/OAuth/CacheHeaders.php` against this plugin's `includes/Utilities/CacheHeaders.php`, keep one, repoint all callers (FR-022, §VI, R7).
 - [ ] T067 Resolve C6 — the plugin boundary that justified `D51` and `D52` no longer exists. De-duplicate the connector CSS ported into `src/scss/quick-connect.scss` per `D50`'s intra-plugin rule, and remove the now-dead defensive union read in `Step10_ConnectorsDetail.jsx`.
 - [ ] T068 Text-domain sweep — zero `'acrossai-pro'` in any `__()` / `_e()` / `esc_html__()` call across `includes/`, `admin/`, `public/`, `templates/` (FR-020).
 - [ ] T069 Run the full-repo audit grep from `quickstart.md` §Gates. Only two exceptions permitted: the migration's `acrossai_pro_mcp_*` / `_acrossai_pro_*` source references, and the `acrossai_mcp_connector_%` comment in `uninstall.php`. Each must carry an inline comment naming Feature 095 and the follow-up that removes it.
