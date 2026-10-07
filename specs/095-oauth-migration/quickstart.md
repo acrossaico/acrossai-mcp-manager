@@ -127,6 +127,13 @@ Covers US2, FR-016 through FR-018, SC-002, SC-009.
 
 On the clean site:
 
+0. **Open the browser console first, and keep it open for every step below.**
+   ESLint and webpack cannot catch an undefined identifier in this repo —
+   `no-undef` is off (T079) and webpack bundles one without complaint — so a
+   `ReferenceError` reaches the browser with all eight CI checks green. F095
+   shipped exactly that once: the Pro-gate removal left two dangling
+   references and the wizard failed to mount. For JavaScript here, the
+   automated gates are not a substitute for loading the page.
 1. Open a server's Connectors tab — the real interface renders, not a promo card.
 2. Run Quick Connect, choose one-click connection. The wizard must go from the method grid **straight** to the connector detail screen — no promo step, no add-on setup step, no licence prompt.
 3. Connect a client and call a tool.
