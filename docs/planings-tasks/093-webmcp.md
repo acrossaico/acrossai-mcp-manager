@@ -12,18 +12,25 @@ already *inside* the browser — Gemini in Chrome, ChatGPT's browser, an extensi
 tools directly instead of squinting at the screen and clicking buttons.
 
 We already have everything this needs: the abilities, the per-server exposure rules, and a
-per-server tool list the admin has already curated on the Tools tab. This feature puts that list
-on the page.
+per-server tool list the admin has already curated. This feature puts that list in the browser.
 
 The reason this is a handful of tools and not 370 is the entire design. A page that declares one
 tool per ability hands the agent a 370-item menu in a single prompt. We now have field evidence
 for what happens when you try: a competing WordPress bridge registered 296 tools and **ChatGPT
 switched WebMCP off for that document entirely.**
 
-**The browser gets exactly what the server's Tools tab says it gets.** Pick a server in the new
-WebMCP tab, and whatever is listed under *Added as tools* on that server's Tools tab is what the
-in-page agent sees — the same list, from the same place, that a remote AI client already gets.
-One mental model, one screen to curate, no second exposure system to keep in step.
+**The browser gets exactly what the chosen server says it gets.** WebMCP gets its own submenu
+under AcrossAI: a page that explains what this is, and a dropdown listing your servers by name.
+Pick one, and that server decides everything else —
+
+- its **Tools** tab decides which tools appear,
+- its **Abilities** tab decides what sits behind them,
+- its **Access Control** tab decides who may use them at all; if the rule is not satisfied, no
+  tools are shown.
+
+Need a server dedicated to browser agents? Create one the normal way and select it here. There is
+no second place to curate anything, and nothing new to learn: it is the same server model that
+already serves remote AI clients, pointed at the browser instead.
 
 It ships **off by default**, behind a beta gate, on admin screens only.
 
@@ -51,7 +58,7 @@ The fix is not a different hardcoded list. It is to stop hardcoding:
 That method (`includes/Database/MCPServer/ToolPolicy.php:123`) already composes the effective list
 — the union of enabled protocol columns mapped through `COLUMN_MAP`, plus curated slugs from
 `MCPServerToolQuery::get_added_slugs()`, deduped with stable ordering. It is the single source of
-truth behind the *Added as tools* panel. Calling it means the WebMCP tab inherits the Tools tab
+truth behind the *Added as tools* panel. Calling it means the WebMCP page inherits the Tools tab
 for free, and keeps inheriting it when F092's stable-tool-menu work changes what is on the list.
 
 The count stays safe either way: **4 or 14**, both far under the ~30 respira-press found workable
@@ -130,6 +137,38 @@ native exists"; this is the field evidence for why that is load-bearing rather t
 | D6 | **Establish server context; do not re-implement the permission chain.** Set `CurrentServerHolder` to the selected server for the duration of the request, then call the existing `Execute` / `Discover` / `GetAbilityInfo` paths unchanged. | See below — the chain is already written, and re-implementing it silently drops four steps. |
 | D7 | **Register `ToolPolicy::compose_for_row()`, not a hardcoded triple.** The tool list is whatever the selected server's Tools tab shows. | The recommended default server has all three meta-tool flags **off** and 14 curated toolsets. Hardcoding the triple would expose tools the admin disabled and miss every one they chose. See the section above. |
 | D8 | **Tool names derive from slugs, deterministically and stably** — `toolset/content` → `wp_toolset_content`, `mcp-adapter/execute-ability` → `wp_mcp_adapter_execute_ability`. One rule, no per-tool mapping table. | WebMCP names must be identifier-shaped (no `/`) and stable across sessions; a hand-maintained map would drift the moment a toolset is added. |
+| D9 | **Access Control must pass before a single tool is registered.** Check `user_has_server_access( get_current_user_id(), $server_id )` at the top of the bridge's bootstrap and again on every REST call. If it fails, register nothing and return nothing. | The server owns tools, abilities *and* who may reach it. Registering first and refusing later leaks the catalogue — see below. |
+| D10 | **WebMCP gets its own submenu, not a Settings tab**, under the AcrossAI parent. It explains what WebMCP is and how it works, then offers the server dropdown. | It needs room to teach — this is a beta of an API most admins have never heard of. A settings tab is the wrong shape for a page that is half documentation. |
+
+### D9 in full — the third gate that will not fire
+
+This is the same structural trap as D6, and it is now the third instance of it. **Three independent
+gates all hook the vendor MCP transport, and none of them fire for a WebMCP request:**
+
+| Gate | Hook | How it finds the server | WebMCP |
+|---|---|---|---|
+| Ability exposure | `AbilityHelpers::apply_exposure_filter()` | `CurrentServerHolder` (transport-populated) | **silent, fails open** to `meta.mcp.public` |
+| Access control — list | `gate_mcp_tools_list()` on `mcp_adapter_tools_list` | the `$server` object argument | **never called** |
+| Access control — execute | `gate_mcp_tool_call()` on `mcp_adapter_pre_tool_call` | the `$server` object argument | **never called** |
+
+Each resolves the server from something only the MCP transport provides — `CurrentServerHolder`
+for the first, a `\WP\MCP\Core\McpServer` argument for the other two. A WebMCP request arrives over
+plain REST with a cookie. None of that context exists, so all three quietly do nothing.
+
+**Registering tools and refusing them later is not good enough**, and we have already paid for
+that lesson in this codebase. The access-control audit that produced
+`gate_mcp_tools_list()` / `gate_mcp_resources_list()` / `gate_mcp_prompts_list()` found exactly
+this shape: a user outside a server's access rule was correctly refused *execution* while still
+being served the full `tools/list` — every tool name and description. The fix was to hide the list,
+not just block the call. A WebMCP bridge that registers first and checks later reintroduces that
+disclosure in the browser, where the tool list is handed to an AI with no further prompting.
+
+So the order is: **check access, then compose, then register.** `user_has_server_access()` is the
+entry point and already does the slug lookup internally — but note it is deliberately **fail-open
+in five branches** (manager unavailable, no user, no server, missing row, empty slug). For the
+remote transport that is the right default. For WebMCP it is not: the bridge must treat anything
+other than an explicit `true` from a *fully resolved* context as a refusal, which means checking
+the preconditions itself rather than leaning on the helper's return value alone.
 
 ### D6 in full — this is the sharpest finding in the review
 
@@ -224,24 +263,43 @@ trial ends **2026-11-16**.
 - **T8a** `GET /webmcp/tools` returns `ToolPolicy::compose_for_row( $row )` (D7) with each tool's
   label, description and input schema, so the bridge registers from one authoritative response
   rather than reconstructing the list client-side.
+- **T8b** **Access control first, on every route** (D9). `user_has_server_access(
+  get_current_user_id(), $server_id )` before composing, before returning tools, before
+  executing — and treat anything short of an explicit allow on a fully resolved context as a
+  refusal, rather than inheriting the helper's five fail-open branches. Its own regression test:
+  a user outside the server's rule must receive **no tool names at all**, not merely a refused
+  execution.
 - **T9** Two-nonce auth (D4) and the `/nonce` refresh route. Build the refresh in now — WP nonces
   last 12–24h and an agent in a long-open editor tab *will* outlive one.
 
-### Phase 2 — the Settings tab
+### Phase 2 — the WebMCP submenu
 
-- **T10** Register via `acrossai_settings_tabs` (`slug => 'webmcp'`, `priority => 25`), sections
-  scoped to the tab page slug so `option_group` does not collide with the MCP tab.
+- **T10** Register a **submenu under the AcrossAI parent** (D10), alongside MCP and Connect, via
+  `add_submenu_page()` in `admin/Partials/Menu.php`. Not a tab on the shared Settings page — the
+  page is half explainer and needs the room. Options still registered against their own
+  `option_group` so nothing collides.
 - **T11** Two options: `acrossai_mcp_webmcp_enabled` (bool, default 0) and
   `acrossai_mcp_webmcp_server` (**slug**, default `''`). Resolve the default lazily to
   `DefaultServerSeeder::ACROSSAI_SLUG` at read time; never write a concrete id at activation.
-- **T12** Picker lists `is_enabled = 1` servers only, defaulting to **AcrossAI Recommended**
-  (`acrossai-mcp-server`) — the same row `ProtectedServers` treats as recommended on the servers
-  list, so the two screens agree on which server is the blessed one.
-- **T13** Blast-radius display: render the selected server's **composed tool list** — the same
-  *Added as tools* names the Tools tab shows — plus the effectively exposed ability count behind
-  them, and a link straight to that server's Tools tab to change it. The point is that the WebMCP
-  tab never becomes a second place to curate: it shows the consequence and sends you to the one
-  screen that owns it.
+- **T11a** **The explainer.** Top of the page: what WebMCP is, that the browser agent calls tools
+  instead of clicking the screen, which browsers can see it today, and that everything about
+  *what* it can do lives on the chosen server. Most admins have never heard of this API; the page
+  has to teach before it configures.
+- **T12** **Server dropdown, by name.** Lists `is_enabled = 1` servers, showing the names the
+  admin knows them by (*AcrossAI*, *Default MCP Server*, *My own server*), defaulting to
+  **AcrossAI Recommended** (`acrossai-mcp-server`) — the same row `ProtectedServers` treats as
+  recommended on the servers list, so both screens agree which one is blessed. Creating a server
+  dedicated to WebMCP needs no new UI: make one the normal way and pick it here.
+- **T13** **Show the consequence, own nothing.** For the selected server render its composed tool
+  list (the same *Added as tools* names), the effective ability count behind them, and its access
+  rule — each deep-linking to the tab that owns it:
+  `…&action=edit&server={id}&tab=tools`, `…&tab=abilities`, `…&tab=access-control`.
+  The WebMCP page never becomes a second place to curate. Tools, abilities and who may reach them
+  are the server's business; this page selects a server and reports what that choice means.
+- **T13a** **Access-control state is part of that display, and it gates the page's own promise.**
+  If the current admin does not satisfy the selected server's rule, say so plainly and show no
+  tool list — the same refusal the bridge will perform (D9), surfaced where it can be fixed rather
+  than discovered as silence in the browser.
 - **T14** Live browser feature-detect in the tab. Without it, an admin on Safari enables the
   feature, sees nothing happen anywhere, and files a bug.
 
@@ -281,7 +339,7 @@ trial ends **2026-11-16**.
   public frontend that hands every in-page agent the full exposed surface with no consent model.
 - **Not a replacement for the remote MCP server.** For anyone without an in-browser agent the
   remote server is the better path and this reaches nobody.
-- **Not a second curation screen.** The WebMCP tab selects a server and shows the consequence. What is on the list is owned by that server's Tools tab and nowhere else.
+- **Not a second curation screen.** The WebMCP page selects a server and reports the consequence. Tools, abilities and access are owned by that server's own tabs and nowhere else.
 - **Not a consent model.** v1 restricts rather than solves. Staged duplicates (D5) is the design
   to grow into.
 - **Not permanent plumbing.** The origin trial ends **2026-11-16**. Whatever Phase 0 concludes
