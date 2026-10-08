@@ -805,7 +805,7 @@ class Settings {
 			esc_url( $create_url ), // SEC-S2: defense in depth — esc_url is idempotent.
 			esc_html__( 'Add New', 'acrossai-mcp-manager' ),
 			esc_url( $quick_connect_url ),
-			esc_html__( 'Quick Connect via AcrossAI', 'acrossai-mcp-manager' )
+			esc_html__( 'Connect via AcrossAI', 'acrossai-mcp-manager' )
 		);
 
 		echo '<form method="post">';
