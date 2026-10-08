@@ -3034,5 +3034,34 @@ rows, all expiring within their original TTL of at most 90 days.
 - Reconsider: when n8n moves onto this plugin's tables, at which point the revocation divergence
   closes and the companion's two tables become droppable.
 
+**Superseded in part — 2026-10-08**
+The companion executed the "Reconsider" clause above rather than the decision body. It deleted its
+whole duplicated stack — OAuth server, connector profiles, all four BerlinDB table modules, admin
+notices — and its two remaining n8n files now import *this plugin's* `AccessTokenRepository`,
+`ClientRepository`, `SecretsVault`, `Utilities\CacheHeaders` and `AbstractConnectorProfile`. So "a
+paid feature must not depend on a free-plugin repository class" no longer holds, and neither does
+"the companion keeps its own tables": it registers none. Its four `acrossai_pro_mcp_*` tables still
+exist in MySQL as this plugin's migration rollback path, written by nobody.
+
+What made that safe is that n8n is **dormant** on the companion side — nothing registers those two
+files, so no live code path reaches our `@experimental` classes and signature drift cannot fatal. A
+revival is what first puts a real path on them, and must add a `class_exists` + version probe.
+
+**The blocker a revival hits first, found while doing this**
+A token whose client row carries `connector_slug = 'n8n'` is refused by our own `TokenValidator` on
+every site. `connector_enabled_for_token()` ends at
+`ConnectorSettings::is_slug_enabled_on_server( $server_id, 'n8n' )`, which resolves to
+`in_array( 'n8n', $enabled_slugs, true )`. `enabled_slugs` is seeded only from registered connector
+profiles (`ConnectorSettings.php:85`) and `handle_save_server_settings()` whitelists writes against
+that same list, so `'n8n'` can never enter it. `ConnectorSlugDisplay::bucket()` passes any non-empty
+slug through unchanged, so the `allow_other` escape hatch — itself seeded `false` — never applies.
+
+That is a category error on our side, not the companion's: the gate is for per-server connectors and
+n8n is a site-wide integration, exactly the split `D22` records as deliberately not unified. The
+sanctioned fix is for the companion to register an `n8n` profile through
+`acrossai_mcp_manager_connector_profiles`, our documented single registration point, which also
+unblocks `/oauth/generate-client` (it 404s on an unregistered slug). The three host-side supports
+listed above stay load-bearing either way.
+
 **Related**: `D31` (OAuth `server_id` first-class), `D32` (approval-revoke cascade),
 `D22` (`acrossai_n8n_enabled` is a frozen public string), `B67`.

@@ -254,6 +254,76 @@ class Notices {
 			);
 		}
 
+		// Firefox Enhanced Tracking Protection. Confirmed in the field
+		// (salon.hvacb.com, 2026-09-11): adding a custom connector in Claude
+		// failed repeatedly in Firefox and succeeded immediately once
+		// protections were switched off for the site. ETP partitions and
+		// blocks cross-site state, and the connector handshake crosses
+		// between the assistant's origin and this one, so the sign-in can be
+		// dropped part-way with no error either side can show.
+		//
+		// Registered only for the browser affected, and keyed off the request
+		// rather than anything stored: the same administrator switching to
+		// Chrome should not keep seeing it. The shared renderer dismisses by
+		// a fingerprint of the registered ids, so a Firefox-only entry never
+		// disturbs what another browser's session has already dismissed.
+		//
+		// Adopted from acrossai-pro 0.9.16 when the connector stack moved
+		// here: the condition it reports is a property of connecting an
+		// assistant, which is this plugin's feature now.
+		if ( self::is_firefox() ) {
+			$notices[] = array(
+				'id'      => 'acrossai_mcp_manager_firefox_tracking_protection',
+				'title'   => __( 'Firefox tracking protection can block AI assistants from connecting', 'acrossai-mcp-manager' ),
+				'message' => __( "You are viewing this page in Firefox. Its <strong>Enhanced Tracking Protection</strong> can stop an AI assistant part-way through connecting to this site — the connector is added, sign-in opens, and then nothing completes, usually with no error to explain it.<br><br>If a connection fails: click the <strong>shield icon</strong> to the left of the address bar, then switch <strong>Enhanced Tracking Protection</strong> off for this site and connect again. Firefox remembers the choice per site and it does not affect any other site you visit. You can switch it back on afterwards — the protection only interferes while the connection is being set up, not once it is working.", 'acrossai-mcp-manager' ),
+				'type'    => 'info',
+				'source'  => __( 'Connectors/Integrations', 'acrossai-mcp-manager' ),
+			);
+		}
+
 		return $notices;
+	}
+
+	/**
+	 * Whether the CURRENT REQUEST comes from Firefox or a Firefox-derived
+	 * browser.
+	 *
+	 * Deliberately a request-scoped check on the User-Agent rather than
+	 * anything persisted. The condition being reported is a property of the
+	 * browser reading the page, not of the site, so it has to be re-evaluated
+	 * per request — the same administrator on Chrome must not see it.
+	 *
+	 * Matches Firefox on desktop and Android (`Firefox/`), Firefox on iOS
+	 * (`FxiOS/`, a WebKit shell that still ships ETP), and the Gecko forks
+	 * that inherit the same protection stack — LibreWolf and Waterfox both
+	 * keep `Firefox/` in their User-Agent. SeaMonkey carries `Firefox/` in
+	 * some builds without shipping ETP, so it is excluded.
+	 *
+	 * A spoofed or absent User-Agent simply means no notice. That is the
+	 * right failure direction: this is advisory, it costs nothing to miss,
+	 * and showing it to someone who is not in Firefox would be confusing.
+	 *
+	 * @param string|null $user_agent Override for tests. Defaults to the
+	 *                                current request's User-Agent.
+	 * @return bool
+	 */
+	public static function is_firefox( ?string $user_agent = null ): bool {
+		if ( null === $user_agent ) {
+			// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only browser sniff for an advisory notice.
+			$user_agent = isset( $_SERVER['HTTP_USER_AGENT'] )
+				? sanitize_text_field( wp_unslash( $_SERVER['HTTP_USER_AGENT'] ) )
+				: '';
+		}
+
+		if ( '' === $user_agent ) {
+			return false;
+		}
+
+		if ( false !== stripos( $user_agent, 'Seamonkey/' ) ) {
+			return false;
+		}
+
+		return ( false !== stripos( $user_agent, 'Firefox/' ) )
+			|| ( false !== stripos( $user_agent, 'FxiOS/' ) );
 	}
 }
