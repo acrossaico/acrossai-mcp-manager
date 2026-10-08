@@ -1,4 +1,4 @@
-# Planning: WebMCP — the tool triple in the browser (Feature 093)
+# Planning: WebMCP — the server's tool list in the browser (Feature 093)
 
 Issue: [#127](https://github.com/acrossai-co/acrossai-mcp-manager/issues/127)
 
@@ -11,16 +11,56 @@ WebMCP is the other direction. The browser tab itself declares what it can do, a
 already *inside* the browser — Gemini in Chrome, ChatGPT's browser, an extension — calls those
 tools directly instead of squinting at the screen and clicking buttons.
 
-We already have everything this needs: the abilities, the per-server exposure rules, and three
-meta-tools that wrap the whole catalogue. This feature puts those three on the page.
+We already have everything this needs: the abilities, the per-server exposure rules, and a
+per-server tool list the admin has already curated on the Tools tab. This feature puts that list
+on the page.
 
-The reason it is **three** and not 370 is the entire design. A page that declares one tool per
-ability hands the agent a 370-item menu in a single prompt. We now have field evidence for what
-happens when you try: a competing WordPress bridge registered 296 tools and **ChatGPT switched
-WebMCP off for that document entirely.** Three tools stay three tools no matter how big the
-catalogue gets.
+The reason this is a handful of tools and not 370 is the entire design. A page that declares one
+tool per ability hands the agent a 370-item menu in a single prompt. We now have field evidence
+for what happens when you try: a competing WordPress bridge registered 296 tools and **ChatGPT
+switched WebMCP off for that document entirely.**
+
+**The browser gets exactly what the server's Tools tab says it gets.** Pick a server in the new
+WebMCP tab, and whatever is listed under *Added as tools* on that server's Tools tab is what the
+in-page agent sees — the same list, from the same place, that a remote AI client already gets.
+One mental model, one screen to curate, no second exposure system to keep in step.
 
 It ships **off by default**, behind a beta gate, on admin screens only.
+
+## This supersedes the issue's "register the triple" design
+
+The issue specifies registering the three meta-tools — `mcp-adapter/discover-abilities`,
+`…/get-ability-info`, `…/execute-ability` — mapped to `wp_discover_abilities` and friends. Checked
+against real data, that design breaks on the very server it names as the default:
+
+| Server | Type | `tool_*` meta flags | Curated tools | Effective list |
+|---|---|---|---|---|
+| 3 — Default MCP Server | `mcp-adapter` | all **on** | `mcp-adapter/server-guide` | **4 tools** |
+| 5 — **AcrossAI** (`acrossai-mcp-server`) | `acrossai` | all **off** | 14 × `toolset/*` | **14 tools** |
+
+The recommended default server has **all three meta-tool flags set to 0**. It does not use the
+triple at all — it exposes fourteen `toolset/*` dispatchers (`appearance`, `blocks`, `cache`,
+`configuration`, `content`, `cron`, `database`, `diagnostics`, `files`, `integrations`, `other`,
+`server-guide`, `updates`, `users`). So the issue's design would, for its own default, register
+three tools the admin explicitly switched **off** and none of the fourteen they actually curated.
+
+The fix is not a different hardcoded list. It is to stop hardcoding:
+
+> **Register `ToolPolicy::compose_for_row( $row )`.**
+
+That method (`includes/Database/MCPServer/ToolPolicy.php:123`) already composes the effective list
+— the union of enabled protocol columns mapped through `COLUMN_MAP`, plus curated slugs from
+`MCPServerToolQuery::get_added_slugs()`, deduped with stable ordering. It is the single source of
+truth behind the *Added as tools* panel. Calling it means the WebMCP tab inherits the Tools tab
+for free, and keeps inheriting it when F092's stable-tool-menu work changes what is on the list.
+
+The count stays safe either way: **4 or 14**, both far under the ~30 respira-press found workable
+and two orders of magnitude under the 296 that broke ChatGPT. Bounded by curation rather than by
+a hardcoded constant — which is the property we actually wanted.
+
+The triple is not special-cased out, either. On an `mcp-adapter`-type server its three flags are
+on, so `compose_for_row()` returns them and they get registered. The issue's design is the
+*subset* this produces for one server type.
 
 ## What Novamira is doing about this — nothing
 
@@ -46,8 +86,9 @@ from it change our plan:
 **1. The 296-tool failure — our core thesis, measured.**
 They registered one tool per ability and *"296 registered tools made ChatGPT disable WebMCP for
 the document entirely."* They retreated to *"a curated ~30-tool, page-scoped set."* This is the
-strongest possible validation of the triple: our three tools are an order of magnitude under even
-their reduced set, and the count does not move when the catalogue grows.
+strongest possible validation of registering the curated list rather than the catalogue: our
+4-or-14 sits comfortably inside the band they found workable, and it is bounded by what an admin
+chose rather than by how many abilities happen to be installed.
 
 **2. ChatGPT's `modelContext` is frozen and implements only `registerTool`.**
 Their batch `provideContext()` call *"silently no-ops"* against a frozen object. They now
@@ -87,6 +128,8 @@ native exists"; this is the field evidence for why that is load-bearing rather t
 | D4 | **Two-nonce auth**: `wp_rest` in `X-WP-Nonce` plus our own CSRF token. Send a nonce on the *discovery* call too. | Matches the only working implementation; their 401 was caused by omitting it on discovery. |
 | D5 | **Consent v1 stays read-only**, with staged-duplicate approval recorded as the v2 design rather than invented later. | Gives the read-only restriction an exit path instead of leaving it a dead end. |
 | D6 | **Establish server context; do not re-implement the permission chain.** Set `CurrentServerHolder` to the selected server for the duration of the request, then call the existing `Execute` / `Discover` / `GetAbilityInfo` paths unchanged. | See below — the chain is already written, and re-implementing it silently drops four steps. |
+| D7 | **Register `ToolPolicy::compose_for_row()`, not a hardcoded triple.** The tool list is whatever the selected server's Tools tab shows. | The recommended default server has all three meta-tool flags **off** and 14 curated toolsets. Hardcoding the triple would expose tools the admin disabled and miss every one they chose. See the section above. |
+| D8 | **Tool names derive from slugs, deterministically and stably** — `toolset/content` → `wp_toolset_content`, `mcp-adapter/execute-ability` → `wp_mcp_adapter_execute_ability`. One rule, no per-tool mapping table. | WebMCP names must be identifier-shaped (no `/`) and stable across sessions; a hand-maintained map would drift the moment a toolset is added. |
 
 ### D6 in full — this is the sharpest finding in the review
 
@@ -175,8 +218,12 @@ trial ends **2026-11-16**.
   `meta.mcp.public`, which is precisely the wrong default here. This deserves its own regression
   test: a request with no context must be refused, not silently widened.
 - **T8** Fail closed on every other degenerate case too: no row for the slug, `is_enabled = 0`,
-  all three tool flags off, empty exposure list. A dangling selection must never fall back to the
-  default server.
+  **`compose_for_row()` returns an empty list**, empty exposure list. A dangling selection must
+  never fall back to the default server. Note the degenerate case is now "no tools composed", not
+  "all three flags off" — the recommended server runs with all three flags off by design.
+- **T8a** `GET /webmcp/tools` returns `ToolPolicy::compose_for_row( $row )` (D7) with each tool's
+  label, description and input schema, so the bridge registers from one authoritative response
+  rather than reconstructing the list client-side.
 - **T9** Two-nonce auth (D4) and the `/nonce` refresh route. Build the refresh in now — WP nonces
   last 12–24h and an agent in a long-open editor tab *will* outlive one.
 
@@ -187,10 +234,14 @@ trial ends **2026-11-16**.
 - **T11** Two options: `acrossai_mcp_webmcp_enabled` (bool, default 0) and
   `acrossai_mcp_webmcp_server` (**slug**, default `''`). Resolve the default lazily to
   `DefaultServerSeeder::ACROSSAI_SLUG` at read time; never write a concrete id at activation.
-- **T12** Picker lists `is_enabled = 1` servers only.
-- **T13** Blast-radius display: which of the three `tool_*` flags are on, and the **effectively
-  exposed ability count**. A 370-ability `expose` default and a 6-ability allowlist look identical
-  in a dropdown and are not the same decision.
+- **T12** Picker lists `is_enabled = 1` servers only, defaulting to **AcrossAI Recommended**
+  (`acrossai-mcp-server`) — the same row `ProtectedServers` treats as recommended on the servers
+  list, so the two screens agree on which server is the blessed one.
+- **T13** Blast-radius display: render the selected server's **composed tool list** — the same
+  *Added as tools* names the Tools tab shows — plus the effectively exposed ability count behind
+  them, and a link straight to that server's Tools tab to change it. The point is that the WebMCP
+  tab never becomes a second place to curate: it shows the consequence and sends you to the one
+  screen that owns it.
 - **T14** Live browser feature-detect in the tab. Without it, an admin on Safari enables the
   feature, sees nothing happen anywhere, and files a bug.
 
@@ -198,10 +249,13 @@ trial ends **2026-11-16**.
 
 - **T15** Feature-detect; never shadow (D3). Bundle the polyfill locally — wp.org forbids remote
   assets and the admin CSP blocks a CDN.
-- **T16** Register the three via `registerTool`, one at a time, awaiting the Promise (D2).
-  `document.modelContext` only — `navigator.modelContext` was removed in Chrome 152.
-- **T17** Names identifier-shaped and **stable**: `wp_discover_abilities`, `wp_get_ability_info`,
-  `wp_execute_ability`. Agents that have seen the site before will reuse them.
+- **T16** Register **each tool returned by `/webmcp/tools`** via `registerTool`, one at a time,
+  awaiting the Promise (D2). `document.modelContext` only — `navigator.modelContext` was removed
+  in Chrome 152.
+- **T17** Names identifier-shaped and **stable**, derived by rule (D8): `toolset/content` →
+  `wp_toolset_content`, `mcp-adapter/execute-ability` → `wp_mcp_adapter_execute_ability`. Agents
+  that have seen the site before will reuse them, so the rule must be deterministic and must not
+  change once shipped.
 - **T18** Withdraw on navigation — one `AbortSignal` per tool, aborted on route change. The block
   editor is SPA-shaped, so page load does not bound tool lifetime.
 - **T19** Admin screens only for v1.
@@ -209,8 +263,17 @@ trial ends **2026-11-16**.
 ### Phase 4 — safety rails
 
 - **T20** Read-only abilities only; `execute` behind an explicit second toggle (D5).
-- **T21** Log server-selection changes. Tool *names* do not change when the selection does — an
-  agent with a live session silently starts getting a different ability list.
+- **T21** Log server-selection changes. Switching servers now changes the **tool names
+  themselves** — an `acrossai` server registers `wp_toolset_*`, an `mcp-adapter` server registers
+  `wp_mcp_adapter_*`. That is more visible to an agent than the issue assumed (it expected only
+  the contents behind three fixed names to change), but a live session still holds the old set
+  until it re-reads, so withdraw-and-re-register on change rather than relying on the agent to
+  notice.
+- **T22** Orphaned tool rows: `wp_acrossai_mcp_server_tools` on the dev site holds 14 rows for
+  `server_id = 6`, a server that no longer exists in `wp_acrossai_mcp_servers`. Deleting a server
+  leaves its curated tools behind. Harmless today because `compose_for_row()` is called with a
+  live row, but it is a second reason to **key the WebMCP selection by slug, never by id** — an id
+  that gets reused inherits a dead server's tool list.
 
 ## What this is not
 
@@ -218,6 +281,7 @@ trial ends **2026-11-16**.
   public frontend that hands every in-page agent the full exposed surface with no consent model.
 - **Not a replacement for the remote MCP server.** For anyone without an in-browser agent the
   remote server is the better path and this reaches nobody.
+- **Not a second curation screen.** The WebMCP tab selects a server and shows the consequence. What is on the list is owned by that server's Tools tab and nowhere else.
 - **Not a consent model.** v1 restricts rather than solves. Staged duplicates (D5) is the design
   to grow into.
 - **Not permanent plumbing.** The origin trial ends **2026-11-16**. Whatever Phase 0 concludes
