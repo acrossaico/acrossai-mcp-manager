@@ -8,6 +8,10 @@ Releases are also published at:
 https://github.com/acrossaico/acrossai-mcp-manager/releases
 
 
+= 0.4.1 =
+* **Corrected — this plugin's own description still said one-click connectors were an extra you had to buy.** They have been part of this plugin since 0.4.0. The listing, the feature list and the FAQ now say so. No code changed; if you are already on 0.4.0 you already have all of it.
+* **Rewritten — the description now covers this plugin and nothing else.** The sections comparing it against a separate paid product are gone, along with the pricing links and the free-versus-paid framing that went with them.
+* **Also — tidied this page itself.** Removed two boilerplate sections, one of which claimed PHP 7.4 compatibility and contradicted the plugin's actual PHP 8.1 requirement; shortened the upgrade notices; trimmed the changelog here to the last three releases, with the full history in changelog.txt as always; and added a FAQ answering how this plugin relates to the MCP Adapter plugin it is built on.
 = 0.4.0 =
 * **New — connecting Claude, ChatGPT, Gemini, Grok or Cursor is now part of this plugin, free.** Paste one URL into the AI client, approve the consent screen, and you are connected. This used to require the paid AcrossAI Pro add-on; the **Connectors/Integrations/Plugins** tab that previously showed an advert for it now does the actual job.
 * **Please note — load wp-admin once after updating.** The upgrade moves your existing connections into this plugin, and that move runs on the first WordPress admin page you open. On a site updated by auto-update or WP-CLI, nothing runs until someone signs in, and connected AI clients cannot authenticate until it does. Open any wp-admin page once and it completes by itself. Nothing is lost in the meantime — the clients simply get told "not authorised" until the move finishes.

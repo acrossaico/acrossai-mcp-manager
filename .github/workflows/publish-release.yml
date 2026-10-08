@@ -23,7 +23,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       # ---- per-repo configuration (change these when copying the workflow into another plugin repo) ----
-      README_PATH: README.txt
+      README_PATH: readme.txt
       CPT_REST_BASE: changelogs
       TAXONOMY_REST_BASE: products
       TAXONOMY_TERM_SLUG: acrossai-mcp-manager
