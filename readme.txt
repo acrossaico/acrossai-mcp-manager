@@ -98,7 +98,7 @@ Nobody should hand an AI agent their whole site by default, so this plugin does 
 
 Run a locked-down read-only server for a client's AI and a full-access server for yourself on the same site. Each server has its own route, namespace, version, tools, ability exposure, access rules and connect message, and they never interfere with each other.
 
-= Three Ways to Connect =
+= Four Ways to Connect =
 
 * **AI Connectors (OAuth)**: paste one URL, approve on your site. For ChatGPT, Claude, Gemini, Grok and Cursor.
 * **MCP client config (npx bridge)**: paste JSON into Claude Desktop, Cursor, VS Code and the rest, using an Application Password and `@automattic/mcp-wordpress-remote`.
@@ -121,7 +121,7 @@ Uninstalling is non-destructive by default. Your servers, rules and logs survive
 
 = Requirements =
 
-* WordPress 7.0 or higher
+* WordPress 6.9 or higher
 * PHP 8.1 or higher
 * HTTPS (required by WordPress Application Passwords)
 
@@ -228,7 +228,7 @@ Documentation and troubleshooting: [acrossai.co/docs](https://acrossai.co/docs/)
 == Upgrade Notice ==
 
 = 0.4.1 =
-Readme only, no code changes. One-click connectors have shipped with this plugin since 0.4.0.
+Now supports WordPress 6.9 and later. No settings change and no reconnecting needed.
 
 = 0.4.0 =
 One-click connectors are now free and built in. Load any wp-admin page once after updating so existing connections migrate; until then, connected AI clients cannot authenticate.
@@ -241,9 +241,11 @@ The AcrossAI server is recommended again and preselected in Quick Connect. Exist
 The complete release history lives at [acrossai.co/changelog](https://acrossai.co/changelog/).
 
 = 0.4.1 =
+* Changed: minimum WordPress version lowered from 7.0 to 6.9.
+* Fixed: the plugin header used an unrecognised name for the minimum WordPress version, so WordPress did not enforce it.
 * Corrected: the description still said one-click connectors were a paid extra. They have been part of this plugin since 0.4.0.
-* Rewritten: the description now covers this plugin only, without free-versus-paid comparisons.
-* Tidied: removed boilerplate that claimed PHP 7.4 compatibility, shortened upgrade notices, trimmed the changelog to recent releases, and added a FAQ on how this plugin relates to MCP Adapter.
+* Improved: rewrote the plugin listing and FAQ, and added a FAQ on how this plugin relates to MCP Adapter.
+* Tidied: removed boilerplate that claimed PHP 7.4 compatibility, shortened upgrade notices and trimmed the changelog to recent releases.
 
 = 0.4.0 =
 * New: connecting Claude, ChatGPT, Gemini, Grok or Cursor is now built in and free. Paste one URL, approve the consent screen, done.
@@ -261,20 +263,6 @@ The complete release history lives at [acrossai.co/changelog](https://acrossai.c
 * Changed: Quick Connect step 1 preselects the AcrossAI server.
 * Changed: new servers start on the AcrossAI type when the Abilities Manager add-on is installed; otherwise on MCP Adapter.
 * Existing servers are untouched and there is no database change.
-
-== License ==
-
-This plugin is licensed under the GPL-2.0-or-later license. See LICENSE file for details.
-
-== Credits ==
-
-MCP Manager is built with:
-- WordPress native APIs
-- Automattic's MCP WordPress Remote package
-- WordPress Application Passwords system
-
-Developed with ❤️ for the WordPress community.
-
 
 == License ==
 

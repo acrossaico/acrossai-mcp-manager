@@ -4,13 +4,15 @@
  *
  * F095 moved ~15,700 lines of OAuth and connector code into this plugin. The
  * stated position is that the incoming code imposes nothing: the floors stay
- * at PHP 8.1 (BerlinDB's official requirement) and WordPress 7.0. That was
- * asserted in the spec and nowhere else, so a casual bump in either file would
- * have gone unnoticed.
+ * at PHP 8.1 (BerlinDB's official requirement) and, since 0.4.1, WordPress
+ * 6.9. That was asserted in the spec and nowhere else, so a casual bump in
+ * either file would have gone unnoticed.
  *
- * Also pins the two files AGAINST EACH OTHER. The plugin header and README
+ * Also pins the two files AGAINST EACH OTHER. The plugin header and readme
  * carry the same two numbers in different syntax, and nothing kept them in
- * step — a release that bumped one would ship contradicting floors.
+ * step — a release that bumped one would ship contradicting floors. That is
+ * not hypothetical: the header moved to 6.9 while the readme still said 7.0,
+ * and this test is what caught it.
  *
  * The defect this test used to pin as-is is now fixed. The header previously
  * used `Requires WP:`, which WordPress does not read, so the WordPress floor
