@@ -167,6 +167,68 @@ concern, which de-risks the 2026-11-16 trial deadline for everything except Phas
 One caution: the inspector is a third-party extension loaded unpacked, so it belongs on a
 development profile, not on the browser anyone uses for production admin work.
 
+## How Laravel handles this — and it validates the design
+
+Laravel has solved our exact problem, twice over:
+[SytxLabs/LaravelWebMCP](https://github.com/SytxLabs/LaravelWebMCP) and
+[fosseva/laravel-web-mcp](https://github.com/fosseva/laravel-web-mcp). The first is the closer
+match, and its one-line pitch is our D11 thesis in someone else's words:
+
+> *Expose `laravel/mcp` tools and resources as WebMCP tools in the browser. **Write once, use over
+> MCP and WebMCP.***
+
+It arrived independently at five decisions already in this plan:
+
+| Their choice | Our decision |
+|---|---|
+| Reuses the existing MCP tool definitions; no parallel system | D7 / D11 |
+| *"Authorization reuses the existing MCP server's logic — no reimplementation"*, in the same request context | **D11** |
+| Authorization runs **twice** — on manifest generation **and** on execution | **T8b** (gate the list, not just the call) |
+| **No polyfill.** Feature-detect `'modelContext' in document`, otherwise a no-op | D3 / T15 |
+| **One `AbortController` per tool**; *"unregistration only through `abort()`"* | T18 |
+
+That last one is worth dwelling on: Laravel uses one controller **per tool**, which is what our
+plan specifies and what WP-WebMCP does not do. Two independent implementations reaching the same
+shape, against the one local plugin that shares a single controller, is about as much confidence
+as this question can give.
+
+They also re-register on SPA navigation — `livewire:navigated`, `turbo:load` — which is the Laravel
+equivalent of our block-editor problem, and confirms it is a real class of bug rather than a
+WordPress quirk.
+
+### Two things they do better than this plan
+
+**1. Per-tool opt-in, default hidden.** A tool is invisible to the browser unless its class carries
+`#[WebMcp(...)]`. Their attribute vocabulary is richer than anything we have: `mode`, `exposedTo`,
+**`confirm`**, `untrusted`, `allowAppOnly`.
+
+This is a different axis from ours and we are missing it. Our plan has **admin** curation — which
+tools this site's operator chose, via the Tools tab. Laravel adds **developer** eligibility —
+whether a tool is safe for a browser at all. They are not substitutes. An ability can be perfectly
+reasonable over remote MCP, where OAuth and audience binding apply, and wrong in a page where any
+in-page agent can call it with the admin's own cookie.
+
+Our v1 approximates this with a blunt instrument: "read-only abilities only" (D5 / T20). The
+principled version is a flag on the ability's **meta**, which costs us almost nothing because
+`ExposureResolver` already reads `meta` and `meta.mcp.public` already exists. A `meta.webmcp`
+eligibility flag slots into the model we have rather than needing new machinery — and their
+`confirm` option is the consent story we deferred, expressed per tool instead of as a global
+read-only switch.
+
+**2. Manifest diffing rather than blanket re-registration.** On navigation they re-read the
+embedded manifests and diff: *"servers whose manifest left the page are unregistered, new or
+changed ones are registered, identical ones are left alone."* Our T18 aborts and re-registers
+wholesale on every route change, which churns tools the agent may be mid-call on. Diffing is
+strictly better and costs one comparison.
+
+Also worth copying: *"The package refuses foreign URLs and only talks to its own origin."*
+
+### One concrete gift
+
+They name the Chrome flag outright: **`chrome://flags/#enable-webmcp-testing`**. That is T0's
+missing detail, and it confirms the finding above — development needs a flag, not an origin-trial
+token.
+
 ## What Novamira is doing about this — nothing
 
 Asked directly, because they are the obvious comparison. The answer is clean:
@@ -386,7 +448,7 @@ This stays task one.
 ### Phase 0 — settle the blocker before writing product code (half a day)
 
 - **T0** Set up the development harness before anything else: Chrome 150+, WebMCP flag enabled at
-  `chrome://flags`, tool-inspector extension loaded unpacked on a **development profile**. This is
+  `chrome://flags/#enable-webmcp-testing`, tool-inspector extension loaded unpacked on a **development profile**. This is
   what makes every later task observable, and it needs no origin-trial token.
 - **T1** Static page, polyfill, no token, one trivial tool. Open in Chrome with Gemini.
   Does Gemini call it? This answers whether native and polyfill are substitutes or two separate
@@ -490,16 +552,29 @@ trial ends **2026-11-16**.
   `wp_toolset_content`, `mcp-adapter/execute-ability` → `wp_mcp_adapter_execute_ability`. Agents
   that have seen the site before will reuse them, so the rule must be deterministic and must not
   change once shipped.
-- **T18** Withdraw on navigation — one `AbortSignal` per tool, aborted on **route change**, not
+- **T18** Withdraw on navigation — one `AbortSignal` **per tool**, aborted on **route change**, not
   just `pagehide`. The block editor is SPA-shaped, so page load does not bound tool lifetime. This
-  is the one place we knowingly go beyond the best local implementation: WP-WebMCP aborts a single
-  shared controller on `pagehide`, which never fires on an SPA route change and leaves the
-  previous screen's tools live.
+  is the one place we knowingly go beyond the best local plugin: WP-WebMCP aborts a single shared
+  controller on `pagehide`, which never fires on an SPA route change and leaves the previous
+  screen's tools live. Laravel's package uses one controller per tool and re-registers on
+  `livewire:navigated` / `turbo:load`, so two independent implementations agree with us here.
+- **T18a** **Diff, do not churn.** On a route change, compare the new tool list against the
+  registered one: unregister what left, register what is new, **leave identical tools alone** —
+  Laravel's manifest-diffing behaviour. Blanket abort-and-re-register tears down tools the agent
+  may be mid-call on, for no benefit when nothing changed.
+- **T18b** Same-origin only: the bridge talks to its own site and refuses foreign URLs.
 - **T19** Admin screens only for v1.
 
 ### Phase 4 — safety rails
 
 - **T20** Read-only abilities only; `execute` behind an explicit second toggle (D5).
+- **T20a** **Per-tool browser eligibility via ability meta** — the principled version of T20,
+  borrowed from Laravel's `#[WebMcp]` attribute. Admin curation (Tools tab) answers *which tools
+  this operator wants*; this answers *which tools are safe in a page at all*. They are different
+  questions and we currently only ask the first. A `meta.webmcp` flag costs almost nothing:
+  `ExposureResolver` already reads `meta`, and `meta.mcp.public` already establishes the pattern.
+  Default closed, like theirs. Their `confirm` option is the per-tool consent story we deferred to
+  v2 — design the flag so it can carry that later rather than being a bare boolean.
 - **T21** Log server-selection changes. Switching servers now changes the **tool names
   themselves** — an `acrossai` server registers `wp_toolset_*`, an `mcp-adapter` server registers
   `wp_mcp_adapter_*`. That is more visible to an agent than the issue assumed (it expected only
@@ -533,5 +608,8 @@ trial ends **2026-11-16**.
 - [Novamira review — WP Mayor](https://wpmayor.com/novamira-review/)
 - [Novamira docs](https://novamira.ai/docs/getting-started/)
 - [code-atlantic/webmcp-abilities](https://github.com/code-atlantic/webmcp-abilities)
+- [SytxLabs/LaravelWebMCP](https://github.com/SytxLabs/LaravelWebMCP)
+- [fosseva/laravel-web-mcp](https://github.com/fosseva/laravel-web-mcp)
+- [mario-oliver/model-context-tool-inspector](https://github.com/mario-oliver/model-context-tool-inspector)
 - [WordPress/ai#448](https://github.com/WordPress/ai/issues/448)
 - [wordpress-playground#4301](https://github.com/WordPress/wordpress-playground/pull/4301)
