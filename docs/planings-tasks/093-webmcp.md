@@ -124,6 +124,49 @@ So v1 ships with no polyfill, and the polyfill becomes exactly what Phase 0 is f
 worth carrying if T1 shows it reaches an audience native detection does not (extension agents).
 If it does, add it then — behind the same detect, never over it.
 
+## Do we build an agent? No — and here is how to see it working
+
+**We publish tools. We never build the thing that calls them.** The agent is the browser's own
+(Gemini in Chrome), the browser vendor's (ChatGPT's browser), or an extension the user installs.
+Our side ends at "the page has declared these tools."
+
+That raises the fair question of how anyone verifies it, and the answer has three layers — only
+the last of which needs an agent at all.
+
+**Layer 1 — the REST routes. No browser, no agent.** `/webmcp/tools`, `/webmcp/execute` and
+`/webmcp/nonce` are ordinary authenticated REST endpoints; curl or Postman exercises the whole
+server side, including every gate. This is the bulk of the feature and the bulk of the risk, and
+it is testable the day Phase 1 lands. WP-WebMCP's own `docs/live-site-testing-process.md` runbook
+is almost entirely this — manifest, discovery, capability and denial checks over plain HTTP.
+
+**Layer 2 — did registration happen? Browser console, still no agent.**
+
+```js
+document.modelContext                      // undefined → nothing will ever see your tools
+typeof document.modelContext.registerTool  // "function" → the bridge can register
+```
+
+T14's Supported / Not supported indicator is this check, surfaced on our own page so an admin
+never has to open a console. WP-WebMCP's `assets/admin.js` has exactly this in a `supported()`
+helper, and it is the cheapest support-ticket prevention in the feature.
+
+**Layer 3 — an agent actually calling a tool.** Cheapest first:
+
+| Route | What it needs | Good for |
+|---|---|---|
+| **Tool inspector extension** | Chrome 150+, WebMCP flag at `chrome://flags`, loaded unpacked | **development.** Lists the page's registered tools and executes them by hand. A Gemini API key is optional — listing and manual execution work without one; only the agent-loop transcript needs it |
+| **Gemini in Chrome** | Chrome 149–156 + origin-trial token | the real native audience, and the Phase-0 question |
+| **ChatGPT's browser** | — | confirms the frozen-object path (T2) |
+| **Extension agents** (MCP-B, Claude in Chrome) | the extension | the cross-browser audience, and whether a polyfill is worth carrying |
+
+The practical consequence: **development does not need the origin-trial token.** A `chrome://flags`
+toggle plus the inspector extension is enough to see tools listed and run them by hand. The token
+matters for shipping to real users on stable Chrome — it is a release concern, not a build-it
+concern, which de-risks the 2026-11-16 trial deadline for everything except Phase 0's T1.
+
+One caution: the inspector is a third-party extension loaded unpacked, so it belongs on a
+development profile, not on the browser anyone uses for production admin work.
+
 ## What Novamira is doing about this — nothing
 
 Asked directly, because they are the obvious comparison. The answer is clean:
@@ -342,7 +385,10 @@ This stays task one.
 
 ### Phase 0 — settle the blocker before writing product code (half a day)
 
-- **T1** Static page, bundled polyfill, no token, one trivial tool. Open in Chrome with Gemini.
+- **T0** Set up the development harness before anything else: Chrome 150+, WebMCP flag enabled at
+  `chrome://flags`, tool-inspector extension loaded unpacked on a **development profile**. This is
+  what makes every later task observable, and it needs no origin-trial token.
+- **T1** Static page, polyfill, no token, one trivial tool. Open in Chrome with Gemini.
   Does Gemini call it? This answers whether native and polyfill are substitutes or two separate
   audiences — and therefore whether the origin-trial token is mandatory plumbing or optional.
 - **T2** Same page in ChatGPT's browser. Confirm the frozen-object behaviour first-hand and that
