@@ -68,7 +68,7 @@ final class QuickConnectPage {
 		echo '<div id="acrossai-mcp-quick-connect-root"></div>';
 		echo '<noscript><p>';
 		echo esc_html__(
-			'The Quick Connect via AcrossAI wizard requires JavaScript. Enable JavaScript in your browser to use it.',
+			'The Connect via AcrossAI wizard requires JavaScript. Enable JavaScript in your browser to use it.',
 			'acrossai-mcp-manager'
 		);
 		echo '</p></noscript>';

@@ -403,7 +403,7 @@ class MCPServerListTable extends \WP_List_Table {
 		$links_html       .= sprintf(
 			'<a href="%s" class="acrossai-quicklink"><span class="dashicons dashicons-admin-tools" aria-hidden="true"></span><span class="acrossai-quicklink-label">%s</span></a>',
 			esc_url( $quick_connect_url ),
-			esc_html__( 'Quick Connect via AcrossAI', 'acrossai-mcp-manager' )
+			esc_html__( 'Connect via AcrossAI', 'acrossai-mcp-manager' )
 		);
 
 		return sprintf(

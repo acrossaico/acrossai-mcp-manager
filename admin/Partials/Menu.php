@@ -91,7 +91,7 @@ class Menu {
 			2
 		);
 
-		// 2) Quick Connect via AcrossAI — position 3, right after MCP (F072 FR-003).
+		// 2) Connect via AcrossAI — position 3, right after MCP (F072 FR-003).
 		// URL-literal menu_slug + empty render callback = WP renders this
 		// submenu item as a direct link to the wizard URL; no dedicated
 		// page is created because ?quick-connect=1 is handled by the MCP
@@ -102,10 +102,10 @@ class Menu {
 			// entry lives under the AcrossAI parent, so the "via AcrossAI"
 			// tail is redundant. Every other surface (plugins.php action
 			// link, servers-list button, per-row pill, Settings sub-nav,
-			// admin-bar chip) keeps the full "Quick Connect via AcrossAI"
+			// admin-bar chip) keeps the full "Connect via AcrossAI"
 			// so the wizard is discoverable outside the sidebar too.
-			__( 'Quick Connect', 'acrossai-mcp-manager' ),
-			__( 'Quick Connect', 'acrossai-mcp-manager' ),
+			__( 'Connect', 'acrossai-mcp-manager' ),
+			__( 'Connect', 'acrossai-mcp-manager' ),
 			'manage_options',
 			'admin.php?page=' . AdminPageSlugs::PARENT . '&quick-connect=1&step=1',
 			'',
@@ -145,11 +145,11 @@ class Menu {
 		$quick_connect_link = sprintf(
 			'<a href="%s">%s</a>',
 			$quick_connect_url,
-			esc_html__( 'Quick Connect via AcrossAI', 'acrossai-mcp-manager' )
+			esc_html__( 'Connect via AcrossAI', 'acrossai-mcp-manager' )
 		);
 
-		// Prepend Quick Connect via AcrossAI first, then Settings, so the final row order
-		// reads Settings | Quick Connect via AcrossAI | Deactivate | Download (F072 FR-002).
+		// Prepend Connect via AcrossAI first, then Settings, so the final row order
+		// reads Settings | Connect via AcrossAI | Deactivate | Download (F072 FR-002).
 		array_unshift( $links, $quick_connect_link );
 		array_unshift( $links, $settings_link );
 
