@@ -9,7 +9,8 @@ https://github.com/acrossaico/acrossai-mcp-manager/releases
 
 
 = 0.4.1 =
-* **Corrected — this plugin's own description still said one-click connectors were a paid extra.** They have been part of the free plugin since 0.4.0. The listing, the feature list and the FAQ now say so, and the connector, the OAuth server that powers it and the connections dashboard have moved from the paid section to the free one. No code changed; if you are already on 0.4.0 you already have all of it.
+* **Corrected — this plugin's own description still said one-click connectors were an extra you had to buy.** They have been part of this plugin since 0.4.0. The listing, the feature list and the FAQ now say so. No code changed; if you are already on 0.4.0 you already have all of it.
+* **Rewritten — the description now covers this plugin and nothing else.** The sections comparing it against a separate paid product are gone, along with the pricing links and the free-versus-paid framing that went with them.
 * **Also — tidied this page itself.** Removed two boilerplate sections, one of which claimed PHP 7.4 compatibility and contradicted the plugin's actual PHP 8.1 requirement; shortened the upgrade notices; trimmed the changelog here to the last three releases, with the full history in changelog.txt as always; and added a FAQ answering how this plugin relates to the MCP Adapter plugin it is built on.
 = 0.4.0 =
 * **New — connecting Claude, ChatGPT, Gemini, Grok or Cursor is now part of this plugin, free.** Paste one URL into the AI client, approve the consent screen, and you are connected. This used to require the paid AcrossAI Pro add-on; the **Connectors/Integrations/Plugins** tab that previously showed an advert for it now does the actual job.

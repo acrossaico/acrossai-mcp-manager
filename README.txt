@@ -8,7 +8,7 @@ Stable tag: 0.4.1
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-Connect ChatGPT, Claude, Grok, Gemini & Cursor to WordPress in one click — free. Self-hosted MCP server: no relay, no middleman, no lock-in.
+Connect ChatGPT, Claude, Grok, Gemini & Cursor to WordPress in one click. Self-hosted MCP server: no relay, no middleman, no lock-in.
 
 == Description ==
 
@@ -26,7 +26,7 @@ Every section below links to the relevant page. Source and issues live at [githu
 
 This is the part worth reading twice, because it is the main thing that separates this plugin from the alternatives.
 
-**There is no middleman.** The free plugin makes zero outbound HTTP requests of its own — no telemetry, no phone-home, no proxy, no hosted relay. Your MCP endpoint is a route on your own site, and your AI client talks to it directly. The `npx` bridge that some clients use runs on *your own computer*, not on anyone's server.
+**There is no middleman.** This plugin makes zero outbound HTTP requests of its own — no telemetry, no phone-home, no proxy, no hosted relay. Your MCP endpoint is a route on your own site, and your AI client talks to it directly. The `npx` bridge that some clients use runs on *your own computer*, not on anyone's server.
 
 That means **your content never passes through a third party's infrastructure**, there is no account to create with us to make it work, no service that has to stay online for your site to keep working, and nothing to migrate if you stop using the plugin. Your credentials are WordPress Application Passwords, issued by your own site and revocable from your own profile page.
 
@@ -38,11 +38,9 @@ Works with **Claude Desktop**, **Claude Code** in the terminal, and Claude on th
 
 → [Connect an AI client](https://acrossai.co/docs/mcp-connect-a-client/)
 
-= Connect ChatGPT, Claude and Grok in One Click — Free =
+= Connect ChatGPT, Claude and Grok in One Click =
 
 **AI Connectors** connect **ChatGPT**, **Claude**, **Grok**, **Gemini** and **Cursor** in one click. Paste one URL into the AI client, approve the consent screen on your own site, and you are connected. No config file to edit, no Application Password to copy.
-
-This used to require the paid add-on. Since 0.4.0 it is part of this plugin and free.
 
 The connection is still yours end to end: the **OAuth 2.1 server runs on your own site**, not on ours. The clients, tokens and authorization codes are rows in your database, and there is no third-party cloud between your AI and your WordPress.
 
@@ -58,7 +56,7 @@ Every one uses the same transport underneath, so nothing is second-class. A new 
 
 = What Your AI Can Actually Do =
 
-On its own, this plugin is the server, the security and the plumbing. Install the **free** companion [AcrossAI Abilities Manager](https://wordpress.org/plugins/acrossai-abilities-manager/) and your AI gains **357 abilities across 14 toolsets on any WordPress site**, rising to **over 800 across 32 toolsets** as it detects the plugins you already run.
+On its own, this plugin is the server, the security and the plumbing. Install the companion [AcrossAI Abilities Manager](https://wordpress.org/plugins/acrossai-abilities-manager/) and your AI gains **357 abilities across 14 toolsets on any WordPress site**, rising to **over 800 across 32 toolsets** as it detects the plugins you already run.
 
 * **Content** — create and update posts, pages and any custom post type with their meta and revisions; moderate comments; manage the media library, categories and tags; run semantic search to find related content and propose, review and apply internal links.
 * **Blocks** — read and surgically edit a page's block tree without rewriting the page, build from patterns, generate sections and landing pages, audit copy and design.
@@ -107,18 +105,6 @@ Create as many servers as you need, each with its own route, namespace, version,
 * **CLI connections with browser approval** — one command in the terminal, one click in the browser, zero password copying. Every approved, successful and failed attempt is recorded in a per-server audit log. Off by default. → [Docs](https://acrossai.co/docs/mcp-cli-connections/)
 * **WP-CLI (STDIO)** — the client launches WP-CLI as a subprocess, so **no credential crosses the network at all**. Ideal for local development and CI. → [Docs](https://acrossai.co/docs/mcp-wp-cli-stdio/)
 
-= AcrossAI Pro — the Optional Paid Add-On =
-
-Everything above this point is free. [AcrossAI Pro](https://acrossai.co/pricing/) is a separate plugin that adds the following, and nothing here is required to run an MCP server:
-
-* **Membership-aware access control *(Pro)*** — gate an MCP server by membership or course enrolment instead of only by WordPress role, across **10 platforms**: BuddyBoss, MemberPress, LearnDash, LifterLMS, Paid Memberships Pro, Restrict Content Pro, WooCommerce Memberships, s2Member, Wishlist Member and Memberium.
-* **276 more abilities *(Pro)*** — deep coverage for **LearnDash** (74), **BuddyBoss** (60), **MailerPress** (89 plus 28 for MailerPress Pro) and **GeoDirectory** (25), each active only when that plugin is.
-* **n8n connection — Beta *(Pro)*** — connect your site to n8n workflows using a generated bearer token or an Application Password, with a chosen lifetime and one-click revocation. Off by default, and labelled Beta in the plugin itself: n8n's own MCP OAuth credential is not yet OAuth 2.1 compliant, so this path is deliberately token-based rather than OAuth.
-
-Pro keeps the same model as the free plugin: **it runs on your own server, with no third-party cloud**, and actions are never metered or credited. Plans start at a **30-day free trial with no card required**, and every plan carries a **14-day money-back guarantee**. Local and staging sites do not count against your site limit.
-
-→ [Plans and pricing](https://acrossai.co/pricing/)
-
 = For Site Owners, Developers and Agencies =
 
 **Site owners** write, edit and publish through conversation with the AI they already pay for, without learning a new admin screen and without their content touching a third party.
@@ -135,7 +121,7 @@ WordPress 6.9 introduced the Abilities API so plugins can declare self-describin
 
 = Privacy and Data =
 
-The free plugin sends nothing anywhere. No analytics, no usage reporting, no external service.
+This plugin sends nothing anywhere. No analytics, no usage reporting, no external service.
 
 The only outbound connection is WordPress core's own plugin installer reaching WordPress.org, and only when *you* click to install a companion plugin from the setup wizard.
 
@@ -160,13 +146,11 @@ Clients, server tabs, connect methods and server types are all registered throug
 * Per-server custom connect message for the AI client
 * CLI connection audit log covering approved, successful and failed attempts
 * Guided Quick Connect wizard, plus a full manual path
-* Optional request logging through the free MCP Tracker plugin
+* Optional request logging through the MCP Tracker plugin
 * Tunable ability-discovery page size with a live token-cost estimate
 * Non-destructive uninstall by default
 * Filter-based extension surface for clients, tabs, connect methods and server types
-* Works with the free AcrossAI Abilities Manager add-on for 357+ abilities across 14 toolsets
-
-Optionally, with [AcrossAI Pro](https://acrossai.co/pricing/): membership-aware access control across 10 platforms, 276 more abilities, and an n8n connection in Beta. See the section above for detail.
+* Works with the AcrossAI Abilities Manager add-on for 357+ abilities across 14 toolsets
 
 = Requirements =
 
@@ -189,12 +173,6 @@ To install manually, upload the plugin folder to `/wp-content/plugins/` and acti
 
 Full FAQ + troubleshooting lives at [acrossai.co/docs/mcp-faq-troubleshooting](https://acrossai.co/docs/mcp-faq-troubleshooting/). Quick answers below.
 
-= Is this plugin free? =
-
-Yes, entirely — and so is the [AcrossAI Abilities Manager](https://wordpress.org/plugins/acrossai-abilities-manager/) add-on that supplies the abilities. Both are on WordPress.org under GPL.
-
-The only paid piece is [AcrossAI Pro](https://acrossai.co/pricing/), which adds an n8n connection, membership-aware access control across 10 platforms, and extra plugin toolsets. It starts with a 30-day free trial and no card. Everything else described on this page works without paying anyone.
-
 = Does my content go to a third party? =
 
 No. The plugin makes no outbound HTTP requests of its own — no telemetry, no relay, no proxy. Your MCP endpoint is a route on your own site and your AI client talks to it directly; the `npx` bridge runs on your own machine. The only external call is WordPress core's plugin installer, and only when you click to install a companion plugin.
@@ -205,7 +183,7 @@ You need an AI client that speaks MCP, and you bring your own. This plugin never
 
 = Which AI clients are supported? =
 
-Sixteen built-in clients ship with the free plugin — every one gets a ready-to-paste JSON snippet and its own tab:
+Sixteen built-in clients ship with the plugin — every one gets a ready-to-paste JSON snippet and its own tab:
 
 * Claude Desktop
 * Claude Code
@@ -224,7 +202,7 @@ Sixteen built-in clients ship with the free plugin — every one gets a ready-to
 * Antigravity
 * Custom Client (template for any other MCP-compatible tool)
 
-**ChatGPT**, **Claude**, **Grok**, **Gemini** and **Cursor** also connect in one click through the built-in **AI Connectors**, which run their OAuth on your own site rather than through anyone's cloud. That is free as of 0.4.0 — it previously required the paid add-on. Adding a brand-new client is a filter callback. See [Connecting an AI client](https://acrossai.co/docs/mcp-connect-a-client/).
+**ChatGPT**, **Claude**, **Grok**, **Gemini** and **Cursor** also connect in one click through the built-in **AI Connectors**, which run their OAuth on your own site rather than through anyone's cloud. Adding a brand-new client is a filter callback. See [Connecting an AI client](https://acrossai.co/docs/mcp-connect-a-client/).
 
 = Can the AI break my site? =
 
@@ -234,7 +212,7 @@ With the Abilities Manager add-on, roughly half the catalogue is annotated read-
 
 = What can the AI actually do once connected? =
 
-With the free Abilities Manager add-on: 357 abilities across 14 toolsets on any site — content, blocks, appearance, users, configuration, database, files, cron, cache, updates and diagnostics — rising to over 800 across 32 toolsets as it detects plugins such as WooCommerce, Elementor, Rank Math, Yoast SEO, ACF and LiteSpeed Cache. Without the add-on, the plugin still serves whatever abilities WordPress and your other plugins have registered.
+With the Abilities Manager add-on: 357 abilities across 14 toolsets on any site — content, blocks, appearance, users, configuration, database, files, cron, cache, updates and diagnostics — rising to over 800 across 32 toolsets as it detects plugins such as WooCommerce, Elementor, Rank Math, Yoast SEO, ACF and LiteSpeed Cache. Without the add-on, the plugin still serves whatever abilities WordPress and your other plugins have registered.
 
 = Do I have to install the Abilities Manager add-on? =
 
@@ -291,7 +269,7 @@ Delete its Application Password from your WordPress profile page, or disable the
 1. The Overview tab — your server at a glance, including the live MCP endpoint URL to hand your AI client, with every supported client listed underneath.
 2. Terminal users connect with one command and approve it in the browser. Every approved, successful and failed attempt is recorded in the per-server CLI connection log.
 3. Pick your AI client, generate a WordPress Application Password in one click, and copy configuration JSON that already has the right file path and top-level key for that client.
-4. AI Connectors — paste one URL into Claude, ChatGPT, Grok, Gemini or Cursor and approve the consent screen on your own site. Built in and free.
+4. AI Connectors — paste one URL into Claude, ChatGPT, Grok, Gemini or Cursor and approve the consent screen on your own site. Built in.
 5. WP-CLI STDIO transport — the client launches WP-CLI as a subprocess, so no credential ever crosses the network. Ideal for local development.
 6. The Tools tab — choose exactly which abilities this server advertises. Add three, or add hundreds.
 7. The Abilities tab — switch individual abilities on or off per server, with search, filters and bulk actions across the whole catalogue.
@@ -302,7 +280,7 @@ Delete its Application Password from your WordPress profile page, or disable the
 == Upgrade Notice ==
 
 = 0.4.1 =
-Readme correction only — no code changes. The listing had still been describing one-click connectors as a paid extra; they have been free since 0.4.0.
+Readme only — no code changes. The description had still been presenting one-click connectors as something you had to buy; they have shipped with this plugin since 0.4.0.
 
 = 0.4.0 =
 One-click connectors are now free and built in. Load any wp-admin page once after updating so existing connections migrate — until you do, connected AI clients cannot authenticate. Nothing needs reconnecting.
@@ -321,7 +299,8 @@ Installing the AcrossAI Abilities Manager add-on now works immediately — no se
 The complete, formatted release history — including releases older than the ones shown here — lives at [acrossai.co/changelog](https://acrossai.co/changelog/). WordPress.org truncates this section, so the site is the fuller record.
 
 = 0.4.1 =
-* **Corrected — this plugin's own description still said one-click connectors were a paid extra.** They have been part of the free plugin since 0.4.0. The listing, the feature list and the FAQ now say so, and the connector, the OAuth server that powers it and the connections dashboard have moved from the paid section to the free one. No code changed; if you are already on 0.4.0 you already have all of it.
+* **Corrected — this plugin's own description still said one-click connectors were an extra you had to buy.** They have been part of this plugin since 0.4.0. The listing, the feature list and the FAQ now say so. No code changed; if you are already on 0.4.0 you already have all of it.
+* **Rewritten — the description now covers this plugin and nothing else.** The sections comparing it against a separate paid product are gone, along with the pricing links and the free-versus-paid framing that went with them.
 * **Also — tidied this page itself.** Removed two boilerplate sections, one of which claimed PHP 7.4 compatibility and contradicted the plugin's actual PHP 8.1 requirement; shortened the upgrade notices; trimmed the changelog here to the last three releases, with the full history in changelog.txt as always; and added a FAQ answering how this plugin relates to the MCP Adapter plugin it is built on.
 
 = 0.4.0 =
