@@ -4,7 +4,7 @@ Tags: mcp, ai, mcp-adapter, claude, chatgpt
 Requires at least: 6.9
 Requires PHP: 8.1
 Tested up to: 7.1
-Stable tag: 0.4.2
+Stable tag: 0.4.3
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -221,6 +221,9 @@ Documentation: [acrossai.co/docs](https://acrossai.co/docs/). Every ability, sea
 
 == Upgrade Notice ==
 
+= 0.4.3 =
+Adds a Firefox-only note explaining why a connection can fail silently there, and stops an uninstall leaving one settings row behind. No settings change and no reconnecting needed.
+
 = 0.4.2 =
 A clearer plugin listing and six new screenshots of the ability controls. No code change, no settings change and no reconnecting needed.
 
@@ -236,6 +239,10 @@ The AcrossAI server is recommended again and preselected in Quick Connect. Exist
 == Changelog ==
 
 The complete release history lives at [acrossai.co/changelog](https://acrossai.co/changelog/).
+
+= 0.4.3 =
+* **New: a heads-up in Firefox, where tracking protection can block an assistant from connecting.** Firefox's Enhanced Tracking Protection can stop the connection part-way through — the connector is added, sign-in opens, and then nothing completes, with no error shown anywhere to explain it. Opening a connector screen in Firefox now shows a note explaining this and how to get past it: click the shield icon to the left of the address bar and switch Enhanced Tracking Protection off for this site, then connect again. The setting is remembered per site, affects nothing else you browse, and can be switched back on once the connection is working. The note appears only in Firefox and can be dismissed.
+* **Fixed: uninstalling left a settings row behind.** The "delete all data on uninstall" sweep deliberately skipped every option starting `acrossai_mcp_connector_`, because an earlier release had handed that namespace to the paid plugin and deleting another plugin's settings would have been wrong. Version 0.4.0 took that area back, which quietly turned the exception into a leak: the only row it still protected was this plugin's own version marker for one of its four tables — a table the same uninstall drops. The sweep now covers the whole namespace. Only affects uninstalling with the delete option switched on.
 
 = 0.4.2 =
 * Improved: rewrote the plugin listing around what your AI can actually do on the site, instead of leading with how the plugin relates to MCP Adapter.
