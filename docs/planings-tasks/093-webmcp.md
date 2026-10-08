@@ -69,6 +69,61 @@ The triple is not special-cased out, either. On an `mcp-adapter`-type server its
 on, so `compose_for_row()` returns them and they get registered. The issue's design is the
 *subset* this produces for one server type.
 
+## Is there a library? No — and that is the finding
+
+Checked by reading the four WebMCP plugins already installed on the dev site rather than by
+guessing. **Not one of them bundles a library.** The entire client side of this feature is plain
+JavaScript against a three-method browser API:
+
+| Plugin | JS size | API used | Verdict |
+|---|---|---|---|
+| **WP-WebMCP** | 10 KB | `document.modelContext.registerTool`, navigator fallbacks | current — best local reference |
+| **ibs-webmcp-gateway** | 12.6 KB | `document.modelContext` → `registerTool` | current |
+| **webmcp-bridge** (wordpress.org) | 6.9 KB | `navigator.modelContext.provideContext()` only | **dead API** |
+| **agentgate-for-webmcp** | 2.9 KB | `navigator.modelContext.provideContext()` only | **dead API** |
+
+All unminified, none with a build step for the bridge, none importing anything. The biggest is
+12.6 KB of hand-written code. There is no npm package to adopt and no dependency to carry — the
+browser-facing work here is a few hundred lines.
+
+**`webmcp-bridge`, the one on wordpress.org, is broken on current Chrome.** It registers solely
+through `navigator.modelContext.provideContext()`: `navigator.modelContext` was removed in Chrome
+152, and `provideContext` is exactly the batch call that silently no-ops against ChatGPT's frozen
+object. `agentgate-for-webmcp` has the same defect. Two of the four published implementations do
+nothing at all on a current browser — which is worth knowing before treating wp.org presence as
+evidence that an approach works.
+
+### What to copy from WP-WebMCP, and where to go further
+
+Its `registerTools()` is the shape we want, and it independently arrived at two things the plan
+already specifies — a feature-detect ladder with no polyfill, and `await registerTool()` one tool
+at a time rather than a batch call. It also adds a `_registered` guard against double
+registration, which is worth taking.
+
+**Where it is not enough for us:** it creates *one* `AbortController` for all tools and aborts it
+on `pagehide`.
+
+```js
+window.addEventListener( "pagehide", function () { controller.abort(); }, { once: true } );
+```
+
+`pagehide` does not fire on a SPA route change. In the block editor — where this feature is most
+useful and where our plan scopes it — the admin moves between screens without a page unload, so
+that controller never aborts and the previous screen's tools stay registered. This is precisely
+the lifetime gap the issue called out ("page load does not bound tool lifetime"), and the best
+local implementation has it. Our per-tool signal aborted on route change (T18) is a real
+improvement over the state of the art here, not a refinement of it.
+
+### Consequence: the polyfill becomes a question, not a default
+
+The issue assumes we bundle `@mcp-b/webmcp-polyfill`. **Nobody does**, and the polyfill is where
+the shadowing hazard lives (D3) — a polyfill that replaces the host getter blinds native agents
+entirely. The two working plugins simply feature-detect and do nothing when the API is absent.
+
+So v1 ships with no polyfill, and the polyfill becomes exactly what Phase 0 is for: it is only
+worth carrying if T1 shows it reaches an audience native detection does not (extension agents).
+If it does, add it then — behind the same detect, never over it.
+
 ## What Novamira is doing about this — nothing
 
 Asked directly, because they are the obvious comparison. The answer is clean:
@@ -131,7 +186,7 @@ native exists"; this is the field evidence for why that is load-bearing rather t
 |---|---|---|
 | D1 | **Ability slugs travel in the JSON body, never in the URL path.** Routes are `POST /webmcp/execute` with `{"slug": "..."}`, not `/webmcp/execute/{slug}`. | Every slug contains `/`. Apache `AllowEncodedSlashes Off` 404s it. Avoids their `__` escaping hack entirely rather than reimplementing it. |
 | D2 | **`provideContext` is forbidden in the bridge.** Register each of the three via `registerTool`, awaiting the Promise. | Frozen object in ChatGPT's browser silently no-ops a batch call. |
-| D3 | **Never `defineProperty` over `document.modelContext`.** Feature-detect `.registerTool`; load the polyfill only when absent. | A shadowing polyfill blinds native agents — the exact failure we would otherwise ship to Chrome users. |
+| D3 | **Never `defineProperty` over `document.modelContext`.** Feature-detect `.registerTool`. No polyfill in v1 — load one only if Phase 0 proves it reaches an audience native detection does not, and then behind the detect, never over it. | A shadowing polyfill blinds native agents — the exact failure we would otherwise ship to Chrome users. |
 | D4 | **Two-nonce auth**: `wp_rest` in `X-WP-Nonce` plus our own CSRF token. Send a nonce on the *discovery* call too. | Matches the only working implementation; their 401 was caused by omitting it on discovery. |
 | D5 | **Consent v1 stays read-only**, with staged-duplicate approval recorded as the v2 design rather than invented later. | Gives the read-only restriction an exit path instead of leaving it a dead end. |
 | D6 | **Establish server context; do not re-implement the permission chain.** Set `CurrentServerHolder` to the selected server for the duration of the request, then call the existing `Execute` / `Discover` / `GetAbilityInfo` paths unchanged. | See below — the chain is already written, and re-implementing it silently drops four steps. |
@@ -375,8 +430,13 @@ trial ends **2026-11-16**.
 
 ### Phase 3 — the bridge
 
-- **T15** Feature-detect; never shadow (D3). Bundle the polyfill locally — wp.org forbids remote
-  assets and the admin CSP blocks a CDN.
+- **T15** Feature-detect `document.modelContext.registerTool`; never shadow (D3). **No polyfill in
+  v1** — neither working local plugin ships one, and the polyfill is where the shadowing hazard
+  lives. Add it only if Phase 0 (T1) proves it reaches an audience native detection does not, and
+  then behind the detect, never over it. If it is ever added it must be bundled locally: wp.org
+  forbids remote assets and the admin CSP blocks a CDN.
+- **T15a** Guard against double registration (`_registered`-style latch), as WP-WebMCP does — an
+  admin screen that re-runs the bootstrap must not register the same tool twice.
 - **T16** Register **each tool returned by `/webmcp/tools`** via `registerTool`, one at a time,
   awaiting the Promise (D2). `document.modelContext` only — `navigator.modelContext` was removed
   in Chrome 152.
@@ -384,8 +444,11 @@ trial ends **2026-11-16**.
   `wp_toolset_content`, `mcp-adapter/execute-ability` → `wp_mcp_adapter_execute_ability`. Agents
   that have seen the site before will reuse them, so the rule must be deterministic and must not
   change once shipped.
-- **T18** Withdraw on navigation — one `AbortSignal` per tool, aborted on route change. The block
-  editor is SPA-shaped, so page load does not bound tool lifetime.
+- **T18** Withdraw on navigation — one `AbortSignal` per tool, aborted on **route change**, not
+  just `pagehide`. The block editor is SPA-shaped, so page load does not bound tool lifetime. This
+  is the one place we knowingly go beyond the best local implementation: WP-WebMCP aborts a single
+  shared controller on `pagehide`, which never fires on an SPA route change and leaves the
+  previous screen's tools live.
 - **T19** Admin screens only for v1.
 
 ### Phase 4 — safety rails
