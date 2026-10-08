@@ -13,8 +13,7 @@
  *     unconditionally.
  *   - 1 (destructive): drops every plugin-owned wp_acrossai_mcp_* table
  *     (including the orphaned pre-F040 OAuth tables — see F083 note below),
- *     deletes every `acrossai_mcp_*` option via LIKE-sweep (excluding the
- *     companion-owned `acrossai_mcp_connector_%` namespace), and clears the
+ *     deletes every `acrossai_mcp_*` option via LIKE-sweep, and clears the
  *     OAuth cleanup cron.
  *     Operators opt in via the "Delete all data on uninstall" checkbox on the
  *     MCP tab of the shared AcrossAI Settings page (see
@@ -74,9 +73,9 @@ if ( class_exists( '\WPBoilerplate\AccessControl\Database\Rule\RuleQuery' ) ) {
 // was precisely its target. uninstall.php runs only at uninstall, so it was
 // never part of that hazard.
 //
-// The companion still OWNS the `acrossai_mcp_connector_%` *option* namespace
-// until its OAuth is stripped (tracked at acrossaico/acrossai-pro#113) — the
-// LIKE-sweep exclusion below stays per A20 and FR-027.
+// The companion's OAuth stack has now been stripped (acrossaico/acrossai-pro#113),
+// so it owns no `acrossai_mcp_connector_%` options and the LIKE-sweep exclusion
+// that protected them is gone — see the note on the sweep below.
 $tables = array(
 	$wpdb->prefix . 'acrossai_mcp_servers',
 	$wpdb->prefix . 'acrossai_mcp_cli_auth_logs',
@@ -100,14 +99,22 @@ foreach ( $tables as $table ) {
 // the vendor's version tracking option must be cleaned up explicitly.
 delete_option( 'wpb_ac_mcp_db_version' );
 
-// Delete every `acrossai_mcp_*` option EXCEPT `acrossai_mcp_connector_%`,
-// which the companion plugin (acrossai-ai-connectors) now owns per Feature 040.
+// Delete every `acrossai_mcp_*` option.
+//
+// This sweep used to exclude `acrossai_mcp_connector_%` because F040 had
+// handed those options to the companion plugin. F095 took the connector stack
+// back, and the companion stopped registering any of it, so the exclusion no
+// longer protects a foreign namespace — it orphans our own rows. Measured on a
+// dev install carrying both plugins: the only option the exclusion still
+// matched was `acrossai_mcp_connector_approved_users_db_version`, the version
+// key for a table THIS plugin creates (see the DROP list above). Leaving it
+// behind is the B44 failure mode — a table's companion option surviving an
+// uninstall that dropped the table.
 $options = $wpdb->get_col(
 	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 	$wpdb->prepare(
-		"SELECT option_name FROM {$wpdb->options} WHERE option_name LIKE %s AND option_name NOT LIKE %s",
-		'acrossai_mcp_%',
-		'acrossai_mcp_connector_%'
+		"SELECT option_name FROM {$wpdb->options} WHERE option_name LIKE %s",
+		'acrossai_mcp_%'
 	)
 );
 if ( is_array( $options ) ) {
