@@ -108,7 +108,7 @@ The only outbound connection is WordPress core's own plugin installer reaching W
 == Installation ==
 
 1. Go to **Plugins → Add New Plugin**, search for "AcrossAI MCP Manager", then click **Install Now** and **Activate**.
-2. The Quick Connect wizard opens automatically. Follow it, or close it and configure by hand.
+2. The Connect wizard opens automatically. Follow it, or close it and configure by hand.
 3. For one-click setup, open **AcrossAI → MCP**, open a server, go to the **Connectors** tab and copy the URL into your AI client.
 4. For config-file clients, choose your client on the **Clients** tab, generate an Application Password, copy the JSON into your client and restart it.
 
@@ -130,7 +130,7 @@ Turn on CLI connections under **AcrossAI → Settings → MCP**, run the command
 
 = What is included? =
 
-AcrossAI is two free plugins on WordPress.org: MCP Manager (the server, connectors and access control) and Abilities Manager (the 357 abilities and their controls). Quick Connect sets up both in one click.
+AcrossAI is two free plugins on WordPress.org: MCP Manager (the server, connectors and access control) and Abilities Manager (the 357 abilities and their controls). Connect sets up both in one click.
 
 = Is it free? =
 
