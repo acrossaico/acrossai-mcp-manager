@@ -23,7 +23,7 @@ namespace AcrossAI_MCP_Manager;
  * Plugin Name: AcrossAI MCP Manager
  * Plugin URI: https://acrossai.co/mcp-manager/
  * Description: WordPress MCP server and admin for MCP Adapter: multiple servers, access control and one-click connectors for Claude, ChatGPT, Gemini, Grok and Cursor.
- * Version: 0.4.1
+ * Version: 0.4.2
  * Requires at least: 6.9
  * Requires PHP: 8.1
  * Author: AcrossAI

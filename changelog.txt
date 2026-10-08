@@ -8,6 +8,14 @@ Releases are also published at:
 https://github.com/acrossaico/acrossai-mcp-manager/releases
 
 
+= 0.4.2 =
+* Improved: rewrote the plugin listing around what your AI can actually do on the site, instead of leading with how the plugin relates to MCP Adapter.
+* Added: real use cases with links, ability counts for each plugin integration, and an explanation of why your AI sees about a dozen tools when there are 357 abilities.
+* Added: sections on controlling every ability, and on reproducing a plugin conflict without writing to `active_plugins`.
+* New: six screenshots of the ability controls — the abilities table, the override drawer, bulk actions, the Ability Library, Add-ons and abilities settings.
+* Tidied: shortened the FAQ and replaced the questions that only restated the description.
+* Note: listing and documentation only. No code, settings or database change.
+
 = 0.4.1 =
 * Changed: minimum WordPress version lowered from 7.0 to 6.9.
 * Fixed: the plugin header used an unrecognised name for the minimum WordPress version, so WordPress did not enforce it.
