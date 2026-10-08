@@ -139,6 +139,65 @@ native exists"; this is the field evidence for why that is load-bearing rather t
 | D8 | **Tool names derive from slugs, deterministically and stably** — `toolset/content` → `wp_toolset_content`, `mcp-adapter/execute-ability` → `wp_mcp_adapter_execute_ability`. One rule, no per-tool mapping table. | WebMCP names must be identifier-shaped (no `/`) and stable across sessions; a hand-maintained map would drift the moment a toolset is added. |
 | D9 | **Access Control must pass before a single tool is registered.** Check `user_has_server_access( get_current_user_id(), $server_id )` at the top of the bridge's bootstrap and again on every REST call. If it fails, register nothing and return nothing. | The server owns tools, abilities *and* who may reach it. Registering first and refusing later leaks the catalogue — see below. |
 | D10 | **WebMCP gets its own submenu, not a Settings tab**, under the AcrossAI parent. It explains what WebMCP is and how it works, then offers the server dropdown. | It needs room to teach — this is a beta of an API most admins have never heard of. A settings tab is the wrong shape for a page that is half documentation. |
+| D11 | **Build one context wrapper that makes a WebMCP request behave like an MCP request**, rather than re-implementing any gate. Set `CurrentServerHolder`, then replay the vendor filters with the real `McpServer`. | Turns three not-firing gates into one solved problem, and keeps the browser path and the remote path literally the same code. See below. |
+
+### D11 — one wrapper, and every gate works unchanged
+
+The three not-firing gates (D6, D9) look like three problems. They are one, and it has one fix:
+**run the WebMCP request as if it were an MCP request from the selected server.**
+
+The transport does exactly two things our gates depend on, and both are reproducible:
+
+1. It sets `CurrentServerHolder` to a real `\WP\MCP\Core\McpServer`. We can get that same object
+   outside a transport request — `McpAdapter::instance()->get_servers()` returns every registered
+   server, and `$mcp_server->get_server_id()` is the slug, so the selected server is a lookup, not
+   a construction. `CurrentServerHolder::capture_from_request()` already does precisely this walk
+   (`includes/Abilities/CurrentServerHolder.php:137`); the wrapper matches on slug instead of on
+   route.
+2. It applies the vendor filters, passing that object. We can apply the same filters ourselves.
+
+So the wrapper is roughly:
+
+```php
+WebMcpContext::with( $server_slug, function ( McpServer $mcp_server ) {
+    // 1. listing — our access-control list gate fires here, unchanged
+    $tools = apply_filters( 'mcp_adapter_tools_list', $tools, $mcp_server, null );
+
+    // 2. calling — all three call-time gates fire here, in priority order
+    $args = apply_filters( 'mcp_adapter_pre_tool_call', $args, $tool_name, $mcp_tool, $mcp_server );
+    if ( is_wp_error( $args ) ) { return $args; }
+} );
+```
+
+with `CurrentServerHolder::set()` on entry and `clear()` in a `finally`.
+
+**What that buys, for free, in the correct order** — `mcp_adapter_pre_tool_call` already carries
+three independent enforcement layers at three priorities:
+
+| Priority | Gate | Enforces |
+|---|---|---|
+| 10 | `AcrossAI_MCP_Access_Control::gate_mcp_tool_call` | who may reach this server |
+| 20 | `AbilityExposureGate::gate_tool_call_by_exposure` | the Abilities tab |
+| 30 | `ToolExposureGate::gate_tool_call_by_curation` | the Tools tab |
+
+Plus `mcp_adapter_tools_list` → `gate_mcp_tools_list()` for hiding the list itself.
+
+Re-implementing that in a WebMCP controller means reproducing four gates across four priorities
+and keeping them in step with the remote path forever — and the first time they drift, the drift
+is a security bug, not a rendering bug. The wrapper means there is nothing to keep in step: the
+browser path and the remote path are the *same* path, entered differently.
+
+It also answers D9's awkward edge. We do not need to decide how much to trust
+`user_has_server_access()`'s five fail-open branches, because the access-control gate runs itself,
+from its own hook, with the same arguments it gets on the remote path.
+
+**This is the single highest-leverage task in the feature.** Build it first in Phase 1; everything
+else in that phase becomes thin.
+
+One caveat to settle on the spike: the vendor filters are a *vendor* contract, so replaying them
+is a supported-but-unofficial use. If a future adapter release changes a signature, the wrapper is
+the one place that breaks — which is still far better than four places, and is worth a contract
+test pinning the four hook names and their argument counts.
 
 ### D9 in full — the third gate that will not fire
 
@@ -247,15 +306,24 @@ trial ends **2026-11-16**.
   namespace; do **not** reuse `/wp-json/wp-abilities/v1/…` (see the issue: the exposure gate hooks
   the vendor MCP transport and no-ops without a `$server`, so the generic route exposes
   `is_exposed = 0` abilities).
-- **T5 (spike, do first in this phase)** Establish server context per D6. Resolve the selected
-  server by slug, then either `CurrentServerHolder::set()` a vendor `McpServer` for it or add a
-  narrow id-override for non-transport callers. Decide which on the spike, not on paper.
+- **T5 — `WebMcpContext`, the wrapper. Build this first; everything else leans on it** (D11).
+  Look up the `McpServer` by slug from `McpAdapter::instance()->get_servers()`,
+  `CurrentServerHolder::set()` it, run the caller's closure, `clear()` in a `finally`. Fail closed
+  when no registered server matches the slug — that is the case where the holder would otherwise
+  stay null and every gate would fail open.
+- **T5a** Inside the wrapper, replay the vendor filters so the already-wired gates fire
+  themselves: `mcp_adapter_tools_list` (3 args) when listing, `mcp_adapter_pre_tool_call` (4 args)
+  before executing, honouring a returned `WP_Error` as a refusal. That is access control (10),
+  ability exposure (20) and tool curation (30) enforced in one call, by the same code the remote
+  path uses.
+- **T5b** Contract test pinning the four hook names and their argument counts, so an adapter
+  upgrade that changes a signature fails a test rather than silently un-gating the browser path.
 - **T6** With context established, delegate to the existing `Execute` / `Discover` /
   `GetAbilityInfo` paths unchanged. Do **not** re-derive the chain in the controller.
-- **T7** **Assert context, fail closed.** If `get_server_id()` is null at the top of a WebMCP
-  request, return 403 — never proceed. The holder's documented fallback is fail-*open* to
-  `meta.mcp.public`, which is precisely the wrong default here. This deserves its own regression
-  test: a request with no context must be refused, not silently widened.
+- **T7** **Assert context, fail closed.** If `get_server_id()` is null inside the wrapper, return
+  403 — never proceed. The holder's documented fallback is fail-*open* to `meta.mcp.public`, which
+  is precisely the wrong default here. Its own regression test: a request with no context must be
+  refused, not silently widened.
 - **T8** Fail closed on every other degenerate case too: no row for the slug, `is_enabled = 0`,
   **`compose_for_row()` returns an empty list**, empty exposure list. A dangling selection must
   never fall back to the default server. Note the degenerate case is now "no tools composed", not
@@ -263,12 +331,14 @@ trial ends **2026-11-16**.
 - **T8a** `GET /webmcp/tools` returns `ToolPolicy::compose_for_row( $row )` (D7) with each tool's
   label, description and input schema, so the bridge registers from one authoritative response
   rather than reconstructing the list client-side.
-- **T8b** **Access control first, on every route** (D9). `user_has_server_access(
-  get_current_user_id(), $server_id )` before composing, before returning tools, before
-  executing — and treat anything short of an explicit allow on a fully resolved context as a
-  refusal, rather than inheriting the helper's five fail-open branches. Its own regression test:
-  a user outside the server's rule must receive **no tool names at all**, not merely a refused
-  execution.
+- **T8b** **Access control is enforced by the replayed gate, not by a second implementation**
+  (D9 + D11). Because `mcp_adapter_tools_list` and `mcp_adapter_pre_tool_call` run inside the
+  wrapper, `gate_mcp_tools_list()` and `gate_mcp_tool_call()` fire with the same arguments they
+  get remotely — so there is no judgement call about how far to trust
+  `user_has_server_access()`'s fail-open branches. Keep the regression test regardless, stated as
+  behaviour rather than implementation: **a user outside the server's access rule must receive no
+  tool names at all**, not merely a refused execution. That is the exact disclosure the earlier
+  audit found on the remote path, and the browser is a worse place to repeat it.
 - **T9** Two-nonce auth (D4) and the `/nonce` refresh route. Build the refresh in now — WP nonces
   last 12–24h and an agent in a long-open editor tab *will* outlive one.
 
