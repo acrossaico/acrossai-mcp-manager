@@ -1,14 +1,14 @@
 === AcrossAI MCP Manager – MCP Server for Claude, ChatGPT, Cursor & Any AI Agent ===
 Contributors: raftaar1191
-Tags: ai assistant, chatgpt, claude, mcp, mcp-server
+Tags: mcp, mcp-server, chatgpt, claude, connector
 Requires at least: 7.0
 Requires PHP: 8.1
 Tested up to: 7.1
-Stable tag: 0.4.0
+Stable tag: 0.4.1
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-Self-hosted WordPress MCP server. Connect Claude, Cursor, VS Code, Copilot and 12 more AI clients. No relay, no middleman, no lock-in.
+Connect ChatGPT, Claude, Grok, Gemini & Cursor to WordPress in one click — free. Self-hosted MCP server: no relay, no middleman, no lock-in.
 
 == Description ==
 
@@ -38,13 +38,13 @@ Works with **Claude Desktop**, **Claude Code** in the terminal, and Claude on th
 
 → [Connect an AI client](https://acrossai.co/docs/mcp-connect-a-client/)
 
-= Connect ChatGPT and Grok to WordPress =
+= Connect ChatGPT, Claude and Grok in One Click — Free =
 
-ChatGPT and Grok connect through **AI Connectors**, the one-click flow in the separate [AcrossAI Pro](https://acrossai.co/pricing/) add-on *(Pro)*. Pro covers Claude, Gemini and Cursor the same way — paste one URL, approve the consent screen on your own site, done. No config file to edit.
+**AI Connectors** connect **ChatGPT**, **Claude**, **Grok**, **Gemini** and **Cursor** in one click. Paste one URL into the AI client, approve the consent screen on your own site, and you are connected. No config file to edit, no Application Password to copy.
 
-Worth knowing: Pro does not change the no-middleman model. The OAuth server runs **on your own site**, not on ours — there is still no third-party cloud between your AI and your WordPress.
+This used to require the paid add-on. Since 0.4.0 it is part of this plugin and free.
 
-Everything else on this page — all 16 built-in clients, every server, every access rule — is free.
+The connection is still yours end to end: the **OAuth 2.1 server runs on your own site**, not on ours. The clients, tokens and authorization codes are rows in your database, and there is no third-party cloud between your AI and your WordPress.
 
 → [AI Connectors](https://acrossai.co/docs/mcp-ai-connectors/)
 
@@ -111,16 +111,13 @@ Create as many servers as you need, each with its own route, namespace, version,
 
 Everything above this point is free. [AcrossAI Pro](https://acrossai.co/pricing/) is a separate plugin that adds the following, and nothing here is required to run an MCP server:
 
-* **One-click AI connectors** — **ChatGPT**, **Claude**, **Grok**, **Gemini** and **Cursor**. Paste one URL into the AI client, approve the consent screen on your own site, and you are connected. No config file, no Application Password to copy.
-* **n8n connection — Beta *(Pro)*** — connect your site to n8n workflows using a generated bearer token or an Application Password, with a chosen lifetime and one-click revocation. Off by default, and labelled Beta in the plugin itself: n8n's own MCP OAuth credential is not yet OAuth 2.1 compliant, so this path is deliberately token-based rather than OAuth.
-* **An OAuth 2.1 authorization server, on your own site** — authorization and token endpoints, mandatory PKCE (S256), refresh-token rotation with reuse detection, dynamic client registration, and metadata discovery. The clients, tokens and authorization codes are rows in **your** database. This is what makes one-click connectors possible without a vendor relay.
-* **Connections dashboard** — see every AI client currently connected to each server, and revoke any one of them.
 * **Membership-aware access control *(Pro)*** — gate an MCP server by membership or course enrolment instead of only by WordPress role, across **10 platforms**: BuddyBoss, MemberPress, LearnDash, LifterLMS, Paid Memberships Pro, Restrict Content Pro, WooCommerce Memberships, s2Member, Wishlist Member and Memberium.
 * **276 more abilities *(Pro)*** — deep coverage for **LearnDash** (74), **BuddyBoss** (60), **MailerPress** (89 plus 28 for MailerPress Pro) and **GeoDirectory** (25), each active only when that plugin is.
+* **n8n connection — Beta *(Pro)*** — connect your site to n8n workflows using a generated bearer token or an Application Password, with a chosen lifetime and one-click revocation. Off by default, and labelled Beta in the plugin itself: n8n's own MCP OAuth credential is not yet OAuth 2.1 compliant, so this path is deliberately token-based rather than OAuth.
 
 Pro keeps the same model as the free plugin: **it runs on your own server, with no third-party cloud**, and actions are never metered or credited. Plans start at a **30-day free trial with no card required**, and every plan carries a **14-day money-back guarantee**. Local and staging sites do not count against your site limit.
 
-→ [Plans and pricing](https://acrossai.co/pricing/) · [AI Connectors docs](https://acrossai.co/docs/mcp-ai-connectors/)
+→ [Plans and pricing](https://acrossai.co/pricing/)
 
 = For Site Owners, Developers and Agencies =
 
@@ -151,6 +148,9 @@ Clients, server tabs, connect methods and server types are all registered throug
 = Full Feature List =
 
 * Self-hosted MCP server — your site is the endpoint, and the plugin makes zero outbound requests
+* One-click AI Connectors for ChatGPT, Claude, Grok, Gemini and Cursor — paste one URL, approve the consent screen, done
+* An OAuth 2.1 authorization server on your own site — PKCE (S256), refresh-token rotation with reuse detection, dynamic client registration and metadata discovery, with the clients, tokens and codes stored in your own database
+* Connections dashboard — see every AI client connected to each server, and revoke any one of them
 * Multiple MCP servers per site, each independently routed, versioned and enabled
 * 16 built-in AI-client guides with copy-paste JSON and the exact config path per client
 * Three transports: npx bridge, CLI browser-approval, and WP-CLI STDIO
@@ -224,7 +224,7 @@ Sixteen built-in clients ship with the free plugin — every one gets a ready-to
 * Antigravity
 * Custom Client (template for any other MCP-compatible tool)
 
-**ChatGPT and Grok** connect through the paid **AcrossAI Pro** add-on's one-click connectors *(Pro)*, which also cover Claude, Gemini and Cursor and run their OAuth on your own site rather than through anyone's cloud. Adding a brand-new client is a filter callback. See [Connecting an AI client](https://acrossai.co/docs/mcp-connect-a-client/).
+**ChatGPT**, **Claude**, **Grok**, **Gemini** and **Cursor** also connect in one click through the built-in **AI Connectors**, which run their OAuth on your own site rather than through anyone's cloud. That is free as of 0.4.0 — it previously required the paid add-on. Adding a brand-new client is a filter callback. See [Connecting an AI client](https://acrossai.co/docs/mcp-connect-a-client/).
 
 = Can the AI break my site? =
 
@@ -283,7 +283,7 @@ Delete its Application Password from your WordPress profile page, or disable the
 1. The Overview tab — your server at a glance, including the live MCP endpoint URL to hand your AI client, with every supported client listed underneath.
 2. Terminal users connect with one command and approve it in the browser. Every approved, successful and failed attempt is recorded in the per-server CLI connection log.
 3. Pick your AI client, generate a WordPress Application Password in one click, and copy configuration JSON that already has the right file path and top-level key for that client.
-4. AI Connectors — paste one URL into Claude, ChatGPT, Grok, Gemini or Cursor and approve the consent screen on your own site. Requires the AcrossAI Pro add-on.
+4. AI Connectors — paste one URL into Claude, ChatGPT, Grok, Gemini or Cursor and approve the consent screen on your own site. Built in and free.
 5. WP-CLI STDIO transport — the client launches WP-CLI as a subprocess, so no credential ever crosses the network. Ideal for local development.
 6. The Tools tab — choose exactly which abilities this server advertises. Add three, or add hundreds.
 7. The Abilities tab — switch individual abilities on or off per server, with search, filters and bulk actions across the whole catalogue.
@@ -314,6 +314,8 @@ Installing the AcrossAI Abilities Manager add-on now works immediately — no se
 
 The complete, formatted release history — including releases older than the ones shown here — lives at [acrossai.co/changelog](https://acrossai.co/changelog/). WordPress.org truncates this section, so the site is the fuller record.
 
+= 0.4.1 =
+* **Corrected — this plugin's own description still said one-click connectors were a paid extra.** They have been part of the free plugin since 0.4.0. The listing, the feature list and the FAQ now say so, and the connector, the OAuth server that powers it and the connections dashboard have moved from the paid section to the free one. No code changed; if you are already on 0.4.0 you already have all of it.
 = 0.4.0 =
 * **New — connecting Claude, ChatGPT, Gemini, Grok or Cursor is now part of this plugin, free.** Paste one URL, approve the consent screen, done. The **Connectors** tab that used to advertise the paid add-on now does the job itself.
 * **Please note — load wp-admin once after updating.** Your existing connections are moved across on the first admin page load. Until that happens, connected AI clients cannot authenticate — so if your site auto-updates, sign in once.
