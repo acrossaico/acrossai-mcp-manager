@@ -695,6 +695,33 @@ final class Main {
 		$this->loader->add_action( 'rest_api_init', $quick_connect_rest, 'register_routes' );
 
 		/**
+		 * F093 — WebMCP REST controller (beta, off by default).
+		 *
+		 * Registers 3 routes under `/acrossai-mcp-manager/v1/webmcp/*`:
+		 *   GET  /tools    — the selected server's composed tool list
+		 *   POST /execute  — run one tool (slug in the BODY, never the path:
+		 *                    every slug contains a slash and Apache's
+		 *                    AllowEncodedSlashes Off 404s it)
+		 *   GET  /nonce    — refresh `wp_rest`, so an agent in a tab older
+		 *                    than the nonce lifetime recovers instead of
+		 *                    failing with an unexplained 403
+		 *
+		 * Routes are always REGISTERED; availability is decided per request by
+		 * `WebMCP\Settings::selected_row()`, which returns null when the beta
+		 * is off, the slug resolves to nothing, or the server is disabled.
+		 * Registering conditionally would make the route set depend on an
+		 * option read at `rest_api_init`, which is the kind of thing that
+		 * breaks when an option is cached.
+		 *
+		 * Per-server access control and exposure are NOT enforced here. They
+		 * are enforced inside `WebMCP\WebMcpContext`, which replays the vendor
+		 * filters so the already-wired gates run themselves — one
+		 * implementation of that logic, shared with the remote path.
+		 */
+		$webmcp_rest = \AcrossAI_MCP_Manager\Includes\REST\WebMcpController::instance();
+		$this->loader->add_action( 'rest_api_init', $webmcp_rest, 'register_routes' );
+
+		/**
 		 * Feature 037 — Embeds tab self-registration is SKIPPED in 0.2.10+.
 		 *
 		 * The tab is hidden (removed from Registry::all_tabs()), so wiring
