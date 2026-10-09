@@ -164,6 +164,63 @@ class Main {
 
 		// F093 — WebMCP browser-support indicator, that page only.
 		$this->maybe_enqueue_webmcp_support();
+
+		// F093 — the WebMCP bridge, every admin screen once enabled.
+		$this->maybe_enqueue_webmcp_bridge();
+	}
+
+	/**
+	 * F093 — Enqueue the WebMCP bridge.
+	 *
+	 * Admin screens only for v1. `execute-ability` and the `toolset/*`
+	 * dispatchers are universal execution layers by design; putting them on
+	 * the public front end would hand every in-page agent the server's whole
+	 * exposed surface with no consent model, for visitors who never opted in.
+	 *
+	 * Gated on `selected_row()`, so nothing loads while the beta is off, the
+	 * selection resolves to nothing, or the chosen server is disabled. The
+	 * script is still inert on a browser without `document.modelContext` —
+	 * it detects and returns — but not shipping it at all is cheaper than
+	 * shipping something that does nothing.
+	 *
+	 * Per-server access control is NOT consulted here. A user the rule
+	 * excludes still gets the script; the `/tools` route then returns nothing
+	 * for them, because that refusal belongs to the gates rather than to an
+	 * enqueue condition that would have to duplicate them.
+	 *
+	 * @since 0.4.2
+	 * @return void
+	 */
+	private function maybe_enqueue_webmcp_bridge(): void {
+		if ( null === \AcrossAI_MCP_Manager\Includes\WebMCP\Settings::selected_row() ) {
+			return;
+		}
+
+		$asset = $this->read_asset_manifest( 'build/js/webmcp-bridge.asset.php' );
+		if ( null === $asset ) {
+			return;
+		}
+
+		wp_enqueue_script(
+			'acrossai-mcp-manager-webmcp-bridge',
+			esc_url( \ACROSSAI_MCP_MANAGER_PLUGIN_URL . 'build/js/webmcp-bridge.js' ),
+			// Imports nothing — see the note on the support indicator above.
+			array(),
+			$asset['version'],
+			true
+		);
+
+		$base = rest_url( 'acrossai-mcp-manager/v1/webmcp' );
+
+		wp_localize_script(
+			'acrossai-mcp-manager-webmcp-bridge',
+			'acrossaiWebmcpBridge',
+			array(
+				'restUrl'  => esc_url_raw( $base ),
+				'nonceUrl' => esc_url_raw( $base . '/nonce' ),
+				'nonce'    => wp_create_nonce( 'wp_rest' ),
+			)
+		);
 	}
 
 	/**
