@@ -429,9 +429,10 @@ id-override to the holder for non-transport callers — `set()` currently requir
 `\WP\MCP\Core\McpServer` object, so which of the two is cheaper is a Phase-1 spike, not a
 decision to take on paper now.
 
-## Open question — ANSWERED, and the answer is no
+## Open question — ANSWERED: not natively, but yes via an extension
 
-**Gemini in Chrome does not consume `document.modelContext`. The flag alone is not enough.**
+**Gemini in Chrome does not consume `document.modelContext`; an extension agent does.** Both halves
+were measured on 2026-10-09 against a real install.
 
 Measured 2026-10-09 against a real install: Chrome with `#enable-webmcp-testing` and
 `#devtools-webmcp-support` on, **no origin-trial token**, our bridge live on a wp-admin screen with
@@ -475,9 +476,49 @@ substitutes.** The conclusion the issue drew from the hypothesis now follows fro
 - Nothing about the server side changes. The gates, the composed tool list and the consent rails
   are all audience-independent and all verified working.
 
-Next test, when someone has the kit: the same page against an extension agent (MCP-B, Claude in
-Chrome) and against a Chrome build carrying an origin-trial token — in that order, since the first
-needs no paperwork.
+### The extension tier: discovery works
+
+Run the same day, same page, with the **WebMCP Inspector** extension. It reported:
+
+```
+document.modelContext   detected
+TOOLS                   14
+status                  Connected
+```
+
+A third-party agent, told nothing about this site, found all fourteen tools. **That is the step
+Gemini and Claude in Chrome both skip, and it is the one that decides whether the feature reaches
+anybody.** It works.
+
+So the full picture for v1:
+
+| Consumer | Discovers our tools? |
+|---|---|
+| Extension agents (inspector, Google's own example) | **yes — measured** |
+| ChatGPT desktop browser | ships "Site tools"; untested here |
+| Gemini in Chrome | no — measured, flag-only |
+| Claude in Chrome | no — [open feature request](https://github.com/anthropics/claude-code/issues/30645), *"invocation works; discovery doesn't exist"* |
+
+This is the shape the plan predicted from the start: **bring-your-own-agent**, with extensions
+carrying the real audience. Google's own documentation points the same way — its reference
+consumer is [GoogleChromeLabs/webmcp-extension](https://github.com/GoogleChromeLabs/webmcp-extension/),
+an example agentic *extension* driving external models, not a native browser agent.
+
+### A note on the inspector's audit score, so nobody chases it
+
+The inspector graded the page **33 / F, 5 of 15 checks passed**. Almost every failing check is
+irrelevant here, and two of them *should* fail:
+
+- `/llms.txt`, `robots.txt (AI bots)`, Open Graph, meta description, Schema.org — all ask "can AI
+  crawlers read this page". It is **wp-admin**. Blocking is correct.
+- `/.well-known/webmcp` — a public tool-discovery document. Adding it would advertise an
+  admin-only tool surface to unauthenticated readers. Deliberately absent.
+- `toolname` / `tooldescription` / `toolaction` — the **declarative** HTML API, which we do not
+  use by design (ChatGPT's browser does not support it either).
+- `window.ai` (Gemini Nano) — a different API altogether.
+
+The only section measuring what this feature actually builds — Imperative WebMCP — is green. The
+grade is a public-site rubric applied to a private screen.
 
 ## Tasks
 
@@ -486,7 +527,7 @@ needs no paperwork.
 - **T0** Set up the development harness before anything else: Chrome 150+, WebMCP flag enabled at
   `chrome://flags/#enable-webmcp-testing`, tool-inspector extension loaded unpacked on a **development profile**. This is
   what makes every later task observable, and it needs no origin-trial token.
-- **T1 — DONE 2026-10-09, answered NO.** Gemini in Chrome does not consume document.modelContext with the testing flag alone; it read the DOM instead and then declined a question only a tool could answer. See "Open question — ANSWERED" above. Remaining: the same page against an extension agent, and against a build carrying an origin-trial token.
+- **T1 — DONE 2026-10-09.** Gemini in Chrome does NOT consume document.modelContext with the testing flag alone; the WebMCP Inspector extension DOES, reporting "document.modelContext detected" and all 14 tools. Bring-your-own-agent confirmed. See "Open question — ANSWERED" above. Remaining: ChatGPT desktop browser, and a build carrying an origin-trial token.
   Does Gemini call it? This answers whether native and polyfill are substitutes or two separate
   audiences — and therefore whether the origin-trial token is mandatory plumbing or optional.
 - **T2** Same page in ChatGPT's browser. Confirm the frozen-object behaviour first-hand and that
