@@ -156,10 +156,21 @@
 	 * @return {Function} The execute handler.
 	 */
 	function makeExecute( tool, signal ) {
-		return async function( input ) {
+		// Per the published contract the callback receives
+		// `( args, { signal } )`. Those are TWO DIFFERENT SIGNALS and both
+		// matter: the one closed over here is the registration's, which fires
+		// when the tool is withdrawn on navigation, while `callSignal` is the
+		// agent cancelling this particular invocation. Honouring only the
+		// first leaves a cancelled call running to completion against the
+		// site; honouring only the second leaves a withdrawn tool's in-flight
+		// request alive. So abort on either.
+		return async function( input, options ) {
 			if ( signal.aborted ) {
 				throw new Error( 'This tool is no longer available on this screen.' );
 			}
+
+			const callSignal = options && options.signal ? options.signal : null;
+			const combined = callSignal ? anySignal( [ signal, callSignal ] ) : signal;
 
 			const body = await api(
 				'/execute',
@@ -169,12 +180,37 @@
 					// contains a slash and Apache's AllowEncodedSlashes Off
 					// 404s an encoded one before PHP ever runs.
 					body: JSON.stringify( { slug: tool.slug, input: input || {} } ),
-					signal,
+					signal: combined,
 				},
 			);
 
 			return body && undefined !== body.result ? body.result : body;
 		};
+	}
+
+	/**
+	 * One signal that aborts when any of its inputs does.
+	 *
+	 * `AbortSignal.any()` is not old enough to rely on here, and this runs in
+	 * whatever Chrome the operator happens to have the flag enabled in.
+	 *
+	 * @param {AbortSignal[]} signals Signals to combine.
+	 * @return {AbortSignal} The combined signal.
+	 */
+	function anySignal( signals ) {
+		if ( 'function' === typeof AbortSignal.any ) {
+			return AbortSignal.any( signals );
+		}
+
+		const controller = new AbortController();
+		signals.forEach( function( s ) {
+			if ( s.aborted ) {
+				controller.abort();
+				return;
+			}
+			s.addEventListener( 'abort', () => controller.abort(), { once: true } );
+		} );
+		return controller.signal;
 	}
 
 	/**
