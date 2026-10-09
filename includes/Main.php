@@ -403,6 +403,17 @@ final class Main {
 		 */
 		$menu = \AcrossAI_MCP_Manager\Admin\Partials\Menu::instance();
 		$this->loader->add_action( 'admin_menu', $menu, 'register_submenu' );
+
+		/**
+		 * F093 — WebMCP options, registered against the WebMCP page's OWN
+		 * option_group. Sharing a group with the MCP tab would make one
+		 * page's submit wipe the other's unsubmitted fields.
+		 *
+		 * The page itself is registered as a submenu by Menu::register_submenu()
+		 * above; this only wires the Settings API registration.
+		 */
+		$webmcp_page = \AcrossAI_MCP_Manager\Admin\Partials\WebMcpPage::instance();
+		$this->loader->add_action( 'admin_init', $webmcp_page, 'register_settings' );
 		$this->loader->add_filter(
 			'plugin_action_links_' . ACROSSAI_MCP_MANAGER_PLUGIN_BASENAME,
 			$menu,

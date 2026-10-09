@@ -161,6 +161,66 @@ class Main {
 
 		// F095 — AI Connectors tab bundle.
 		$this->maybe_enqueue_ai_connectors_app();
+
+		// F093 — WebMCP browser-support indicator, that page only.
+		$this->maybe_enqueue_webmcp_support();
+	}
+
+	/**
+	 * F093 — Enqueue the WebMCP browser-support indicator.
+	 *
+	 * Gated on the WebMCP page. The script is a few lines of plain JS with no
+	 * dependencies: it reports whether `document.modelContext.registerTool`
+	 * exists in the browser being used right now.
+	 *
+	 * It is worth shipping on its own because the failure it prevents is
+	 * invisible: without it an administrator on Safari, or on Chrome without
+	 * `chrome://flags/#enable-webmcp-testing`, enables the feature, sees
+	 * nothing change anywhere, and reports a bug against the plugin.
+	 *
+	 * @since 0.4.2
+	 * @return void
+	 */
+	private function maybe_enqueue_webmcp_support(): void {
+		// phpcs:disable WordPress.Security.NonceVerification.Recommended -- Read-only routing check.
+		$page = isset( $_GET['page'] ) ? sanitize_key( wp_unslash( $_GET['page'] ) ) : '';
+		// phpcs:enable WordPress.Security.NonceVerification.Recommended
+
+		if ( \AcrossAI_MCP_Manager\Admin\Partials\WebMcpPage::PAGE_SLUG !== $page ) {
+			return;
+		}
+
+		$asset = $this->read_asset_manifest( 'build/js/webmcp-support.asset.php' );
+		if ( null === $asset ) {
+			return;
+		}
+
+		wp_enqueue_script(
+			'acrossai-mcp-manager-webmcp-support',
+			esc_url( \ACROSSAI_MCP_MANAGER_PLUGIN_URL . 'build/js/webmcp-support.js' ),
+			// Explicitly none, rather than $asset['dependencies']. This entry
+			// imports nothing — no React, no @wordpress packages — so the
+			// generated manifest lists an empty array anyway, and saying so
+			// here documents the intent. It also keeps this call out of the
+			// baselined `array<non-empty-string>` debt the other enqueues
+			// carry, instead of adding a seventh occurrence to it.
+			array(),
+			$asset['version'],
+			true
+		);
+
+		wp_localize_script(
+			'acrossai-mcp-manager-webmcp-support',
+			'acrossaiWebmcpSupport',
+			array(
+				'supported'   => __( 'Supported', 'acrossai-mcp-manager' ),
+				'unsupported' => __( 'Not supported', 'acrossai-mcp-manager' ),
+				'hint'        => __(
+					'This browser does not expose document.modelContext, so no in-browser agent can see these tools. Chrome needs the WebMCP flag enabled at chrome://flags/#enable-webmcp-testing, or an origin-trial token. Everything else on this page still saves normally.',
+					'acrossai-mcp-manager'
+				),
+			)
+		);
 	}
 
 	/**
