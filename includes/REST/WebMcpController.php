@@ -41,6 +41,7 @@ declare( strict_types = 1 );
 namespace AcrossAI_MCP_Manager\Includes\REST;
 
 use AcrossAI_MCP_Manager\Includes\Database\MCPServer\ToolPolicy;
+use AcrossAI_MCP_Manager\Includes\WebMCP\BrowserEligibility;
 use AcrossAI_MCP_Manager\Includes\WebMCP\Settings as WebMcpSettings;
 use AcrossAI_MCP_Manager\Includes\WebMCP\WebMcpContext;
 use WP\MCP\Core\McpServer;
@@ -234,6 +235,18 @@ final class WebMcpController {
 			return $this->unavailable();
 		}
 
+		// Two-step consent. Enabling WebMCP publishes the catalogue; running
+		// a tool is a second, separate decision. Refused at the route rather
+		// than by omitting tools, so an operator can verify the wiring works
+		// before granting the site-changing half.
+		if ( ! WebMcpSettings::allows_execute() ) {
+			return new WP_Error(
+				'acrossai_mcp_webmcp_execute_disabled',
+				__( 'Tool execution from the browser is switched off for this site.', 'acrossai-mcp-manager' ),
+				array( 'status' => 403 )
+			);
+		}
+
 		$slug = trim( (string) $request->get_param( 'slug' ) );
 		if ( '' === $slug ) {
 			return new WP_Error(
@@ -250,6 +263,17 @@ final class WebMcpController {
 			return new WP_Error(
 				'acrossai_mcp_webmcp_tool_not_exposed',
 				__( 'That tool is not exposed on the selected server.', 'acrossai-mcp-manager' ),
+				array( 'status' => 403 )
+			);
+		}
+
+		// The author's veto applies here too, not only to the listing.
+		// Hiding a tool an agent can still invoke by guessing its slug is
+		// not a veto — it is a wish.
+		if ( null === self::describe_tool( $slug ) ) {
+			return new WP_Error(
+				'acrossai_mcp_webmcp_tool_not_eligible',
+				__( 'That tool cannot be run from a browser.', 'acrossai-mcp-manager' ),
 				array( 'status' => 403 )
 			);
 		}
@@ -328,6 +352,13 @@ final class WebMcpController {
 
 		$ability = wp_get_ability( $slug );
 		if ( null === $ability ) {
+			return null;
+		}
+
+		// The author's veto. Narrowing only — an ability the operator did not
+		// curate never reaches here, because the caller composes from the
+		// Tools tab first.
+		if ( ! BrowserEligibility::is_allowed( $slug, $ability->get_meta() ) ) {
 			return null;
 		}
 

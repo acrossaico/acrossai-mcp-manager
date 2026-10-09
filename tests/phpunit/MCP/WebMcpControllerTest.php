@@ -26,6 +26,7 @@ namespace AcrossAI_MCP_Manager\Tests\PHPUnit\MCP;
 use AcrossAI_MCP_Manager\Includes\Database\MCPServer\DefaultServerSeeder;
 use AcrossAI_MCP_Manager\Includes\Database\MCPServer\Query as MCPServerQuery;
 use AcrossAI_MCP_Manager\Includes\REST\WebMcpController;
+use AcrossAI_MCP_Manager\Includes\WebMCP\BrowserEligibility;
 use AcrossAI_MCP_Manager\Includes\WebMCP\Settings as WebMcpSettings;
 use WP_UnitTestCase;
 
@@ -38,12 +39,14 @@ final class WebMcpControllerTest extends WP_UnitTestCase {
 		$this->truncate_servers();
 		delete_option( WebMcpSettings::OPTION_ENABLED );
 		delete_option( WebMcpSettings::OPTION_SERVER );
+		delete_option( WebMcpSettings::OPTION_ALLOW_EXECUTE );
 	}
 
 	public function tearDown(): void {
 		$this->truncate_servers();
 		delete_option( WebMcpSettings::OPTION_ENABLED );
 		delete_option( WebMcpSettings::OPTION_SERVER );
+		delete_option( WebMcpSettings::OPTION_ALLOW_EXECUTE );
 		parent::tearDown();
 	}
 
@@ -164,6 +167,96 @@ final class WebMcpControllerTest extends WP_UnitTestCase {
 				. 'a tool that cannot run is worse than omitting it — an agent caches the tool '
 				. 'list when it connects, so the broken entry persists for the whole session.'
 		);
+	}
+
+	// ─────────────────────────────────────────────────────────────────────────
+	// Safety rails.
+	// ─────────────────────────────────────────────────────────────────────────
+
+	public function test_running_tools_is_off_even_once_webmcp_is_on(): void {
+		update_option( WebMcpSettings::OPTION_ENABLED, true );
+
+		$this->assertFalse(
+			WebMcpSettings::allows_execute(),
+			'Enabling WebMCP must publish the catalogue WITHOUT granting the right to act on the '
+				. 'site. The two decisions are separate on purpose: an operator can confirm the '
+				. 'wiring works before anything can change their content.'
+		);
+	}
+
+	public function test_an_ability_may_veto_itself_out_of_the_browser(): void {
+		$this->assertFalse(
+			BrowserEligibility::is_allowed( 'some/ability', array( 'webmcp' => false ) ),
+			'meta.webmcp = false is a hard veto for ability authors who know their ability is '
+				. 'unsafe in a page, where any in-page agent can call it with the admin\'s cookie.'
+		);
+
+		$this->assertFalse(
+			BrowserEligibility::is_allowed( 'some/ability', array( 'webmcp' => array( 'enabled' => false ) ) ),
+			'The long form must veto too — it exists so the key can grow a `confirm` option later '
+				. 'without breaking anyone already using the boolean.'
+		);
+	}
+
+	public function test_abilities_are_eligible_by_default(): void {
+		// Deliberately NOT Laravel's default-hidden. Our abilities come from
+		// plugins we do not author and the operator has already curated them
+		// on the Tools tab; defaulting closed would make the recommended
+		// server publish nothing, since none of its fourteen toolset/*
+		// dispatchers declares anything about WebMCP.
+		$this->assertTrue(
+			BrowserEligibility::is_allowed( 'toolset/content', array() ),
+			'An ability with no WebMCP declaration must inherit the admin\'s curation. Defaulting '
+				. 'closed would silently publish nothing while appearing to work.'
+		);
+	}
+
+	public function test_the_eligibility_filter_can_narrow(): void {
+		$deny = static fn( $allowed, $slug ) => 'toolset/files' === $slug ? false : $allowed;
+		add_filter( 'acrossai_mcp_webmcp_ability_allowed', $deny, 10, 2 );
+
+		$this->assertFalse( BrowserEligibility::is_allowed( 'toolset/files', array() ) );
+		$this->assertTrue( BrowserEligibility::is_allowed( 'toolset/content', array() ) );
+
+		remove_filter( 'acrossai_mcp_webmcp_ability_allowed', $deny, 10 );
+	}
+
+	public function test_changing_the_server_is_announced(): void {
+		update_option( WebMcpSettings::OPTION_SERVER, 'first-server' );
+
+		$seen = array();
+		$spy  = static function ( $new, $old ) use ( &$seen ) {
+			$seen[] = array( $new, $old );
+		};
+		add_action( 'acrossai_mcp_webmcp_server_changed', $spy, 10, 2 );
+
+		update_option( WebMcpSettings::OPTION_SERVER, 'second-server' );
+
+		remove_action( 'acrossai_mcp_webmcp_server_changed', $spy, 10 );
+
+		$this->assertSame(
+			array( array( 'second-server', 'first-server' ) ),
+			$seen,
+			'Switching servers changes the tool NAMES, not merely what sits behind them — an '
+				. 'agent mid-session finds the names it learned have vanished. Nothing else '
+				. 'records that the ground moved.'
+		);
+	}
+
+	public function test_a_no_op_save_announces_nothing(): void {
+		update_option( WebMcpSettings::OPTION_SERVER, 'same-server' );
+
+		$fired = 0;
+		$spy   = static function () use ( &$fired ) {
+			++$fired;
+		};
+		add_action( 'acrossai_mcp_webmcp_server_changed', $spy, 10, 2 );
+
+		update_option( WebMcpSettings::OPTION_SERVER, 'same-server' );
+
+		remove_action( 'acrossai_mcp_webmcp_server_changed', $spy, 10 );
+
+		$this->assertSame( 0, $fired, 'Re-saving the same server is not a change and must stay quiet.' );
 	}
 
 	// ─────────────────────────────────────────────────────────────────────────

@@ -2,10 +2,16 @@
 /**
  * F093 — WebMCP option storage and server resolution.
  *
- * Two options, both deliberately boring:
+ * Three options:
  *
- *   acrossai_mcp_webmcp_enabled   bool,   default 0 — the beta gate
- *   acrossai_mcp_webmcp_server    string, default '' — the selected slug
+ *   acrossai_mcp_webmcp_enabled        bool,   default 0 — the beta gate
+ *   acrossai_mcp_webmcp_allow_execute  bool,   default 0 — may tools RUN?
+ *   acrossai_mcp_webmcp_server         string, default '' — the selected slug
+ *
+ * The first two are deliberately separate. Enabling WebMCP publishes the
+ * catalogue; letting an agent act on the site is a second decision, so an
+ * operator can confirm the wiring works before granting anything the power
+ * to change their content.
  *
  * THE SELECTION IS A SLUG, NEVER AN ID. `DefaultServerSeeder` is explicit
  * that ownership is decided by slug alone and `ProtectedServers` keys off
@@ -49,6 +55,23 @@ final class Settings {
 	public const OPTION_SERVER = 'acrossai_mcp_webmcp_server';
 
 	/**
+	 * May an in-browser agent actually RUN a tool? Off by default.
+	 *
+	 * Two-step consent, and the step that matters. With this off the tools
+	 * still register, so an agent can see the catalogue and an operator can
+	 * confirm the wiring works — but `/execute` refuses, so nothing can act
+	 * on the site.
+	 *
+	 * The planning doc framed this as "read-only abilities only", which does
+	 * not survive contact with the catalogue: a `toolset/*` dispatcher is a
+	 * single tool carrying discover, info AND execute behind one `action`
+	 * parameter, so there is no read-only subset to publish. Gating the
+	 * route is the honest version of the same intent — see the WebMCP admin
+	 * page copy, which says exactly this to the operator.
+	 */
+	public const OPTION_ALLOW_EXECUTE = 'acrossai_mcp_webmcp_allow_execute';
+
+	/**
 	 * Is the beta switched on?
 	 *
 	 * @since 0.4.2
@@ -56,6 +79,16 @@ final class Settings {
 	 */
 	public static function is_enabled(): bool {
 		return (bool) get_option( self::OPTION_ENABLED, false );
+	}
+
+	/**
+	 * May a browser agent run a tool, as opposed to merely seeing it?
+	 *
+	 * @since 0.4.2
+	 * @return bool
+	 */
+	public static function allows_execute(): bool {
+		return (bool) get_option( self::OPTION_ALLOW_EXECUTE, false );
 	}
 
 	/**
@@ -134,6 +167,16 @@ final class Settings {
 		register_setting(
 			$option_group,
 			self::OPTION_ENABLED,
+			array(
+				'type'              => 'boolean',
+				'default'           => false,
+				'sanitize_callback' => static fn( $value ): bool => (bool) $value,
+			)
+		);
+
+		register_setting(
+			$option_group,
+			self::OPTION_ALLOW_EXECUTE,
 			array(
 				'type'              => 'boolean',
 				'default'           => false,

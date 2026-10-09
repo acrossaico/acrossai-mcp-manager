@@ -414,6 +414,22 @@ final class Main {
 		 */
 		$webmcp_page = \AcrossAI_MCP_Manager\Admin\Partials\WebMcpPage::instance();
 		$this->loader->add_action( 'admin_init', $webmcp_page, 'register_settings' );
+
+		/**
+		 * F093 — observe a change of selected WebMCP server.
+		 *
+		 * Switching servers changes the tool NAMES, not just what sits behind
+		 * them, so an agent mid-session finds the names it learned have gone.
+		 * `update_option_*` fires only on a real change, so this does not
+		 * emit on a no-op save.
+		 */
+		$this->loader->add_action(
+			'update_option_' . \AcrossAI_MCP_Manager\Includes\WebMCP\Settings::OPTION_SERVER,
+			$webmcp_page,
+			'on_server_changed',
+			10,
+			2
+		);
 		$this->loader->add_filter(
 			'plugin_action_links_' . ACROSSAI_MCP_MANAGER_PLUGIN_BASENAME,
 			$menu,

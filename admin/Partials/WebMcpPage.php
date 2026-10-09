@@ -78,6 +78,42 @@ final class WebMcpPage {
 	}
 
 	/**
+	 * Announce a change of selected server.
+	 *
+	 * Switching servers is the quietest consequential thing on this screen.
+	 * The tool NAMES change with it — an `acrossai` server publishes
+	 * `wp_toolset_*`, an `mcp-adapter` one publishes `wp_mcp_adapter_*` — so
+	 * an agent mid-session does not merely get different results behind
+	 * familiar names, it finds the names it learned have vanished. The
+	 * bridge re-registers on the next navigation, but without this nothing
+	 * leaves any trace that the ground moved.
+	 *
+	 * Lives here rather than on `WebMCP\Settings` for a mundane reason: the
+	 * Loader wires hooks from object components, and Settings is all-static.
+	 * The selection only ever changes through this page's form anyway.
+	 *
+	 * Hooked to `update_option_{OPTION_SERVER}`, which WordPress fires only
+	 * on a real change — a no-op save emits nothing.
+	 *
+	 * @since 0.4.2
+	 *
+	 * @param mixed $old_value Previous slug.
+	 * @param mixed $value     New slug.
+	 * @return void
+	 */
+	public function on_server_changed( $old_value, $value ): void {
+		/**
+		 * Fires when the WebMCP server selection changes.
+		 *
+		 * @since 0.4.2
+		 *
+		 * @param string $new_slug The newly selected server slug.
+		 * @param string $old_slug The previously selected slug.
+		 */
+		do_action( 'acrossai_mcp_webmcp_server_changed', (string) $value, (string) $old_value );
+	}
+
+	/**
 	 * Render the page.
 	 *
 	 * @since 0.4.2
@@ -171,6 +207,18 @@ final class WebMcpPage {
 			esc_attr( WebMcpSettings::OPTION_ENABLED ),
 			checked( WebMcpSettings::is_enabled(), true, false ),
 			esc_html__( 'Publish this server\'s tools to in-browser AI agents on wp-admin screens.', 'acrossai-mcp-manager' )
+		);
+
+		printf(
+			'<tr><th scope="row">%s</th><td><label><input type="checkbox" name="%s" value="1" %s> %s</label><p class="description">%s</p></td></tr>',
+			esc_html__( 'Allow tools to run', 'acrossai-mcp-manager' ),
+			esc_attr( WebMcpSettings::OPTION_ALLOW_EXECUTE ),
+			checked( WebMcpSettings::allows_execute(), true, false ),
+			esc_html__( 'Let an in-browser agent actually run these tools, not just see them.', 'acrossai-mcp-manager' ),
+			esc_html__(
+				'Leave this off to start. The tools still appear to the agent, so you can confirm everything is wired up, but nothing can change your site until you switch this on. There is no per-action confirmation prompt yet — once this is on, an agent can run any tool listed below without asking.',
+				'acrossai-mcp-manager'
+			)
 		);
 
 		echo '<tr><th scope="row">' . esc_html__( 'Server', 'acrossai-mcp-manager' ) . '</th><td>';
