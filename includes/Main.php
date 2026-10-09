@@ -383,6 +383,22 @@ final class Main {
 
 		$this->loader->add_action( 'admin_enqueue_scripts', $plugin_admin, 'enqueue_scripts' );
 
+		/**
+		 * F093 — the WebMCP bridge, wired SEPARATELY and deliberately.
+		 *
+		 * `enqueue_scripts` above returns early unless the current screen is
+		 * one of `AdminPageSlugs::plugin_screen_ids()`. Nesting the bridge
+		 * inside it confined the bridge to this plugin's own pages — and the
+		 * screen where an in-browser agent is most useful is the block
+		 * editor, which is not one of them. Measured in a real browser: the
+		 * script was absent from every admin page.
+		 *
+		 * The enqueue is still gated per request on
+		 * `WebMCP\Settings::selected_row()`, so nothing loads anywhere while
+		 * the beta is off.
+		 */
+		$this->loader->add_action( 'admin_enqueue_scripts', $plugin_admin, 'enqueue_webmcp_bridge' );
+
 		// F069 — Full-page takeover when the wizard URL is active. Appends a
 		// body class the SCSS keys off to hide WP admin chrome, and suppresses
 		// core / plugin admin notices for the wizard render.

@@ -367,8 +367,61 @@ final class WebMcpController {
 			'name'        => self::tool_name( $slug ),
 			'label'       => $ability->get_label(),
 			'description' => $ability->get_description(),
-			'inputSchema' => $ability->get_input_schema(),
+			'inputSchema' => self::normalize_schema( $ability->get_input_schema() ),
 		);
+	}
+
+	/**
+	 * Make a PHP-shaped JSON Schema survive `json_encode()`.
+	 *
+	 * PHP cannot tell an empty map from an empty list — both are `array()` —
+	 * so `json_encode()` renders an empty `properties` as `[]`. JSON Schema
+	 * requires it to be an object, and Chrome's WebMCP implementation
+	 * enforces that: a tool whose schema says `"properties": []` is
+	 * registered happily and then fails every invocation with "Failed to
+	 * parse input arguments", before any request reaches this plugin.
+	 *
+	 * Found in a browser, not in CI. Nothing server-side can see it — the
+	 * REST response is valid JSON, the ability is correct, and every PHP test
+	 * passes. The tools simply never work.
+	 *
+	 * Only keys whose values are maps BY SPECIFICATION are converted, so a
+	 * genuine empty list (`required`, `enum`) keeps its `[]`.
+	 *
+	 * @since 0.4.2
+	 *
+	 * @param mixed $schema Schema fragment.
+	 * @return mixed Schema with empty maps cast to objects.
+	 */
+	public static function normalize_schema( $schema ) {
+		if ( ! is_array( $schema ) ) {
+			return $schema;
+		}
+
+		// Keys JSON Schema defines as objects keyed by name.
+		$map_keys = array( 'properties', 'patternProperties', 'definitions', '$defs', 'dependencies' );
+
+		foreach ( $schema as $key => $value ) {
+			if ( is_array( $value ) ) {
+				$schema[ $key ] = self::normalize_schema( $value );
+			}
+
+			if ( in_array( (string) $key, $map_keys, true ) && array() === $value ) {
+				$schema[ $key ] = new \stdClass();
+			}
+		}
+
+		// `default` is only a map when the schema it belongs to is an object.
+		// An empty array default on a `type: object` schema is the same
+		// ambiguity one level down.
+		if ( isset( $schema['type'], $schema['default'] )
+			&& 'object' === $schema['type']
+			&& array() === $schema['default']
+		) {
+			$schema['default'] = new \stdClass();
+		}
+
+		return $schema;
 	}
 
 	/**

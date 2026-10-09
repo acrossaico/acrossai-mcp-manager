@@ -165,12 +165,22 @@ class Main {
 		// F093 — WebMCP browser-support indicator, that page only.
 		$this->maybe_enqueue_webmcp_support();
 
-		// F093 — the WebMCP bridge, every admin screen once enabled.
-		$this->maybe_enqueue_webmcp_bridge();
+		// NOTE: the WebMCP bridge is deliberately NOT enqueued here. This
+		// method returns early on any screen outside
+		// AdminPageSlugs::plugin_screen_ids(), which would confine the bridge
+		// to our own four pages — and the screen it matters most on is the
+		// block editor. It is wired separately on `admin_enqueue_scripts`;
+		// see enqueue_webmcp_bridge() below.
 	}
 
 	/**
 	 * F093 — Enqueue the WebMCP bridge.
+	 *
+	 * Wired directly on `admin_enqueue_scripts`, NOT from `enqueue_scripts()`
+	 * above — that method guards on `is_plugin_admin_screen()` and would
+	 * confine the bridge to this plugin's own four pages. The screen where an
+	 * in-browser agent is most useful is the block editor, which is not one
+	 * of them.
 	 *
 	 * Admin screens only for v1. `execute-ability` and the `toolset/*`
 	 * dispatchers are universal execution layers by design; putting them on
@@ -191,7 +201,7 @@ class Main {
 	 * @since 0.4.2
 	 * @return void
 	 */
-	private function maybe_enqueue_webmcp_bridge(): void {
+	public function enqueue_webmcp_bridge(): void {
 		if ( null === \AcrossAI_MCP_Manager\Includes\WebMCP\Settings::selected_row() ) {
 			return;
 		}
@@ -243,7 +253,7 @@ class Main {
 		$page = isset( $_GET['page'] ) ? sanitize_key( wp_unslash( $_GET['page'] ) ) : '';
 		// phpcs:enable WordPress.Security.NonceVerification.Recommended
 
-		if ( \AcrossAI_MCP_Manager\Admin\Partials\WebMcpPage::PAGE_SLUG !== $page ) {
+		if ( AdminPageSlugs::WEBMCP !== $page ) {
 			return;
 		}
 

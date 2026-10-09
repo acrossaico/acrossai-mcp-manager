@@ -170,6 +170,72 @@ final class WebMcpControllerTest extends WP_UnitTestCase {
 	}
 
 	// ─────────────────────────────────────────────────────────────────────────
+	// Schema serialisation. Found in a browser; invisible to every other test.
+	// ─────────────────────────────────────────────────────────────────────────
+
+	public function test_an_empty_properties_map_encodes_as_an_object(): void {
+		$schema = WebMcpController::normalize_schema(
+			array(
+				'type'                 => 'object',
+				'properties'           => array(),
+				'additionalProperties' => false,
+				'default'              => array(),
+			)
+		);
+
+		$json = (string) wp_json_encode( $schema );
+
+		$this->assertStringContainsString(
+			'"properties":{}',
+			$json,
+			'PHP cannot tell an empty map from an empty list, so json_encode renders an empty '
+				. 'properties as []. JSON Schema requires an object, and Chrome enforces it: the '
+				. 'tool registers fine and then fails EVERY invocation with "Failed to parse input '
+				. 'arguments", before any request reaches this plugin. Measured in a real browser — '
+				. 'the REST response is valid JSON and every server-side test passes regardless.'
+		);
+		$this->assertStringContainsString( '"default":{}', $json, 'An object-typed default has the same ambiguity.' );
+	}
+
+	public function test_genuine_empty_lists_keep_their_brackets(): void {
+		$schema = WebMcpController::normalize_schema(
+			array(
+				'type'       => 'object',
+				'properties' => array(),
+				'required'   => array(),
+				'enum'       => array(),
+			)
+		);
+
+		$json = (string) wp_json_encode( $schema );
+
+		$this->assertStringContainsString( '"required":[]', $json, '`required` is a list by specification, not a map.' );
+		$this->assertStringContainsString( '"enum":[]', $json, '`enum` is a list by specification, not a map.' );
+	}
+
+	public function test_nested_schemas_are_normalized_too(): void {
+		$schema = WebMcpController::normalize_schema(
+			array(
+				'type'       => 'object',
+				'properties' => array(
+					'nested' => array(
+						'type'       => 'object',
+						'properties' => array(),
+					),
+				),
+			)
+		);
+
+		$json = (string) wp_json_encode( $schema );
+
+		$this->assertStringContainsString(
+			'"nested":{"type":"object","properties":{}}',
+			$json,
+			'A nested object schema fails invocation exactly the same way as a top-level one.'
+		);
+	}
+
+	// ─────────────────────────────────────────────────────────────────────────
 	// Safety rails.
 	// ─────────────────────────────────────────────────────────────────────────
 
