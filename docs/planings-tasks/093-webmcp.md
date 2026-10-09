@@ -429,19 +429,55 @@ id-override to the holder for non-transport callers — `set()` currently requir
 `\WP\MCP\Core\McpServer` object, so which of the two is cheaper is a Phase-1 spike, not a
 decision to take on paper now.
 
-## Open question — still open
+## Open question — ANSWERED, and the answer is no
 
-**Can Gemini in Chrome see polyfilled tools, or does it require native + an origin-trial token?**
+**Gemini in Chrome does not consume `document.modelContext`. The flag alone is not enough.**
 
-I could not settle this from public sources, and I want to be explicit about why: searching for it
-returns *our own issue #127* among the top results, so the "Gemini almost certainly talks to
-Blink's internal agent runtime" line reads as external confirmation when it is in fact our own
-text being indexed back at us. It is still a hypothesis, not a finding.
+Measured 2026-10-09 against a real install: Chrome with `#enable-webmcp-testing` and
+`#devtools-webmcp-support` on, **no origin-trial token**, our bridge live on a wp-admin screen with
+all fourteen tools registered.
 
-What *is* independently confirmed: without the origin-trial token `document.modelContext` does not
-exist at all in Chrome, so the feature-detect is doing real work on every stable-Chrome install.
+**What is certain, because it was executed:**
 
-This stays task one.
+- `document.modelContext.registerTool` exists with the flag on.
+- `getTools()` returns our 14 tools under their derived names.
+- `executeTool(tool, '{}')` runs one and returns real data through the full gate chain.
+
+So the page side works. Anything that reads `document.modelContext` can use these tools today.
+
+**What Gemini did, twice, on that same page:**
+
+1. Asked *"what tools do you have?"*, it listed all fourteen — under the heading **"WebMCP Tools
+   Exposed on Your Screen"**, separate from its own "Tools Available to Me in This Session"
+   (search, browser_agent, Workspace, Maps). It quoted our admin-page copy back verbatim, and
+   listed them in **DOM order** (`server-guide`, `integrations`, `other` …) rather than the order
+   `getTools()` returns (`appearance`, `blocks`, `cache` …). It was reading the screen.
+2. Asked *"how many published posts are on this site?"* — a question whose answer is **1**, appears
+   nowhere on that page, and is reachable only through `wp_toolset_content` — it answered: *"The
+   current screen (WebMCP settings) does not display the post count"*, and suggested opening the
+   All Posts screen manually.
+
+Fourteen tools registered, one of them able to answer, none called.
+
+**The precise finding**, stated no wider than the evidence: *with the testing flag alone and no
+origin-trial token, Gemini in Chrome does not read page-registered WebMCP tools.* Whether a token
+changes that is untested — we do not hold one.
+
+### What this changes
+
+The issue's hypothesis was right, and it was load-bearing. **Native and polyfill are not
+substitutes.** The conclusion the issue drew from the hypothesis now follows from evidence:
+
+- The **extension-agent tier is the real audience**, not Gemini — so the polyfill moves from "a
+  question Phase 0 might answer" (T15) to the thing that decides whether v1 reaches anyone.
+- The **origin trial becomes mandatory plumbing rather than optional**, and its end date,
+  **2026-11-16**, is now a real constraint on finding out whether a token helps.
+- Nothing about the server side changes. The gates, the composed tool list and the consent rails
+  are all audience-independent and all verified working.
+
+Next test, when someone has the kit: the same page against an extension agent (MCP-B, Claude in
+Chrome) and against a Chrome build carrying an origin-trial token — in that order, since the first
+needs no paperwork.
 
 ## Tasks
 
@@ -450,7 +486,7 @@ This stays task one.
 - **T0** Set up the development harness before anything else: Chrome 150+, WebMCP flag enabled at
   `chrome://flags/#enable-webmcp-testing`, tool-inspector extension loaded unpacked on a **development profile**. This is
   what makes every later task observable, and it needs no origin-trial token.
-- **T1** Static page, polyfill, no token, one trivial tool. Open in Chrome with Gemini.
+- **T1 — DONE 2026-10-09, answered NO.** Gemini in Chrome does not consume document.modelContext with the testing flag alone; it read the DOM instead and then declined a question only a tool could answer. See "Open question — ANSWERED" above. Remaining: the same page against an extension agent, and against a build carrying an origin-trial token.
   Does Gemini call it? This answers whether native and polyfill are substitutes or two separate
   audiences — and therefore whether the origin-trial token is mandatory plumbing or optional.
 - **T2** Same page in ChatGPT's browser. Confirm the frozen-object behaviour first-hand and that
