@@ -45,6 +45,7 @@ use AcrossAI_MCP_Manager\Includes\WebMCP\BrowserEligibility;
 use AcrossAI_MCP_Manager\Includes\WebMCP\Settings as WebMcpSettings;
 use AcrossAI_MCP_Manager\Includes\WebMCP\WebMcpContext;
 use WP\MCP\Core\McpServer;
+use WP\MCP\Domain\Utils\AbilityArgumentNormalizer;
 use WP_Error;
 use WP_REST_Request;
 use WP_REST_Response;
@@ -222,8 +223,8 @@ final class WebMcpController {
 	 * carries all three call-time gates (10 access control, 20 ability
 	 * exposure, 30 tool curation) and expresses denial ONLY through its
 	 * return value, so a `WP_Error` back from it must stop the request. It is
-	 * also the gate chain's single chance to run: nothing downstream of
-	 * `wp_execute_ability()` re-checks per-server exposure.
+	 * also the gate chain's single chance to run: nothing downstream of it
+	 * re-checks per-server exposure.
 	 *
 	 * @since 0.4.2
 	 * @param WP_REST_Request $request Incoming request.
@@ -289,15 +290,32 @@ final class WebMcpController {
 					return $gated;
 				}
 
-				if ( ! function_exists( 'wp_execute_ability' ) ) {
+				// There is no `wp_execute_ability()`. The Abilities API
+				// executes through the ability object, and the plugin's own
+				// canonical path (Includes\Abilities\Execute::execute) does
+				// two things before it that are easy to miss: it checks
+				// existence BEFORE lookup, because since WP 6.9 resolving an
+				// unregistered name makes the registry emit _doing_it_wrong,
+				// and it normalizes the arguments. Skipping the normalizer
+				// hands the ability a shape it may reject.
+				if ( ! function_exists( 'wp_get_ability' ) || ! function_exists( 'wp_has_ability' ) || ! wp_has_ability( $slug ) ) {
 					return new WP_Error(
-						'acrossai_mcp_webmcp_abilities_api_missing',
-						__( 'The WordPress Abilities API is not available.', 'acrossai-mcp-manager' ),
-						array( 'status' => 500 )
+						'acrossai_mcp_webmcp_ability_missing',
+						__( 'That ability is not registered on this site.', 'acrossai-mcp-manager' ),
+						array( 'status' => 404 )
 					);
 				}
 
-				$output = wp_execute_ability( $slug, $gated );
+				$ability = wp_get_ability( $slug );
+				if ( null === $ability ) {
+					return new WP_Error(
+						'acrossai_mcp_webmcp_ability_missing',
+						__( 'That ability is not registered on this site.', 'acrossai-mcp-manager' ),
+						array( 'status' => 404 )
+					);
+				}
+
+				$output = $ability->execute( AbilityArgumentNormalizer::normalize( $ability, $gated ) );
 				if ( $output instanceof WP_Error ) {
 					return $output;
 				}
