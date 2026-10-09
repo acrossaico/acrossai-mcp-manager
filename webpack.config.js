@@ -114,6 +114,18 @@ module.exports = {
 		// `build/js/quick-connect.css`; admin/Main.php enqueue is gated on
 		// the wizard URL so the bundle never loads on the list-table view.
 		'js/quick-connect': path.resolve( process.cwd(), 'src/js', 'quick-connect.js' ),
+		// F093 — WebMCP browser-support indicator. Plain JS, no React, no
+		// SCSS: it reports whether `document.modelContext.registerTool`
+		// exists so an admin on an unsupported browser is told so rather
+		// than enabling the feature and seeing nothing happen. Enqueued only
+		// on the WebMCP admin page.
+		'js/webmcp-support': path.resolve( process.cwd(), 'src/js', 'webmcp-support.js' ),
+		// F093 — the bridge itself. Registers the selected server's tools on
+		// `document.modelContext` for an in-browser agent. Plain JS, no
+		// dependencies and no polyfill: it detects the host API and does
+		// nothing when it is absent, which is every browser today except
+		// Chrome with the WebMCP flag or an origin-trial token.
+		'js/webmcp-bridge': path.resolve( process.cwd(), 'src/js', 'webmcp-bridge.js' ),
 		'css/frontend': path.resolve(
 			process.cwd(),
 			'src/scss',

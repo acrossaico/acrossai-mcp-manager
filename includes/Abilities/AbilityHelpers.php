@@ -75,11 +75,10 @@ trait AbilityHelpers {
 			 * Abilities-tab per-server toggles authoritative for the
 			 * three built-in meta tools.
 			 */
-			$meta    = $ability->get_meta();
 			$default = ExposureResolver::resolve_effective(
 				$server_id,
 				$ability->get_name(),
-				is_array( $meta ) ? $meta : array()
+				$ability->get_meta()
 			);
 		}
 

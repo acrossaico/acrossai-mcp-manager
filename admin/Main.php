@@ -161,6 +161,133 @@ class Main {
 
 		// F095 — AI Connectors tab bundle.
 		$this->maybe_enqueue_ai_connectors_app();
+
+		// F093 — WebMCP browser-support indicator, that page only.
+		$this->maybe_enqueue_webmcp_support();
+
+		// NOTE: the WebMCP bridge is deliberately NOT enqueued here. This
+		// method returns early on any screen outside
+		// AdminPageSlugs::plugin_screen_ids(), which would confine the bridge
+		// to our own four pages — and the screen it matters most on is the
+		// block editor. It is wired separately on `admin_enqueue_scripts`;
+		// see enqueue_webmcp_bridge() below.
+	}
+
+	/**
+	 * F093 — Enqueue the WebMCP bridge.
+	 *
+	 * Wired directly on `admin_enqueue_scripts`, NOT from `enqueue_scripts()`
+	 * above — that method guards on `is_plugin_admin_screen()` and would
+	 * confine the bridge to this plugin's own four pages. The screen where an
+	 * in-browser agent is most useful is the block editor, which is not one
+	 * of them.
+	 *
+	 * Admin screens only for v1. `execute-ability` and the `toolset/*`
+	 * dispatchers are universal execution layers by design; putting them on
+	 * the public front end would hand every in-page agent the server's whole
+	 * exposed surface with no consent model, for visitors who never opted in.
+	 *
+	 * Gated on `selected_row()`, so nothing loads while the beta is off, the
+	 * selection resolves to nothing, or the chosen server is disabled. The
+	 * script is still inert on a browser without `document.modelContext` —
+	 * it detects and returns — but not shipping it at all is cheaper than
+	 * shipping something that does nothing.
+	 *
+	 * Per-server access control is NOT consulted here. A user the rule
+	 * excludes still gets the script; the `/tools` route then returns nothing
+	 * for them, because that refusal belongs to the gates rather than to an
+	 * enqueue condition that would have to duplicate them.
+	 *
+	 * @since 0.4.2
+	 * @return void
+	 */
+	public function enqueue_webmcp_bridge(): void {
+		if ( null === \AcrossAI_MCP_Manager\Includes\WebMCP\Settings::selected_row() ) {
+			return;
+		}
+
+		$asset = $this->read_asset_manifest( 'build/js/webmcp-bridge.asset.php' );
+		if ( null === $asset ) {
+			return;
+		}
+
+		wp_enqueue_script(
+			'acrossai-mcp-manager-webmcp-bridge',
+			esc_url( \ACROSSAI_MCP_MANAGER_PLUGIN_URL . 'build/js/webmcp-bridge.js' ),
+			// Imports nothing — see the note on the support indicator above.
+			array(),
+			$asset['version'],
+			true
+		);
+
+		$base = rest_url( 'acrossai-mcp-manager/v1/webmcp' );
+
+		wp_localize_script(
+			'acrossai-mcp-manager-webmcp-bridge',
+			'acrossaiWebmcpBridge',
+			array(
+				'restUrl'  => esc_url_raw( $base ),
+				'nonceUrl' => esc_url_raw( $base . '/nonce' ),
+				'nonce'    => wp_create_nonce( 'wp_rest' ),
+			)
+		);
+	}
+
+	/**
+	 * F093 — Enqueue the WebMCP browser-support indicator.
+	 *
+	 * Gated on the WebMCP page. The script is a few lines of plain JS with no
+	 * dependencies: it reports whether `document.modelContext.registerTool`
+	 * exists in the browser being used right now.
+	 *
+	 * It is worth shipping on its own because the failure it prevents is
+	 * invisible: without it an administrator on Safari, or on Chrome without
+	 * `chrome://flags/#enable-webmcp-testing`, enables the feature, sees
+	 * nothing change anywhere, and reports a bug against the plugin.
+	 *
+	 * @since 0.4.2
+	 * @return void
+	 */
+	private function maybe_enqueue_webmcp_support(): void {
+		// phpcs:disable WordPress.Security.NonceVerification.Recommended -- Read-only routing check.
+		$page = isset( $_GET['page'] ) ? sanitize_key( wp_unslash( $_GET['page'] ) ) : '';
+		// phpcs:enable WordPress.Security.NonceVerification.Recommended
+
+		if ( AdminPageSlugs::WEBMCP !== $page ) {
+			return;
+		}
+
+		$asset = $this->read_asset_manifest( 'build/js/webmcp-support.asset.php' );
+		if ( null === $asset ) {
+			return;
+		}
+
+		wp_enqueue_script(
+			'acrossai-mcp-manager-webmcp-support',
+			esc_url( \ACROSSAI_MCP_MANAGER_PLUGIN_URL . 'build/js/webmcp-support.js' ),
+			// Explicitly none, rather than $asset['dependencies']. This entry
+			// imports nothing — no React, no @wordpress packages — so the
+			// generated manifest lists an empty array anyway, and saying so
+			// here documents the intent. It also keeps this call out of the
+			// baselined `array<non-empty-string>` debt the other enqueues
+			// carry, instead of adding a seventh occurrence to it.
+			array(),
+			$asset['version'],
+			true
+		);
+
+		wp_localize_script(
+			'acrossai-mcp-manager-webmcp-support',
+			'acrossaiWebmcpSupport',
+			array(
+				'supported'   => __( 'Supported', 'acrossai-mcp-manager' ),
+				'unsupported' => __( 'Not supported', 'acrossai-mcp-manager' ),
+				'hint'        => __(
+					'This browser does not expose document.modelContext, so no in-browser agent can see these tools. Chrome needs the WebMCP flag enabled at chrome://flags/#enable-webmcp-testing, or an origin-trial token. Everything else on this page still saves normally.',
+					'acrossai-mcp-manager'
+				),
+			)
+		);
 	}
 
 	/**

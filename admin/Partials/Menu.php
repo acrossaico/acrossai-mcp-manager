@@ -111,6 +111,24 @@ class Menu {
 			'',
 			3
 		);
+
+		// 3) WebMCP (beta) — F093. Its own submenu rather than a tab on the
+		// shared Settings page: most of the screen is explanation, because
+		// WebMCP is an early draft API that most administrators have not met,
+		// and a settings tab is the wrong shape for a page that has to teach
+		// before it configures.
+		//
+		// Position 4, after Connect, so the sidebar reads MCP → Connect →
+		// WebMCP: the remote path first, then the browser one.
+		add_submenu_page(
+			SettingsPage::PARENT_SLUG,
+			__( 'WebMCP', 'acrossai-mcp-manager' ),
+			__( 'WebMCP', 'acrossai-mcp-manager' ),
+			'manage_options',
+			WebMcpPage::PAGE_SLUG,
+			array( WebMcpPage::instance(), 'render' ),
+			4
+		);
 	}
 
 	/**

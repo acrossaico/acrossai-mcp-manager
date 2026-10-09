@@ -383,6 +383,22 @@ final class Main {
 
 		$this->loader->add_action( 'admin_enqueue_scripts', $plugin_admin, 'enqueue_scripts' );
 
+		/**
+		 * F093 — the WebMCP bridge, wired SEPARATELY and deliberately.
+		 *
+		 * `enqueue_scripts` above returns early unless the current screen is
+		 * one of `AdminPageSlugs::plugin_screen_ids()`. Nesting the bridge
+		 * inside it confined the bridge to this plugin's own pages — and the
+		 * screen where an in-browser agent is most useful is the block
+		 * editor, which is not one of them. Measured in a real browser: the
+		 * script was absent from every admin page.
+		 *
+		 * The enqueue is still gated per request on
+		 * `WebMCP\Settings::selected_row()`, so nothing loads anywhere while
+		 * the beta is off.
+		 */
+		$this->loader->add_action( 'admin_enqueue_scripts', $plugin_admin, 'enqueue_webmcp_bridge' );
+
 		// F069 — Full-page takeover when the wizard URL is active. Appends a
 		// body class the SCSS keys off to hide WP admin chrome, and suppresses
 		// core / plugin admin notices for the wizard render.
@@ -403,6 +419,33 @@ final class Main {
 		 */
 		$menu = \AcrossAI_MCP_Manager\Admin\Partials\Menu::instance();
 		$this->loader->add_action( 'admin_menu', $menu, 'register_submenu' );
+
+		/**
+		 * F093 — WebMCP options, registered against the WebMCP page's OWN
+		 * option_group. Sharing a group with the MCP tab would make one
+		 * page's submit wipe the other's unsubmitted fields.
+		 *
+		 * The page itself is registered as a submenu by Menu::register_submenu()
+		 * above; this only wires the Settings API registration.
+		 */
+		$webmcp_page = \AcrossAI_MCP_Manager\Admin\Partials\WebMcpPage::instance();
+		$this->loader->add_action( 'admin_init', $webmcp_page, 'register_settings' );
+
+		/**
+		 * F093 — observe a change of selected WebMCP server.
+		 *
+		 * Switching servers changes the tool NAMES, not just what sits behind
+		 * them, so an agent mid-session finds the names it learned have gone.
+		 * `update_option_*` fires only on a real change, so this does not
+		 * emit on a no-op save.
+		 */
+		$this->loader->add_action(
+			'update_option_' . \AcrossAI_MCP_Manager\Includes\WebMCP\Settings::OPTION_SERVER,
+			$webmcp_page,
+			'on_server_changed',
+			10,
+			2
+		);
 		$this->loader->add_filter(
 			'plugin_action_links_' . ACROSSAI_MCP_MANAGER_PLUGIN_BASENAME,
 			$menu,
@@ -693,6 +736,33 @@ final class Main {
 		 */
 		$quick_connect_rest = \AcrossAI_MCP_Manager\Includes\REST\QuickConnectController::instance();
 		$this->loader->add_action( 'rest_api_init', $quick_connect_rest, 'register_routes' );
+
+		/**
+		 * F093 — WebMCP REST controller (beta, off by default).
+		 *
+		 * Registers 3 routes under `/acrossai-mcp-manager/v1/webmcp/*`:
+		 *   GET  /tools    — the selected server's composed tool list
+		 *   POST /execute  — run one tool (slug in the BODY, never the path:
+		 *                    every slug contains a slash and Apache's
+		 *                    AllowEncodedSlashes Off 404s it)
+		 *   GET  /nonce    — refresh `wp_rest`, so an agent in a tab older
+		 *                    than the nonce lifetime recovers instead of
+		 *                    failing with an unexplained 403
+		 *
+		 * Routes are always REGISTERED; availability is decided per request by
+		 * `WebMCP\Settings::selected_row()`, which returns null when the beta
+		 * is off, the slug resolves to nothing, or the server is disabled.
+		 * Registering conditionally would make the route set depend on an
+		 * option read at `rest_api_init`, which is the kind of thing that
+		 * breaks when an option is cached.
+		 *
+		 * Per-server access control and exposure are NOT enforced here. They
+		 * are enforced inside `WebMCP\WebMcpContext`, which replays the vendor
+		 * filters so the already-wired gates run themselves — one
+		 * implementation of that logic, shared with the remote path.
+		 */
+		$webmcp_rest = \AcrossAI_MCP_Manager\Includes\REST\WebMcpController::instance();
+		$this->loader->add_action( 'rest_api_init', $webmcp_rest, 'register_routes' );
 
 		/**
 		 * Feature 037 — Embeds tab self-registration is SKIPPED in 0.2.10+.

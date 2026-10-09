@@ -31,6 +31,15 @@ final class AdminPageSlugs {
 	public const SETTINGS_TAB = 'mcp';
 
 	/**
+	 * F093 — the WebMCP submenu page slug.
+	 *
+	 * Lives here rather than only on `Admin\Partials\WebMcpPage` because
+	 * `plugin_screen_ids()` below has to name it, and Includes must not reach
+	 * into Admin for a constant.
+	 */
+	public const WEBMCP = 'acrossai_mcp_webmcp';
+
+	/**
 	 * Screen IDs WordPress generates for our pages.
 	 *
 	 * Post-Feature-010 (2026-07-02), the plugin registers as SUBMENUS of the shared
@@ -54,6 +63,11 @@ final class AdminPageSlugs {
 			'acrossai_page_' . self::PARENT,
 			// Shared Settings page (Feature 012 — MCP tab lives here).
 			'acrossai_page_acrossai-settings',
+			// F093 — the WebMCP submenu. Without this its assets never load:
+			// Admin\Main::enqueue_scripts() returns early on any screen not
+			// listed here, so the page rendered with its support indicator
+			// stuck on "Checking…" and no script on the page at all.
+			'acrossai_page_' . self::WEBMCP,
 			// Legacy top-level IDs (retained additively per A9).
 			'toplevel_page_' . self::PARENT,
 		);
