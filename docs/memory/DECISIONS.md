@@ -3065,3 +3065,153 @@ listed above stay load-bearing either way.
 
 **Related**: `D31` (OAuth `server_id` first-class), `D32` (approval-revoke cascade),
 `D22` (`acrossai_n8n_enabled` is a frozen public string), `B67`.
+
+
+---
+
+### 2026-10-16 — D60 / DEC-AUDIT-ERASURE-DEIDENTIFIES-NEVER-DELETES
+
+**Status**
+Active
+
+**Decision**
+A WordPress personal-data eraser registered over an audit or log table MUST de-identify, never
+delete: clear the acting user id, the source address and the user agent; retain the event, its
+timing, its outcome and its server. The matching exporter still returns the subject's events in
+full.
+
+**Why this is durable**
+The privacy-versus-integrity tension is structural rather than feature-specific, and the wrong
+resolution is the intuitive one. WordPress's eraser runs on an **unprivileged subject request**,
+so an eraser that deletes rows hands anyone able to file a request a way to remove audit
+evidence — no `manage_options` required. De-identification satisfies the request completely (the
+subject is no longer identifiable) while preserving the security record.
+
+**Tradeoffs**
+- Gained: subject rights honoured without opening an evidence-destruction path.
+- Made harder: the eraser's response must explain that events are retained, or an operator
+  fielding the request will read it as a failure.
+- Reconsider: if a jurisdiction the plugin targets requires erasure of the event itself and not
+  merely of its identifiers.
+
+**Future mistake prevented**
+Writing `$wpdb->delete()` in an eraser callback because that is what "erase" appears to mean.
+
+**Evidence**
+F096 FR-038 originally read "removes **or** de-identifies"; the disjunction was the defect.
+Narrowed to de-identification only, with SC-022 asserting no event is removed.
+
+**Related**: `A24` (the deletion side of the same property), `S3` (secrets never stored
+plaintext — F096 stores no credentials at all).
+
+---
+
+### 2026-10-24 — D61 / DEC-ONE-TABLE-DECIDED-BY-INVARIANT-NOT-SPEED
+
+**Status**
+Active
+
+**Decision**
+The MCP activity log stays **one table** discriminated by `event_type`, not two tables split by
+kind. The split was benchmarked, not argued about, and it **won on speed** — two tables were
+1.2x–2.4x faster on six of eight representative queries. It was still rejected.
+
+**Why this is durable**
+The deciding term was not performance, and that generalises. Every speed difference was under
+1.5 ms at ten thousand rows — imperceptible behind a screen that renders in ~200 ms. What the
+split could not express was the **global retained-event ceiling**: one bound across both event
+kinds. On one table that is a single statement (30 ms at 150k rows). Across two it requires a
+`UNION` cutoff (57 ms), or it is abandoned entirely in favour of per-table caps — at which point
+"never exceed N events" stops being true and the guarantee is gone, not merely slower. The
+mixed-kind read is the second cliff: 0.14 ms on one table against **125 ms** via `UNION` at 150k.
+
+**So the rule to carry forward:** when a proposed split measures faster, the question is not how
+much faster. It is *what the split can no longer express*. Check the invariants before the
+benchmark, because a benchmark will happily recommend losing one.
+
+**Tradeoffs**
+- Gained: a global bound in one statement; a cheap mixed-kind read; a self-referential parent
+  link rather than a cross-table relation; one retention and removal path.
+- Made harder: single-kind queries pay a constant ~1.5x (addressed separately by A25's
+  discriminator-prefixed indexes, which close most of it); ~46% more disk at 10k rows, almost
+  all index.
+- Reconsider: if a single site routinely exceeds ~1M events, or if the global ceiling is dropped
+  as a requirement — the latter removes the only reason the split lost.
+
+**Evidence**
+`specs/096-mcp-activity-log/research.md` D-14/D-15 (benchmarked on a copy of the shipped schema
+at 9,377 and 150,032 rows); spec FR-035. Related: A25, D28.
+
+---
+
+### 2026-10-24 — D62 / DEC-SWALLOWING-A-FAILURE-IS-NOT-PERMISSION-TO-STAY-SILENT
+
+**Status**
+Active
+
+**Decision**
+A component required to fail safely MUST still report that it failed, somewhere an operator or
+support can reach **without already suspecting it**. Swallowing the error and saying nothing are
+two separate decisions, and a fail-safe requirement only makes the first one.
+
+**Why this is durable**
+FR-013 requires activity recording to swallow its own errors so an AI client's tool call is never
+broken. That requirement is correct and stays. It is also exactly what let a total write-loss run
+invisibly: every insert failed, the recorder caught it, and the screen showed a plausible empty
+list — indistinguishable from a quiet site. It was found by querying MySQL directly, not by any
+surface the plugin offered.
+
+The spec already contained the right reasoning in another context: sampling was rejected because
+"an operator cannot tell a sampled log from a quiet one." Nobody had applied it to a *broken* one.
+
+**Prevention**
+- For any swallow-and-continue path, pair the catch with a durable signal (a counter, a Site
+  Health check, an admin notice) and a test asserting the operator is told.
+- Prefer a surface that survives the failure clearing itself. A counter that resets on the next
+  success can erase its own evidence before anyone looks, which is why the screen alone was not
+  enough here.
+- Treat "the empty state looks identical to the broken state" as a design defect in any
+  read surface, not just logs.
+
+**Tradeoffs**
+- Gained: a failing subsystem becomes diagnosable remotely rather than only by database access.
+- Made harder: every fail-safe path now owes a reporting surface; read-side only, but it is work.
+- Reconsider: never for audit or security records. For a genuinely cosmetic path, a log line may
+  be enough.
+
+**Evidence**
+Spec FR-013a/FR-013b, SC-030; `includes/Observability/RecordingHealthCheck.php`,
+`includes/Database/Support/SchemaFailureHealthCheck.php`. Related: B73, A24.
+
+---
+
+### 2026-10-24 — D63 / DEC-CRON-DEPENDENT-BOUNDS-ARE-DISCLOSED-NOT-WORKED-AROUND
+
+**Status**
+Active
+
+**Decision**
+When a storage guarantee is enforced by a scheduled job, the spec MUST say the guarantee is
+conditional on that job running, and the plugin MUST report when the job is overdue. It MUST NOT
+build a private fallback scheduler, and MUST NOT move the enforcement onto a request path.
+
+**Why this is durable**
+Both activity-log retention periods and the retained-event ceiling are applied by one daily event
+and nothing else, so FR-035's "bounded independently of traffic volume" silently depended on
+WP-Cron. Unstated, that reads as unconditional.
+
+A site whose cron is not firing has a **site-wide** fault — scheduled posts, updates and every
+other plugin's jobs are equally broken. A private workaround hides a problem the operator has to
+fix regardless, and makes this plugin behave unlike every other one on the install. Reporting it
+is the correct scope; fixing cron is not this feature's job.
+
+**Tradeoffs**
+- Gained: the dependency is visible, and an unbounded log announces itself instead of being
+  discovered as unexplained growth.
+- Made harder: nothing self-heals. A broken-cron site stays unbounded until the operator acts.
+- Reconsider: if a bound ever becomes a hard compliance requirement rather than an operator
+  convenience, enforcement may have to move somewhere that always runs.
+
+**Evidence**
+Spec FR-031a, SC-031; `RecordingHealthCheck::sweep_overdue_days()` with a one-day grace so a
+sweep that has merely not come round yet does not cry wolf.

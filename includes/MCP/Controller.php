@@ -231,7 +231,11 @@ final class Controller {
 				$version,
 				array( HttpTransport::class ),
 				ErrorLogMcpErrorHandler::class,
-				NullMcpObservabilityHandler::class,
+				// F096: our handler ONLY when request logging is on. Reading the
+				// toggle here rather than inside the handler is what makes a disabled
+				// log cost nothing at runtime — the adapter keeps the Null handler and
+				// the recording path is never reached (FR-029).
+				\AcrossAI_MCP_Manager\Includes\Observability\HandlerResolver::class_string(),
 				$tools,
 				$resources,
 				$prompts

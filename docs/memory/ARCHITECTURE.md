@@ -765,3 +765,135 @@ confirm each contribution method is gated on success rather than on one specific
 - `B64` — the data loss this prevents, and why guarding the consumer alone was not enough.
 - `A20`, `D40` — the cross-plugin boundary family this belongs to.
 - `D56` — the one-list-two-readings rule governing `acrossai_mcp_manager_tool_abilities`.
+
+
+---
+
+### 2026-10-16 — A24 / A-AUDIT-LOG-RECORDS-ITS-OWN-DESTRUCTION — An audit log MUST record its own destruction
+
+**Status**
+Active — F096 plan-stage finding (SEC-001). Applies to every plugin-owned log or audit table.
+
+**Constraint**
+Any table whose purpose is accountability MUST record the events that remove rows from it.
+Every removal path — an administrator purge, a retention cron, a row-count ceiling trim — writes
+a removal record naming actor, time and count, and writes it **after** the deletion, so it
+survives as the first entry of the remaining history.
+
+**Why this is durable**
+A log that can be erased without trace is not an audit record, it is a convenience. The gap is
+invisible by construction: the only place the erasure would show is the thing that was erased.
+It is also cheap to close — one `Recorder` call on a write path that already exists, no schema
+change — so there is no velocity argument for deferring it. Retrofitting it after rows exist is
+worse than useless, because the earlier history can never afterwards be shown to be complete.
+
+**Future mistake prevented**
+Shipping a purge endpoint that returns a count to its caller and persists nothing. The reference
+implementation this plugin studied for F096 (easy-mcp-ai's audit log) has exactly this gap, so
+copying its shape propagates the flaw rather than inheriting a solution.
+
+**Evidence**
+F096 `data-model.md` §Lifecycle originally enumerated three deletion paths and recorded none;
+`contracts/rest-activity.md` route 6 returned a count only. Corrected to FR-043 + SC-021 before
+tasks.
+
+**Related**
+- `D60` — the same accountability property approached from the erasure side.
+- `docs/security-reviews/2026-10-16-096-mcp-activity-log-plan.md` SEC-001;
+  `specs/096-mcp-activity-log/security-constraints.md` SC-C1.
+
+---
+
+### A25 / A-DISCRIMINATED-TABLE-INDEXES-LEAD-WITH-THE-DISCRIMINATOR — one table, two populations, every composite key starts with the column that tells them apart
+
+**Status**: Active (F096 — 2026-10-23)
+**Scope**: Any table holding more than one kind of row behind a discriminator column.
+**Tags**: `database, indexes, berlindb, single-table, discriminator, f097, generalizable`
+
+**Constraint**
+When one table holds two or more populations distinguished by a discriminator column, **every
+composite index MUST lead with that discriminator**. A key that omits it matches rows of *both*
+kinds, so every single-population query pays for the other population's rows.
+
+Measured on `wp_acrossai_mcp_activity_log`, filtering server + status:
+
+```
+(status, created_at)               742 index entries examined   1.155 ms
+(event_type, status, created_at)   239 index entries examined   0.413 ms
+```
+
+Same answer, 2.8x less work. The gain scales with skew, and skew is the normal case: live data
+ran ~89% ability rows against ~11% request rows. With the prefix, a request query examines
+exactly the number of request rows — a dedicated table would examine the same.
+
+**Why this needs writing down**
+1. **Nothing enforces it.** `dbDelta` never re-keys an existing index, and neither BerlinDB nor
+   the plugin's `SchemaReconciler` compares an index's *columns* against the schema — only
+   columns-as-fields are reconciled. A mis-keyed index is therefore invisible: queries stay
+   **correct** and merely get slower, so no test and no user notices.
+2. **Changing a key means renaming it.** The name is the only thing `index_exists()` can see.
+   Re-keying under the same name leaves upgraded installs on the old key while reporting the new
+   version — B34 in index form.
+3. **It decides table count.** Skew is the strongest argument for splitting a discriminated
+   table into two. The prefix removes that argument: it buys the index seek a split would have
+   provided, while keeping a global row ceiling expressible in one statement and the mixed-kind
+   read cheap (0.14 ms on one table against 125 ms via `UNION` at 150k rows).
+
+**Exception, and state it rather than let it be discovered**
+Low-cardinality filters may stay unindexed — on this table `invoked_via`, `method` and
+`component_category`, each a handful of distinct values, where a key buys little selectivity and
+the nine existing indexes already outweigh the row data roughly 7:3.
+
+**Reviewer gate**
+For any diff touching a discriminated table's `Schema.php`: every composite key either leads with
+the discriminator or carries a comment saying why not. Pin it with a test that reads the **live**
+index columns, not the declared names.
+
+**Related**: B34, B73, D28, D-14/D-16 in `specs/096-mcp-activity-log/research.md`. **F097's change
+log inherits this** — it is a second discriminated table in the same codebase.
+
+---
+
+### A26 / A-PARENT-WRITTEN-AFTER-CHILDREN-IS-LINKED-RETROACTIVELY — a row that does not exist yet cannot be referenced
+
+**Status**: Active (F096 — 2026-10-24)
+**Scope**: Any parent/child pair where the parent's row is completed after the children it contains.
+**Tags**: `ordering, parent-child, request-scoped-state, adoption, f097, generalizable`
+
+**Constraint**
+When a parent row is written **after** the children belonging to it — because the parent's own
+record is only complete at the end, typically once its duration or outcome is known — the
+children's foreign key is **unsettable at insert time**. This is a property of the ordering, not
+an omission, and no amount of setting state earlier fixes it: at the moment a child is stored the
+parent has no id to point at.
+
+The pattern that does work:
+
+1. The request-scoped holder collects the ids of the children it wrote.
+2. When the parent row lands, it **adopts** them in one pass.
+3. Adoption **consumes** the list, so a second parent in the same cycle cannot re-adopt the first
+   one's children.
+4. The lifecycle discards anything left unadopted, or an abandoned request leaves its ids for the
+   **next** request to inherit — one caller's children attributed to another's call.
+
+Two details that are easy to get wrong:
+- **Update through the data layer, not one bulk statement.** A raw bulk `UPDATE` bypasses an
+  object cache whose invalidation is private, leaving cached reads serving the pre-adoption value
+  — the SC-C21 trap, reached from a different direction.
+- **Bound the collection.** It sits on a write path; a cap (500 here) keeps a pathological request
+  from exhausting memory. Losing a link is recoverable; running out of memory while recording is
+  not.
+
+**Why this needs writing down**
+The naive fix — "set the id on the child before writing it" — is both the first thing anyone tries
+and impossible. F096 shipped a correct, fully unit-tested setter with **zero production callers**
+for exactly this reason: the mechanism was fine, the ordering made it unusable, and the tests
+supplied the value production never could (B75).
+
+**Reviewer gate**
+For any new parent/child recording seam, ask when each row is *written*, not when each is
+*conceived*. If the parent completes last, expect adoption — and expect a test that drives the
+real dispatch rather than pre-setting the parent id.
+
+**Related**: B75 (how this hid), SC-C21 (the cache half), A17 (the lifecycle that must clear it),
+FR-012a/FR-012b. **F097 inherits this** — it attaches change rows to the same call.

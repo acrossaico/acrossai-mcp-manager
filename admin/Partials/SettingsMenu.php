@@ -19,6 +19,8 @@
 
 namespace AcrossAI_MCP_Manager\Admin\Partials;
 
+use AcrossAI_MCP_Manager\Includes\Utilities\ActivityLogConstants;
+
 use AcrossAI_MCP_Manager\Includes\Abilities\Discover;
 
 use AcrossAI_MCP_Manager\Public\Partials\FrontendAuth;
@@ -173,6 +175,105 @@ class SettingsMenu {
 				'sanitize_callback' => array( $this, 'sanitize_uninstall_flag' ),
 				'default'           => 0,
 			)
+		);
+
+		// F096 — activity logging. TWO independent toggles: ability logging is
+		// far noisier than request logging (one tools/call fans out into several
+		// abilities, and non-MCP callers add rows with no MCP traffic at all),
+		// so an operator must be able to run one without the other. Both off on
+		// install — logging every request is a real cost and the WordPress AI
+		// plugin's own equivalent sits behind an experiment gate for the same
+		// reason. Laid out so Feature 097's change-recording toggle slots in as
+		// a third row without restructuring.
+		// The declared default MUST match the constant every reader passes to
+		// get_option(). They are two different mechanisms and nothing makes
+		// them agree, but unchecking the box depends on them agreeing:
+		//
+		// An unchecked checkbox posts no field, so `options.php` calls
+		// update_option() with null, which sanitizes to false. update_option()
+		// then compares that against `get_option( $option )` called WITHOUT an
+		// explicit default — which resolves to whatever is declared HERE. If
+		// this said false while readers defaulted to true, the comparison would
+		// find false === false, write nothing, leave the option absent, and the
+		// readers' true fallback would keep logging ON. The operator unticks
+		// the box, the page reports success, and nothing changes.
+		//
+		// Verified directly: update_option( $option, false ) against an absent
+		// option returns false and stores nothing.
+		register_setting(
+			$option_group,
+			ActivityLogConstants::OPTION_REQUEST_LOGGING,
+			array(
+				'sanitize_callback' => 'rest_sanitize_boolean',
+				'default'           => ActivityLogConstants::DEFAULT_REQUEST_LOGGING,
+			)
+		);
+
+		register_setting(
+			$option_group,
+			ActivityLogConstants::OPTION_ABILITY_LOGGING,
+			array(
+				'sanitize_callback' => 'rest_sanitize_boolean',
+				'default'           => ActivityLogConstants::DEFAULT_ABILITY_LOGGING,
+			)
+		);
+
+		register_setting(
+			$option_group,
+			ActivityLogConstants::OPTION_RETENTION_REQUEST_DAYS,
+			array(
+				'sanitize_callback' => 'absint',
+				'default'           => ActivityLogConstants::DEFAULT_RETENTION_REQUEST_DAYS,
+			)
+		);
+
+		register_setting(
+			$option_group,
+			ActivityLogConstants::OPTION_RETENTION_ABILITY_DAYS,
+			array(
+				'sanitize_callback' => 'absint',
+				'default'           => ActivityLogConstants::DEFAULT_RETENTION_ABILITY_DAYS,
+			)
+		);
+
+		register_setting(
+			$option_group,
+			ActivityLogConstants::OPTION_MAX_EVENTS,
+			array(
+				'sanitize_callback' => 'absint',
+				'default'           => ActivityLogConstants::DEFAULT_MAX_EVENTS,
+			)
+		);
+
+		add_settings_section(
+			'acrossai_mcp_activity_section',
+			__( 'MCP Activity Log', 'acrossai-mcp-manager' ),
+			array( $this, 'render_activity_section_description' ),
+			$page_slug
+		);
+
+		add_settings_field(
+			ActivityLogConstants::OPTION_REQUEST_LOGGING,
+			__( 'Log MCP requests', 'acrossai-mcp-manager' ),
+			array( $this, 'render_activity_request_field' ),
+			$page_slug,
+			'acrossai_mcp_activity_section'
+		);
+
+		add_settings_field(
+			ActivityLogConstants::OPTION_ABILITY_LOGGING,
+			__( 'Log ability runs', 'acrossai-mcp-manager' ),
+			array( $this, 'render_activity_ability_field' ),
+			$page_slug,
+			'acrossai_mcp_activity_section'
+		);
+
+		add_settings_field(
+			'acrossai_mcp_activity_retention',
+			__( 'Keep events for', 'acrossai-mcp-manager' ),
+			array( $this, 'render_activity_retention_field' ),
+			$page_slug,
+			'acrossai_mcp_activity_section'
 		);
 
 		// Section: npm / CLI Settings.
@@ -370,6 +471,79 @@ class SettingsMenu {
 			checked( $checked, true, false ),
 			esc_html__( 'Delete all data on uninstall', 'acrossai-mcp-manager' ),
 			esc_html__( '⚠ Warning: When checked, uninstalling this plugin will permanently delete all custom database tables and plugin options. This cannot be undone.', 'acrossai-mcp-manager' )
+		);
+	}
+
+	/** Describe the activity-log section. */
+	public function render_activity_section_description(): void {
+		printf(
+			'<p>%s</p>',
+			esc_html__(
+				'Records what AI clients asked your MCP servers to do. On by default, and bounded by default: requests are kept for 30 days, ability runs for 7, and the log is capped at 50,000 events. A daily job applies all three. Switch either half off if you would rather it recorded nothing.',
+				'acrossai-mcp-manager'
+			)
+		);
+	}
+
+	/** Request-logging toggle. */
+	public function render_activity_request_field(): void {
+		$enabled = (bool) get_option( ActivityLogConstants::OPTION_REQUEST_LOGGING, ActivityLogConstants::DEFAULT_REQUEST_LOGGING );
+
+		printf(
+			'<label><input type="checkbox" name="%1$s" value="1" %2$s /> %3$s</label><p class="description">%4$s</p>',
+			esc_attr( ActivityLogConstants::OPTION_REQUEST_LOGGING ),
+			checked( $enabled, true, false ),
+			esc_html__( 'Record one row per MCP request', 'acrossai-mcp-manager' ),
+			esc_html__( 'What was asked, by which client, how it authenticated, whether it worked and how long it took.', 'acrossai-mcp-manager' )
+		);
+	}
+
+	/**
+	 * Ability-logging toggle.
+	 *
+	 * The description states that arguments are recorded. Redaction matches
+	 * sensitive KEY NAMES (token, secret, api_key and 21 more); it cannot cover
+	 * a secret pasted into a free-text value. An operator deserves to know that
+	 * before switching this on, rather than discovering it in a support thread.
+	 */
+	public function render_activity_ability_field(): void {
+		$enabled = (bool) get_option( ActivityLogConstants::OPTION_ABILITY_LOGGING, ActivityLogConstants::DEFAULT_ABILITY_LOGGING );
+
+		printf(
+			'<label><input type="checkbox" name="%1$s" value="1" %2$s /> %3$s</label><p class="description">%4$s</p>',
+			esc_attr( ActivityLogConstants::OPTION_ABILITY_LOGGING ),
+			checked( $enabled, true, false ),
+			esc_html__( 'Record one row per ability run', 'acrossai-mcp-manager' ),
+			esc_html__(
+				'Much noisier: one tool call can run several abilities, and REST, WP-CLI and admin callers are recorded too. Ability arguments are recorded — sensitive values are redacted by key name, so a secret inside a free-text field is stored as sent.',
+				'acrossai-mcp-manager'
+			)
+		);
+	}
+
+	/** Retention and the retained-event ceiling. */
+	public function render_activity_retention_field(): void {
+		printf(
+			'<p><label>%1$s <input type="number" min="0" name="%2$s" value="%3$d" class="small-text" /></label></p>'
+			. '<p><label>%4$s <input type="number" min="0" name="%5$s" value="%6$d" class="small-text" /></label></p>'
+			. '<p><label>%7$s <input type="number" min="0" name="%8$s" value="%9$d" class="small-text" /></label></p>'
+			. '<p class="description">%10$s</p>',
+			esc_html__( 'Requests, in days', 'acrossai-mcp-manager' ),
+			esc_attr( ActivityLogConstants::OPTION_RETENTION_REQUEST_DAYS ),
+			(int) get_option( ActivityLogConstants::OPTION_RETENTION_REQUEST_DAYS, ActivityLogConstants::DEFAULT_RETENTION_REQUEST_DAYS ),
+			esc_html__( 'Ability runs, in days', 'acrossai-mcp-manager' ),
+			esc_attr( ActivityLogConstants::OPTION_RETENTION_ABILITY_DAYS ),
+			(int) get_option( ActivityLogConstants::OPTION_RETENTION_ABILITY_DAYS, ActivityLogConstants::DEFAULT_RETENTION_ABILITY_DAYS ),
+			esc_html__( 'Maximum events kept, both halves together', 'acrossai-mcp-manager' ),
+			esc_attr( ActivityLogConstants::OPTION_MAX_EVENTS ),
+			(int) get_option( ActivityLogConstants::OPTION_MAX_EVENTS, ActivityLogConstants::DEFAULT_MAX_EVENTS ),
+			// The two retention fields are PER HALF and the ceiling is SHARED, so this
+			// paragraph has to switch scope mid-way. The previous wording said "the
+			// maximum is a hard ceiling" directly after a sentence about each half
+			// ageing out separately, which reads as a third per-half number — see the
+			// 2026-10-22 clarification. Say "shared", and say what it costs: heavy
+			// ability traffic shortening the request history is the surprising part.
+			esc_html__( 'The two day counts are separate, so noisy ability rows cannot force their cutoff onto the quieter request history. The maximum is different: it is one hard ceiling shared by both halves, and once the log passes it the oldest events are shed first whatever their kind — so heavy ability traffic can shorten your request history too. 0 means no limit.', 'acrossai-mcp-manager' )
 		);
 	}
 }

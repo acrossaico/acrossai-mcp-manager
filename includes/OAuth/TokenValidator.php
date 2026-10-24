@@ -18,6 +18,7 @@ use AcrossAI_MCP_Manager\Includes\Database\OAuthTokens\Row as TokenRow;
 use AcrossAI_MCP_Manager\Includes\OAuth\Repositories\AccessTokenRepository;
 use AcrossAI_MCP_Manager\Includes\OAuth\Repositories\ClientRepository;
 use AcrossAI_MCP_Manager\Includes\OAuth\Security\SecretsVault;
+use AcrossAI_MCP_Manager\Includes\Utilities\ActivityLogConstants;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -113,6 +114,33 @@ final class TokenValidator {
 			}
 
 			$resolved = (int) $row->user_id;
+
+			/**
+			 * Fires after a bearer token has been validated successfully.
+			 *
+			 * Fire-and-forget (D19): the return value is ignored and listeners
+			 * must not throw — this method's own flow has to complete whatever
+			 * happens downstream.
+			 *
+			 * Exists so the activity log can record HOW a client authenticated.
+			 * This method resolves the client row and then discards it, so by
+			 * the time the adapter's observability handler runs, nothing else
+			 * can tell an AI connector from a bare DCR client. An action rather
+			 * than a direct call into Observability keeps this module unaware
+			 * of that one (Constitution Principle V); the listener is wired in
+			 * Main.php per A1.
+			 *
+			 * @since 0.4.4
+			 *
+			 * @param string $connector_slug Connector slug, or '' for a bare client.
+			 * @param string $client_name    Client display name, or ''.
+			 */
+			do_action(
+				ActivityLogConstants::ACTION_OAUTH_TOKEN_VALIDATED,
+				isset( $row->connector_slug ) ? (string) $row->connector_slug : '',
+				isset( $row->client_name ) ? (string) $row->client_name : ''
+			);
+
 			return $resolved > 0 ? $resolved : $user_id;
 		} finally {
 			self::$resolving = false;

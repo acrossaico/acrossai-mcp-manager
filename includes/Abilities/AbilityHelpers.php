@@ -79,7 +79,8 @@ trait AbilityHelpers {
 			$default = ExposureResolver::resolve_effective(
 				$server_id,
 				$ability->get_name(),
-				is_array( $meta ) ? $meta : array()
+				// get_meta() declares `: array` in core — no guard needed.
+				$meta
 			);
 		}
 

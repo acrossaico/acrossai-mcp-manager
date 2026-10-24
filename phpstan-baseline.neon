@@ -583,12 +583,6 @@ parameters:
 			path: includes/Abilities/CurrentServerHolder.php
 
 		-
-			message: '#^Call to function is_array\(\) with array\<string, mixed\> will always evaluate to true\.$#'
-			identifier: function.alreadyNarrowedType
-			count: 1
-			path: includes/Abilities/Discover.php
-
-		-
 			message: '#^Call to function method_exists\(\) with WP_Ability and ''get_meta'' will always evaluate to true\.$#'
 			identifier: function.alreadyNarrowedType
 			count: 1
@@ -599,12 +593,6 @@ parameters:
 			identifier: arrayValues.list
 			count: 1
 			path: includes/Abilities/Discover.php
-
-		-
-			message: '#^Call to function is_array\(\) with array\<string, mixed\> will always evaluate to true\.$#'
-			identifier: function.alreadyNarrowedType
-			count: 1
-			path: includes/Abilities/GetAbilityInfo.php
 
 		-
 			message: '#^Access to an undefined property object\:\:\$override_abilities_permission\.$#'
@@ -791,6 +779,42 @@ parameters:
 			identifier: argument.type
 			count: 1
 			path: includes/Database/CliAuthLog/Row.php
+
+		# F096 ActivityLog\Schema — the SAME four BerlinDB warts already recorded
+		# below for CliAuthLog\Schema, and for the same reason: BerlinDB declares
+		# $columns/$indexes as array<Kern\Column>/array<Kern\Index> while its own
+		# boot() offers "legacy support for pre-set $columns array" and hydrates
+		# plain arrays into objects. No covariant type exists that is also true of
+		# what we assign, so there is no honest fix inside the file.
+		#
+		# FOLLOW-UP: the documented remedy is a stub file correcting
+		# BerlinDB\Database\Kern\Schema's two @var tags. That would retire these
+		# four AND the four CliAuthLog entries below in one change. Not done here
+		# because a third-party stub changes analysis for every file that touches
+		# BerlinDB, which is not a Phase 2 decision to make unilaterally.
+		-
+			message: '#^PHPDoc type array of property AcrossAI_MCP_Manager\\Includes\\Database\\ActivityLog\\Schema\:\:\$columns is not covariant with PHPDoc type array\<BerlinDB\\Database\\Kern\\Column\> of overridden property BerlinDB\\Database\\Kern\\Schema\:\:\$columns\.$#'
+			identifier: property.phpDocType
+			count: 1
+			path: includes/Database/ActivityLog/Schema.php
+
+		-
+			message: '#^PHPDoc type array of property AcrossAI_MCP_Manager\\Includes\\Database\\ActivityLog\\Schema\:\:\$indexes is not covariant with PHPDoc type array\<BerlinDB\\Database\\Kern\\Index\> of overridden property BerlinDB\\Database\\Kern\\Schema\:\:\$indexes\.$#'
+			identifier: property.phpDocType
+			count: 1
+			path: includes/Database/ActivityLog/Schema.php
+
+		-
+			message: '#^Property AcrossAI_MCP_Manager\\Includes\\Database\\ActivityLog\\Schema\:\:\$columns type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: includes/Database/ActivityLog/Schema.php
+
+		-
+			message: '#^Property AcrossAI_MCP_Manager\\Includes\\Database\\ActivityLog\\Schema\:\:\$indexes type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: includes/Database/ActivityLog/Schema.php
 
 		-
 			message: '#^PHPDoc type array of property AcrossAI_MCP_Manager\\Includes\\Database\\CliAuthLog\\Schema\:\:\$columns is not covariant with PHPDoc type array\<BerlinDB\\Database\\Kern\\Column\> of overridden property BerlinDB\\Database\\Kern\\Schema\:\:\$columns\.$#'
@@ -1540,18 +1564,6 @@ parameters:
 			message: '#^Method AcrossAI_MCP_Manager\\Includes\\Main\:\:set_locale\(\) has no return type specified\.$#'
 			identifier: missingType.return
 			count: 1
-			path: includes/Main.php
-
-		-
-			message: '#^Parameter \#2 \$component of method AcrossAI_MCP_Manager\\Includes\\Loader\:\:add_action\(\) expects object, string given\.$#'
-			identifier: argument.type
-			count: 9
-			path: includes/Main.php
-
-		-
-			message: '#^Parameter \#2 \$component of method AcrossAI_MCP_Manager\\Includes\\Loader\:\:add_filter\(\) expects object, string given\.$#'
-			identifier: argument.type
-			count: 4
 			path: includes/Main.php
 
 		-
