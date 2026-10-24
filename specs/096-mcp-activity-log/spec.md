@@ -389,6 +389,35 @@ the scheduled cleanup and confirm it is removed while the other half's rows surv
   feature's job.
 
   This qualifies FR-030, FR-031 and FR-035, which otherwise read as unconditional guarantees.
+- **FR-031b**: The one-table design MUST remain **splittable**. One table is the decision
+  (D61) and is not under review, but splitting into separate request and ability tables is a
+  live option, and these invariants are what keep that migration cheap. Each is free to hold now
+  and expensive to retrofit once the table carries real history:
+
+  1. **Every row MUST be classifiable from its own columns.** `event_type` does this. No row may
+     depend on a sibling row, a join or external state to know which table it would belong to.
+  2. **`event_type` MUST stay a closed set, and every value MUST have a declared destination.**
+     Today that set is `request`, `ability` and `removal` — and `removal` is the one a
+     request/ability split has no obvious home for. **Its destination is decided now: removal
+     records follow the requests table.** They are operator-facing audit events about the log as
+     a whole, not about any ability, and A24 requires the remaining history to open with them —
+     which means they must live wherever the history an operator browses lives.
+
+     **Consequence, recorded so a migration does not rediscover it:** a removal row reuses three
+     columns for its own meanings — `component_name` holds the reason, `input_preview` holds the
+     count removed, and `invoked_via` holds `cli` or `admin`. `invoked_via` is empty on every
+     genuine request row, so a split that trimmed it from the requests table would silently lose
+     who triggered each removal. The requests table MUST retain it.
+  3. **Any reference to a row from outside this table MUST record the row's KIND alongside its
+     id.** An id alone is ambiguous after a split: the same number could address either table.
+     This binds Feature 097, whose `activity_id` points at an ability row *or* a request row —
+     it carries `activity_type` for exactly this reason.
+  4. **A split migration MUST preserve row ids.** `parent_id` and every external reference are
+     plain integers; re-numbering on copy silently breaks all of them, and nothing would fail
+     loudly at the time.
+
+  These are **constraints on future work**, not tasks for this feature. Nothing here changes the
+  shipped behaviour.
 - **FR-032**: System MUST allow an administrator to purge the log, reporting how much was
   removed.
 - **FR-033**: Uninstalling with data removal opted in MUST remove the log's storage.
