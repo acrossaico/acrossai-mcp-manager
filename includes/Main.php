@@ -115,9 +115,45 @@ final class Main {
 
 		$this->load_dependencies();
 
+		$this->register_activity_log_table();
+
 		$this->set_locale();
 
 		$this->load_hooks();
+	}
+
+	/**
+	 * Teach `$wpdb` the activity log's table name, on EVERY request.
+	 *
+	 * BerlinDB does not resolve a table name from the Query's `$table_name`
+	 * directly. `Query::get_table_name()` calls `get_table_prefix()`, which
+	 * reads `$wpdb->{$prefixed_name} ?? ''` — and that property is only ever
+	 * set by the Table object's own constructor. Construct no Table, and the
+	 * name resolves to the EMPTY STRING: the insert becomes
+	 * `SHOW FULL COLUMNS FROM ``` and fails, `add_item()` returns false, and
+	 * the Recorder's A15 try/catch swallows it. Nothing is written and nothing
+	 * is reported.
+	 *
+	 * Reconciliation runs on `admin_init` (see reconcile_database_schemas()),
+	 * which is enough to CREATE and migrate the table but not to make it
+	 * writable anywhere else — `admin_init` does not fire on a front-end REST
+	 * request or on WP-Cron. Both of those are load-bearing here: every MCP
+	 * call is a REST request, and the retention sweep is a cron event. The log
+	 * recorded nothing from real traffic, while every test passed, because the
+	 * test bootstrap constructs the Table itself.
+	 *
+	 * Safe to do unconditionally and this early. Table construction performs no
+	 * queries — `init()` sanitizes the name and calls `set_db_interface()`,
+	 * which only assigns `$wpdb` properties. The schema work lives in
+	 * `maybe_upgrade()`, which is NOT called here.
+	 *
+	 * Deliberately not gated on the logging toggles. The table must be
+	 * addressable for reads, retention and purge regardless of whether
+	 * recording is currently on, and an unresolvable name fails silently in
+	 * every one of those paths too.
+	 */
+	private function register_activity_log_table(): void {
+		\AcrossAI_MCP_Manager\Includes\Database\ActivityLog\Table::instance();
 	}
 
 	/**
@@ -278,10 +314,35 @@ final class Main {
 			\AcrossAI_MCP_Manager\Includes\Database\OAuthAuthCodes\Table::instance(),
 			\AcrossAI_MCP_Manager\Includes\Database\OAuthClients\Table::instance(),
 			\AcrossAI_MCP_Manager\Includes\Database\ConnectorApprovedUsers\Table::instance(),
+			// F096 — the activity log. Listed here as well as in Activator
+			// because WordPress skips activation hooks on a plugin UPDATE
+			// (B68): a site that already had this plugin active when 096
+			// shipped would otherwise have the toggles but no table, and every
+			// write would fail silently.
+			\AcrossAI_MCP_Manager\Includes\Database\ActivityLog\Table::instance(),
 		);
+
+		$pending = 0;
 
 		foreach ( $tables as $table ) {
 			$table->maybe_upgrade();
+
+			if ( $table->needs_upgrade() ) {
+				++$pending;
+			}
+		}
+
+		// FR-013b. A failure recorded here is usually transient: the version is
+		// left unstamped precisely so the migration retries on the next admin
+		// load. Once nothing is pending, the recorded failures describe a state
+		// that no longer exists and must stop being reported, or Site Health
+		// shows a permanent red mark for a problem that fixed itself.
+		//
+		// Cleared wholesale rather than per table because BerlinDB's `Table`
+		// exposes no public name accessor, so a stored failure cannot be matched
+		// to a Table object from out here. "Nothing needs upgrading" covers it.
+		if ( 0 === $pending ) {
+			\AcrossAI_MCP_Manager\Includes\Database\Support\SchemaFailureHealthCheck::instance()->clear_all();
 		}
 
 		// F091 — the backstop for what `$upgrades` cannot reach: a column
@@ -862,6 +923,166 @@ final class Main {
 		// Safety net for fatal-error / early-exit paths.
 		$this->loader->add_action( 'shutdown', $current_server_holder, 'clear', 999 );
 
+		// ─────────────────────────────────────────────────────────────────
+		// F096 — the activity log's OAuth attribution holder.
+		//
+		// Same A17 three-stage lifecycle as CurrentServerHolder above, for the
+		// same reason: stage 3 (`shutdown`) is what stops a fatal leaving a
+		// resolved OAuth identity in memory for the NEXT request to be
+		// attributed to. A17 calls omitting it the number-one silent bug in
+		// ad-hoc versions of this pattern, and in an activity log the symptom
+		// would be one client's calls credited to another.
+		//
+		// `capture_oauth_context` listens for the scoped action TokenValidator
+		// fires after a successful bearer validation — hooks here per A1,
+		// never inside the validator (Principle V).
+		// ─────────────────────────────────────────────────────────────────
+		$auth_context_holder = \AcrossAI_MCP_Manager\Includes\Observability\AuthContextHolder::instance();
+		$this->loader->add_action(
+			\AcrossAI_MCP_Manager\Includes\Utilities\ActivityLogConstants::ACTION_OAUTH_TOKEN_VALIDATED,
+			$auth_context_holder,
+			'capture_oauth_context',
+			10,
+			2
+		);
+		$this->loader->add_filter( 'rest_pre_dispatch', $auth_context_holder, 'reset_for_request', 5, 3 );
+		$this->loader->add_filter( 'rest_post_dispatch', $auth_context_holder, 'clear', 999, 1 );
+		$this->loader->add_action( 'shutdown', $auth_context_holder, 'clear', 999 );
+
+		// F096 — the activity log's REST surface and privacy callbacks.
+		//
+		// The exporter and eraser ship in THIS release rather than with the
+		// governance story, because this release is what starts recording source
+		// addresses. Clarification Q1 kept the full address on the condition
+		// that the subject-data path accompanied it; deferring the callbacks
+		// would keep the cost and drop the mitigation (SEC-T02).
+		$this->loader->add_action(
+			'rest_api_init',
+			\AcrossAI_MCP_Manager\Includes\REST\ActivityLogController::instance(),
+			'register_routes'
+		);
+		$this->loader->add_filter(
+			'wp_privacy_personal_data_exporters',
+			\AcrossAI_MCP_Manager\Includes\Observability\PersonalData::class,
+			'register_exporter'
+		);
+		$this->loader->add_filter(
+			'wp_privacy_personal_data_erasers',
+			\AcrossAI_MCP_Manager\Includes\Observability\PersonalData::class,
+			'register_eraser'
+		);
+
+		// The Activity screen: its own submenu under the shared AcrossAI parent,
+		// not under tools.php. The asset enqueue is gated on the page hook, so
+		// the 334 KB bundle never loads on an unrelated admin screen.
+		$activity_page = \AcrossAI_MCP_Manager\Admin\Partials\ActivityLogPage::instance();
+		$this->loader->add_action( 'admin_menu', $activity_page, 'register_menu', 20 );
+		$this->loader->add_action( 'admin_enqueue_scripts', $activity_page, 'enqueue_assets' );
+
+		// F096 — ability capture.
+		//
+		// Core instruments WP_Ability::execute() for EVERY caller, so these
+		// hooks cover MCP, the REST abilities route, WP-CLI and the admin UI
+		// without any callback wrapping (which would duplicate core's own seam
+		// and still miss non-MCP callers).
+		//
+		// The 7.1 quartet is feature-detected, NOT required: the plugin floor
+		// is 6.9 and those hooks are @since 7.1.0. On 6.9 the guaranteed pair
+		// records successes only — verified in core at class-wp-ability.php:634,
+		// where a WP_Error early-returns before `wp_after_execute_ability`
+		// fires, and at :615, where a permission denial returns before the
+		// `before` hook fires at all. The always-on bracket in
+		// Base_Toolset_Ability / Abilities\Execute is what covers failures and
+		// denials for MCP-originated calls on every supported version.
+		$ability_recorder = \AcrossAI_MCP_Manager\Includes\Abilities\AbilityActivityRecorder::instance();
+		$this->loader->add_action( 'wp_before_execute_ability', $ability_recorder, 'on_before_execute', 10, 2 );
+		$this->loader->add_action( 'wp_after_execute_ability', $ability_recorder, 'on_after_execute', 10, 3 );
+
+		if ( \AcrossAI_MCP_Manager\Includes\Abilities\AbilityActivityRecorder::has_rich_hooks() ) {
+			$this->loader->add_filter( 'wp_ability_execute_result', $ability_recorder, 'on_execute_result', 10, 3 );
+			$this->loader->add_filter( 'wp_ability_permission_result', $ability_recorder, 'on_permission_result', 10, 3 );
+			$this->loader->add_filter( 'wp_ability_validate_input', $ability_recorder, 'on_validate_input', 10, 3 );
+		}
+
+		// The attribution context 097 attaches to. Same A17 three-stage
+		// lifecycle as the other two holders, for the same reason.
+		$capture_context = \AcrossAI_MCP_Manager\Includes\Observability\CaptureContext::instance();
+		$this->loader->add_filter( 'rest_pre_dispatch', $capture_context, 'reset_for_request', 5, 3 );
+		$this->loader->add_filter( 'rest_post_dispatch', $capture_context, 'clear', 999, 1 );
+		$this->loader->add_action( 'shutdown', $capture_context, 'clear', 999 );
+		$this->loader->add_filter( 'rest_post_dispatch', $ability_recorder, 'clear', 999, 1 );
+		$this->loader->add_action( 'shutdown', $ability_recorder, 'clear', 999 );
+
+		// F096 — response-size measurement (context cost).
+		//
+		// The observability seam passes tags and a duration and NEVER the result
+		// payload, so a response's SIZE is unreachable from the handler. These
+		// seven published vendor filters do see it, and are hooked purely to
+		// take a strlen() — no payload is retained, so there is nothing to
+		// redact and no truncation question.
+		//
+		// `mcp_adapter_tools_list` is the load-bearing one: tools/list has no
+		// ability children, so its size cannot be recovered by rolling up
+		// parent_id, and the tool catalogue injected at connect is usually the
+		// largest single context cost a server imposes.
+		//
+		// Every callback returns its input unchanged. Priority 10 with the exact
+		// arg counts the vendor passes.
+		$size_probe = \AcrossAI_MCP_Manager\Includes\Observability\ResponseSizeProbe::instance();
+		$this->loader->add_filter( 'mcp_adapter_tool_call_result', $size_probe, 'measure_tool_call', 10, 3 );
+		$this->loader->add_filter( 'mcp_adapter_tools_list', $size_probe, 'measure_tools_list', 10, 1 );
+		$this->loader->add_filter( 'mcp_adapter_initialize_response', $size_probe, 'measure_initialize', 10, 1 );
+		$this->loader->add_filter( 'mcp_adapter_prompt_get_result', $size_probe, 'measure_prompt_get', 10, 3 );
+		$this->loader->add_filter( 'mcp_adapter_prompts_list', $size_probe, 'measure_prompts_list', 10, 1 );
+		$this->loader->add_filter( 'mcp_adapter_resource_read_result', $size_probe, 'measure_resource_read', 10, 3 );
+		$this->loader->add_filter( 'mcp_adapter_resources_list', $size_probe, 'measure_resources_list', 10, 1 );
+
+		// F096 — the daily retention + ceiling sweep, and a re-sync whenever the
+		// bounds change so the schedule follows the settings rather than
+		// drifting from them until the next activation.
+		$activity_cleanup = \AcrossAI_MCP_Manager\Includes\Database\ActivityLog\Cleanup::instance();
+		$this->loader->add_action(
+			\AcrossAI_MCP_Manager\Includes\Database\ActivityLog\Cleanup::CRON_HOOK,
+			$activity_cleanup,
+			'run'
+		);
+
+		// Reconcile the schedule on a normal boot, not only on activation and on
+		// a settings save. B68 again, and the default flip is what made it
+		// dangerous: WordPress skips activation hooks on a plugin UPDATE, and an
+		// operator who is happy with the shipped defaults never saves the
+		// settings form — so neither of the two paths that call
+		// `sync_schedule()` would ever run. While recording was OFF by default
+		// that was harmless: nothing was written, so a missing pruning job
+		// pruned nothing. Now that both halves record by default, the same gap
+		// means a site logs from its first request with NOTHING ever deleting a
+		// row. Priority 4, so the table reconciliation at 3 has already run.
+		$this->loader->add_action(
+			'admin_init',
+			\AcrossAI_MCP_Manager\Includes\Database\ActivityLog\Cleanup::class,
+			'sync_schedule',
+			4
+		);
+
+		foreach (
+			array(
+				\AcrossAI_MCP_Manager\Includes\Utilities\ActivityLogConstants::OPTION_RETENTION_REQUEST_DAYS,
+				\AcrossAI_MCP_Manager\Includes\Utilities\ActivityLogConstants::OPTION_RETENTION_ABILITY_DAYS,
+				\AcrossAI_MCP_Manager\Includes\Utilities\ActivityLogConstants::OPTION_MAX_EVENTS,
+			) as $bound_option
+		) {
+			$this->loader->add_action(
+				'update_option_' . $bound_option,
+				\AcrossAI_MCP_Manager\Includes\Database\ActivityLog\Cleanup::class,
+				'sync_schedule'
+			);
+			$this->loader->add_action(
+				'add_option_' . $bound_option,
+				\AcrossAI_MCP_Manager\Includes\Database\ActivityLog\Cleanup::class,
+				'sync_schedule'
+			);
+		}
+
 		/**
 		 * Feature 040 — the OAuth admin REST controllers (ClientRegistration + ConnectorAdmin)
 		 * moved to acrossai-ai-connectors companion plugin. The companion registers
@@ -993,6 +1214,22 @@ final class Main {
 
 		$oauth_timezone_health = \AcrossAI_MCP_Manager\Includes\Database\Support\TimezoneHealthCheck::instance();
 		$this->loader->add_filter( 'site_status_tests', $oauth_timezone_health, 'add_test' );
+
+		// F096 FR-013a. The Activity Log screen already says "recording is
+		// failing" when the counter is non-zero; this is the half that works
+		// without anyone opening that screen. Both are needed: the counter
+		// resets on the next successful write, so an intermittent fault can
+		// erase its own evidence before a human looks, and support cannot ask
+		// an operator for a screen they have to navigate to.
+		$recording_health = \AcrossAI_MCP_Manager\Includes\Observability\RecordingHealthCheck::instance();
+		$this->loader->add_filter( 'site_status_tests', $recording_health, 'add_test' );
+
+		// F096 FR-013b. `acrossai_mcp_schema_upgrade_failed` is fired by every
+		// Table subclass in this plugin and, until this listener, went nowhere.
+		// A signal with no listener is the same as no signal.
+		$schema_health = \AcrossAI_MCP_Manager\Includes\Database\Support\SchemaFailureHealthCheck::instance();
+		$this->loader->add_action( 'acrossai_mcp_schema_upgrade_failed', $schema_health, 'record_failure', 10, 3 );
+		$this->loader->add_filter( 'site_status_tests', $schema_health, 'add_test' );
 
 		// The five built-in connector profiles. `ConnectorProfileRegistry` builds
 		// its list purely from this filter, so without this line every surface

@@ -13,6 +13,8 @@
 
 namespace AcrossAI_MCP_Manager\Admin\Partials\ServerTabs;
 
+use AcrossAI_MCP_Manager\Admin\Partials\ActivityLogPage;
+
 // Exit if accessed directly.
 defined( 'ABSPATH' ) || exit;
 
@@ -25,13 +27,6 @@ defined( 'ABSPATH' ) || exit;
  */
 final class McpTrackerTab extends AbstractServerTab {
 
-	/**
-	 * WordPress.org plugin page URL for the "Get MCP Tracker" call to action.
-	 *
-	 * @since 0.0.6
-	 * @var string
-	 */
-	private const WPORG_URL = 'https://wordpress.org/plugins/mcp-tracker/';
 
 	/**
 	 * Returns the tab slug.
@@ -75,103 +70,46 @@ final class McpTrackerTab extends AbstractServerTab {
 	 * @return void
 	 */
 	protected function render_body( array $server ): void {
+		$server_id   = isset( $server['id'] ) ? (int) $server['id'] : 0;
 		$server_slug = ! empty( $server['server_slug'] )
 			? (string) $server['server_slug']
 			: sanitize_title( (string) $server['server_name'] );
 
-		$tracker_active = defined( 'WPVMCPT_PLUGIN_VERSION' ) || class_exists( 'WPVMCPT\\Plugin' );
-		$tracker_url    = admin_url( 'admin.php?page=wpvmcpt-requests-list&server=' . rawurlencode( $server_slug ) );
-
 		echo '<div class="mcp-tab-panel">';
-		printf( '<h2>%s</h2>', esc_html__( 'MCP Tracker', 'acrossai-mcp-manager' ) );
+		printf( '<h2>%s</h2>', esc_html__( 'Logs', 'acrossai-mcp-manager' ) );
+		printf(
+			'<p class="description">%s</p>',
+			esc_html__( 'Requests this server answered, and what ran behind them.', 'acrossai-mcp-manager' )
+		);
 
-		if ( $tracker_active ) {
-			$this->render_active( $server_slug, $tracker_url );
-		} else {
-			$this->render_inactive( $tracker_url );
+		// F096 — the same React app the global Activity page mounts, filtered to
+		// this server with the Server column hidden. One component, two mount
+		// points; the only difference is this bootstrap payload.
+		ActivityLogPage::instance()->enqueue_bundle(
+			array(
+				'serverId'   => $server_id,
+				'showServer' => false,
+				'rootId'     => 'acrossai-mcp-activity-root',
+			)
+		);
+
+		echo '<div id="acrossai-mcp-activity-root"></div>';
+
+		// The third-party plugin this tab used to advertise. Kept as a
+		// secondary note rather than an install CTA: both logs can run at once
+		// (different tables, no interference), and an operator who already has
+		// it should be told why they are seeing two.
+		if ( defined( 'WPVMCPT_PLUGIN_VERSION' ) || class_exists( 'WPVMCPT\\Plugin' ) ) {
+			$tracker_url = admin_url( 'admin.php?page=wpvmcpt-requests-list&server=' . rawurlencode( $server_slug ) );
+
+			printf(
+				'<p class="description" style="margin-top:16px">%s <a href="%s">%s</a></p>',
+				esc_html__( 'MCP Tracker is also active on this site and logs the same traffic independently.', 'acrossai-mcp-manager' ),
+				esc_url( $tracker_url ),
+				esc_html__( 'Open MCP Tracker', 'acrossai-mcp-manager' )
+			);
 		}
 
 		echo '</div>';
-	}
-
-	/**
-	 * Renders the "tracker active" branch — success notice + button + slug hint.
-	 *
-	 * @since 0.0.6
-	 * @param string $server_slug Server slug (already sanitized).
-	 * @param string $tracker_url Direct link to the request log filtered to this server.
-	 * @return void
-	 */
-	private function render_active( string $server_slug, string $tracker_url ): void {
-		printf(
-			'<div class="notice notice-success inline"><p><strong>%1$s</strong> %2$s</p></div>',
-			esc_html__( 'MCP Tracker is active.', 'acrossai-mcp-manager' ),
-			esc_html__( 'View all logged requests for this server below.', 'acrossai-mcp-manager' )
-		);
-
-		printf(
-			'<p style="margin-top:16px;"><a href="%1$s" class="button button-primary">%2$s</a></p>',
-			esc_url( $tracker_url ),
-			esc_html__( 'View Request Log', 'acrossai-mcp-manager' )
-		);
-
-		echo '<p class="description" style="margin-top:12px;">';
-		/* translators: %s: server slug (wrapped in <code>) */
-		$slug_template = __( 'Direct link filtered to server: %s', 'acrossai-mcp-manager' );
-		printf(
-			wp_kses( $slug_template, array( 'code' => array() ) ),
-			'<code>' . esc_html( $server_slug ) . '</code>'
-		);
-		echo '<br />';
-		printf(
-			'<code style="user-select:all;">%s</code>',
-			esc_html( $tracker_url )
-		);
-		echo '</p>';
-	}
-
-	/**
-	 * Renders the "tracker not installed" branch — info notice + facts table + CTA.
-	 *
-	 * @since 0.0.6
-	 * @param string $tracker_url Direct link URL to display in the "Request log URL" row.
-	 * @return void
-	 */
-	private function render_inactive( string $tracker_url ): void {
-		printf(
-			'<div class="notice notice-info inline"><p><strong>%1$s</strong> %2$s</p></div>',
-			esc_html__( 'MCP Tracker is not installed.', 'acrossai-mcp-manager' ),
-			esc_html__( 'Install the free MCP Tracker plugin to log and inspect every request made to this MCP server.', 'acrossai-mcp-manager' )
-		);
-
-		echo '<table class="form-table" style="margin-top:8px;">';
-
-		printf(
-			'<tr><th scope="row">%1$s</th><td><a href="%2$s" target="_blank" rel="noopener noreferrer">%3$s</a></td></tr>',
-			esc_html__( 'Plugin', 'acrossai-mcp-manager' ),
-			esc_url( self::WPORG_URL ),
-			esc_html__( 'MCP Tracker — WordPress.org', 'acrossai-mcp-manager' )
-		);
-
-		printf(
-			'<tr><th scope="row">%1$s</th><td>%2$s</td></tr>',
-			esc_html__( 'What it does', 'acrossai-mcp-manager' ),
-			esc_html__( 'Logs every incoming MCP request — tool calls, responses, errors, and timing — so you can audit activity, debug AI clients, and monitor server usage.', 'acrossai-mcp-manager' )
-		);
-
-		printf(
-			'<tr><th scope="row">%1$s</th><td><code style="user-select:all;">%2$s</code><p class="description">%3$s</p></td></tr>',
-			esc_html__( 'Request log URL', 'acrossai-mcp-manager' ),
-			esc_html( $tracker_url ),
-			esc_html__( 'Once installed and activated, this URL will open the request log filtered to this server.', 'acrossai-mcp-manager' )
-		);
-
-		echo '</table>';
-
-		printf(
-			'<p style="margin-top:16px;"><a href="%1$s" class="button" target="_blank" rel="noopener noreferrer">%2$s</a></p>',
-			esc_url( self::WPORG_URL ),
-			esc_html__( 'Get MCP Tracker', 'acrossai-mcp-manager' )
-		);
 	}
 }

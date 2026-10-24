@@ -50,6 +50,8 @@ Full file-by-file source→target mapping: [`source-map.md`](source-map.md)
 | 022 | addons-page-registration | 2026-07-12 | Planned | [022-addons-page-registration.md](022-addons-page-registration.md) |
 | 040 | migrate-ai-connectors-to-companion | 2026-07-31 | Implemented | [040-migrate-ai-connectors-to-companion.md](040-migrate-ai-connectors-to-companion.md) |
 | 082 | per-server-ability-policy-defaults | 2026-09-05 | Implemented (Phase 2 + US1 MVP; manual smoke + F030 fence execution pending) | [082-per-server-ability-policy-defaults.md](082-per-server-ability-policy-defaults.md) |
+| 096 | mcp-activity-log | 2026-10-23 | Implemented (114/114 tasks; US1–US4 + Phase 8 post-implementation fixes + V1 architecture remediation, all 17 suites green) | [096-mcp-activity-log.md](096-mcp-activity-log.md) — one activity table holding MCP requests + ability runs as a parent/child tree, with context-cost measurement, retention/ceiling bounds and WP privacy callbacks |
+| 097 | mcp-change-history | 2026-10-16 | Planned (depends on 096) — owns the change log end to end: table, capture, REST, UI | [097-mcp-change-history.md](097-mcp-change-history.md) |
 
 ---
 

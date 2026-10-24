@@ -29,6 +29,8 @@
 
 namespace AcrossAI_MCP_Manager\Includes\Abilities\Toolset;
 
+use AcrossAI_MCP_Manager\Includes\Abilities\AbilityActivityRecorder;
+use AcrossAI_MCP_Manager\Includes\Observability\CaptureContext;
 use AcrossAI_MCP_Manager\Includes\Abilities\Toolset\AbilityGroup;
 use AcrossAI_MCP_Manager\Includes\Abilities\Toolset\InputNormalizer;
 use WP_Ability;
@@ -1088,9 +1090,30 @@ abstract class Base_Toolset_Ability {
 			$input['parameters'] ?? null
 		);
 
+		$started = microtime( true );
+
 		try {
-			$result = $target->execute( $parameters );
+			// F096: capture is armed for the duration of this call, so an
+			// ability event can be attributed to the MCP request that caused it
+			// — and so Feature 097 can attribute its change rows to the same
+			// call. `around()` owns the try/finally; a second hand-written
+			// bracket here is how the two paths would drift apart.
+			$result = CaptureContext::instance()->around(
+				$name,
+				static fn() => $target->execute( $parameters )
+			);
 		} catch ( \Throwable $e ) {
+			AbilityActivityRecorder::instance()->record_bracketed(
+				$name,
+				'error',
+				array(
+					'input'         => $parameters,
+					'error_code'    => 'ability_threw',
+					'error_message' => $e->getMessage(),
+				),
+				( microtime( true ) - $started ) * 1000
+			);
+
 			/*
 			 * An ability that throws would otherwise reach the transport as an
 			 * unhandled exception and come back as a generic "Failed to execute
@@ -1099,7 +1122,24 @@ abstract class Base_Toolset_Ability {
 			return $this->failure( 'execute', 'ability_threw', $e->getMessage() );
 		}
 
+		$elapsed = ( microtime( true ) - $started ) * 1000;
+
 		if ( is_wp_error( $result ) ) {
+			// The only path that sees this on WordPress 6.9: core's
+			// `wp_after_execute_ability` early-returns before firing on a
+			// WP_Error, so a log built on the hook pair alone records
+			// successes and is blind to every failure.
+			AbilityActivityRecorder::instance()->record_bracketed(
+				$name,
+				'error',
+				array(
+					'input'         => $parameters,
+					'error_code'    => (string) $result->get_error_code(),
+					'error_message' => $result->get_error_message(),
+				),
+				$elapsed
+			);
+
 			return array(
 				'action'        => 'execute',
 				'group'         => $this->group(),
@@ -1108,6 +1148,16 @@ abstract class Base_Toolset_Ability {
 				'error_code'    => (string) $result->get_error_code(),
 			);
 		}
+
+		AbilityActivityRecorder::instance()->record_bracketed(
+			$name,
+			'success',
+			array(
+				'input'  => $parameters,
+				'output' => $result,
+			),
+			$elapsed
+		);
 
 		return array(
 			'action'  => 'execute',

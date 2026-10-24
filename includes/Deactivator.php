@@ -43,5 +43,11 @@ class Deactivator {
 		// deactivation preserved — no inline callback in acrossai-mcp-manager.php
 		// beyond the require + delegation.
 		wp_clear_scheduled_hook( 'acrossai_mcp_manager_oauth_cleanup' );
+
+		// F096 — the activity log's retention sweep. Cleared by name, matching
+		// the OAuth hook above: the constant lives on the Cleanup class but the
+		// contract is the string, and deactivation must not depend on that class
+		// being loadable.
+		wp_clear_scheduled_hook( 'acrossai_mcp_manager_activity_cleanup' );
 	}
 }

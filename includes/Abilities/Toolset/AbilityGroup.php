@@ -106,7 +106,8 @@ class AbilityGroup {
 	public static function of( WP_Ability $ability ): string {
 		$meta = $ability->get_meta_item( 'acrossai' );
 
-		if ( ! is_array( $meta ) || ! isset( $meta['tab_group'] ) ) {
+		// No is_array() guard: get_meta() declares `: array` in core.
+		if ( ! isset( $meta['tab_group'] ) ) {
 			return '';
 		}
 

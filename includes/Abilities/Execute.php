@@ -11,6 +11,7 @@ declare( strict_types = 1 );
 
 namespace AcrossAI_MCP_Manager\Includes\Abilities;
 
+use AcrossAI_MCP_Manager\Includes\Observability\CaptureContext;
 use WP\MCP\Domain\Utils\AbilityArgumentNormalizer;
 use WP_Error;
 
@@ -131,19 +132,61 @@ final class Execute {
 
 		$parameters = AbilityArgumentNormalizer::normalize( $ability, $parameters );
 
+		$started = microtime( true );
+
 		try {
-			$result = $ability->execute( $parameters );
+			// F096: same wrapper as Base_Toolset_Ability — one try/finally,
+			// owned by CaptureContext, so the two choke points cannot drift.
+			$result  = CaptureContext::instance()->around(
+				$ability_name,
+				static fn() => $ability->execute( $parameters )
+			);
+			$elapsed = ( microtime( true ) - $started ) * 1000;
+
 			if ( is_wp_error( $result ) ) {
+				AbilityActivityRecorder::instance()->record_bracketed(
+					$ability_name,
+					'error',
+					array(
+						'input'         => $parameters,
+						'error_code'    => (string) $result->get_error_code(),
+						'error_message' => $result->get_error_message(),
+					),
+					$elapsed
+				);
+
 				return array(
 					'success' => false,
 					'error'   => $result->get_error_message(),
 				);
 			}
+
+			AbilityActivityRecorder::instance()->record_bracketed(
+				$ability_name,
+				'success',
+				array(
+					'input'  => $parameters,
+					'output' => $result,
+				),
+				$elapsed
+			);
+
 			return array(
 				'success' => true,
 				'data'    => $result,
 			);
 		} catch ( \Throwable $e ) {
+			AbilityActivityRecorder::instance()->record_bracketed(
+				$ability_name,
+				'error',
+				array(
+					'input'         => $parameters,
+					'error_code'    => 'ability_threw',
+					'error_message' => $e->getMessage(),
+				),
+				( microtime( true ) - $started ) * 1000
+			);
+
 			return array(
 				'success' => false,
 				'error'   => $e->getMessage(),

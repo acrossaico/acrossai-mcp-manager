@@ -188,7 +188,9 @@ final class Discover {
 
 		$meta = $ability->get_meta();
 
-		if ( ! is_array( $meta ) || ! isset( $meta['acrossai']['tab_group'] ) ) {
+		// No is_array() guard: WP_Ability::get_meta() declares `: array` in core,
+		// so the check is dead code and PHPStan level 8 flags it.
+		if ( ! isset( $meta['acrossai']['tab_group'] ) ) {
 			return '';
 		}
 

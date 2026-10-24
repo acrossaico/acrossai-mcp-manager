@@ -8,6 +8,8 @@ use AcrossAI_MCP_Manager\Includes\Database\MCPServer\DefaultServerSeeder;
 use AcrossAI_MCP_Manager\Includes\Database\SchemaReconciler;
 use AcrossAI_MCP_Manager\Includes\Database\OAuthDataMigration;
 use AcrossAI_MCP_Manager\Includes\Database\CliAuthLog\Table as CliAuthLogTable;
+use AcrossAI_MCP_Manager\Includes\Database\ActivityLog\Table as ActivityLogTable;
+use AcrossAI_MCP_Manager\Includes\Database\ActivityLog\Cleanup as ActivityLogCleanup;
 use AcrossAI_MCP_Manager\Includes\Database\MCPServerAbility\Table as MCPServerAbilityTable;
 use AcrossAI_MCP_Manager\Includes\Database\MCPServerTool\Table as MCPServerToolTable;
 use AcrossAI_MCP_Manager\Includes\Database\MCPServerMeta\Table as MCPServerMetaTable;
@@ -77,6 +79,10 @@ class Activator {
 		// (DEC-BERLINDB-TABLE-REQUEST-BOOT).
 		MCPServerToolTable::instance()->maybe_upgrade();
 		CliAuthLogTable::instance()->maybe_upgrade();
+		// F096 — the activity log. Empty-table state is the correct initial
+		// state: both enable toggles ship off, so nothing writes until an
+		// operator opts in.
+		ActivityLogTable::instance()->maybe_upgrade();
 		// Feature 017 — per-server ability exposure overrides. No seeder call —
 		// the empty-table state IS the correct backwards-compatible initial state.
 		MCPServerAbilityTable::instance()->maybe_upgrade();
@@ -112,6 +118,7 @@ class Activator {
 			array(
 				MCPServerTable::instance(),
 				CliAuthLogTable::instance(),
+				ActivityLogTable::instance(),
 				MCPServerAbilityTable::instance(),
 				MCPServerToolTable::instance(),
 				MCPServerMetaTable::instance(),
@@ -133,6 +140,12 @@ class Activator {
 		if ( ! wp_next_scheduled( 'acrossai_mcp_manager_oauth_cleanup' ) ) {
 			wp_schedule_event( time() + HOUR_IN_SECONDS, 'daily', 'acrossai_mcp_manager_oauth_cleanup' );
 		}
+
+		// F096 — daily retention + ceiling sweep for the activity log. Scheduled
+		// only while a bound is configured; `sync_schedule()` also unschedules
+		// when both retention periods and the ceiling are 0, so an operator who
+		// turns everything off does not keep a daily event that deletes nothing.
+		ActivityLogCleanup::sync_schedule();
 
 		// Feature 015 — Access Control v2 adoption. Create the
 		// {$wpdb->prefix}mcp_access_control table via the vendor-owned

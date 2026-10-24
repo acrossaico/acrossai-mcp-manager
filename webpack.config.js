@@ -107,6 +107,15 @@ module.exports = {
 		// `@wordpress/api-fetch`. `src/js/embeds.js` imports
 		// `../scss/embeds.scss`; mini-css-extract emits `build/js/embeds.css`.
 		'js/embeds': path.resolve( process.cwd(), 'src/js', 'embeds.js' ),
+		// F096 — MCP Activity Log React entry (mounts the @wordpress/dataviews
+		// app at #acrossai-mcp-activity-root). ONE bundle, TWO mount points: the
+		// global Activity page and the per-server Logs tab, which passes a
+		// serverId and hides the Server column.
+		'js/activity-log': path.resolve(
+			process.cwd(),
+			'src/js/activity-log',
+			'index.js',
+		),
 		// F069 — MCP Quick Connect via AcrossAI wizard React entry (mounts the 5-step
 		// wizard app at #acrossai-mcp-quick-connect-root on the plugin
 		// page when ?quick-connect=1 is present). `src/js/quick-connect.js`

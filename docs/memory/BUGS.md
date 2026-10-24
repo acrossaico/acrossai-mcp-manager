@@ -3130,3 +3130,245 @@ prefix match beats the regex location regardless of order. Reload with `kill -HU
 Before treating an OAuth 401 or a `.well-known` 404 on a Local site as a plugin defect, confirm the
 header arrives and the path reaches WordPress. Both of these were initially read as F095
 regressions, and one of them masked a real bug (`B68`) sitting behind it.
+
+
+---
+
+### B70 / B-PLAN-GATE-PASSES-ON-UNGREPPED-REUSE — A plan's Constitution Check passing on asserted, unverified reuse
+
+**Status**: Active (F096 — 2026-10-16)
+**Scope**: Any `plan.md` Constitution Check that cites reuse of an existing helper as evidence
+for the Reusability & DRY principle.
+**Tags**: `governance, dry, planning-artifact, hallucinated-abstraction, generalizable`
+
+**Symptom**
+A plan claims it "reuses the existing X helper", cites that as DRY evidence, and passes the
+gate. No such helper exists. The error survives review because a Constitution Check reads as a
+*verdict* rather than as a set of claims still to be verified, and it reaches an implementer as
+a task instructing them to reuse something unfindable.
+
+**Root cause**
+Constitution VI requires that the codebase "MUST be checked" before implementing a utility.
+Nothing in the artifact distinguishes *having checked* from *having asserted the check*. In F096
+the claim was carried over from `memory-synthesis.md`, where the identical sentence was correct
+but **directional** — it described a later feature reusing this one's helper, not this one
+reusing a predecessor's. Transplanting the sentence inverted its meaning while preserving its
+wording, which is why re-reading it did not catch it.
+
+**Prevention**
+Every reuse claim in a Constitution Check names the file it reuses. A claim without a path is
+treated as unverified. One grep per claim is the entire cost.
+
+**Real-world evidence**
+F096 `plan.md` and `contracts/rest-activity.md` both asserted reuse of a keyset-pagination
+helper. `grep -rniE "cursor_id|cursor_timestamp|keyset|before_id" includes/ admin/` → zero
+matches. `grep -rnoE "LIMIT|per_page|offset|paged" includes/REST/` → zero matches: **no REST
+controller in this plugin paginates at all**. Keyset pagination was net-new work being counted
+as reuse, and the Principle VI verdict rested partly on it.
+
+**Related**
+`D20` and `B24` — the same "assumed, not verified" shape against *vendor* defaults and vendor
+class names. B70 is the first-party, planning-time variant.
+
+**Amendment 2026-10-16 (F096 refactor generator) — the mirror case.** Same root cause, opposite
+direction: `McpTrackerTab` was specced to hand-roll a React mount while
+`admin/Partials/ServerTabs/AbstractReactMountServerTab.php` — shipped by F037 as a reusable
+primitive and already consumed by `EmbedsTab` in the same directory — sat unused. B70 is a reuse
+claim with nothing behind it; this is an available abstraction nobody looked for. Both are
+failures of the same Principle VI clause ("the existing codebase MUST be checked"), and both are
+caught by one grep.
+
+
+---
+
+### B71 / B-PHASE-ORDERED-CONSTRAINT-IS-UNSATISFIED-AT-MVP — A constraint owned by a later phase is not satisfied by an earlier release
+
+**Status**: Active (F096 — 2026-10-16)
+**Scope**: Any phase-ordered task list whose strategy recommends shipping an early phase alone.
+**Tags**: `governance, task-sequencing, mvp, security-coverage, generalizable`
+
+**Symptom**
+A security review of a task list finds full coverage — every binding constraint has an owning
+task — and passes. The list is then shipped phase by phase, and an early release violates
+constraints whose owning tasks sit two phases away. Coverage was measured against the *list*;
+compliance is a property of each *release*.
+
+**Root cause**
+Coverage review and incremental delivery use different units. A checklist asks "is this
+constraint owned?"; a release asks "is this constraint satisfied in what I am shipping?" An
+MVP-first strategy makes those two diverge by construction, and nothing in the task template
+surfaces the divergence.
+
+**Prevention**
+For every constraint, ask which phase creates the risk, not only which task discharges it. They
+must be the same phase or earlier. In F096 two were not: `DELETE /activity` shipped in US1 while
+its removal record was US4, and full IP addresses were recorded in US1 while the personal-data
+exporter and eraser were US4 — the latter inverting a clarification that had granted the full
+address *on condition* the subject-data path accompanied it.
+
+**Real-world evidence**
+F096's plan review closed SEC-001 (unrecorded purge). The task review reopened it as SEC-T01 on
+ordering alone, plus SEC-T02 and SEC-T03 of the same shape. Fixed by moving three tasks, adding
+none: `docs/security-reviews/2026-10-16-096-mcp-activity-log-tasks.md`,
+`specs/096-mcp-activity-log/security-constraints.md` SC-C13…C18.
+
+**Where to look next**
+`A24` — the constraint SEC-T01 breached by ordering. The Implementation Strategy note in
+`specs/096-mcp-activity-log/tasks.md` records the moved MVP boundary and why.
+
+
+---
+
+### B72 / B-APP-PASSWORD-DELETE-ALL-DESTROYS-EVERY-CREDENTIAL — `--all` deletes every application password, not the one you created
+
+**Status**: Active (F096 Phase 1 — 2026-10-16)
+**Scope**: Any cleanup of a temporary WP application password, by hand or in a script.
+**Tags**: `wp-cli, credentials, destructive, irreversible, cleanup`
+
+**Symptom**
+A throwaway credential is created for a test, then removed with
+`wp user application-password delete <user> --all`. Every application password on that user is
+destroyed, not just the new one. There is no confirmation prompt and the output reads as success
+("Deleted all application passwords"). Every integration authenticating as that user starts
+failing, and the cause is invisible unless you knew the list beforehand.
+
+**Root cause**
+`--all` means *all of the user's passwords*, not "all of the ones named in this command". The
+flag reads as a plural of the argument rather than a scope override. Compounding it: values are
+stored hashed, so nothing can be reconstructed from the database — recovery depends entirely on
+a pre-existing dump, and even then you recover a hash whose plaintext only the consuming client
+holds.
+
+**Prevention**
+Capture the UUID at creation and delete by UUID. List first, so you know what you are about to
+touch:
+
+```bash
+wp user application-password list <user> --fields=uuid,name   # before
+wp user application-password delete <user> <uuid>             # correct
+wp user application-password delete <user> --all              # destroys everything
+```
+
+Treat it as an irreversible operation: inspect before deleting. The same caution applies to any
+`--all` on a destructive WP-CLI subcommand.
+
+**Real-world evidence**
+F096 Phase 1 created one probe credential on `admin` and removed it with `--all`, destroying
+eight: `Elementor MCP - Claude Code` (created the same afternoon), four
+`AcrossAI MCP Manager (AcrossAI)`, two Novamira entries and `claude-probe`. Only one was present
+in the 9-day-old `app/sql/local.sql`, and only as a hash. The affected integrations had to be
+re-authenticated through their own UIs.
+
+**Where to look next**
+`S3` — application passwords are stored hashed, which is why this is unrecoverable rather than
+merely inconvenient.
+
+---
+
+### B73 / B-BERLINDB-SILENT-PRECONDITIONS — BerlinDB does nothing, successfully, when two preconditions are unmet
+
+**Status**: Active (F096 Phase 8 — 2026-10-23)
+**Scope**: Every `BerlinDB\Database\Kern\Table` subclass in this plugin — all ten.
+**Tags**: `berlindb, silent-failure, write-loss, migrations, admin-init, rest, cron`
+
+**Symptom**
+Two different faults with one signature: the operation reports success and nothing happens.
+
+1. **Every write fails and returns 0.** The admin screen shows an empty list, which is
+   indistinguishable from a quiet site. Found only by querying MySQL directly.
+2. **A migration never applies**, while the stored `db_version` advances to the new value. Every
+   later boot compares version-to-version, agrees, and does nothing.
+
+**Root cause**
+1. `Query::get_table_name()` does **not** read `Query::$table_name`. It calls
+   `get_table_prefix()`, which returns `$wpdb->{$prefixed_name} ?? ''` — a property set *only* by
+   the `Table` object's constructor. Construct no Table and the name is the empty string: the
+   insert degrades to `SHOW FULL COLUMNS FROM ``​``, `add_item()` returns false, and the A15
+   `try`/`catch` swallows it. F096 constructed its Table only in
+   `Main::reconcile_database_schemas()` on `admin_init` — which fires on **neither** a front-end
+   REST request nor WP-Cron. Every MCP call is the former; every retention sweep is the latter.
+2. `get_pending_upgrades()` returns an empty array when `$this->db_version` is empty. BerlinDB
+   still takes the upgrade branch (the table exists), runs no callbacks, and then calls
+   `set_db_version()` regardless. A table whose version option was lost keeps its old physical
+   shape and reports itself current, permanently.
+
+**Why it survived every test**
+The PHPUnit bootstrap calls `Table::instance()->maybe_upgrade()` in `set_up()`. That constructs
+the Table, so the `$wpdb` property is always present and no assertion could ever observe the
+failure. The suite was green throughout.
+
+**Prevention**
+- Construct the `Table` on **every** request, not on `admin_init`. It is free — `init()` only
+  assigns `$wpdb` properties; the queries live in `maybe_upgrade()`, which is not called.
+- Treat a **missing** version option on an **existing** table as the oldest shipped version, not
+  as current. Replaying a guarded migration is safe; skipping one is not.
+- A regression test must UNSET the `$wpdb` property and reset the Table singleton first.
+  Without that it passes against the broken code and proves nothing.
+- Site Health check: assert `Query::get_table_name()` is non-empty. It is the only surface from
+  which this fault is visible — the table itself is present and correct.
+
+**Related**: B34 (schema drift → silent write-loss), B68 (activation hooks skipped on update),
+A15 (Recorder swallow contract), D28.
+
+---
+
+### B74 / B-UPDATE-OPTION-FALSE-ON-ABSENT-OPTION-IS-A-NO-OP — writing `false` to an option that does not exist writes nothing
+
+**Status**: Active (F096 Phase 8 — 2026-10-23)
+**Scope**: Any boolean setting, and in particular any checkbox whose registered default is truthy.
+**Tags**: `wordpress, options, settings-api, checkbox, silent-failure, generalizable`
+
+**Symptom**
+An operator unticks a checkbox. The page says *Settings saved.* The setting is still on.
+
+**Root cause**
+`update_option()` begins with `$old_value = get_option( $option )` — **without** a default — and
+returns early if `$value === $old_value`. On an absent option `get_option()` yields `false`, so
+writing `false` compares equal to itself, nothing is stored, and the option stays absent. Any
+reader passing a truthy fallback then gets the fallback.
+
+An unchecked checkbox posts no field at all, so `options.php` calls `update_option()` with the
+sanitized absence — `false`. The save therefore depends entirely on `register_setting()`'s
+declared `default` differing from `false`. When that declaration disagrees with the default each
+reader passes to `get_option()`, the two mechanisms silently cancel out.
+
+Verified directly: `update_option( $absent, false )` returns `false` and stores nothing.
+
+**Prevention**
+- `register_setting()`'s `default` MUST be the same constant every reader passes to
+  `get_option()`. They are separate mechanisms and nothing makes them agree.
+- Test by simulating the save — `update_option( $o, rest_sanitize_boolean( null ) )` — not by
+  writing the option directly. Seeding the option bypasses the exact comparison that fails.
+- In tests, call `register_setting()` first; without it there is no registered default and the
+  no-op bites inside the test too.
+
+**Related**: B73 (the other half of F096's silent-failure pair).
+
+---
+
+### B75 / B-UNIT-TEST-SUPPLIES-WHAT-PRODUCTION-NEVER-DOES — a tested method with no caller stays green forever
+
+**Status**: Active (F096 Phase 8 — 2026-10-23)
+**Scope**: Any seam where one component sets state another consumes.
+**Tags**: `testing, wiring, integration, false-confidence, generalizable`
+
+**Symptom**
+A feature does not work in production. The method implementing it is correct, covered, and green.
+
+**Root cause**
+`CaptureContext::set_activity_id()` was correct and had **six** passing tests. It had **zero**
+production callers. Every one of those tests called it itself, then asserted on the result — so
+the suite verified the mechanism and never the wiring, which was the only part missing. Every
+ability row shipped with `parent_id = 0`.
+
+The same shape produced B73: the test bootstrap constructed the `Table` that production did not.
+
+**Prevention**
+- For any set/consume seam, add one test that drives the **real entry point** and asserts the
+  observable outcome, without touching the setter.
+- Verify such a test is load-bearing by removing only the wiring and watching it fail while the
+  unit tests still pass. If both fail, the test is not isolating what you think.
+- Reviewer heuristic: `grep` the setter across the codebase and subtract the test directory. A
+  public setter whose only callers are tests is unwired until proven otherwise.
+
+**Related**: B70 (plan gates passing on unverified reuse), B73.

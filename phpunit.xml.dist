@@ -23,6 +23,26 @@
              across from the AcrossAI Abilities Manager with the code they test,
              and run against the in-memory Abilities-API stubs in
              tests/bootstrap.php rather than a WordPress install. -->
+        <!--
+            Activity log (F096): WP-free contract tests for the shared
+            constants holder. Runs against tests/bootstrap.php — the class
+            exposes only const values, so it needs no WordPress and no DB.
+        -->
+        <!--
+            Activity log, DB-backed (F096): schema contract + recorder
+            round-trip. Needs WordPress and a real database, so it runs with
+            the tests/bootstrap-wp.php bootstrap like the other WP suites.
+            Separate from the WP-free "activity-log" suite below because each
+            overrides the bootstrap.
+        -->
+        <testsuite name="activity-log-db">
+            <directory>tests/phpunit/ActivityLogDb</directory>
+        </testsuite>
+
+        <testsuite name="activity-log">
+            <directory>tests/phpunit/ActivityLog</directory>
+        </testsuite>
+
         <testsuite name="toolset">
             <directory>tests/phpunit/AbilitiesToolset</directory>
         </testsuite>
