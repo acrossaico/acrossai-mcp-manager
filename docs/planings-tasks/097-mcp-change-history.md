@@ -1,5 +1,16 @@
 # Planning: MCP Change History (Feature 097)
 
+> **Status: not scheduled.** Nothing in this document is being built yet. It is kept current
+> because 096 shipped the attribution seam this feature consumes, and because decisions taken in
+> 096 constrain this schema before a line of it exists.
+>
+> The `activity_type` column added beside `activity_id` (see Schema below) is one such
+> constraint, recorded 2026-10-25. It is **not** a sign work has started — it is there because
+> 096's one-table design is reversible by deliberate choice (`096/spec.md` FR-031b, `D61`), and a
+> bare `activity_id` becomes ambiguous the moment that table is split. Adding the column now is
+> free; adding it after this feature holds real change history is not.
+
+
 > **Status:** Planned · **Date:** 2026-10-09 · **Revised:** 2026-10-16 ·
 > **Owner plugin:** `acrossai-mcp-manager`
 > **Depends on:** [096 — MCP Activity Log](096-mcp-activity-log.md) — for the
@@ -210,6 +221,7 @@ phantom-version guard in `Table::maybe_upgrade()`.
 |---|---|---|
 | `id` | bigint(20) unsigned AI | PK |
 | `activity_id` | bigint(20) unsigned, default 0 | → the **ability** row in 096's `activity_log`, falling back to the request row when no ability row exists. The join that makes this debuggable. 0 when activity logging is off |
+| `activity_type` | varchar(16), default `''` | Which KIND of row `activity_id` points at — `ability`, `request`, or `''` when `activity_id` is 0. **Load-bearing, not decorative:** `activity_id` alone is ambiguous the moment 096's table is split into separate request and ability tables, because the same number could address a row in either. 096 is one table today and stays one (D61), but a split is a live option and this column is what keeps it cheap. Store it at write time — it is known then and unrecoverable afterwards |
 | `server_id` | bigint(20) unsigned, default 0 | denormalized so the per-server tab filters without a join |
 | `ability_slug` | varchar(191), default `''` | the ability that ran, e.g. `content/update-post` |
 | `tool_name` | varchar(191), default `''` | the toolset dispatcher, e.g. `toolset/content` |
@@ -230,7 +242,7 @@ Indexes:
 
 ```
 primary                (id)
-activity               (activity_id)
+activity               (activity_type, activity_id)
 object_lookup          (object_type, object_id(100), created_at)
 server_created         (server_id, created_at)
 created_at             (created_at)

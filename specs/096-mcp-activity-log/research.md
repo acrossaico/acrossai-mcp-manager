@@ -342,3 +342,100 @@ decision rests on D-15, not on the margins.
    which resets options but leaves tables standing. `Table::maybe_upgrade()` now seeds the
    oldest shipped version in that case — the mirror of the phantom-version guard already
    there. Both directions are now covered by tests.
+
+---
+
+## D-18 — keeping the one-table decision reversible, 2026-10-25
+
+D61 keeps one table. That decision is not under review, but it was taken on a *measurement* —
+and measurements can change. The split stays a live option, so this records what must remain
+true for it to stay a cheap migration rather than a rewrite.
+
+Re-benchmarked on the **shipped 1.1.0 schema** with the live skew (83% ability rows), 135,000
+rows, and the 30/7 retention actually in use — a materially different configuration from the
+original D-14 run, which used the mis-keyed 1.0.0 indexes and a 68% skew:
+
+| | one table | two tables |
+|---|---|---|
+| newest 25 requests | 0.20 ms¹ | 0.17 ms |
+| filter server + status | 0.35 ms | 0.28 ms |
+| prune abilities > 7d | 0.17 ms | 0.07 ms |
+| summary tiles 24 h | 1.58 ms | 1.06 ms |
+| adoption UPDATE | 0.058 ms | 0.057 ms |
+| **global ceiling** | **26.9 ms** | 69.3 ms (or 24.3 ms with per-table caps, which is not a global bound) |
+| storage | 78.8 MB | 63.8 MB (one table +24%) |
+
+¹ With the correct index — see D-19.
+
+The conclusion holds and the margins narrowed: storage overhead is **+24%**, not the +46%
+measured at 1.0.0. The split still loses on one thing only, and it is the same thing.
+
+**The strongest argument FOR splitting, now quantified:** 11 of 32 columns are structurally dead
+on any given row — verified against live data, zero non-empty values. `method`,
+`protocol_version`, `transport`, `connector_slug`, `client_name`, `session_id` and `request_id`
+are always empty on an ability row; `parent_id`, `component_category`, `invoked_via` and
+`output_preview` are always empty on a request row. A third of the schema is carried as dead
+weight, and that is most of the 24%.
+
+### The four invariants (FR-031b)
+
+Recorded as requirements because each is free now and expensive once the table holds history:
+
+1. Every row classifiable from its own columns — no row depends on a sibling to know where it
+   would go.
+2. `event_type` stays a closed set with a declared destination per value. **`removal` follows
+   the requests table** — it is an operator-facing audit event about the log as a whole, and A24
+   requires the remaining history to open with it.
+3. External references record the row **kind** beside the id. An id alone is ambiguous after a
+   split. This bound F097, whose `activity_id` could point at either kind; its planning doc now
+   carries `activity_type` alongside. **Fixed before F097 was built, which is the only reason it
+   was free.**
+4. A split migration preserves row ids. `parent_id` and every external reference are plain
+   integers; re-numbering on copy breaks them all, and nothing fails loudly at the time.
+
+### D-19 — the `created_at` index defeats the discriminator prefix
+
+Found during this re-run, and unrelated to table count. On the default screen query the
+optimizer prefers the **bare `created_at` index** over `type_created`, then filters with
+`Using where`. At 83% ability rows it walks roughly six ability rows per request it wants:
+
+```
+optimizer's choice (created_at)   1.716 ms
+FORCE INDEX(type_created)         0.204 ms     <- 8.4x faster
+two_requests (no discriminator)   0.168 ms
+```
+
+Dropping `created_at` is **not** the fix: it repairs the listing (1.53 → 0.26 ms) but takes an
+unfiltered time-ordered scan from 0.15 ms to **257 ms**. No shipped caller issues that query —
+the REST list always filters, `enforce_ceiling()` orders by `id`, and `prune_by_event_type()`
+and `summary()` both filter by type — but BerlinDB's generic `query()` can generate one, so the
+index cannot be removed without proving no caller needs it.
+
+Open, not fixed. The screen is slower than it needs to be by 8x and still returns in under
+2 ms, so this is an optimisation rather than a defect.
+
+### D-20 — split-blocker sweep, 2026-10-25
+
+Swept for anything that would make a future split expensive or impossible. **Two blockers found,
+both closed; no others.**
+
+| Checked | Result |
+|---|---|
+| Every row classifiable from its own columns | **Clean** — 0 rows contradict their `event_type` (no ability row carries `method`/`session_id`/`request_id`; no request row carries `parent_id`/`invoked_via`); 0 unknown or empty kinds |
+| Parent links resolvable | **Clean** — 0 orphans, 0 parents that are not request rows |
+| Anything persisting a row id WITHOUT its kind | **Only F097** — fixed before it was built (`activity_type` added) |
+| Options holding a row id | **None** — all 13 are toggles, retention, counters or the version key |
+| Removal records referencing removed ids | **No** — they store a reason and a count as text |
+| Other planning docs consuming activity rows | **None** besides 097 |
+| Other plugins reading the table | **None** |
+| Code naming the table | 5 files, all inside the feature plus `uninstall.php` — migration work, not a blocker |
+
+**The wrinkle the sweep surfaced:** a removal row reuses `component_name` (reason),
+`input_preview` (count) and `invoked_via` (`cli`/`admin`). `invoked_via` is empty on every
+genuine request row, so a split that drops it from the requests table would silently lose who
+triggered each removal. Recorded in FR-031b.
+
+**Conclusion:** the data is splittable today and the only external consumer is constrained. The
+table is also near-empty (649 rows), so a split would never be cheaper than now — which is an
+argument for deciding deliberately rather than drifting.
+
