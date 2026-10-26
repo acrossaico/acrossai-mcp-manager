@@ -4,7 +4,7 @@ Tags: mcp, ai, mcp-adapter, claude, chatgpt
 Requires at least: 6.9
 Requires PHP: 8.1
 Tested up to: 7.1
-Stable tag: 0.4.3
+Stable tag: 0.4.4
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -36,6 +36,7 @@ Connect Claude to WordPress, connect ChatGPT to WordPress, or give Cursor, VS Co
 * **Configuration**: any option, including values nested inside serialised arrays; permalinks; which admin screen a setting lives on.
 * **Database**: schema and table sizes, index health, bloated autoloaded options, EXPLAIN on a slow query, serialisation-safe search-and-replace.
 * **Files**: browse, read, write and delete inside an administrator-defined allowlist; zip backups; wp-config constants; the debug log.
+* **Activity log**: every MCP request and the abilities it ran, kept as a readable history with retention, a size cap and privacy controls.
 * **Cron, updates, diagnostics and cache**: overdue cron jobs, plugin and core updates with rollback and checksum checks, Site Health, recent fatal errors, transients and object cache.
 
 Try prompts like "Check Site Health and tell me what needs fixing" or "Find the slowest database query and explain why it is slow."
@@ -75,6 +76,18 @@ The optional [AcrossAI Pro](https://acrossai.co/pricing/) add-on contributes 276
 * **Roughly half the catalogue is read-only** and only about **13% is flagged destructive**.
 * **Higher-risk operations need a confirmation flag**, and search-and-replace is a dry run unless you say otherwise.
 * **File access is confined to an allowlist**, secrets are redacted from file and log reads, and database abilities never accept a raw table name.
+
+= See What the AI Actually Did =
+
+Access control decides what an assistant **may** do. The activity log records what it **did**.
+
+* **Every request, and every ability behind it.** A single "create a page" from an assistant may run several abilities; the log keeps the request and its abilities together, so you can open one entry and read what actually happened rather than guessing from the result.
+* **On from the moment you update, and bounded without being configured.** Requests are kept 30 days, ability runs 7, and the whole log is capped at 50,000 entries. A daily job applies all three. Both halves can be switched off.
+* **Enough detail to answer the real questions**: which assistant, how it authenticated, whether it worked, how long it took, what it was asked and roughly how much of your content it read back.
+* **It tells you when it is failing.** An empty log and a broken log look identical, so the screen and Site Health both say so when writes are failing, when the table cannot be reached, or when the daily cleanup has not run.
+* **Private by design.** Sensitive values are redacted by key name before anything is stored, response bodies are never kept, and WordPress's own personal-data export and erase both reach it — erasing clears the person from the record while keeping the event, so the audit history stays intact.
+
+Find it under **MCP → Activity Log**, or on any individual server's own tab.
 
 = Full Control Over Every Ability =
 
@@ -131,6 +144,12 @@ Turn on CLI connections under **AcrossAI → Settings → MCP**, run the command
 = What is included? =
 
 AcrossAI is two free plugins on WordPress.org: MCP Manager (the server, connectors and access control) and Abilities Manager (the 357 abilities and their controls). Connect sets up both in one click.
+
+= Can I see what the AI did to my site? =
+
+Yes. **MCP → Activity Log** records every request an assistant made and every ability that ran to fulfil it, with the two linked so you can open one entry and read the whole call. It records from the moment you update — requests kept 30 days, ability runs 7, capped at 50,000 entries, all adjustable, and either half can be switched off on the MCP settings tab.
+
+If recording ever fails, the screen and Site Health say so rather than showing an empty list, because a broken log and a quiet one otherwise look the same.
 
 = Is it free? =
 
@@ -239,6 +258,14 @@ The AcrossAI server is recommended again and preselected in Quick Connect. Exist
 == Changelog ==
 
 The complete release history lives at [acrossai.co/changelog](https://acrossai.co/changelog/).
+
+= 0.4.4 =
+* **New: a log of what AI assistants actually did on your site.** Every request an assistant makes, and every ability that ran to fulfil it, recorded together — one "create a page" from an assistant may run several abilities, and the log keeps them linked, so you open one entry and read what happened instead of inferring it from the result. It records which assistant, how it authenticated, whether it worked, how long it took, what was asked and roughly how much of your content was read back. Find it under **MCP → Activity Log**, or on an individual server's own tab.
+* **The log is on from the moment you update, and bounded without being configured.** Requests are kept 30 days, ability runs 7 — they are much noisier — and the whole log is capped at 50,000 entries. A daily job applies all three. Every number is adjustable and either half can be switched off on the MCP settings tab. Recording is on by default because a log nobody enabled is a log nobody has when they need it; it is bounded by default because a plugin that records without being asked should also tidy up without being asked.
+* **It tells you when it is failing.** An empty log and a broken log look identical, which is how a logging fault stays invisible. The screen and Site Health now both report when writes are failing, when the table cannot be reached, and when the daily cleanup has not run — the last one usually meaning WordPress scheduled tasks are not running at all on the site, which affects far more than this log.
+* **Private by design.** Values that look like credentials are redacted by key name before anything is stored, response bodies are never kept, and WordPress's own personal-data export and erase both reach the log. Erasure clears the person from the record and keeps the event, so a subject request cannot be used to delete audit history.
+* **Changed: the connection wizard is now called "Connect".** It was "Quick Connect via AcrossAI" in the admin bar, the menu, the server list and the wizard's own header. Nothing moved and nothing behaves differently — the label just says less.
+* **Fixed: a PHP notice on every page load.** A database table was passing an index setting in a form newer PHP versions warn about. It had never had any effect — the table was not using it — so removing it changes nothing except that the notice stops. Only visible to sites with debug logging switched on.
 
 = 0.4.3 =
 * **New: a heads-up in Firefox, where tracking protection can block an assistant from connecting.** Firefox's Enhanced Tracking Protection can stop the connection part-way through — the connector is added, sign-in opens, and then nothing completes, with no error shown anywhere to explain it. Opening a connector screen in Firefox now shows a note explaining this and how to get past it: click the shield icon to the left of the address bar and switch Enhanced Tracking Protection off for this site, then connect again. The setting is remembered per site, affects nothing else you browse, and can be switched back on once the connection is working. The note appears only in Firefox and can be dismissed.
