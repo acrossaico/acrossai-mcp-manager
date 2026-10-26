@@ -98,18 +98,39 @@ final class ActivityLogPage {
 	 * @param array<string, mixed> $context Mount-specific bootstrap values.
 	 */
 	public function enqueue_bundle( array $context = array() ): void {
-		$base     = defined( 'ACROSSAI_MCP_MANAGER_PLUGIN_URL' ) ? ACROSSAI_MCP_MANAGER_PLUGIN_URL : plugin_dir_url( __DIR__ . '/../' );
-		$dir      = defined( 'ACROSSAI_MCP_MANAGER_PLUGIN_DIR' ) ? ACROSSAI_MCP_MANAGER_PLUGIN_DIR : plugin_dir_path( __DIR__ . '/../' );
+		// Boot constants are defined by Includes\Main::define_constants() before any
+		// admin_enqueue_scripts hook can fire. If they are absent the plugin is not
+		// booted, and guessing paths from __DIR__ is how this screen shipped broken
+		// in 0.4.4 — ACROSSAI_MCP_MANAGER_PLUGIN_DIR never existed (the constant is
+		// ..._PLUGIN_PATH), so the guess silently won every time and resolved to
+		// admin/Partials/ rather than the plugin root.
+		if ( ! defined( 'ACROSSAI_MCP_MANAGER_PLUGIN_PATH' ) || ! defined( 'ACROSSAI_MCP_MANAGER_PLUGIN_URL' ) ) {
+			return;
+		}
+
+		$base     = ACROSSAI_MCP_MANAGER_PLUGIN_URL;
+		$dir      = ACROSSAI_MCP_MANAGER_PLUGIN_PATH;
 		$manifest = $dir . 'build/js/activity-log.asset.php';
 
-		$deps    = array( 'wp-element', 'wp-components', 'wp-api-fetch', 'wp-i18n', 'wp-dataviews' );
-		$version = defined( 'ACROSSAI_MCP_MANAGER_VERSION' ) ? ACROSSAI_MCP_MANAGER_VERSION : '0.0.0';
-
-		if ( file_exists( $manifest ) ) {
-			$asset   = include $manifest;
-			$deps    = isset( $asset['dependencies'] ) && is_array( $asset['dependencies'] ) ? $asset['dependencies'] : $deps;
-			$version = isset( $asset['version'] ) ? (string) $asset['version'] : $version;
+		// No hand-maintained dependency fallback. webpack decides this bundle's
+		// externals at build time, so any array written here is wrong as soon as the
+		// bundle changes — and the one that used to live here named 'wp-dataviews',
+		// which WordPress does not register on any version, so wp_enqueue_script()
+		// emitted no tag at all. A missing manifest means an incomplete install;
+		// bail rather than enqueue a React app with guessed dependencies. Mirrors
+		// Admin\Main::read_asset_manifest().
+		if ( ! file_exists( $manifest ) ) {
+			return;
 		}
+
+		$asset = include $manifest;
+
+		if ( ! is_array( $asset ) || ! isset( $asset['dependencies'], $asset['version'] ) || ! is_array( $asset['dependencies'] ) ) {
+			return;
+		}
+
+		$deps    = $asset['dependencies'];
+		$version = (string) $asset['version'];
 
 		wp_enqueue_script( self::HANDLE, $base . 'build/js/activity-log.js', $deps, $version, true );
 
