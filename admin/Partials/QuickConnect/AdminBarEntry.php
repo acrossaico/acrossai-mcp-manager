@@ -1,6 +1,6 @@
 <?php
 /**
- * AdminBarEntry — persistent "Quick Connect via AcrossAI" chip in the admin bar.
+ * AdminBarEntry — persistent "Connect via AcrossAI" chip in the admin bar.
  *
  * Feature 069 T044 (US2) — Provides a one-click entry point to the wizard
  * from anywhere in wp-admin. Rendered only for users with `manage_options`
@@ -21,7 +21,7 @@ use WP_Admin_Bar;
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Registers the "Quick Connect via AcrossAI" node on the wp-admin toolbar.
+ * Registers the "Connect via AcrossAI" node on the wp-admin toolbar.
  *
  * @since 0.2.11
  */
@@ -81,7 +81,7 @@ final class AdminBarEntry {
 			array(
 				'id'    => self::NODE_ID,
 				'title' => '<span class="ab-icon dashicons dashicons-admin-tools" style="top:3px;"></span>'
-					. esc_html__( 'Quick Connect via AcrossAI', 'acrossai-mcp-manager' ),
+					. esc_html__( 'Connect via AcrossAI', 'acrossai-mcp-manager' ),
 				'href'  => esc_url( admin_url( 'admin.php?page=acrossai_mcp_manager&quick-connect=1&step=1' ) ),
 				'meta'  => array(
 					'title' => __( 'Guided 5-step MCP configuration', 'acrossai-mcp-manager' ),
