@@ -232,7 +232,30 @@ Both require the ability-capture path, which does not exist until T052. They are
 but if (1) turns out false, `parent_id` has nothing to point at and the merged-table design needs
 revisiting, so it is checked **first** in Phase 2b, not last.
 
-### Open minor item — a BerlinDB deprecation this table triggers
+### RESOLVED 2026-10-26 — the deprecation was ours, and this entry was wrong
+
+The note below concluded *"the assignment happens inside BerlinDB"*. It does not. A full stack
+trace named the source on the first read: `MCPServerMeta\Schema` carried
+`'length' => array( 'meta_key' => 191 )` on an index definition, intending a prefix for the old
+767-byte index limit. `Kern\Index` declares no `$length`, so `set_vars()` assigned it as a
+dynamic property and then **ignored it** — verified on the live table, `SUB_PART` is NULL, so the
+index has always covered the full column. `varchar(255)` at utf8mb4 is 1020 bytes, comfortably
+inside InnoDB's 3072-byte DYNAMIC limit, so no prefix was ever needed.
+
+Removed. Zero functional change, and the notice is gone — it had been firing on **every** request,
+because `MCPServerMeta\Table` is constructed in `Main::bootstrap_database_tables()`.
+
+**Why the original investigation missed it:** it reasoned about which file *looked* responsible —
+"the deprecation appears while booting `ActivityLog\Schema`, none of its indexes carry a `length`
+key, therefore the cause is upstream" — and never read a trace. Both premises were true; the
+conclusion did not follow, because `ActivityLog\Table` and `MCPServerMeta\Table` are both
+constructed during the same boot. The note even says *"worth ten minutes with a stack trace"*.
+That was the right instinct and it was not acted on. **Get the trace first; it is cheaper than
+the reasoning it replaces.**
+
+The original entry is kept below, unedited, because the mistake is the useful part.
+
+### Open minor item — a BerlinDB deprecation this table triggers (SUPERSEDED — see above)
 
 Booting `ActivityLog\Schema` emits one PHP 8.2 deprecation from vendor code:
 *"Creation of dynamic property `BerlinDB\Database\Kern\Index::$length`"*. `Kern\Index`
