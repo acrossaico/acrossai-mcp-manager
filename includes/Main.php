@@ -183,7 +183,7 @@ final class Main {
 		$this->define( 'ACROSSAI_MCP_MANAGER_PLUGIN_URL', plugin_dir_url( \ACROSSAI_MCP_MANAGER_PLUGIN_FILE ) );
 		$this->define( 'ACROSSAI_MCP_MANAGER_PLUGIN_NAME_SLUG', 'acrossai-mcp-manager' );
 		$this->define( 'ACROSSAI_MCP_MANAGER_PLUGIN_NAME', 'AcrossAI MCP Manager' );
-		$this->define( 'ACROSSAI_MCP_MANAGER_VERSION', '0.4.4' );
+		$this->define( 'ACROSSAI_MCP_MANAGER_VERSION', '0.4.5' );
 	}
 
 	/**

@@ -4,7 +4,7 @@ Tags: mcp, ai, mcp-adapter, claude, chatgpt
 Requires at least: 6.9
 Requires PHP: 8.1
 Tested up to: 7.1
-Stable tag: 0.4.4
+Stable tag: 0.4.5
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -258,6 +258,9 @@ The AcrossAI server is recommended again and preselected in Quick Connect. Exist
 == Changelog ==
 
 The complete release history lives at [acrossai.co/changelog](https://acrossai.co/changelog/).
+
+= 0.4.5 =
+* **Fixed: the Activity Log screen never loaded.** The screen introduced in 0.4.4 rendered blank on every site. Its JavaScript declared a dependency on a WordPress component that does not exist, and WordPress refuses to load a script whose dependencies are missing — so nothing ran, and nothing anywhere said why. Underneath that, the screen was looking for its own built files in the wrong folder, which is what made it fall back to that bad dependency list in the first place. Both are fixed, and the screen now loads at **MCP → Activity Log** and on each server's **Logs** tab. Nothing was lost: the log has been recording correctly all along, it simply could not be displayed. No settings change and no database change — updating is enough.
 
 = 0.4.4 =
 * **New: a log of what AI assistants actually did on your site.** Every request an assistant makes, and every ability that ran to fulfil it, recorded together — one "create a page" from an assistant may run several abilities, and the log keeps them linked, so you open one entry and read what happened instead of inferring it from the result. It records which assistant, how it authenticated, whether it worked, how long it took, what was asked and roughly how much of your content was read back. Find it under **MCP → Activity Log**, or on an individual server's own tab.
