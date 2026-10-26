@@ -354,15 +354,16 @@ class Schema extends \BerlinDB\Database\Kern\Schema {
 			'type'    => 'key',
 			'columns' => array( 'event_type', 'user_id', 'created_at' ),
 		),
-		// NOTE: booting this schema emits one PHP 8.2 deprecation from vendor
-		// BerlinDB — "Creation of dynamic property Kern\Index::$length".
-		// Kern\Index declares no $length, and Base::set_vars() assigns every
-		// arg key blindly, so something upstream hands it one. None of the index
-		// definitions here carry a `length` key, and renaming this index (to
-		// rule out a collision with the same-named column) did NOT clear it, so
-		// the origin is inside BerlinDB rather than in this file. It is a notice,
-		// not an error: no gate fails. Left as an open item rather than guessed
-		// at — see specs/096-mcp-activity-log/research.md.
+		// RESOLVED 2026-10-26. This file was never the source of the
+		// "Creation of dynamic property Kern\Index::$length" deprecation, and
+		// the earlier note here was wrong to conclude the origin was inside
+		// BerlinDB. A full stack trace named it: MCPServerMeta\Schema carried
+		// `'length' => array( 'meta_key' => 191 )` on an index definition.
+		// Kern\Index declares no $length, so set_vars() assigned it as a
+		// dynamic property and then ignored it — the live index was always on
+		// the FULL column (SUB_PART NULL). Removed there; zero functional
+		// change. Reading a trace beat reasoning about which file "looked"
+		// responsible.
 		array(
 			'name'    => 'created_at',
 			'type'    => 'key',
