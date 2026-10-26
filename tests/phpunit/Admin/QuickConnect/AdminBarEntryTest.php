@@ -73,7 +73,13 @@ final class AdminBarEntryTest extends WP_UnitTestCase {
 		AdminBarEntry::instance()->register_node( $bar );
 
 		$node = $bar->get_node( self::NODE_ID );
-		$this->assertStringContainsString( 'Quick Connect via AcrossAI', (string) $node->title );
+		// Label shortened to "Connect via AcrossAI" (#171). F080 added this
+		// assertion when it renamed "Quick Setup" -> "Quick Connect via
+		// AcrossAI"; the display label has moved on, the CLASS names have not.
+		// `rename-gate` locks the namespace (QuickConnect\AdminBarEntry,
+		// QuickConnectController) and is unaffected — the feature is still
+		// Quick Connect internally, it just does not say so in the toolbar.
+		$this->assertStringContainsString( 'Connect via AcrossAI', (string) $node->title );
 		$this->assertStringContainsString( 'dashicons-admin-tools', (string) $node->title );
 	}
 

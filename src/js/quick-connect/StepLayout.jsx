@@ -2,7 +2,7 @@
  * F069 — Wizard shell (header + progress bar + content pane + footer).
  *
  * Feature 069 T028 + T029 — Shared chrome for every step:
- *   - Header: logo + "Quick Connect via AcrossAI" title + "Exit setup" link right-aligned.
+ *   - Header: logo + "Connect via AcrossAI" title + "Exit setup" link right-aligned.
  *   - Progress bar: role="progressbar" + aria-valuenow / aria-valuemin /
  *     aria-valuemax for WCAG 2.1 AA (FR-010a). Fill width = displayIndex/
  *     totalSteps × 100%.

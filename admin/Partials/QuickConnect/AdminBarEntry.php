@@ -1,6 +1,6 @@
 <?php
 /**
- * AdminBarEntry — persistent "Quick Connect via AcrossAI" chip in the admin bar.
+ * AdminBarEntry — persistent "Connect via AcrossAI" chip in the admin bar.
  *
  * Feature 069 T044 (US2) — Provides a one-click entry point to the wizard
  * from anywhere in wp-admin. Rendered only for users with `manage_options`
@@ -21,7 +21,7 @@ use WP_Admin_Bar;
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Registers the "Quick Connect via AcrossAI" node on the wp-admin toolbar.
+ * Registers the "Connect via AcrossAI" node on the wp-admin toolbar.
  *
  * @since 0.2.11
  */
