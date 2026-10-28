@@ -179,6 +179,10 @@ block and the config file locations.
   configuration MUST be character-for-character identical to the one shown on the manual path.
 - **FR-004**: The configuration described MUST remain the one the plugin already produces today.
   This feature MUST NOT change how clients connect, only who performs the file editing.
+  **Scope**: this protects the *transport* — the bridge command, its arguments and the `WP_API_*`
+  environment variables. It does not freeze *serialisation*: a client whose configuration file is
+  not JSON MUST be given its own format, because handing an operator a format their client cannot
+  parse is not "unchanged", it is broken. See research R10.
 - **FR-005**: The instruction block MUST include both the username and the password. A configuration
   carrying only a password fails every request with nothing visible to the administrator explaining
   why.
@@ -193,8 +197,12 @@ block and the config file locations.
   credential block differently from the others.
 - **FR-010**: Switching to a different client after generating a password MUST clear the displayed
   credential and restore the placeholder.
-- **FR-011**: The existing manual instructions MUST remain available, and their content MUST be
-  unchanged.
+- **FR-011**: The manual route MUST remain available and complete: every configuration-file
+  location, the top-level key, the configuration itself and the reload instruction MUST all still
+  be reachable. Its *presentation* may change — the route split re-ordered these into lettered
+  sub-steps under Step 2 (FR-029) — but nothing an operator needs may be dropped. An earlier
+  revision of this requirement demanded the content be byte-unchanged; that was written before the
+  redesign and did not survive it.
 - **FR-012**: Both surfaces that present connection steps MUST show the identical instruction block
   for the same server and client.
 - **FR-013**: Both surfaces MUST list configuration file locations for every operating system the
@@ -245,6 +253,18 @@ block and the config file locations.
 - **FR-028**: The credential-issuance route MUST NOT be rate limited. An administrator can already
   create unlimited credentials through WordPress itself, so a limit here would refuse legitimate
   work without removing any capability from the actor it would restrict.
+- **FR-029**: Step 2 MUST be the **choice between the two routes**, not the first step of either.
+  Each option MUST state what it involves and roughly what it costs the operator, and the prompt
+  route MUST be marked as recommended.
+- **FR-030**: Only the chosen route MUST be **visible**. Rendering both at once makes them read as
+  one long sequence rather than alternatives, which is the problem this split exists to solve.
+  Visibility is the requirement, not absence from the document: a route hidden by an attribute whose
+  effect is overridden by a style rule has not satisfied this.
+- **FR-031**: The prompt route MUST be the default, and an unrecognised selection MUST fall back to
+  it rather than rendering neither — a stale or hand-edited URL must not produce a dead screen.
+- **FR-032**: Switching routes MUST NOT discard a credential the operator has already generated.
+  The credential is shown exactly once and cannot be re-fetched, so a switch that reloads the page
+  destroys work the operator may not have copied yet.
 
 ### WordPress Requirements
 
@@ -406,8 +426,9 @@ non-secret identifier required by FR-018, alongside the existing credential reco
 - **SC-010**: Every credential this feature issues is findable by name in the administrator's
   existing credential list, and revocable individually without affecting that user's other
   credentials.
-- **SC-011**: The existing manual route's content is **unchanged**, verified by comparison against
-  the previous release.
+- **SC-011**: The manual route still carries **every** fact an operator needs — all declared
+  config-file locations, the top-level key, the configuration, and how to reload — verified against
+  the previous release by content rather than by markup.
 - **SC-012**: A client contributed by another plugin that implements only the required minimum still
   yields usable instructions, with **no** fatal error.
 - **SC-013**: The number of ways the system can issue a credential is **unchanged** at one.
@@ -420,6 +441,10 @@ non-secret identifier required by FR-018, alongside the existing credential reco
   configuration block are **byte-identical** to an untranslated build, while the surrounding prose
   is translated.
 - **SC-017**: **100%** of credential issuances are recorded and attributable after the fact.
+- **SC-018**: Selecting one route leaves the other **not visible** — asserted against the rendered
+  page *and* the built stylesheet, because markup alone cannot prove visibility.
+- **SC-019**: Switching routes completes **without a page load**, and a credential generated before
+  the switch is still present after it.
 
 ---
 

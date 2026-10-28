@@ -70,6 +70,29 @@ hardcoding `manage_options`. Both hold simultaneously — the **block's** capabi
 and administrator-only is an **additional check at the panel**. Satisfying FR-024 by hardcoding the
 capability inside the renderer would violate the decision.
 
+## Revision — the route split (post-plan)
+
+The plan above describes Step 2 becoming *two panels*. That is not what shipped.
+
+After the first implementation, the Claude Design file *MCP Client Config Steps* showed why: with
+the prompt and the manual steps both rendered, the screen reads as one long sequence and an
+operator cannot tell the two are alternatives, or where the first ends. **Step 2 is now the choice
+itself, and only the chosen route is visible** (FR-029 … FR-032).
+
+What this changed from the plan as written:
+
+- The picker is a new element, not a reorganisation of the existing steps.
+- The manual route's Steps 2–5 became lettered sub-steps a/b/c under Step 2, with the reload
+  instruction folded into (c). FR-011 was amended accordingly — it previously demanded the manual
+  content be byte-unchanged, which the redesign made false.
+- Selection is client-side so a generated credential survives the switch, with server-side
+  `?setup=` honouring and real `href`s as the no-JavaScript path.
+- `CodeBlock` gained a `copyLabel` prop: the wizard pane is now used for two payloads and
+  "Copy config" is wrong on a prompt.
+
+The DTO shape and the credential hardening are unaffected — the split is presentational, and both
+surfaces still consume one `setupPrompt` from one producer, which is what D43 requires.
+
 ## Project Structure
 
 ### Documentation (this feature)

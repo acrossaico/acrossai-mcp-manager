@@ -118,16 +118,31 @@ Single WordPress plugin at repo root: `includes/`, `admin/`, `public/`, `src/js/
 
 ---
 
+## Phase 6b: Route split (added mid-implementation)
+
+Not in the original plan. Introduced by the Claude Design file *MCP Client Config Steps* after the
+first implementation rendered both routes stacked, which made them read as one sequence rather
+than alternatives. Recorded here so the shipped behaviour is traceable to a task.
+
+- [x] T048 [US1] Make Step 2 the choice between routes in `public/Renderers/MCPClientsBlock.php::render_path_picker()`, with a recommended option and a cost for each — FR-029
+- [x] T049 [US1] Render both routes and show only the chosen one, in both `MCPClientsBlock.php` and `src/js/quick-connect/steps/Step11_ClientDetail.jsx` — FR-030
+- [x] T050 [US1] Default to the prompt and fall back to it on an unrecognised selection — FR-031
+- [x] T051 [US1] Switch routes client-side in `src/js/backend.js` so a generated credential survives; keep real hrefs and server-side `?setup=` honouring as the no-JS path — FR-032
+- [x] T052 [US1] Add `.acrossai-mcp-route-panel[hidden] { display: none; }` to `src/scss/backend.scss` — the panel's own `display: flex` overrides the UA `[hidden]` rule, so both routes rendered visible while every markup assertion passed — FR-030
+- [x] T053 [P] [US1] Guard the above against the **built** stylesheet in `tests/phpunit/Public/Renderers/SetupPromptPanelRenderTest.php`; markup cannot prove visibility — SC-018
+
+---
+
 ## Phase 7: Polish & Cross-Cutting Concerns
 
-- [ ] T040 [P] Confirm `includes/Main.php` gained **no** new hooks (A1) and no new `public/` class was added (D36)
-- [ ] T041 [P] Confirm `includes/Utilities/LocalEnvironment.php::needs_tls_bypass()` and `includes/MCPClients/AbstractMCPClient.php::build_env()` are untouched — `NODE_TLS_REJECT_UNAUTHORIZED` must stay ungated by URL scheme
-- [ ] T042 [P] Review **every** error branch this feature adds for hand-authored messages — no exception text, `$wpdb->last_error`, transient keys or filesystem paths — FR-022, SC-C12, SEC-T-005
-- [ ] T043 [P] Update `docs/planings-tasks/README.md` with the 099 row and mark the planning doc implemented
-- [ ] T044 Run the full gate set: `composer phpcs`; `vendor/bin/phpstan clear-result-cache && composer phpstan`; `npm run lint:js`; `npm run build` (no bundle drift beyond this feature); `npm run validate-packages`; all PHPUnit suites including `rename-gate`
-- [ ] T045 Walk `quickstart.md` end to end on the live site, ruling out B69 (Local's nginx drops `HTTP_AUTHORIZATION`) **before** diagnosing anything
-- [ ] T046 Paste the generated Claude Code prompt into a real client and confirm it connects — every other check can pass while this fails
-- [ ] T047 Revoke the credential minted during T046 by its UUID, and confirm the operator's other credentials survive — B72
+- [x] T040 [P] Confirm `includes/Main.php` gained **no** new hooks (A1) and no new `public/` class was added (D36)
+- [x] T041 [P] Confirm `includes/Utilities/LocalEnvironment.php::needs_tls_bypass()` and `includes/MCPClients/AbstractMCPClient.php::build_env()` are untouched — `NODE_TLS_REJECT_UNAUTHORIZED` must stay ungated by URL scheme
+- [x] T042 [P] Review **every** error branch this feature adds for hand-authored messages — no exception text, `$wpdb->last_error`, transient keys or filesystem paths — FR-022, SC-C12, SEC-T-005
+- [x] T043 [P] Update `docs/planings-tasks/README.md` with the 099 row and mark the planning doc implemented
+- [x] T044 Run the full gate set: `composer phpcs`; `vendor/bin/phpstan clear-result-cache && composer phpstan`; `npm run lint:js`; `npm run build` (no bundle drift beyond this feature); `npm run validate-packages`; all PHPUnit suites including `rename-gate`
+- [ ] T045 **PARTIAL — credential path proven live, full walkthrough not done.** Walk `quickstart.md` end to end on the live site, ruling out B69 (Local's nginx drops `HTTP_AUTHORIZATION`) **before** diagnosing anything
+- [ ] T046 **NOT DONE — the feature's central claim is still unverified.** Paste the generated Claude Code prompt into a real client and confirm it connects — every other check can pass while this fails
+- [x] T047 Revoke the credential minted during T046 by its UUID, and confirm the operator's other credentials survive — B72
 
 ---
 
