@@ -55,18 +55,6 @@ parameters:
 			path: admin/Main.php
 
 		-
-			message: '#^Access to an undefined property object\:\:\$server_name\.$#'
-			identifier: property.notFound
-			count: 1
-			path: admin/Partials/ApplicationPasswords.php
-
-		-
-			message: '#^Cannot access offset 0 on int\<min, \-1\>\|int\<1, max\>\|non\-empty\-list\<object\>\.$#'
-			identifier: offsetAccess.nonOffsetAccessible
-			count: 1
-			path: admin/Partials/ApplicationPasswords.php
-
-		-
 			message: '#^Offset ''created'' on array\{uuid\: string, app_id\: string, name\: string, password\: string, created\: int, last_used\: int\|null, last_ip\: string\|null\} in isset\(\) always exists and is not nullable\.$#'
 			identifier: isset.offset
 			count: 1
@@ -80,12 +68,6 @@ parameters:
 
 		-
 			message: '#^Offset ''name'' on array\{uuid\: string, app_id\: string, name\: string, password\: string, created\: int, last_used\: int\|null, last_ip\: string\|null\} on left side of \?\? always exists and is not nullable\.$#'
-			identifier: nullCoalesce.offset
-			count: 1
-			path: admin/Partials/ApplicationPasswords.php
-
-		-
-			message: '#^Offset ''uuid'' on array\{uuid\: string, app_id\: string, name\: string, password\: string, created\: int, last_used\: null, last_ip\: null\} on left side of \?\? always exists and is not nullable\.$#'
 			identifier: nullCoalesce.offset
 			count: 1
 			path: admin/Partials/ApplicationPasswords.php

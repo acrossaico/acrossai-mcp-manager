@@ -1,0 +1,8 @@
+[mcp_servers.wordpress-test-server]
+command = "npx"
+args = ["-y", "@automattic/mcp-wordpress-remote@latest"]
+
+[mcp_servers.wordpress-test-server.env]
+WP_API_URL = "https://example.com/wp-json/mcp/test-server"
+WP_API_USERNAME = ""
+WP_API_PASSWORD = "abcd EFGH ijkl MNOP"

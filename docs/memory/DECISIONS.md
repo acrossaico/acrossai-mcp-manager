@@ -3215,3 +3215,50 @@ is the correct scope; fixing cron is not this feature's job.
 **Evidence**
 Spec FR-031a, SC-031; `RecordingHealthCheck::sweep_overdue_days()` with a one-day grace so a
 sweep that has merely not come round yet does not cry wolf.
+
+---
+
+### 2026-10-27 — D64 / DEC-DTO-PARITY-VERIFY-THE-CONSUMER-NOT-ONLY-THE-PRODUCER — Sharing a producer is necessary, not sufficient
+
+**Status**
+Active (refines D43 — does not supersede it)
+
+**Why this is durable**
+D43 requires two renderers of the same domain object to share a DTO producer and never a component,
+on the reasoning that one producer makes drift impossible. Feature 099 found both surfaces
+complying with D43 structurally and drifting anyway, which means the rule as written does not
+deliver the guarantee it promises. The gap is not in the producer. It is that a consumer can
+silently **ignore** a field the producer has always published, and nothing — not a type, not a
+test, not a review of the producer — notices.
+
+**Decision**
+When adding a field to a shared DTO producer, grep **every** consumer for the field name and
+confirm it is actually read. Publishing a field is not delivering it.
+
+Feature 099's instance: `ConnectionMethodRegistry::get_clients()` has always carried both
+`meta.config_file` (single, legacy) and `meta.config_files` (per-OS map).
+`public/Renderers/MCPClientsBlock.php` prefers the map and falls back to the single value;
+`src/js/quick-connect/steps/Step11_ClientDetail.jsx:272` reads **only** `meta.config_file` and
+never touches the map. Every client defines the legacy value, so the wizard was never blank — it
+was wrong: that value is the **macOS** path for `ClaudeDesktopClient`, `VSCodeClient` and
+`GitHubCopilotClient`, so Windows and Linux users were told to edit
+`~/Library/Application Support/…`.
+
+Both renderers read one DTO, exactly as D43 requires. The drift D43 exists to prevent happened
+regardless.
+
+**Prevention**
+- Adding a DTO field: list its consumers and show each one reading it. "The DTO carries it" is not
+  evidence that a surface uses it.
+- Reviewing a cross-surface feature: ask which fields each consumer ignores, not only which it
+  reads. An ignored field is latent drift with a plausible-looking cause.
+- A fallback chain (`prefer X, else Y`) implemented in one consumer and not another is the specific
+  shape to look for — both consumers "work", and only one is right.
+
+**Tradeoffs**
+- Gained: closes the hole D43's structural rule leaves open, at the cost of one grep per new field.
+- Reconsider: if the DTO ever gains a schema with required-field enforcement at the consumer
+  boundary, this becomes mechanical and the manual check can retire.
+
+**Related**: D43 (the rule this refines), B75 (a tested method with no production caller — the same
+family of "looks covered, isn't").

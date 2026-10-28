@@ -22,6 +22,10 @@ const CodeBlock = ( {
 	variant = 'inline',
 	children,
 	title,
+	// F099 — the pane is used for two different payloads now, and "Copy
+	// config" is wrong on a prompt. Defaulted so every existing caller keeps
+	// its current label without being touched.
+	copyLabel,
 } ) => {
 	const [ copied, setCopied ] = useState( false );
 
@@ -51,7 +55,8 @@ const CodeBlock = ( {
 					>
 						{ copied
 							? __( 'Copied!', 'acrossai-mcp-manager' )
-							: __( 'Copy config', 'acrossai-mcp-manager' )
+							: copyLabel ||
+							  __( 'Copy config', 'acrossai-mcp-manager' )
 						}
 					</button>
 				</div>

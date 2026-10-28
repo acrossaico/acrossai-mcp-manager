@@ -1139,3 +1139,220 @@ html.wp-toolbar:has(body.acrossai-mcp-quick-connect-fullpage) {
 // Until then: a change on either side MUST be mirrored on the other.
 // ─────────────────────────────────────────────────────────────────────────────
 
+
+// ============================================================================
+// F099 — Quick Connect Step 11: route picker and the two route bodies.
+//
+// Design: "MCP Client Config Steps.dc.html" frames 2a/2b ("Same split, on the
+// user-facing page"). Client buttons, Step 1 and the dark code panes are kept;
+// Step 2 asks which path to take and only that one renders.
+//
+// The dark code panes are CodeBlock variant="pane", which already matched the
+// design — it was built with the title strip and copy button the design shows.
+// ============================================================================
+
+$acmcp-qc-accent: #3858e9;
+$acmcp-qc-muted: #646970;
+$acmcp-qc-rule: #c3c4c7;
+$acmcp-qc-field: #f0f0f1;
+
+.acrossai-mcp-route-picker {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+	gap: 10px;
+}
+
+.acrossai-mcp-route-card {
+	display: flex;
+	gap: 12px;
+	align-items: flex-start;
+	padding: 15px 16px;
+	background: #fff;
+	border: 1px solid $acmcp-qc-rule;
+	border-radius: 2px;
+	cursor: pointer;
+	text-align: left;
+	font: inherit;
+	color: inherit;
+
+	&:hover {
+		border-color: $acmcp-qc-accent;
+	}
+
+	// A real button with role="radio", so focus must be visible: this is the
+	// only way to operate the control from a keyboard.
+	&:focus-visible {
+		outline: 2px solid $acmcp-qc-accent;
+		outline-offset: 2px;
+	}
+
+	&.is-selected {
+		border-color: $acmcp-qc-accent;
+		box-shadow: 0 0 0 1px $acmcp-qc-accent;
+	}
+
+	&__mark {
+		flex: none;
+		width: 18px;
+		height: 18px;
+		margin-top: 1px;
+		border: 1.5px solid #949494;
+		border-radius: 50%;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+	}
+
+	&.is-selected &__mark {
+		border-color: $acmcp-qc-accent;
+
+		&::after {
+			content: "";
+			width: 8px;
+			height: 8px;
+			border-radius: 50%;
+			background: $acmcp-qc-accent;
+		}
+	}
+
+	&__body {
+		display: flex;
+		flex-direction: column;
+		gap: 5px;
+		min-width: 0;
+	}
+
+	&__title {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		flex-wrap: wrap;
+		font-size: 14.5px;
+		font-weight: 600;
+	}
+
+	&__badge {
+		padding: 2px 8px;
+		border: 1px solid #a7e3b4;
+		border-radius: 10px;
+		background: #edfaef;
+		color: #00450c;
+		font-size: 11px;
+		font-weight: 600;
+	}
+
+	&__desc {
+		font-size: 13px;
+		line-height: 1.55;
+		color: $acmcp-qc-muted;
+		text-wrap: pretty;
+	}
+
+	&__meta {
+		font-size: 12px;
+		font-weight: 500;
+		color: #3c434a;
+	}
+}
+
+.acrossai-mcp-route-body {
+	display: flex;
+	flex-direction: column;
+	gap: 14px;
+
+	&__lead {
+		margin: 0;
+		font-size: 14px;
+		line-height: 1.6;
+	}
+}
+
+.acrossai-mcp-substep {
+	display: flex;
+	gap: 12px;
+	align-items: flex-start;
+
+	+ .acrossai-mcp-substep {
+		margin-top: 24px;
+	}
+
+	&__mark {
+		flex: none;
+		width: 24px;
+		height: 24px;
+		border-radius: 50%;
+		background: $acmcp-qc-accent;
+		color: #fff;
+		font-size: 12px;
+		font-weight: 700;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+	}
+
+	&__body {
+		flex: 1;
+		min-width: 0;
+		display: flex;
+		flex-direction: column;
+		gap: 10px;
+	}
+
+	&__title {
+		font-size: 15px;
+		font-weight: 600;
+	}
+
+	&__inline {
+		display: flex;
+		align-items: center;
+		gap: 10px;
+		flex-wrap: wrap;
+	}
+
+	&__hint {
+		font-size: 13px;
+		color: $acmcp-qc-muted;
+	}
+}
+
+// Per-OS path: label above its own code row, rather than the admin tab's
+// three-column grid. The wizard card is narrower and these paths are long.
+.acrossai-mcp-path {
+	display: flex;
+	flex-direction: column;
+	gap: 5px;
+
+	&__os {
+		font-size: 13px;
+		color: #3c434a;
+	}
+}
+
+.acrossai-mcp-key {
+	display: inline-flex;
+	align-items: center;
+	height: 38px;
+	padding: 0 12px;
+	background: $acmcp-qc-field;
+	border: 1px solid $acmcp-qc-rule;
+	border-radius: 2px;
+	font-family: "JetBrains Mono", Menlo, Consolas, monospace;
+	font-size: 12.5px;
+}
+
+.acrossai-mcp-callout {
+	padding: 12px 15px;
+	border-radius: 2px;
+
+	p {
+		margin: 0;
+		font-size: 13px;
+		line-height: 1.6;
+	}
+
+	&--warn {
+		background: #fcf9e8;
+		border-left: 4px solid #f0b849;
+	}
+}

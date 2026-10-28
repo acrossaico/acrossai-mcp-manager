@@ -124,13 +124,54 @@ final class MCPClientsBlockRenderTest extends WP_UnitTestCase {
 			$output,
 			'F077: the prose instructions paragraph was replaced by the STEP layout.'
 		);
-		foreach ( array( 'Generate the password', 'Open the config file', 'Locate the top-level key' ) as $step_heading ) {
+		// F099 changed what follows Step 1. The panel used to run Steps 1-5 in
+		// one column; Step 2 is now the CHOICE between two routes, and only the
+		// chosen route renders. So "Open the config file" and the top-level key
+		// are no longer unconditional — they belong to the manual route and
+		// appear when it is selected, which the F099 suite covers directly.
+		//
+		// What F077 was actually protecting survives and is asserted here: the
+		// panel uses step headings rather than the retired prose paragraph.
+		foreach ( array( 'Generate the password', 'Choose how to add it to' ) as $step_heading ) {
 			$this->assertStringContainsString(
 				$step_heading,
 				$output,
-				'F077: panel MUST render the numbered STEP headings.'
+				'F077/F099: panel MUST render step headings, not the retired prose.'
 			);
 		}
+
+		$this->assertStringContainsString(
+			'Open the config file',
+			(string) $this->render_manual_route( 'claude-desktop' ),
+			'F077: the manual route still carries the config-file step.'
+		);
+	}
+
+	/**
+	 * Render one client's panel with the manual route selected.
+	 *
+	 * F099 made the route a navigation parameter, so a test that wants the
+	 * manual content has to ask for it the same way the operator does.
+	 *
+	 * @param string $client_slug Client to select.
+	 * @return string
+	 */
+	private function render_manual_route( string $client_slug ): string {
+		$_GET['setup'] = 'manual';
+
+		ob_start();
+		MCPClientsBlock::instance()->render(
+			$this->server_id,
+			array(
+				'context'    => 'admin',
+				'sub_client' => $client_slug,
+			)
+		);
+		$output = (string) ob_get_clean();
+
+		unset( $_GET['setup'] );
+
+		return $output;
 	}
 
 	/**

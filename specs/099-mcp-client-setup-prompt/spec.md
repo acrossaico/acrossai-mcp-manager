@@ -212,9 +212,16 @@ block and the config file locations.
 - **FR-018**: The system MUST retain an identifier for each credential it issues, sufficient to
   revoke that one credential without affecting any other credential belonging to the same user.
 - **FR-019**: Credentials issued by this feature MUST appear in the administrator's existing list of
-  this plugin's credentials, identifiable by name.
-- **FR-020**: The interface MUST state, adjacent to the copy control, that the instruction block
-  contains a live password and where it will end up, and MUST place revocation one step away.
+  this plugin's credentials, and their **name MUST identify the client, the server and the date of
+  issue**. The name is the durable record of where a credential came from: it persists for as long
+  as the credential does, whereas the issuance entry in the activity log ages out on that log's
+  retention schedule.
+- **FR-020**: The interface MUST state, adjacent to the copy control, **what the credential can do
+  and where it will end up** — specifically that it acts as the full account across the whole site
+  rather than being limited to this connection, and that pasting it into a hosted assistant sends it
+  to that assistant's provider, where it may be retained. Stating only that the block "contains a
+  live password" is insufficient: an administrator can reasonably read that as a credential scoped
+  to this MCP connection, which it is not. Revocation MUST be one step away from the same panel.
 - **FR-021**: Adding this capability MUST NOT break MCP clients contributed by other plugins through
   the existing extension point. A client implementing only the required minimum MUST still produce
   usable instructions.
@@ -437,6 +444,20 @@ non-secret identifier required by FR-018, alongside the existing credential reco
 - Multisite behaviour is inherited, not extended. No site-scoped storage is added.
 - The decision about which of the two existing credential-route registrations should win is deferred
   to its own feature. This increment hardens the one that serves traffic and adds none (FR-023).
+- **An Application Password is not scoped to this plugin.** It authenticates as the user across the
+  whole REST API, so it can do anything that user can do. Because FR-024 restricts generation to
+  administrators, every credential this feature issues is an administrator credential. That is why
+  FR-020 must describe the credential's reach rather than its existence, and why FR-018's
+  per-credential revocation matters more here than it would for a scoped token.
+- **FR-024 and FR-020 are coupled and MUST be revisited together.** Restricting generation to
+  administrators reduces who can mint, but guarantees that everything minted is maximally
+  privileged. Any later increment that broadens access below administrator MUST revisit FR-020's
+  disclosure at the same time — and FR-028's no-throttle decision with it, since that rests on the
+  actor already holding administrator powers.
+- **Issuance provenance lives in the credential name, not the log.** FR-027's activity entry is a
+  convenience with ordinary retention; FR-019's name is the durable record. The log's retention is
+  deliberately left unchanged — it is keyed by event kind by design, and carving out an exception
+  for one source would cut against that for no gain the name does not already deliver.
 - Constitution §III's consent-surface exception, which would permit issuing a self-scoped credential
   to a user below administrator on their own consent, is **deliberately not used** by this feature.
   Access is administrator-only (FR-024). A later increment may revisit this; if it does, FR-028's

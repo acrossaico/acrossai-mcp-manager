@@ -3372,3 +3372,141 @@ The same shape produced B73: the test bootstrap constructed the `Table` that pro
   public setter whose only callers are tests is unwired until proven otherwise.
 
 **Related**: B70 (plan gates passing on unverified reuse), B73.
+
+---
+
+### 2026-10-27 — B76 / B-PROVENANCE-BELONGS-IN-THE-ARTEFACT-NOT-THE-LOG — A credential's origin belongs in its own name [Feature-099]
+
+**Status**
+Active
+
+**Why this is durable**
+The instinct when an audit fact must outlive a log's retention is to carve an exception into the
+retention sweep. That instinct is expensive and it fights the sweep's design. The cheaper, more
+durable answer is usually to put the fact on the artefact itself, where it lives exactly as long as
+the thing it describes.
+
+**Finding**
+Feature 099's plan security review (SEC-099-003) flagged that Application Passwords accumulate with
+no expiry while their issuance record ages out after 30 days — leaving working credentials with no
+record of where they came from. The first proposed remedy was to exempt `SOURCE_AUTH` rows from the
+activity log's request retention.
+
+That remedy does not fit the code. `ActivityLog\Query::prune_by_event_type( string $event_type,
+int $days )` validates `in_array( $event_type, ActivityLogConstants::EVENT_TYPES, true )` and has
+no source dimension; it is called only from `ActivityLog\Cleanup.php:107,111`; and the Query class
+docblock states the intent as *"retention, per event kind (never one global cutoff)"*. The
+exemption needed a new Query API, a Cleanup change and new tests — to preserve a log row.
+
+**Pattern to apply**
+Encode the provenance in the credential's **name**: originating client, server, and date. The
+Tokens tab then carries it for as long as the credential exists, with no retention work at all. The
+log entry becomes a convenience rather than the system of record.
+
+Generalised: when an audit fact must outlive a log, ask whether the artefact it describes can carry
+the fact itself. Reach for a retention carve-out only once the durable surface has been shown
+genuinely unable to hold it.
+
+**Prevention**
+- Before proposing a retention exception, read the prune/sweep signature. If retention is keyed on
+  one dimension by deliberate design, an exception on a second dimension is a redesign, not a flag.
+- Prefer self-describing artefacts. A name costs one `sprintf` and never expires.
+
+**Related**: D28 / B34 (schema-version changes that silently lose writes — the reason the cheaper
+route mattered here), B72 (capture the UUID so revocation can be precise).
+
+---
+
+### 2026-10-27 — B77 / B-HAND-MAINTAINED-ASSET-DEPS-AND-THE-HANDLE-THAT-NEVER-EXISTED — A guessed dependency array takes a whole screen down silently [0.4.4 → 0.4.5 hotfix]
+
+**Status**
+Active
+
+**Why this is durable**
+`WP_Scripts` refuses to output a script whose declared dependency is not registered, and it does so
+**silently** — no tag, no PHP notice, nothing in the console explaining the absence. A single wrong
+handle therefore produces a blank screen with no diagnostic trail. Combined with a hand-maintained
+dependency array, this is a defect that ships, survives review and stays invisible until a user
+reports a blank page.
+
+**Finding**
+0.4.4 shipped the MCP Activity Log as its headline feature and the screen rendered blank on **every**
+installation. Three defects stacked in eleven lines of
+`admin/Partials/ActivityLogPage.php::enqueue_bundle()`:
+
+1. It read `ACROSSAI_MCP_MANAGER_PLUGIN_DIR`. That constant has never existed — the plugin defines
+   `ACROSSAI_MCP_MANAGER_PLUGIN_PATH` (`includes/Main.php:182`). The `defined()` guard always
+   failed.
+2. So `$dir` always fell through to `plugin_dir_path( __DIR__ . '/../' )`, which resolves to
+   `admin/Partials/`, not the plugin root. `build/js/activity-log.asset.php` was never found, so
+   the real dependency list was never read.
+3. The hardcoded fallback that then took over named **`wp-dataviews`**, which WordPress registers
+   on no version — `@wordpress/dataviews` is an npm package that webpack bundles into the output.
+   It also omitted `react` and `react-dom`, so it could not have worked even had the handle existed.
+
+Diagnostic signature: Query Monitor showing a **correct source URL beside wrong dependencies** —
+because `$base` used `..._PLUGIN_URL`, which does exist.
+
+**Pattern to apply**
+- Read dependencies and version from `build/*.asset.php`, and **bail** when the manifest is absent.
+  webpack decides a bundle's externals at build time, so any array written by hand is wrong as soon
+  as the bundle changes. This is the plugin's own documented rule (`docs/planings-tasks/README.md`
+  Key Rule 6) and the established `Admin\Main::read_asset_manifest()` pattern — every other enqueue
+  already follows it.
+- Never name `wp-dataviews` as a dependency. DataViews is bundled, not externalised.
+
+**Prevention**
+Test that **every declared dependency is a handle WordPress actually registers**. That single
+generalised assertion catches this entire class, not just the one bad handle. The absence of any
+test over this enqueue is why all three defects survived review; the test added in the fix fails
+3/6 against the broken code.
+
+Also: when a `defined()` guard feeds a fallback, assert the constant exists. A guard whose
+condition is never true is indistinguishable from one that always works.
+
+**Related**: D28 / B34 (silent-failure class), B69 (local nginx making correct auth look broken —
+rule the environment out before blaming the code).
+
+---
+
+### 2026-10-27 — B78 / B-CONFIG-FORMAT-DECLARED-ONE-WAY-SERIALISED-ANOTHER — A client class can contradict itself and every renderer will believe it [Feature-099]
+
+**Status**
+Active
+
+**Why this is durable**
+A client descriptor is several independent accessors — file path, top-level key, human
+instructions, and the config payload. Nothing checks that they agree. `CodexClient` declared
+`~/.codex/config.toml`, a `mcp_servers` table and instructions saying "copy the TOML snippet",
+while its `get_config_snippet()` returned an array that every renderer dutifully JSON-encoded. The
+operator was handed JSON, labelled TOML, for a TOML path — and this shipped, through review, with
+full test coverage, because every test asserted the snippet matched its own fixture rather than
+asserting the snippet matched the format the class claimed.
+
+**Finding**
+The mismatch was survivable while a human read the block and adapted. It stopped being survivable
+when F099 began generating a prompt instructing an AI client to *merge this configuration into
+config.toml*. An assistant following that either fails or writes a file the client cannot parse,
+and the operator cannot tell which happened. Automating a step removes the human who was silently
+compensating for it.
+
+**Pattern to apply**
+When a descriptor declares a format in one accessor, assert the payload matches it. A cross-field
+invariant test — "if `get_config_file()` ends `.toml`, `get_config_snippet()` must not return an
+array" — costs one assertion and catches the whole class.
+
+More generally: **automating a manual step removes the human who was absorbing its defects.**
+Before generating instructions for a machine to follow, re-read what the manual path actually said,
+because a human reader may have been quietly correcting it for years.
+
+**Prevention**
+- `get_config_snippet()` is documented `string|array`. The string branch existed for exactly this
+  and had no in-tree user until F099 — an unused branch in a public contract is a hint that a case
+  it was written for is being handled wrongly somewhere.
+- Check consumers before switching a payload's type. Three handled a string already
+  (`ConnectionMethodRegistry`, `MCPClientsBlock`, `Step11_ClientDetail`); `backend.js` called
+  `JSON.parse()` inside a `try` whose `catch` returned false silently — password shown, config
+  unchanged, no error.
+
+**Related**: B19 (config that looks right and silently 401s), D64 (a consumer ignoring what a
+producer publishes).

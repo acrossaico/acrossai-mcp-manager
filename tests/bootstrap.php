@@ -119,6 +119,26 @@ if ( ! function_exists( '__' ) ) {
 	}
 }
 
+if ( ! function_exists( 'wp_json_encode' ) ) {
+	/**
+	 * Minimal `wp_json_encode()` for the WP-free MCPClients suite (A18).
+	 *
+	 * F099's `get_setup_prompt()` encodes the config block through this. Core's
+	 * version adds depth checking and a UTF-8 sanity pass; neither changes the
+	 * output for the array shapes a client class returns, so a thin delegation
+	 * is faithful enough for a suite whose whole point is that production code
+	 * runs without WordPress loaded.
+	 *
+	 * @param mixed $data    Value to encode.
+	 * @param int   $options json_encode flags.
+	 * @param int   $depth   Maximum depth.
+	 * @return string|false
+	 */
+	function wp_json_encode( $data, int $options = 0, int $depth = 512 ) {
+		return json_encode( $data, $options, $depth ); // phpcs:ignore WordPress.WP.AlternativeFunctions.json_encode_json_encode -- this IS the stub for the WP function.
+	}
+}
+
 if ( ! function_exists( 'esc_html__' ) ) {
 	function esc_html__( string $text, string $domain = 'default' ): string {
 		unset( $domain );
