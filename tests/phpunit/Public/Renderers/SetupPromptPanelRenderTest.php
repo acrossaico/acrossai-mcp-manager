@@ -435,6 +435,31 @@ final class SetupPromptPanelRenderTest extends WP_UnitTestCase {
 	}
 
 	/**
+	 * SEC-S-001 — the count must not credit one server's credentials to
+	 * another. A bare substring match did: with servers named "Prompt Panel
+	 * Fixture" and "Prompt Panel", every credential for the former counted
+	 * toward the latter. The number exists to make accumulation honest, so
+	 * overstating it is the failure that misleads.
+	 */
+	public function test_count_does_not_match_a_server_whose_name_is_a_prefix(): void {
+		$long  = 'Prompt Panel Fixture';
+		$short = 'Prompt Panel';
+
+		$name = CredentialNaming::PREFIX . CredentialNaming::SEPARATOR . $long
+			. CredentialNaming::SEPARATOR . 'claude-code'
+			. CredentialNaming::SEPARATOR . '2026-10-28';
+
+		$this->assertTrue(
+			CredentialNaming::is_for_server( $name, $long ),
+			'The credential belongs to the server it names.'
+		);
+		$this->assertFalse(
+			CredentialNaming::is_for_server( $name, $short ),
+			"A server whose name is a prefix of another's must not claim its credentials."
+		);
+	}
+
+	/**
 	 * The count is scoped to THIS server. A credential issued for a different
 	 * server must not inflate it, or the number means nothing.
 	 */
@@ -450,6 +475,47 @@ final class SetupPromptPanelRenderTest extends WP_UnitTestCase {
 			'already exist',
 			$output,
 			"Another server's credential must not be counted against this one."
+		);
+	}
+
+	/**
+	 * B19 / FR-005 — the username must be a real VALUE, not just a key.
+	 *
+	 * The existing contract test asserts the `WP_API_USERNAME` key is present,
+	 * which is correct for the WP-free suite where `current_username()` guards
+	 * `wp_get_current_user()` and resolves empty by design. Nothing asserted
+	 * the value is populated in a real WordPress context — and a config
+	 * carrying a password with an empty username is exactly B19: it 401s on
+	 * every request with nothing in wp-admin explaining why.
+	 *
+	 * Found by actually generating a prompt rather than by reading the code:
+	 * a prompt built without a current user had a blank username in both the
+	 * prose line and the env block, and looked entirely plausible.
+	 */
+	public function test_prompt_carries_a_real_username_not_an_empty_one(): void {
+		// Decoded: the payload sits in a textarea, so esc_textarea() has turned
+		// every quote into &quot; and a raw-string match would fail for the
+		// wrong reason.
+		$output = html_entity_decode( $this->render( 'claude-code' ), ENT_QUOTES );
+
+		$expected = wp_get_current_user()->user_login;
+
+		$this->assertNotSame( '', $expected, 'Precondition: the test user has a login.' );
+
+		$this->assertStringContainsString(
+			'"WP_API_USERNAME": "' . $expected . '"',
+			$output,
+			'The env block must carry the resolved username, not an empty string.'
+		);
+		$this->assertStringNotContainsString(
+			'"WP_API_USERNAME": ""',
+			$output,
+			'An empty username ships a config that 401s on every request (B19).'
+		);
+		$this->assertStringContainsString(
+			'- Username: ' . $expected,
+			$output,
+			'The prose line an operator reads must name the user too.'
 		);
 	}
 
