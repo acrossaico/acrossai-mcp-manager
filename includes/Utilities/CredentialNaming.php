@@ -71,11 +71,32 @@ final class CredentialNaming {
 	 * @return bool
 	 */
 	public static function is_for_server( string $name, string $server_name ): bool {
-		if ( ! self::is_ours( $name ) ) {
+		if ( ! self::is_ours( $name ) || '' === $server_name ) {
 			return false;
 		}
 
-		return '' !== $server_name && false !== strpos( $name, $server_name );
+		// Compare the SERVER SEGMENT, not the whole string. A bare substring
+		// match counted one server's credentials against another whenever one
+		// name contained the other — a site with "Test" and "Test Server"
+		// credited every "Test Server" credential to "Test". The number beside
+		// the Copy button exists to make accumulation honest (FR-025), and it
+		// was overstating, which is the direction that misleads: an operator
+		// may believe they already revoked something they had not.
+		return in_array( $server_name, self::segments( $name ), true );
+	}
+
+	/**
+	 * Split a credential name into its parts.
+	 *
+	 * Names are written as `<prefix> — <server> — <client> — <date>`, with the
+	 * client and the caller-supplied label both optional. Splitting on the
+	 * separator and comparing whole segments is what makes the match exact.
+	 *
+	 * @param string $name Credential display name.
+	 * @return string[]
+	 */
+	private static function segments( string $name ): array {
+		return array_map( 'trim', explode( self::SEPARATOR, $name ) );
 	}
 
 	/**
