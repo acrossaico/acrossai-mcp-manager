@@ -1,19 +1,5 @@
 {
 	"mcpServers": {
-		"wordpress-7-0-mcp": {
-			"command": "npx",
-			"args": [
-				"-y",
-				"@automattic/mcp-wordpress-remote@latest"
-			],
-			"env": {
-				"OAUTH_ENABLED": "false",
-				"WP_API_URL": "https://wordpress-7-0.local/wp-json/acrossai/mcp",
-				"WP_API_USERNAME": "admin",
-				"WP_API_PASSWORD": "nVlrAPtPYDCw9TSA2dePZWKI",
-				"NODE_TLS_REJECT_UNAUTHORIZED": "0"
-			}
-		},
 		"deepwiki": {
 			"command": "npx",
 			"args": [
