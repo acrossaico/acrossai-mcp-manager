@@ -208,6 +208,14 @@ final class ConnectionMethodRegistry {
 	 * the per-server Clients tab render byte-identical Configuration JSON.
 	 * When `$server` is null, DTOs omit the `config` field entirely.
 	 *
+	 * F099 — the same `$server` branch adds `setupPrompt`, the paste-ready
+	 * instructions that tell an AI client to edit its own config file. It is
+	 * assembled here, not in either renderer: D43 requires encoding and
+	 * translation decisions to live in the DTO producer so the two surfaces
+	 * cannot drift. Consumers MUST render it as received and MUST NOT rebuild
+	 * it — reassembling in JavaScript would key the same sentences twice and
+	 * break byte-identity with the manual path.
+	 *
 	 * @param array<string, mixed>|null $server Optional MCPServer raw row (as
 	 *                                          returned by
 	 *                                          `MCPServerQuery::query()[0]->to_array()`).
@@ -268,6 +276,19 @@ final class ConnectionMethodRegistry {
 						JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES
 					)
 					: (string) $snippet;
+
+				// F099 — the paste-ready setup prompt, assembled HERE rather
+				// than in either renderer. D43 requires encoding and
+				// translation decisions to live in the DTO producer: the PHP
+				// tab and the React wizard must receive one finished string, or
+				// byte-identity (FR-003) and identical translation keys cannot
+				// both hold. Consumers render it; they never rebuild it.
+				//
+				// Built with an EMPTY token, exactly like `config` above, so
+				// the DTO carries the placeholder and never a credential
+				// (FR-008). The real value is spliced client-side only after
+				// the operator explicitly asks for one.
+				$dto['setupPrompt'] = $client->get_setup_prompt( $server_url, '' );
 			}
 
 			$dtos[] = $dto;

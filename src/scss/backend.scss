@@ -582,3 +582,281 @@
 		overflow-wrap: anywhere;
 	}
 }
+
+// ============================================================================
+// F099 — Connect tab: route picker and the two route panels.
+//
+// Design: "MCP Client Config Steps.dc.html" (Claude Design project
+// acrossai-mcp-manager, frames 1a/1b). Step 2 is the CHOICE between routes and
+// only the chosen one renders; previously the prompt and the manual steps
+// stacked, so they read as one long sequence.
+//
+// Colours are WordPress admin's own (#3858e9 accent, #646970 muted, #dcdcde /
+// #c3c4c7 borders, 2px radii) so the panel sits inside wp-admin rather than on
+// top of it.
+// ============================================================================
+
+$acmcp-accent: #3858e9;
+$acmcp-ink: #1e1e1e;
+$acmcp-muted: #646970;
+$acmcp-rule: #dcdcde;
+$acmcp-rule-strong: #c3c4c7;
+$acmcp-surface: #f6f7f7;
+
+.acrossai-mcp-route-picker {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+	gap: 12px;
+}
+
+.acrossai-mcp-route-card {
+	display: flex;
+	gap: 12px;
+	align-items: flex-start;
+	padding: 16px 18px;
+	background: #fff;
+	border: 1px solid $acmcp-rule-strong;
+	border-radius: 2px;
+	text-decoration: none;
+	color: $acmcp-ink;
+
+	&:hover,
+	&:focus {
+		border-color: $acmcp-accent;
+		color: $acmcp-ink;
+	}
+
+	&.is-selected {
+		border-color: $acmcp-accent;
+		box-shadow: 0 0 0 1px $acmcp-accent;
+	}
+
+	// The dot is decorative. Selection is carried by aria-current on the link,
+	// so a screen reader is told which route is active without being promised
+	// radio-group keyboard behaviour that links do not have.
+	&__mark {
+		flex: none;
+		width: 18px;
+		height: 18px;
+		margin-top: 1px;
+		border: 1.5px solid #949494;
+		border-radius: 50%;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+	}
+
+	&.is-selected &__mark {
+		border-color: $acmcp-accent;
+
+		&::after {
+			content: "";
+			width: 8px;
+			height: 8px;
+			border-radius: 50%;
+			background: $acmcp-accent;
+		}
+	}
+
+	&__body {
+		display: flex;
+		flex-direction: column;
+		gap: 5px;
+		min-width: 0;
+	}
+
+	&__title {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		flex-wrap: wrap;
+		font-size: 14px;
+		font-weight: 600;
+	}
+
+	&__badge {
+		padding: 2px 8px;
+		border: 1px solid #a7e3b4;
+		border-radius: 10px;
+		background: #edfaef;
+		color: #00450c;
+		font-size: 11px;
+		font-weight: 600;
+	}
+
+	&__desc {
+		font-size: 13px;
+		line-height: 1.55;
+		color: $acmcp-muted;
+		text-wrap: pretty;
+	}
+
+	&__meta {
+		font-size: 12px;
+		font-weight: 500;
+		color: #3c434a;
+	}
+}
+
+.acrossai-mcp-route-panel {
+	display: flex;
+	flex-direction: column;
+	gap: 14px;
+	padding: 20px 22px;
+	margin-top: 4px;
+	background: #fff;
+	border: 1px solid $acmcp-rule;
+	border-radius: 2px;
+
+	// REQUIRED, not belt-and-braces. The `hidden` attribute only works through
+	// the UA stylesheet's `[hidden] { display: none }`, which ANY author rule
+	// setting `display` overrides — including the `display: flex` directly
+	// above. Without this both routes render visible at once, which is exactly
+	// what the route split exists to prevent. Specificity (0,2,0) beats the
+	// bare class, so no !important is needed.
+	&[hidden] {
+		display: none;
+	}
+
+	&__intro {
+		display: flex;
+		flex-direction: column;
+		gap: 4px;
+	}
+
+	&__title {
+		font-size: 14px;
+		font-weight: 600;
+	}
+
+	&__sub {
+		font-size: 13px;
+		line-height: 1.55;
+		color: $acmcp-muted;
+	}
+
+	&__code {
+		font-family: "JetBrains Mono", Menlo, Consolas, monospace;
+		font-size: 12.5px;
+		line-height: 1.6;
+		background: $acmcp-surface;
+		border-color: $acmcp-rule-strong;
+	}
+
+	&__actions {
+		display: flex;
+		align-items: center;
+		gap: 14px;
+		flex-wrap: wrap;
+	}
+
+	&__footnote {
+		font-size: 12.5px;
+		color: $acmcp-muted;
+	}
+}
+
+// Lettered sub-steps inside the manual route. Letters, not numbers: these are
+// parts of Step 2, and numbering them 2-5 is what made the screen read as one
+// undifferentiated sequence.
+.acrossai-mcp-substep {
+	display: flex;
+	gap: 12px;
+	align-items: flex-start;
+
+	+ .acrossai-mcp-substep {
+		margin-top: 22px;
+	}
+
+	&__mark {
+		flex: none;
+		width: 22px;
+		height: 22px;
+		border-radius: 50%;
+		background: $acmcp-accent;
+		color: #fff;
+		font-size: 11.5px;
+		font-weight: 700;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+	}
+
+	&__body {
+		flex: 1;
+		min-width: 0;
+		display: flex;
+		flex-direction: column;
+		gap: 10px;
+	}
+
+	&__title {
+		font-size: 14px;
+		font-weight: 600;
+	}
+
+	&__inline {
+		display: flex;
+		align-items: center;
+		gap: 10px;
+		flex-wrap: wrap;
+	}
+
+	&__hint {
+		font-size: 13px;
+		color: $acmcp-muted;
+	}
+}
+
+.acrossai-mcp-key {
+	display: inline-flex;
+	align-items: center;
+	height: 34px;
+	padding: 0 11px;
+	background: $acmcp-surface;
+	border: 1px solid $acmcp-rule;
+	border-radius: 2px;
+	font-family: "JetBrains Mono", Menlo, Consolas, monospace;
+	font-size: 12.5px;
+}
+
+.acrossai-mcp-paths {
+	display: grid;
+	grid-template-columns: auto minmax(0, 1fr) auto;
+	gap: 8px 10px;
+	align-items: center;
+
+	&__os {
+		font-size: 13px;
+		font-weight: 600;
+	}
+
+	&__value {
+		height: 34px;
+		padding: 0 11px;
+		background: $acmcp-surface;
+		border: 1px solid $acmcp-rule;
+		border-radius: 2px;
+		font-family: "JetBrains Mono", Menlo, Consolas, monospace;
+		font-size: 12.5px;
+	}
+}
+
+// Plugin-owned callout rather than wp-admin's .notice (A22): this renderer is
+// reachable outside wp-admin, where the admin stylesheet never loads and an
+// inherited class silently renders unstyled.
+.acrossai-mcp-callout {
+	padding: 12px 14px;
+	border-radius: 2px;
+
+	p {
+		margin: 0;
+		font-size: 13px;
+		line-height: 1.6;
+	}
+
+	&--warn {
+		background: #fcf9e8;
+		border-left: 4px solid #f0b849;
+	}
+}

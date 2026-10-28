@@ -75,8 +75,9 @@
  * On success:
  *   1. Show the plaintext password once beside the button (adjacent .acrossai-generate-app-password-status).
  *   2. Locate `#acrossai-mcp-{slug}-config-{serverId}` textarea and replace the
- *      env.WP_API_PASSWORD placeholder ("(paste generated password here)")
- *      with the real password, matching the reference plugin's updateConfig().
+ *      placeholder ("(paste generated password here)") with the real password.
+ *      Textual, not structural: the config may be JSON or TOML, and the key
+ *      holding the password differs per client (`env` vs `environment`).
  *   3. Update button label to "Regenerate Application Password".
  */
 ( function() {
@@ -86,39 +87,108 @@
 
 	const PLACEHOLDER = '(paste generated password here)';
 
-	function injectPasswordIntoConfig( textareaId, password ) {
-		const textarea = document.getElementById( textareaId );
-		if ( ! textarea || ! textarea.value ) {
-			return false;
+	/**
+	 * Replace the password placeholder wherever it appears, as text.
+	 *
+	 * This used to JSON.parse the textarea, walk `serverBlock.env` and
+	 * re-stringify. That was wrong in three ways and each had shipped:
+	 *
+	 *   1. It only looked at `env`, so OpenCode — whose key is `environment` —
+	 *      silently got no password at all.
+	 *   2. It re-stringified without JSON_UNESCAPED_SLASHES, so every URL came
+	 *      back with escaped slashes and no longer matched the PHP original
+	 *      byte for byte.
+	 *   3. It assumed JSON. Codex's config is TOML, so `JSON.parse` threw and
+	 *      the catch swallowed it — the operator saw their password beside the
+	 *      button and an unchanged config below, with nothing explaining why.
+	 *
+	 * A textual replace has none of those failure modes and cannot care what
+	 * format the config is in. The placeholder is a literal constant emitted by
+	 * `AbstractMCPClient::safe_token()`, so matching it as text is exact.
+	 * `Step11_ClientDetail.jsx` has always done it this way.
+	 *
+	 * Targets EVERY element carrying data-acrossai-password-target, not one id.
+	 * The screen now shows two routes — the config block and the setup prompt —
+	 * and both embed the same placeholder. Addressing a single id meant
+	 * generating a password updated the config and silently left the prompt
+	 * holding "(paste generated password here)", so anyone who copied the
+	 * prompt pasted a placeholder into their AI client.
+	 *
+	 * @param {string} password The generated Application Password.
+	 * @return {number} How many fields were updated.
+	 */
+	function injectPasswordIntoConfig( password ) {
+		const targets = document.querySelectorAll(
+			'[data-acrossai-password-target]',
+		);
+		let updated = 0;
+
+		targets.forEach( ( field ) => {
+			if ( ! field.value || ! field.value.includes( PLACEHOLDER ) ) {
+				return;
+			}
+			field.value = field.value.split( PLACEHOLDER ).join( password );
+			updated++;
+		} );
+
+		return updated;
+	}
+
+	/**
+	 * Switch between the two setup routes without reloading.
+	 *
+	 * The picker is server-rendered links with real hrefs, and the server
+	 * honours ?setup= — so with JavaScript off this does nothing and the links
+	 * still work. With JavaScript on, reloading would be actively harmful: the
+	 * Application Password is shown exactly once and cannot be re-fetched, so
+	 * a reload mid-setup discards a credential the operator may not have
+	 * copied yet.
+	 */
+	// Registered at module level, matching how the other delegated handlers in
+	// this file are wired — there is no init() convention here.
+	document.addEventListener( 'click', ( event ) => {
+		const card = event.target.closest(
+			'[data-acrossai-route-target]',
+		);
+		if ( ! card ) {
+			return;
 		}
-		try {
-			const config = JSON.parse( textarea.value );
-			let mutated = false;
-			// Walk every top-level key (mcpServers/servers/etc.).
-			Object.values( config ).forEach( ( servers ) => {
-				if ( servers && typeof servers === 'object' ) {
-					Object.values( servers ).forEach( ( serverBlock ) => {
-						if (
-							serverBlock &&
-							serverBlock.env &&
-							typeof serverBlock.env === 'object'
-						) {
-							if ( PLACEHOLDER === serverBlock.env.WP_API_PASSWORD || '' === serverBlock.env.WP_API_PASSWORD ) {
-								serverBlock.env.WP_API_PASSWORD = password;
-								mutated = true;
-							}
-						}
-					} );
+
+		const wanted = card.getAttribute( 'data-acrossai-route-target' );
+		const panels = document.querySelectorAll(
+			'[data-acrossai-route]',
+		);
+		if ( ! wanted || panels.length === 0 ) {
+			return; // Nothing rendered to toggle — let the link navigate.
+		}
+
+		event.preventDefault();
+
+		panels.forEach( ( panel ) => {
+			panel.hidden =
+				panel.getAttribute( 'data-acrossai-route' ) !== wanted;
+		} );
+
+		document
+			.querySelectorAll( '[data-acrossai-route-target]' )
+			.forEach( ( link ) => {
+				const on =
+					link.getAttribute( 'data-acrossai-route-target' ) ===
+					wanted;
+				link.classList.toggle( 'is-selected', on );
+				if ( on ) {
+					link.setAttribute( 'aria-current', 'true' );
+				} else {
+					link.removeAttribute( 'aria-current' );
 				}
 			} );
-			if ( mutated ) {
-				textarea.value = JSON.stringify( config, null, 2 );
-			}
-			return mutated;
-		} catch {
-			return false;
+
+		// Keep the URL honest so a refresh or a shared link lands on the route
+		// the operator is actually looking at.
+		if ( window.history && window.history.replaceState ) {
+			window.history.replaceState( {}, '', card.href );
 		}
-	}
+	} );
 
 	function renderStatus( statusEl, message, kind ) {
 		if ( ! statusEl ) {
@@ -169,7 +239,15 @@
 				'Content-Type': 'application/json',
 				'X-WP-Nonce': nonce,
 			},
-			body: JSON.stringify( { server_id: serverId } ),
+			// `client` feeds the credential's NAME, which is this feature's
+			// durable provenance record (B76): the activity-log entry ages out
+			// on that log's retention, the name lives as long as the
+			// credential. The button has always carried data-client-slug; it
+			// was simply never sent.
+			body: JSON.stringify( {
+				server_id: serverId,
+				client: clientSlug,
+			} ),
 		} )
 			.then( ( response ) =>
 				response.json().then( ( body ) => ( { ok: response.ok, body } ) ),
@@ -183,12 +261,9 @@
 					button.textContent = originalLabel;
 					return;
 				}
-				const injected = injectPasswordIntoConfig(
-					'acrossai-mcp-' + clientSlug + '-config-' + serverId,
-					body.password,
-				);
+				const injected = injectPasswordIntoConfig( body.password );
 				const displayMsg = injected
-					? 'Password: ' + body.password + ' (also injected into the config below — shown only once).'
+					? 'Password: ' + body.password + ' (also filled into the steps below — shown only once).'
 					: 'Password: ' + body.password + ' (shown only once — copy it now).';
 				renderStatus( statusEl, displayMsg, 'success' );
 				button.textContent = 'Regenerate Application Password';

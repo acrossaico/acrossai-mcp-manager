@@ -23,13 +23,38 @@
  */
 
 import { useState, useMemo, useCallback, useEffect } from '@wordpress/element';
-import { __ } from '@wordpress/i18n';
+import { __, sprintf } from '@wordpress/i18n';
 import { useCopyToClipboard } from '@wordpress/compose';
 import apiFetch from '@wordpress/api-fetch';
 import CodeBlock from '../components/CodeBlock.jsx';
 import Notice from '../components/Notice.jsx';
 import SetupRequiredGate from '../components/SetupRequiredGate.jsx';
 import useWizardState from '../hooks/useWizardState.js';
+
+/**
+ * The literal PHP writes via AbstractMCPClient::safe_token().
+ *
+ * A contract, not a convenience: if this string ever stops matching the PHP
+ * constant, credential substitution silently stops working on this surface —
+ * password revealed beside the button, placeholder still sitting in the config
+ * below, no error. A PHPUnit assertion checks both JS files against the PHP
+ * constant on every run, because tests/jest has no runner in CI.
+ */
+const PASSWORD_PLACEHOLDER = '(paste generated password here)';
+
+/**
+ * OS slugs in display order with their labels.
+ *
+ * Mirrors Includes\Utilities\OperatingSystemLabels so both surfaces list
+ * paths in the same order. Labels are proper nouns and are deliberately not
+ * translated — a locale must not rename a heading that has to match what the
+ * operator sees in their own file system.
+ */
+const OS_LABELS = [
+	[ 'macos', 'macOS' ],
+	[ 'windows', 'Windows' ],
+	[ 'linux', 'Linux' ],
+];
 
 const Step11_ClientDetail = () => {
 	const { state } = useWizardState();
@@ -43,6 +68,12 @@ const Step11_ClientDetail = () => {
 	// currently-picked one.
 	const [ generating, setGenerating ] = useState( false );
 	const [ generatedPassword, setGeneratedPassword ] = useState( '' );
+
+	// Which of the two routes the operator picked. Local state rather than a
+	// URL parameter: this is a single-page wizard, so switching route must not
+	// reload and lose the generated password. Resets with the client for the
+	// same reason the password does.
+	const [ route, setRoute ] = useState( 'prompt' );
 	const [ generateError, setGenerateError ] = useState( null );
 	const [ copied, setCopied ] = useState( false );
 
@@ -50,6 +81,11 @@ const Step11_ClientDetail = () => {
 		setGeneratedPassword( '' );
 		setGenerateError( null );
 		setCopied( false );
+		// Back to the recommended route on every client change: the previous
+		// client's choice says nothing about this one, and leaving a manual
+		// selection sticky hides the shorter path from someone who never
+		// deliberately chose it.
+		setRoute( 'prompt' );
 	}, [ activeSlug ] );
 
 	useEffect( () => {
@@ -145,14 +181,83 @@ const Step11_ClientDetail = () => {
 			// Split/join handles multiple occurrences without needing a regex
 			// (WP application passwords are `[A-Za-z0-9 ]+` — no regex meta
 			// chars to escape, and no JSON-breaking chars to encode).
-			raw = raw.split( '(paste generated password here)' ).join( generatedPassword );
+			raw = raw.split( PASSWORD_PLACEHOLDER ).join( generatedPassword );
 		}
 		return raw;
 	}, [ activeClient, generatedPassword ] );
 
-	const configTitle = activeClient
-		? `json · ${ activeClient.name || activeClient.slug }`
-		: 'json';
+	// F099 — the setup prompt comes from the DTO ALREADY ASSEMBLED. It is
+	// never rebuilt here: D43 requires one producer for both surfaces, and the
+	// prose is translated server-side, so reassembling it in JavaScript would
+	// key the same sentences a second time and break byte-identity with the
+	// manual block. The only client-side step is splicing the credential, the
+	// same way configText does.
+	const setupPrompt = useMemo( () => {
+		let raw = activeClient?.setupPrompt || '';
+
+		if ( raw && generatedPassword ) {
+			raw = raw.split( PASSWORD_PLACEHOLDER ).join( generatedPassword );
+		}
+		return raw;
+	}, [ activeClient, generatedPassword ] );
+
+	const clientName = activeClient
+		? activeClient.name || activeClient.slug
+		: '';
+
+	const revokeUrl = `${
+		window.acrossaiMcpQuickConnect?.adminUrl || ''
+	}profile.php#application-passwords`;
+
+	const routeOptions = [
+		{
+			key: 'prompt',
+			title: __( 'Let your AI client do it', 'acrossai-mcp-manager' ),
+			desc: sprintf(
+				/* translators: %s: MCP client display name. */
+				__(
+					'Copy one prompt and paste it into %s. It edits its own config file.',
+					'acrossai-mcp-manager'
+				),
+				clientName
+			),
+			meta: __( '1 step · about 30 seconds', 'acrossai-mcp-manager' ),
+			recommended: true,
+		},
+		{
+			key: 'manual',
+			title: __( 'Set it up yourself', 'acrossai-mcp-manager' ),
+			desc: __(
+				'Open the config file, find the key, and paste the configuration yourself.',
+				'acrossai-mcp-manager'
+			),
+			meta: __(
+				'3 steps · no password sent to a chat',
+				'acrossai-mcp-manager'
+			),
+			recommended: false,
+		},
+	];
+
+	// Per-OS config paths, ordered to match MCPClientsBlock::render_os_config_paths().
+	// Step 11 previously read only `meta.config_file`, the single legacy value
+	// — which is the macOS path for Claude Desktop, VS Code and Copilot, so a
+	// Windows operator was told to edit a directory that does not exist on
+	// their machine. The DTO has always carried `meta.config_files`; this
+	// surface simply ignored it (D64).
+	const configPaths = useMemo( () => {
+		const perOs = activeClient?.meta?.config_files || {};
+		const ordered = OS_LABELS.filter(
+			( [ slug ] ) => typeof perOs[ slug ] === 'string' && perOs[ slug ] !== ''
+		).map( ( [ slug, label ] ) => [ label, perOs[ slug ] ] );
+
+		if ( ordered.length > 0 ) {
+			return ordered;
+		}
+
+		const single = activeClient?.meta?.config_file;
+		return single ? [ [ '', single ] ] : [];
+	}, [ activeClient ] );
 
 	return (
 		<div>
@@ -268,104 +373,242 @@ const Step11_ClientDetail = () => {
 				</div>
 			</div>
 
-			{ /* Step 2 — Open the config file at this path. */ }
-			{ activeClient?.meta?.config_file && (
-				<div className="qs-step">
-					<h3 className="qs-step-heading">
-						<span className="qs-step-heading__num">
-							{ __( 'Step 2', 'acrossai-mcp-manager' ) }
-						</span>
-						{ __( 'Open the config file', 'acrossai-mcp-manager' ) }
-					</h3>
-					<div className="qs-step-body">
-						<input
-							type="text"
-							readOnly
-							value={ activeClient.meta.config_file }
-							className="qs-meta-input qs-meta-input--full"
-							aria-label={ __( 'Config File path', 'acrossai-mcp-manager' ) }
-						/>
-					</div>
-				</div>
-			) }
-
-			{ /* Step 3 — Locate this top-level key inside the config file. */ }
-			{ activeClient?.meta?.top_level_key && (
-				<div className="qs-step">
-					<h3 className="qs-step-heading">
-						<span className="qs-step-heading__num">
-							{ __( 'Step 3', 'acrossai-mcp-manager' ) }
-						</span>
-						{ __( 'Locate the top-level key', 'acrossai-mcp-manager' ) }
-					</h3>
-					<div className="qs-step-body">
-						<input
-							type="text"
-							readOnly
-							value={ `"${ activeClient.meta.top_level_key }"` }
-							className="qs-meta-input qs-meta-input--full"
-							aria-label={ __( 'Top-Level Key', 'acrossai-mcp-manager' ) }
-						/>
-					</div>
-				</div>
-			) }
-
-			{ /* Step 4 — Copy the JSON and paste under that key. */ }
+			{ /* STEP 2 — the choice. Only the chosen route renders below it.
+			     The wizard previously ran Step 1 then Steps 2-5 in one column
+			     with the prompt wedged in, so the two ways of finishing read
+			     as one long sequence instead of alternatives. */ }
 			<div className="qs-step">
 				<h3 className="qs-step-heading">
 					<span className="qs-step-heading__num">
-						{ __( 'Step 4', 'acrossai-mcp-manager' ) }
+						{ __( 'Step 2', 'acrossai-mcp-manager' ) }
 					</span>
-					{ __( 'Copy this config and paste it under the top-level key', 'acrossai-mcp-manager' ) }
+					{ __(
+						'How do you want to add it?',
+						'acrossai-mcp-manager'
+					) }
 				</h3>
 				<div className="qs-step-body">
-					{ /* F075 — Local-dev TLS bypass callout. When the server-
-					     side detection fires, the JSON below already contains
-					     NODE_TLS_REJECT_UNAUTHORIZED (baked in by
-					     ConnectionMethodRegistry → AbstractMCPClient::build_env).
-					     This callout tells the operator what we did and why.
-					     Copy sourced from window.acrossaiMcpQuickConnect.tlsBypass
-					     so admin PHP (MCPClientsBlock.php) and this JSX never
-					     drift on translation edits. */ }
-					{ window.acrossaiMcpQuickConnect?.tlsBypass?.enabled && (
-						<div style={ { marginBottom: 12 } }>
-							<Notice status="warning">
-								{ window.acrossaiMcpQuickConnect.tlsBypass.message }
-								{ ' ' }
-								<a
-									href={ window.acrossaiMcpQuickConnect.tlsBypass.docUrl }
-									target="_blank"
-									rel="noopener noreferrer"
-								>
-									{ window.acrossaiMcpQuickConnect.tlsBypass.linkText }
-								</a>
-							</Notice>
-						</div>
-					) }
-					<CodeBlock variant="pane" title={ configTitle }>
-						{ configText }
-					</CodeBlock>
+					<div
+						className="acrossai-mcp-route-picker"
+						role="radiogroup"
+						aria-label={ __(
+							'How do you want to add it?',
+							'acrossai-mcp-manager'
+						) }
+					>
+						{ routeOptions.map( ( option ) => (
+							<button
+								key={ option.key }
+								type="button"
+								role="radio"
+								aria-checked={ route === option.key }
+								className={ `acrossai-mcp-route-card${
+									route === option.key ? ' is-selected' : ''
+								}` }
+								onClick={ () => setRoute( option.key ) }
+							>
+								<span
+									className="acrossai-mcp-route-card__mark"
+									aria-hidden="true"
+								/>
+								<span className="acrossai-mcp-route-card__body">
+									<span className="acrossai-mcp-route-card__title">
+										{ option.title }
+										{ option.recommended && (
+											<span className="acrossai-mcp-route-card__badge">
+												{ __(
+													'Recommended',
+													'acrossai-mcp-manager'
+												) }
+											</span>
+										) }
+									</span>
+									<span className="acrossai-mcp-route-card__desc">
+										{ option.desc }
+									</span>
+									<span className="acrossai-mcp-route-card__meta">
+										{ option.meta }
+									</span>
+								</span>
+							</button>
+						) ) }
+					</div>
 				</div>
 			</div>
 
-			{ /* Step 5 — Restart / reload the MCP client. Copy is client-specific
-			     (Restart Claude Desktop; Reload VS Code; Cline hot-reloads …)
-			     sourced from AbstractMCPClient::get_restart_step_text() via the
-			     DTO's `restartStep` field. Only rendered when the DTO carries a
-			     non-empty value — companion plugins that inherit the abstract
-			     default always will; strictly-typed bare subclasses may not. */ }
-			{ activeClient?.restartStep && (
-				<div className="qs-step">
-					<h3 className="qs-step-heading">
-						<span className="qs-step-heading__num">
-							{ __( 'Step 5', 'acrossai-mcp-manager' ) }
-						</span>
-						{ __( 'Restart the MCP client', 'acrossai-mcp-manager' ) }
-					</h3>
-					<div className="qs-step-body">
-						<p style={ { margin: 0 } }>
-							{ activeClient.restartStep }
+			{ /* ROUTE — prompt. */ }
+			{ route === 'prompt' && setupPrompt && (
+				<div className="qs-step-body acrossai-mcp-route-body">
+					<p className="acrossai-mcp-route-body__lead">
+						{ sprintf(
+							/* translators: %s: MCP client display name. */
+							__(
+								'Paste this into %s. It will edit its own config file — you do not need to find or open anything.',
+								'acrossai-mcp-manager'
+							),
+							clientName
+						) }
+					</p>
+
+					<div className="acrossai-mcp-callout acrossai-mcp-callout--warn">
+						<p>
+							<strong>
+								{ __(
+									'This prompt contains a working password for your site.',
+									'acrossai-mcp-manager'
+								) }
+							</strong>{ ' ' }
+							{ __(
+								'It signs in as you across the whole site, not just this MCP server. Pasting it into a hosted assistant sends it to that provider, where it may be kept in your conversation history.',
+								'acrossai-mcp-manager'
+							) }{ ' ' }
+							<a href={ revokeUrl }>
+								{ __(
+									'Revoke this password',
+									'acrossai-mcp-manager'
+								) }
+							</a>
 						</p>
+					</div>
+
+					<CodeBlock
+						variant="pane"
+						title={ `${ __(
+							'Prompt',
+							'acrossai-mcp-manager'
+						) } · ${ clientName }` }
+						copyLabel={ __(
+							'Copy prompt',
+							'acrossai-mcp-manager'
+						) }
+					>
+						{ setupPrompt }
+					</CodeBlock>
+				</div>
+			) }
+
+			{ /* ROUTE — manual. Lettered a/b/c: these are parts of Step 2, and
+			     numbering them 2-5 is what made the screen read as one
+			     undifferentiated sequence. The reload instruction folds into
+			     (c) because it is part of making the paste take effect. */ }
+			{ route === 'manual' && (
+				<div className="qs-step-body acrossai-mcp-route-body">
+					{ configPaths.length > 0 && (
+						<div className="acrossai-mcp-substep">
+							<span className="acrossai-mcp-substep__mark">
+								a
+							</span>
+							<div className="acrossai-mcp-substep__body">
+								<span className="acrossai-mcp-substep__title">
+									{ __(
+										'Open the config file',
+										'acrossai-mcp-manager'
+									) }
+								</span>
+								{ configPaths.map( ( [ label, path ] ) => (
+									<div
+										key={ path }
+										className="acrossai-mcp-path"
+									>
+										{ label && (
+											<span className="acrossai-mcp-path__os">
+												{ label }
+											</span>
+										) }
+										<CodeBlock variant="inline">
+											{ path }
+										</CodeBlock>
+									</div>
+								) ) }
+							</div>
+						</div>
+					) }
+
+					{ activeClient?.meta?.top_level_key && (
+						<div className="acrossai-mcp-substep">
+							<span className="acrossai-mcp-substep__mark">
+								b
+							</span>
+							<div className="acrossai-mcp-substep__body">
+								<span className="acrossai-mcp-substep__title">
+									{ __(
+										'Find the top-level key',
+										'acrossai-mcp-manager'
+									) }
+								</span>
+								<div className="acrossai-mcp-substep__inline">
+									<code className="acrossai-mcp-key">
+										{ `"${ activeClient.meta.top_level_key }"` }
+									</code>
+									<span className="acrossai-mcp-substep__hint">
+										{ __(
+											'Create it if the file is empty.',
+											'acrossai-mcp-manager'
+										) }
+									</span>
+								</div>
+							</div>
+						</div>
+					) }
+
+					<div className="acrossai-mcp-substep">
+						<span className="acrossai-mcp-substep__mark">c</span>
+						<div className="acrossai-mcp-substep__body">
+							<span className="acrossai-mcp-substep__title">
+								{ activeClient?.restartStep
+									? sprintf(
+											/* translators: %s: client-specific reload instruction. */
+											__(
+												'Paste this under the key, save, then: %s',
+												'acrossai-mcp-manager'
+											),
+											activeClient.restartStep
+									  )
+									: __(
+											'Paste this under the key and save',
+											'acrossai-mcp-manager'
+									  ) }
+							</span>
+
+							{ window.acrossaiMcpQuickConnect?.tlsBypass
+								?.enabled && (
+								<div className="acrossai-mcp-callout acrossai-mcp-callout--warn">
+									<p>
+										{
+											window.acrossaiMcpQuickConnect
+												.tlsBypass.message
+										}{ ' ' }
+										<a
+											href={
+												window.acrossaiMcpQuickConnect
+													.tlsBypass.docUrl
+											}
+											target="_blank"
+											rel="noopener noreferrer"
+										>
+											{
+												window.acrossaiMcpQuickConnect
+													.tlsBypass.linkText
+											}
+										</a>
+									</p>
+								</div>
+							) }
+
+							<CodeBlock
+								variant="pane"
+								title={ `${ __(
+									'JSON',
+									'acrossai-mcp-manager'
+								) } · ${ clientName }` }
+								copyLabel={ __(
+									'Copy config',
+									'acrossai-mcp-manager'
+								) }
+							>
+								{ configText }
+							</CodeBlock>
+						</div>
 					</div>
 				</div>
 			) }

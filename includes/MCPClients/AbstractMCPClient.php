@@ -8,6 +8,8 @@
 
 namespace AcrossAI_MCP_Manager\Includes\MCPClients;
 
+use AcrossAI_MCP_Manager\Includes\Utilities\OperatingSystemLabels;
+
 use AcrossAI_MCP_Manager\Includes\Utilities\LocalEnvironment;
 use AcrossAI_MCP_Manager\Includes\Utilities\SiteSlug;
 
@@ -192,6 +194,167 @@ abstract class AbstractMCPClient {
 				__( 'Restart %s to load the new MCP server.', 'acrossai-mcp-manager' ),
 				$name
 			);
+	}
+
+	/**
+	 * Paste-ready instructions telling an AI client to add this server to its
+	 * own configuration file.
+	 *
+	 * NON-ABSTRACT BY CONTRACT. `AbstractMCPClient` is a public extension point
+	 * — third parties register client classes through the
+	 * `acrossai_mcp_client_classes` filter — so an abstract member here would
+	 * be a breaking change to every such class. Follows the same
+	 * additive-and-defaulted precedent as `get_restart_step_text()` and
+	 * `get_config_files()`.
+	 *
+	 * The default composes accessors that already carry every per-client
+	 * difference, so no built-in client overrides it. A client wanting bespoke
+	 * wording may.
+	 *
+	 * TRANSLATION CONTRACT (FR-026): the prose is translatable; the
+	 * configuration file paths, the top-level key and the configuration block
+	 * are interpolated verbatim and never pass through translation. A localised
+	 * JSON key produces a config that silently fails, so the boundary matters.
+	 *
+	 * PLACEHOLDER CONTRACT (B16): every `sprintf()` below sees exactly ONE
+	 * placeholder style. PHP accepts positional `%s` and numbered `%1$s` in the
+	 * same format string without complaint and then mislabels the output, so
+	 * the fragments are assembled separately rather than concatenated into one
+	 * format string.
+	 *
+	 * @param string $server_url Fully-resolved MCP endpoint for one server.
+	 * @param string $auth_token Application Password, or '' for the placeholder.
+	 * @return string Plain text. Never HTML, never pre-escaped.
+	 */
+	public function get_setup_prompt( string $server_url, string $auth_token ): string {
+		$name    = $this->get_client_name();
+		$snippet = $this->get_config_snippet( $server_url, $auth_token );
+
+		// The contract allows a string (a CLI install command) or an array (a
+		// config block). No in-tree client returns a string today, but the
+		// union is documented and third parties may rely on it.
+		$config = is_array( $snippet )
+			? (string) wp_json_encode( $snippet, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES )
+			: (string) $snippet;
+
+		$lines = array();
+
+		$lines[] = '' === $name
+			? __( 'I want to add this WordPress site as an MCP server to this AI client.', 'acrossai-mcp-manager' )
+			: sprintf(
+				/* translators: %s: MCP client display name (e.g. "Claude Desktop"). */
+				__( 'I want to add this WordPress site as an MCP server to %s.', 'acrossai-mcp-manager' ),
+				$name
+			);
+
+		$lines[] = '';
+		$lines[] = __( 'Connection details:', 'acrossai-mcp-manager' );
+		$lines[] = sprintf(
+			/* translators: %s: the MCP server URL. */
+			__( '- Server URL: %s', 'acrossai-mcp-manager' ),
+			$server_url
+		);
+		$lines[] = sprintf(
+			/* translators: %s: WordPress username. */
+			__( '- Username: %s', 'acrossai-mcp-manager' ),
+			$this->current_username()
+		);
+		$lines[] = sprintf(
+			/* translators: %s: application password, or a placeholder when none has been generated. */
+			__( '- Application password: %s', 'acrossai-mcp-manager' ),
+			$this->safe_token( $auth_token )
+		);
+
+		$lines[] = '';
+		$lines[] = __( 'Please:', 'acrossai-mcp-manager' );
+
+		$step = 1;
+
+		foreach ( $this->setup_prompt_file_steps() as $file_step ) {
+			$lines[] = sprintf(
+				/* translators: 1: step number. 2: instruction sentence. */
+				__( '%1$d. %2$s', 'acrossai-mcp-manager' ),
+				$step,
+				$file_step
+			);
+			++$step;
+		}
+
+		$top_level_key = $this->get_top_level_key();
+
+		$lines[] = sprintf(
+			/* translators: 1: step number. 2: configuration key name, e.g. "mcpServers". */
+			__( '%1$d. Add this configuration to the "%2$s" block, merging it with anything already there rather than replacing the file:', 'acrossai-mcp-manager' ),
+			$step,
+			$top_level_key
+		);
+		++$step;
+
+		$lines[] = '';
+		$lines[] = $config;
+		$lines[] = '';
+
+		$lines[] = sprintf(
+			/* translators: %d: step number. */
+			__( '%d. Save the file.', 'acrossai-mcp-manager' ),
+			$step
+		);
+		++$step;
+
+		$lines[] = sprintf(
+			/* translators: 1: step number. 2: instruction, e.g. "Restart Claude Desktop to load the new MCP server." */
+			__( '%1$d. %2$s', 'acrossai-mcp-manager' ),
+			$step,
+			$this->get_restart_step_text()
+		);
+
+		return implode( "\n", $lines );
+	}
+
+	/**
+	 * The "open the config file" sentences, one per declared operating system.
+	 *
+	 * Every declared OS is named, labelled, with no detection of the reader's
+	 * own platform — an explicit prior review decision (#159). A client that
+	 * declares only a single project-relative path gets one sentence.
+	 *
+	 * @return string[]
+	 */
+	protected function setup_prompt_file_steps(): array {
+		$per_os = OperatingSystemLabels::order( $this->get_config_files() );
+
+		if ( array() !== $per_os ) {
+			// One path per line. An earlier revision joined them with
+			// semicolons onto a single line; with three operating systems and
+			// Windows' backslashes that reads as a wall and the reader cannot
+			// tell where one path ends and the next begins.
+			$step = array( __( 'Open or create the config file for your operating system:', 'acrossai-mcp-manager' ) );
+
+			foreach ( $per_os as $slug => $path ) {
+				$step[] = sprintf(
+					/* translators: 1: operating system label, e.g. "macOS". 2: file path. */
+					__( '   - %1$s: %2$s', 'acrossai-mcp-manager' ),
+					OperatingSystemLabels::label( $slug ),
+					$path
+				);
+			}
+
+			return array( implode( "\n", $step ) );
+		}
+
+		$single = $this->get_config_file();
+
+		if ( '' === $single ) {
+			return array( __( 'Open or create the config file this client uses for MCP servers.', 'acrossai-mcp-manager' ) );
+		}
+
+		return array(
+			sprintf(
+				/* translators: %s: config file path. */
+				__( 'Open or create the config file at: %s', 'acrossai-mcp-manager' ),
+				$single
+			),
+		);
 	}
 
 	/**
