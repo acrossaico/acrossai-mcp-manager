@@ -3510,3 +3510,70 @@ because a human reader may have been quietly correcting it for years.
 
 **Related**: B19 (config that looks right and silently 401s), D64 (a consumer ignoring what a
 producer publishes).
+
+---
+
+### 2026-10-28 — B79 / B-MARKUP-ASSERTION-CANNOT-PROVE-VISIBILITY — `hidden` loses to any author `display` rule [Feature-099]
+
+**Status**
+Active
+
+**Why this is durable**
+A test that asserts on rendered markup proves the markup. It proves nothing about what the operator
+sees, and the gap between those two is invisible from inside the test suite. This one shipped: every
+assertion was green while the screen was visibly wrong, and it took a user screenshot to find.
+
+**Finding**
+F099 renders both setup routes and marks the inactive one `hidden`. The PHP was correct, the
+attribute was present, and the tests asserting `data-acrossai-route="manual" hidden` passed. Both
+routes rendered visible anyway.
+
+`hidden` works only through the UA stylesheet's `[hidden] { display: none }`. Any author rule
+setting `display` overrides it — including the panel's own
+`.acrossai-mcp-route-panel { display: flex }`. The defect lived entirely in CSS, where no PHP
+assertion can reach.
+
+**Pattern to apply**
+When hiding depends on the `hidden` attribute, add `&[hidden] { display: none; }` to any rule that
+sets `display` on the same element. Specificity (0,2,0) beats the bare class, so no `!important`.
+
+**Prevention**
+- When a behaviour is only observable in CSS, assert against the **built** stylesheet. It is the
+  only place it is catchable without a browser.
+- **Falsify the guard.** Remove the rule, watch the test fail, restore it. A guard for a category
+  your other tests are blind to is worth nothing until you have seen it go red — and this is
+  precisely the category where a guard can silently assert the wrong thing.
+
+**Related**: B77 (silent failure where the markup looks right), D64 (a consumer ignoring what a
+producer publishes — the same family of "correct in one layer, wrong in another").
+
+---
+
+### 2026-10-28 — B80 / B-RANDOM-IDS-BREAK-BYTE-IDENTITY-INVARIANTS — Non-deterministic markup collides with security assertions [Feature-099]
+
+**Status**
+Active
+
+**Why this is durable**
+Random ids feel like a free way to guarantee uniqueness. They are not free: they make two renders of
+the same screen differ, and in this codebase at least one test compares rendered bytes **as a
+security invariant**. The collision is not obvious at the point of writing `wp_rand()`.
+
+**Finding**
+F099 generated per-OS config-path field ids with `wp_rand()`. That broke
+`ConnectTabTest::test_unknown_and_excluded_are_indistinguishable`, which requires an unknown method
+and a capability-excluded method to render byte-identically — otherwise the difference between them
+enumerates the methods being withheld. The two renders differed only by the random ids, and the test
+correctly refused them.
+
+**Pattern to apply**
+Derive element ids from data already in scope — `{client_slug}-{server_id}-{os_slug}` — never from
+`wp_rand()`, `uniqid()`, or a timestamp. Uniqueness within a page comes from whatever makes the
+element unique in the first place; if nothing does, the markup has a modelling problem that a random
+id hides rather than solves.
+
+**Prevention**
+Before introducing randomness into rendered output, ask what asserts on that output. In this
+repository the answer includes a security test that compares bytes.
+
+**Related**: B75 (a tested method with no caller — "looks covered, isn't").

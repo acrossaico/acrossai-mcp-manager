@@ -198,6 +198,8 @@ This is a compact routing map for durable memory. Keep it short. It points to so
 | B76 / B-PROVENANCE-BELONGS-IN-THE-ARTEFACT-NOT-THE-LOG | An audit fact that must outlive a log's retention belongs on the artefact, not in a retention carve-out — encode client/server/date in the Application Password NAME; `prune_by_event_type()` is keyed on event type by design | Credentials, activity log | credentials, retention, audit, provenance | BUGS.md |
 | B77 / B-HAND-MAINTAINED-ASSET-DEPS-AND-THE-HANDLE-THAT-NEVER-EXISTED | `WP_Scripts` silently drops a script whose dependency is unregistered — no tag, no notice. Read deps from `build/*.asset.php` and BAIL if absent; never hand-maintain the array; `wp-dataviews` is not a core handle. Test that every declared dep is registered | Admin asset enqueue | assets, enqueue, dataviews, silent-failure | BUGS.md |
 | B78 / B-CONFIG-FORMAT-DECLARED-ONE-WAY-SERIALISED-ANOTHER | A client descriptor can declare `.toml` + `mcp_servers` + "copy the TOML snippet" while its payload returns an array every renderer JSON-encodes — nothing cross-checks the accessors. Automating a manual step removes the human who was absorbing the defect | MCP client descriptors | clients, config, format, codex | BUGS.md |
+| B79 / B-MARKUP-ASSERTION-CANNOT-PROVE-VISIBILITY | `hidden` works only via the UA `[hidden]{display:none}` rule and ANY author `display` beats it — markup assertions passed while both panels rendered visible. Add `&[hidden]{display:none}` to any rule setting display; assert CSS-only behaviour against the BUILT stylesheet and falsify the guard | Admin UI, renderers | css, specificity, hidden, test-blindness | BUGS.md |
+| B80 / B-RANDOM-IDS-BREAK-BYTE-IDENTITY-INVARIANTS | `wp_rand()` in element ids made two renders of one screen differ, breaking a SECURITY test that requires unknown and capability-excluded methods to be byte-identical. Derive ids from data in scope, never randomness | Renderers | determinism, ids, security-invariant | BUGS.md |
 
 ## Accepted Deviations
 | ID | Deviation | Scope | Expiry/Review | Source |
@@ -288,3 +290,4 @@ This is a compact routing map for durable memory. Keep it short. It points to so
 | docs/security-reviews/2026-09-17-090-server-types-remediation-staged.md | staged | 2026-09-17 | LOW | C:0 H:0 M:0 L:1 I:3 | A05,A08 |
 | docs/security-reviews/2026-10-27-099-mcp-client-setup-prompt-plan.md | plan | 2026-10-27 | HIGH | C:0 H:1 M:3 L:1 | A01,A04,A09 |
 | docs/security-reviews/2026-10-27-099-mcp-client-setup-prompt-tasks.md | tasks | 2026-10-27 | HIGH | C:0 H:2 M:2 L:2 | A01,A04,A09 |
+| docs/security-reviews/2026-10-28-099-mcp-client-setup-prompt-staged.md | staged | 2026-10-28 | LOW | C:0 H:0 M:1 L:2 | A01,A03,A09 |

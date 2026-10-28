@@ -151,6 +151,37 @@ necessary but not sufficient.
 
 ---
 
+## R11 — Step 2 is the choice, and only the chosen route is visible
+
+**Decision**: Step 2 presents the two routes as a choice; exactly one renders visible. Selection is
+client-side, with a server-honoured `?setup=` parameter and real `href`s underneath.
+
+**Rationale**: the first implementation rendered the prompt panel and the manual steps stacked in
+one column. Both were correct and the screen was still wrong — with no boundary between them they
+read as one long sequence, so an operator could not tell where the prompt ended, or that the two
+were alternatives at all. The Claude Design file *MCP Client Config Steps* named this directly:
+*"Step 2 becomes an explicit choice, and only the chosen path is shown, so the prompt and the
+manual steps no longer read as one long sequence."*
+
+**Why client-side, when the admin tab already reloads for everything else**: the Application
+Password is shown exactly once and cannot be re-fetched. A reload mid-setup discards a credential
+the operator may not have copied. That makes this different from switching client, where there is
+nothing to lose. Both routes are therefore rendered and one is hidden, rather than the server
+emitting only one.
+
+**The trap, which we fell into**: `hidden` works only through the UA stylesheet's
+`[hidden] { display: none }`, and **any** author rule setting `display` overrides it — including the
+panel's own `display: flex`. The PHP emitted a correct `hidden` attribute and both routes rendered
+visible anyway. Every markup assertion passed, because the markup was never wrong. The guard for
+this asserts against the **built stylesheet**, and was verified by removing the rule and watching
+it fail.
+
+**Alternatives considered**: a segmented toggle (design frame 1c) — lighter, but carries less
+affordance for a choice an operator makes once and wants explained; and server-rendering only the
+chosen route — simpler, but loses the credential on every switch.
+
+---
+
 ## R10 — Codex emits TOML, and the string branch of the contract finally has a user
 
 **Decision**: `CodexClient::get_config_snippet()` returns a **TOML string** rather than an array.
