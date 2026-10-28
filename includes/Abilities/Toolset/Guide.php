@@ -2,7 +2,7 @@
 /**
  * The AcrossAI server's guide — how to call a Toolset, and what is on this one.
  *
- * An assistant connecting here is handed fifteen dispatchers and no
+ * An assistant connecting here is handed fourteen dispatchers and no
  * instructions. It has to infer the calling convention, the parameters and
  * their phases, and where a given job lives — from tool descriptions alone.
  *
@@ -363,7 +363,7 @@ final class Guide {
 	 *
 	 * Derived from the toolset's own description rather than restated here, so a
 	 * new toolset needs no edit in this file and the two can never disagree.
-	 * Full descriptions run to 250 tokens each; fifteen of them would make this
+	 * Full descriptions run to 250 tokens each; fourteen of them would make this
 	 * guide cost more than the tool list it is meant to explain.
 	 *
 	 * Takes the opening sentence, which every toolset description leads with,
