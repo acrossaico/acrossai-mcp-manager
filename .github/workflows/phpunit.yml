@@ -86,13 +86,23 @@ jobs:
       - name: Run PHPUnit — rename-gate suite (pure, no WP)
         run: vendor/bin/phpunit --testsuite rename-gate
 
+      # Declared in phpunit.xml.dist but never invoked here, so 61 tests were
+      # unrun on every pull request. Both are pure — the activity-log suite
+      # covers the WP-free half of F096 (the DB-backed half is activity-log-db,
+      # in the WordPress job below) and toolset uses the default bootstrap.
+      - name: Run PHPUnit — activity-log suite (pure, no WP)
+        run: vendor/bin/phpunit --testsuite activity-log
+
+      - name: Run PHPUnit — toolset suite (pure, no WP)
+        run: vendor/bin/phpunit --testsuite toolset
+
       # Every *Test.php must live under a directory some testsuite references.
       # Four directories holding 7 test files had silently fallen outside all
       # suites, so they never ran. Cheap structural check; no WP needed.
       - name: Assert no test file is outside a configured testsuite
         run: |
           python3 - <<'PY'
-          import os, sys, xml.etree.ElementTree as ET
+          import io, os, re, sys, xml.etree.ElementTree as ET
           covered = {
               os.path.normpath(d.text.strip())
               for ts in ET.parse('phpunit.xml.dist').getroot().iter('testsuite')
@@ -106,11 +116,29 @@ jobs:
               n = os.path.normpath(root)
               if not any(n == c or n.startswith(c + os.sep) for c in covered):
                   orphans.append(n)
+          # A suite can be declared, hold real tests, and still never run —
+          # activity-log, activity-log-db and toolset were all green but
+          # unwired, so "passing" was indistinguishable from "never executed".
+          # Assert every declared suite is actually invoked in this workflow.
+          declared = {
+              ts.get('name')
+              for ts in ET.parse('phpunit.xml.dist').getroot().iter('testsuite')
+              if ts.get('name')
+          }
+          wf = io.open('.github/workflows/phpunit.yml', encoding='utf-8').read()
+          invoked = set(re.findall(r'--testsuite\s+([A-Za-z0-9_-]+)', wf))
+          ungated = sorted(declared - invoked)
+          unknown = sorted(invoked - declared)
+
           for d in sorted(missing):
               print(f"::error::testsuite references a missing directory: {d}")
           for d in sorted(orphans):
               print(f"::error::test files outside every testsuite: {d}")
-          sys.exit(1 if (missing or orphans) else 0)
+          for n in ungated:
+              print(f"::error::testsuite declared but never run in CI: {n}")
+          for n in unknown:
+              print(f"::error::workflow runs an undeclared testsuite: {n}")
+          sys.exit(1 if (missing or orphans or ungated or unknown) else 0)
           PY
 
   # WordPress integration tests — require the WP test lib + a MySQL service.
@@ -231,3 +259,8 @@ jobs:
 
       - name: Run PHPUnit — remaining suite (REST / utilities / uninstall)
         run: vendor/bin/phpunit --bootstrap tests/bootstrap-wp.php --testsuite remaining
+
+      # F096 schema contract + recorder round-trip. Needs WordPress and a real
+      # database, hence the WP bootstrap. Also never wired into CI until now.
+      - name: Run PHPUnit — activity-log-db suite
+        run: vendor/bin/phpunit --bootstrap tests/bootstrap-wp.php --testsuite activity-log-db

@@ -229,11 +229,10 @@ class Settings {
 			$this->handle_save_instructions( $server_id );
 		}
 
-		// F037 — save handler owned by the tab class itself (EmbedsTab
-		// extends AbstractReactMountServerTab, which registers a REST
-		// controller on rest_api_init). No admin-post path — React app
-		// under `src/js/embeds.js` saves via
-		// `POST /acrossai-mcp-manager/v1/servers/{server_id}/embeds`
+		// Embed settings are saved by acrossai-pro's Embeds tab, which owns
+		// the REST controller on this plugin's namespace
+		// (`POST /acrossai-mcp-manager/v1/servers/{server_id}/embeds`).
+		// There is no admin-post path here.
 		// using the WP core `wp_rest` nonce.
 
 		// F015 note (post-Q4): access-control saves for the vendor wpb-ac
@@ -718,14 +717,12 @@ class Settings {
 		exit;
 	}
 
-	// F037 handle_save_embeds() lives on the tab class now — EmbedsTab
+	// Embed settings have no save handler here. acrossai-pro's Embeds tab
 	// extends AbstractReactMountServerTab, which auto-registers a REST
 	// controller (POST /acrossai-mcp-manager/v1/servers/{server_id}/embeds)
-	// and delegates to EmbedsTab::set_state_for_server(). React app under
-	// src/js/embeds.js consumes the REST endpoint via apiFetch. Nonce
-	// is WP core `wp_rest` (validated by the base class's
-	// rest_permission_callback); the SEC-037-001 server-scoping concern
-	// is subsumed by the REST route's `{server_id}` URL parameter + the
+	// on this plugin's namespace and does the writing itself. Server scoping
+	// comes from the route's `{server_id}` parameter plus the base class's
+	// rest_permission_callback.
 	// same admin cap gate.
 
 	// ─────────────────────────────────────────────────────────────────────────

@@ -2,10 +2,15 @@
 /**
  * Abstract base class for per-server embed transport categories.
  *
- * Feature 037 — the "Embeds" per-server admin tab lets site administrators
- * enable/disable frontend shortcode + block output per server + per
- * transport (NPM methods, MCP Clients, AI Connectors, plus companion-
- * plugin contributed categories). Every transport category is represented
+ * Originally the storage + gate layer behind this plugin's own "Embeds" tab.
+ * That tab and the frontend renderer moved to acrossai-pro, which reads and
+ * writes THE SAME meta keys through its own copy of this subsystem — so the
+ * two stay in agreement about what a server exposes.
+ *
+ * This copy is retained for one reason: `[acrossai_mcp_servers]` composes
+ * `get_all_registered_transports()` and `is_enabled_for_server()`, and D40
+ * forbids it reading the meta keys directly. Removing this directory means
+ * dealing with that shortcode first. Every transport category is represented
  * at runtime as an `AbstractEmbedTransport` subclass with a stable
  * transport_key aligned 1:1 with F035 DTO `category` field values.
  *
@@ -101,14 +106,15 @@ abstract class AbstractEmbedTransport {
 	abstract public function get_transport_key(): string;
 
 	/**
-	 * Translated checkbox label for the EmbedsTab admin UI.
+	 * Translated checkbox label for the Embeds admin UI, which acrossai-pro
+	 * now owns.
 	 *
 	 * @return string
 	 */
 	abstract public function get_checkbox_label(): string;
 
 	/**
-	 * Display sort order in the EmbedsTab. Lower runs earlier.
+	 * Display sort order in the Embeds admin UI. Lower runs earlier.
 	 * Built-ins: 10 (npm), 20 (client), 30 (ai_connector). Third-party
 	 * default 100.
 	 *
@@ -119,7 +125,7 @@ abstract class AbstractEmbedTransport {
 	}
 
 	/**
-	 * Optional translated description (unused by base EmbedsTab render).
+	 * Optional translated description (unused by the current render).
 	 *
 	 * @return string
 	 */

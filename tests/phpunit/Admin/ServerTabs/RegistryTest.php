@@ -46,9 +46,9 @@ final class RegistryTest extends WP_UnitTestCase {
 	 *
 	 * Post-F037 added Embeds tab; post-F040 added AIConnectorsPromoTab as a
 	 * built-in placeholder (companion overrides via last-wins dedup when active).
-	 * 0.2.10 removed EmbedsTab from the built-in list (tab hidden). The class
-	 * file is retained; re-enable by re-adding to Registry::all_tabs() +
-	 * uncommenting EmbedsTab::register() in Main::define_public_hooks().
+	 * 0.2.10 hid the Embeds tab, and it was removed outright once acrossai-pro
+	 * took over the frontend embed surface. The `assertNotContains( 'embeds' )`
+	 * below now guards against this plugin re-growing a tab it no longer owns.
 	 *
 	 * F084 took the list 11 -> 8: `npm`, `clients`, `ai-connectors` and
 	 * `wp-cli` moved one level down into ConnectTab's `?method=` navigation.
@@ -262,7 +262,7 @@ final class RegistryTest extends WP_UnitTestCase {
 				'abilities',      // 60
 				'access-control', // 70
 				'mcp-log',        // 80
-				'update-server',  // 90 (EmbedsTab at 90 removed in 0.2.10 — only entry at this slot now)
+				'update-server',  // 90 (the Embeds tab held this slot until it moved to acrossai-pro)
 				'danger-zone',    // 100
 			),
 			$slugs,

@@ -69,6 +69,36 @@ require $wp_tests_dir . '/includes/bootstrap.php';
 // the expectation that activation has run by the time they execute — this call
 // is what makes that true. DDL is not rolled back by WP_UnitTestCase's
 // per-test transactions, so the tables persist for the whole run.
+// Start every test process from empty plugin tables.
+//
+// Rows written during bootstrap — seeded managed servers above all — are
+// committed before WP_UnitTestCase opens its first per-test transaction, so
+// nothing rolls them back and they survive into the NEXT phpunit process.
+// Seven of the ten WordPress-backed suites leave 2-5 rows in
+// `acrossai_mcp_servers` behind, and a later suite then boots with servers it
+// never created. That made `activity-log-db` pass or fail purely on which
+// suites ran before it: with leftover rows the adapter declares its three
+// `mcp-adapter/*` meta tools, looks them up while they are unregistered, and
+// WordPress 6.9+ answers with a _doing_it_wrong notice that fails the test.
+//
+// Truncating here, before Activator::activate() seeds, makes each process
+// equivalent to a fresh install and makes suite order irrelevant.
+if ( 0 === strpos( $GLOBALS['wpdb']->prefix, 'wptests_' ) ) {
+	$acrossai_tables = $GLOBALS['wpdb']->get_col(
+		$GLOBALS['wpdb']->prepare(
+			'SHOW TABLES LIKE %s',
+			$GLOBALS['wpdb']->esc_like( $GLOBALS['wpdb']->prefix . 'acrossai_' ) . '%'
+		)
+	);
+
+	foreach ( $acrossai_tables as $acrossai_table ) {
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name from SHOW TABLES, test-prefix gated.
+		$GLOBALS['wpdb']->query( "TRUNCATE TABLE `{$acrossai_table}`" );
+	}
+
+	unset( $acrossai_tables, $acrossai_table );
+}
+
 \AcrossAI_MCP_Manager\Includes\Activator::activate();
 
 /**
