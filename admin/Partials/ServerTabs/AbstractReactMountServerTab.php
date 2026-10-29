@@ -12,8 +12,8 @@
  * INTENDED CONSUMERS
  * =========================================================================
  *
- * 1. Built-in tabs shipped with acrossai-mcp-manager (currently only
- *    EmbedsTab; AbilitiesTab + ToolsTab may migrate later).
+ * 1. Built-in tabs shipped with acrossai-mcp-manager (none currently;
+ *    AbilitiesTab + ToolsTab may migrate later).
  * 2. Third-party companion plugins adding their own tabs to the
  *    "Edit MCP Server" screen — this class is the sanctioned extension
  *    point for that use case.

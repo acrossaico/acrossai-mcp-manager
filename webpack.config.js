@@ -101,12 +101,6 @@ module.exports = {
 			'src/js',
 			'ai-connectors.js',
 		),
-		// F037 — Embeds tab React entry (mounts the ToggleControl-driven
-		// master + per-transport UI). Consumes GET+POST on
-		// `/acrossai-mcp-manager/v1/servers/{server_id}/embeds` via
-		// `@wordpress/api-fetch`. `src/js/embeds.js` imports
-		// `../scss/embeds.scss`; mini-css-extract emits `build/js/embeds.css`.
-		'js/embeds': path.resolve( process.cwd(), 'src/js', 'embeds.js' ),
 		// F096 — MCP Activity Log React entry (mounts the @wordpress/dataviews
 		// app at #acrossai-mcp-activity-root). ONE bundle, TWO mount points: the
 		// global Activity page and the per-server Logs tab, which passes a

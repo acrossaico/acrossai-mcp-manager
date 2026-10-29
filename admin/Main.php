@@ -150,9 +150,9 @@ class Main {
 		// Scoped to the Tools tab only — same guard shape as F015/F017.
 		$this->maybe_enqueue_tools_app();
 
-		// F037 Embeds — enqueue is self-registered by the tab class itself
-		// (EmbedsTab::register() wires it on admin_enqueue_scripts). Nothing
-		// to do here. See AbstractReactMountServerTab for the pattern.
+		// The Embeds tab and its bundle moved to acrossai-pro, which registers
+		// them itself through AbstractReactMountServerTab. Nothing to enqueue
+		// here; see that class for the pattern a companion plugin follows.
 
 		// F069 Quick Connect via AcrossAI wizard — enqueue only on ?quick-connect=1.
 		// SC-007: the ~200KB React bundle MUST NOT load on the list-table

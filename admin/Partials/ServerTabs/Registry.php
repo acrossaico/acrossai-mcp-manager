@@ -138,14 +138,11 @@ final class Registry {
 			new ToolsTab(),
 			new AbilitiesTab(),
 			new AccessControlTab(),
-			// Note: EmbedsTab (F037, priority 90) removed from the built-in
-			// tab list in 0.2.10 — the per-server admin surface is hidden.
-			// The class itself is retained under admin/Partials/ServerTabs/
-			// so re-enabling is a one-line change here. The
-			// `[acrossai_mcp_embed]` shortcode + block continue to work; only
-			// the admin config UI is hidden. See includes/Main.php where
-			// `EmbedsTab::register()` is also skipped so REST + asset
-			// registration doesn't happen for the hidden tab.
+			// The Embeds tab lived here at priority 90 until 0.2.10, when it
+			// was hidden, and was removed outright once acrossai-pro took over
+			// the frontend embed surface. Nothing in this plugin renders an
+			// embed any more; `includes/Embeds/` stays only because
+			// [acrossai_mcp_servers] composes its gates (D40).
 			new McpTrackerTab(),
 			new UpdateServerTab(),
 			new DangerZoneTab(),
