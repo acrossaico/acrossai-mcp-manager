@@ -319,8 +319,16 @@ final class Guide {
 		$rows = array();
 
 		foreach ( AbilityGroup::counts() as $group => $count ) {
-			$name    = 'toolset/' . $group;
-			$ability = function_exists( 'wp_get_ability' ) ? wp_get_ability( $name ) : null;
+			$name = 'toolset/' . $group;
+
+			// `wp_has_ability()` FIRST. A group with no registered dispatcher
+			// is an expected outcome here — see the `continue` below — and
+			// since WP 6.9 the registry emits a _doing_it_wrong notice when
+			// `wp_get_ability()` is handed an unregistered name. Asking
+			// whether it exists must not itself be reported as misuse.
+			$ability = ( function_exists( 'wp_get_ability' ) && function_exists( 'wp_has_ability' ) && wp_has_ability( $name ) )
+				? wp_get_ability( $name )
+				: null;
 
 			// A group with no registered dispatcher is not callable, so naming
 			// it would send a model at a tool that does not exist.
