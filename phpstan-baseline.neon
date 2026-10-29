@@ -385,30 +385,6 @@ parameters:
 			path: admin/Partials/ServerTabs/DangerZoneTab.php
 
 		-
-			message: '#^Call to function is_array\(\) with array\<string, mixed\> will always evaluate to true\.$#'
-			identifier: function.alreadyNarrowedType
-			count: 3
-			path: admin/Partials/ServerTabs/EmbedsTab.php
-
-		-
-			message: '#^Method AcrossAI_MCP_Manager\\Admin\\Partials\\ServerTabs\\EmbedsTab\:\:set_state_for_server\(\) has parameter \$submitted with no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: admin/Partials/ServerTabs/EmbedsTab.php
-
-		-
-			message: '#^Method AcrossAI_MCP_Manager\\Admin\\Partials\\ServerTabs\\EmbedsTab\:\:summary_rows_from_state\(\) has parameter \$state with no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: admin/Partials/ServerTabs/EmbedsTab.php
-
-		-
-			message: '#^Parameter \#1 \$array \(non\-empty\-list\<non\-falsy\-string\>\) of array_values is already a list, call has no effect\.$#'
-			identifier: arrayValues.list
-			count: 1
-			path: admin/Partials/ServerTabs/EmbedsTab.php
-
-		-
 			message: '#^Method AcrossAI_MCP_Manager\\Admin\\Partials\\ServerTabs\\McpTrackerTab\:\:render_body\(\) has parameter \$server with no value type specified in iterable type array\.$#'
 			identifier: missingType.iterableValue
 			count: 1
@@ -2279,30 +2255,6 @@ parameters:
 			identifier: missingType.iterableValue
 			count: 1
 			path: public/Renderers/AccessControlBlock.php
-
-		-
-			message: '#^Access to an undefined property object\:\:\$id\.$#'
-			identifier: property.notFound
-			count: 1
-			path: public/Renderers/EmbedBlock/EmbedBlockRenderer.php
-
-		-
-			message: '#^Call to function is_array\(\) with array\<string, mixed\> will always evaluate to true\.$#'
-			identifier: function.alreadyNarrowedType
-			count: 2
-			path: public/Renderers/EmbedBlock/EmbedBlockRenderer.php
-
-		-
-			message: '#^Cannot access offset 0 on int\<min, \-1\>\|int\<1, max\>\|non\-empty\-list\<object\>\.$#'
-			identifier: offsetAccess.nonOffsetAccessible
-			count: 1
-			path: public/Renderers/EmbedBlock/EmbedBlockRenderer.php
-
-		-
-			message: '#^Method AcrossAI_MCP_Manager\\Public\\Renderers\\EmbedBlock\\EmbedBlockRenderer\:\:render_shortcode\(\) has parameter \$atts_raw with no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: public/Renderers/EmbedBlock/EmbedBlockRenderer.php
 
 		-
 			message: '#^Method AcrossAI_MCP_Manager\\Public\\Renderers\\MCPClientsBlock\:\:render_body\(\) has parameter \$context with no value type specified in iterable type array\.$#'
