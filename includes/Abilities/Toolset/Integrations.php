@@ -172,7 +172,14 @@ final class Integrations extends Base_Toolset_Ability {
 			// client with a current tool list would see, so the two can never
 			// drift, and it works for hand-written Toolsets as well as
 			// generated ones.
-			$toolset = function_exists( 'wp_get_ability' ) ? wp_get_ability( $row['toolset'] ) : null;
+			// `wp_has_ability()` FIRST: a group need not have a registered
+			// dispatcher, and since WP 6.9 handing `wp_get_ability()` an
+			// unregistered name emits a _doing_it_wrong notice. The
+			// `instanceof` check below already tolerates absence; this keeps
+			// detecting it from being reported as incorrect core usage.
+			$toolset = ( function_exists( 'wp_get_ability' ) && function_exists( 'wp_has_ability' ) && wp_has_ability( $row['toolset'] ) )
+				? wp_get_ability( $row['toolset'] )
+				: null;
 
 			if ( $toolset instanceof WP_Ability ) {
 				$row['label']       = $toolset->get_label();
