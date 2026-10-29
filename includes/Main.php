@@ -755,23 +755,6 @@ final class Main {
 		$quick_connect_rest = \AcrossAI_MCP_Manager\Includes\REST\QuickConnectController::instance();
 		$this->loader->add_action( 'rest_api_init', $quick_connect_rest, 'register_routes' );
 
-		/**
-		 * Feature 037 — Embeds tab self-registration is SKIPPED in 0.2.10+.
-		 *
-		 * The tab is hidden (removed from Registry::all_tabs()), so wiring
-		 * its `admin_enqueue_scripts` + `rest_api_init` hooks would only
-		 * register REST routes + enqueue React bundle assets for a UI that
-		 * never renders. The class file is retained under
-		 * admin/Partials/ServerTabs/EmbedsTab.php — restoring the tab is a
-		 * one-line re-add here plus in Registry. See Registry docblock for
-		 * the built-in tab count invariant.
-		 *
-		 * The `[acrossai_mcp_embed]` shortcode + block are unaffected — their
-		 * frontend rendering pipeline lives in public/Renderers/EmbedBlock/
-		 * and includes/Embeds/, all independent of this admin tab.
-		 */
-		// \AcrossAI_MCP_Manager\Admin\Partials\ServerTabs\EmbedsTab::register();
-
 		$tool_exposure_gate = \AcrossAI_MCP_Manager\Includes\MCP\ToolExposureGate::instance();
 		$this->loader->add_filter( 'mcp_adapter_pre_tool_call', $tool_exposure_gate, 'gate_tool_call_by_curation', 30, 4 );
 
@@ -1306,22 +1289,6 @@ final class Main {
 		 * (`acrossai_mcp_manager_oauth_cleanup`), so existing bearer tokens
 		 * and discovery URLs continue to work when the companion is active.
 		 */
-
-		/**
-		 * Feature 037 — [acrossai_mcp_embed] shortcode registration.
-		 *
-		 * Per-server gated frontend renderer for F035 connection-method DTOs.
-		 * Gate cascade in EmbedBlockRenderer::render_shortcode(): master
-		 * toggle → per-transport toggle → F015 access control (fail-open per
-		 * D19). All wiring stays here per A1 — EmbedBlockRenderer has zero
-		 * add_shortcode calls (SC-005 grep gate).
-		 */
-		$embed_renderer = \AcrossAI_MCP_Manager\Public\Renderers\EmbedBlock\EmbedBlockRenderer::instance();
-		$this->loader->add_action(
-			'init',
-			$embed_renderer,
-			'register_shortcode'
-		);
 
 		/**
 		 * Feature 038 — [acrossai_mcp_servers] shortcode.
