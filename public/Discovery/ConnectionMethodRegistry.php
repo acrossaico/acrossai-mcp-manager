@@ -394,7 +394,9 @@ final class ConnectionMethodRegistry {
 		// 'npm' / 'client' / 'ai_connector'. Only 'npm' spelled the same in both,
 		// so find() silently returned null for the other two: every
 		// [acrossai_mcp_embed category="client" slug="…"] and
-		// category="ai_connector" shortcode rendered nothing at all. Accept the
+		// category="ai_connector" shortcode rendered nothing at all. That
+		// shortcode now lives in acrossai-pro, which calls find() with the same
+		// two spellings, so the aliasing is still load-bearing. Accept the
 		// DTO/transport spelling as well as the bucket spelling.
 		$category = self::CATEGORY_BUCKETS[ $category ] ?? $category;
 
