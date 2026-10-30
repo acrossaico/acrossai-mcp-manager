@@ -171,12 +171,13 @@
         </testsuite>
 
         <!--
-            Embeds (Feature 037): tests for includes/Embeds/,
-            admin/Partials/ServerTabs/EmbedsTab.php, and
-            public/Renderers/EmbedBlock/EmbedBlockRenderer.php. Requires WP
-            for BerlinDB Query, WP options, shortcode API, F015 access
-            control wrapper (optional integration) — use tests/bootstrap-wp.php
-            per A18.
+            Embeds (Feature 037): tests for includes/Embeds/ — the transport
+            and gate layer. The embed's own surface (the shortcode, the
+            per-server tab and their two test files) moved to acrossai-pro;
+            this layer stays because [acrossai_mcp_servers] composes
+            is_enabled_for_server() and D40 forbids it reading the meta keys
+            directly. Requires WP for BerlinDB Query and WP options — use
+            tests/bootstrap-wp.php per A18.
         -->
         <testsuite name="embeds">
             <directory>tests/phpunit/Embeds</directory>
