@@ -154,10 +154,13 @@ final class ChatGPTRedirectWhitelistTest extends TestCase {
 			$src,
 			'The credential steps must name the surface that actually has the OAuth fields.'
 		);
+		$shared = $this->source( 'includes/Connectors/AbstractConnectorProfile.php' );
 		self::assertStringContainsString(
-			'or click "Generate credentials" above',
-			$src,
-			'The DCR panel must offer the manual path now that it exists.'
+			'asks for a client ID and secret',
+			$shared,
+			'The DCR panel must still offer the manual path. It moved into '
+				. 'AbstractConnectorProfile::render_setup_panel() when every profile '
+				. 'started rendering through one spec, so it is asserted there now.'
 		);
 	}
 }

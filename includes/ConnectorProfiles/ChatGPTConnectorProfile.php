@@ -196,7 +196,7 @@ final class ChatGPTConnectorProfile extends \AcrossAI_MCP_Manager\Includes\Conne
 		<p class="acrossai-ai-setup-lead"><?php esc_html_e( 'These credentials are optional. ChatGPT registers itself against this server if you leave the OAuth fields blank — use the pair below when you would rather issue the client yourself, or when self-registration is blocked on your workspace.', 'acrossai-mcp-manager' ); ?></p>
 		<ol class="acrossai-ai-setup-steps">
 			<li><?php esc_html_e( 'Open ChatGPT at https://chatgpt.com in a signed-in browser tab, with Developer mode already enabled (see Step 1 below).', 'acrossai-mcp-manager' ); ?></li>
-			<li><?php esc_html_e( 'Go to Settings → Plugins and click the "+" (New Plugin) button.', 'acrossai-mcp-manager' ); ?></li>
+			<li><?php esc_html_e( 'Go to Settings → Plugins, click Add, and choose Add custom MCP server.', 'acrossai-mcp-manager' ); ?></li>
 			<li><?php esc_html_e( 'Paste the MCP URL shown above into the MCP Server URL field, and set Authentication to OAuth.', 'acrossai-mcp-manager' ); ?></li>
 			<li>
 			<?php
@@ -264,71 +264,43 @@ final class ChatGPTConnectorProfile extends \AcrossAI_MCP_Manager\Includes\Conne
 	 * to be flipped on first, and the feature is limited to paid workspaces.
 	 *
 	 * @param string $mcp_url MCP endpoint URL.
-	 * @return string HTML.
+	 * @return array<string, mixed> Spec for the shared panel renderer.
 	 */
-	public function get_mcp_url_setup_html( string $mcp_url ): string {
-		$docs_url = 'https://acrossai.co/chatgpt-connectors/';
-		ob_start();
-		?>
-		<div class="acrossai-mcp-connector-panel__setup">
-			<h4 class="acrossai-mcp-connector-panel__setup-title"><?php esc_html_e( 'How to connect ChatGPT', 'acrossai-mcp-manager' ); ?></h4>
-			<p class="acrossai-mcp-connector-panel__setup-lead"><?php esc_html_e( 'ChatGPT surfaces custom MCP servers under Plugins (renamed from Connectors in mid-2026) with Developer Mode enabled. Available on paid ChatGPT plans.', 'acrossai-mcp-manager' ); ?></p>
+	protected function get_setup_spec( string $mcp_url ): array {
+		$spec = array(
+			'name'       => 'ChatGPT',
+			'lead'       => __( 'ChatGPT lists custom MCP servers under Plugins once Developer Mode is on.', 'acrossai-mcp-manager' ),
+			'open_label' => __( 'Open ChatGPT settings', 'acrossai-mcp-manager' ),
+			'open_url'   => 'https://chatgpt.com/',
+			'steps'      => array(
+				array(
+					'text' => __( 'In ChatGPT, open Settings > Plugins', 'acrossai-mcp-manager' ),
+					'note' => __( 'Custom MCP servers need Developer Mode on — enable it under Settings > Security and login. On Business and Enterprise an admin turns it on for the workspace first.', 'acrossai-mcp-manager' ),
+				),
+				array( 'text' => __( 'Click Add, then choose Add custom MCP server', 'acrossai-mcp-manager' ) ),
+				array(
+					'text' => __( 'Fill in Name', 'acrossai-mcp-manager' ),
+					'copy' => $this->get_connector_name(),
+					'note' => __( 'Anything works — the name is only so you recognise this server in your list. Icon and Description are optional.', 'acrossai-mcp-manager' ),
+				),
+				array(
+					'text' => __( 'Leave Connection set to Server URL, not Tunnel, and paste the MCP endpoint URL', 'acrossai-mcp-manager' ),
+					'url'  => true,
+				),
+				array(
+					'text' => __( 'Set Authentication to OAuth and leave Advanced OAuth settings alone', 'acrossai-mcp-manager' ),
+					'note' => __( 'ChatGPT discovers the settings and registers itself — no client ID or secret to enter.', 'acrossai-mcp-manager' ),
+				),
+				array(
+					'text' => __( 'Tick "I understand and want to continue", click Create as a plugin, then approve the consent screen', 'acrossai-mcp-manager' ),
+					'open' => true,
+				),
+			),
+			'plan'       => __( 'Available on paid ChatGPT plans.', 'acrossai-mcp-manager' ),
+			'docs_url'   => 'https://acrossai.co/docs/connect-chatgpt-troubleshooting/',
+		);
 
-			<section class="acrossai-mcp-connector-panel__setup-section">
-				<h5><?php esc_html_e( 'Step 1 — Turn on Developer Mode (one-time)', 'acrossai-mcp-manager' ); ?></h5>
-				<ol class="acrossai-mcp-connector-panel__setup-steps">
-					<li>
-					<?php
-						printf(
-							/* translators: %s: URL to ChatGPT on the web */
-							esc_html__( 'Sign in at %s in your browser (Business, Enterprise, Edu, or Pro plan).', 'acrossai-mcp-manager' ),
-							'<a href="https://chatgpt.com" target="_blank" rel="noopener noreferrer">chatgpt.com</a>'
-						);
-					?>
-						</li>
-					<li><?php esc_html_e( 'Open Settings → Security and login and enable the Developer mode toggle (marked "ELEVATED RISK"). On Business/Enterprise workspaces the admin must first turn it on under Workspace Settings → Permissions & Roles → Connected data → Developer mode.', 'acrossai-mcp-manager' ); ?></li>
-				</ol>
-			</section>
-
-			<section class="acrossai-mcp-connector-panel__setup-section">
-				<h5><?php esc_html_e( 'Step 2 — Add this MCP server as a plugin', 'acrossai-mcp-manager' ); ?></h5>
-				<ol class="acrossai-mcp-connector-panel__setup-steps">
-					<li><?php esc_html_e( 'Open Settings → Plugins, then click the "+" (New Plugin) button in the top right of the Plugins list.', 'acrossai-mcp-manager' ); ?></li>
-					<li>
-					<?php
-						printf(
-							/* translators: %s: MCP URL as inline code */
-							esc_html__( 'Paste %s into the MCP Server URL field.', 'acrossai-mcp-manager' ),
-							'<code>' . esc_html( $mcp_url ) . '</code>'
-						);
-					?>
-						</li>
-					<li><?php esc_html_e( 'Set Authentication to OAuth. Leave Client ID / Client Secret blank and ChatGPT self-registers via Dynamic Client Registration — or click "Generate credentials" above and paste the pair into those two fields if you would rather issue the client yourself.', 'acrossai-mcp-manager' ); ?></li>
-					<li><?php esc_html_e( 'Tick the elevated-risk acknowledgment, then click Create.', 'acrossai-mcp-manager' ); ?></li>
-				</ol>
-			</section>
-
-			<section class="acrossai-mcp-connector-panel__setup-section">
-				<h5><?php esc_html_e( 'Step 3 — Use it in a chat', 'acrossai-mcp-manager' ); ?></h5>
-				<ol class="acrossai-mcp-connector-panel__setup-steps">
-					<li><?php esc_html_e( 'Open a chat and click the "+" icon in the composer, then search for and select your new plugin.', 'acrossai-mcp-manager' ); ?></li>
-					<li><?php esc_html_e( 'ChatGPT opens the browser OAuth flow the first time — approve the consent screen on this WordPress site.', 'acrossai-mcp-manager' ); ?></li>
-					<li><?php esc_html_e( 'The plugin (labeled "Plugin" in the UI) stays available across future chats — reconnect from Settings → Plugins if the row shows Reconnect.', 'acrossai-mcp-manager' ); ?></li>
-				</ol>
-			</section>
-
-			<p class="acrossai-mcp-connector-panel__setup-footnote">
-				<?php
-				printf(
-					/* translators: %s: link to the AcrossAI ChatGPT Connectors docs */
-					esc_html__( 'Still stuck? Full walkthroughs, screenshots, and troubleshooting live at %s.', 'acrossai-mcp-manager' ),
-					'<a href="' . esc_url( $docs_url ) . '" target="_blank" rel="noopener noreferrer">acrossai.co/chatgpt-connectors/</a>'
-				);
-				?>
-			</p>
-		</div>
-		<?php
-		return (string) ob_get_clean();
+		return $spec;
 	}
 
 	/**
@@ -339,11 +311,6 @@ final class ChatGPTConnectorProfile extends \AcrossAI_MCP_Manager\Includes\Conne
 	 * @param array<string, mixed> $server Server row.
 	 * @return void
 	 */
-	protected function render_card_body( array $server ): void {
-		parent::render_card_body( $server );
-		$mcp_url = self::mcp_url_for_server( $server );
-		echo wp_kses_post( $this->get_mcp_url_setup_html( $mcp_url ) );
-	}
 
 	// F021 Phase 9 (2026-07-11): render_tab_section is now inherited from
 	// AbstractConnectorProfile::render_default_card. The base plugin's shared

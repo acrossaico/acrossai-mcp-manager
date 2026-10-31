@@ -37,6 +37,8 @@ declare( strict_types = 1 );
 
 namespace AcrossAI_MCP_Manager\Includes\Connectors;
 
+use AcrossAI_MCP_Manager\Includes\Utilities\SiteSlug;
+
 use AcrossAI_MCP_Manager\Includes\OAuth\Repositories\ClientRepository;
 
 defined( 'ABSPATH' ) || exit;
@@ -157,6 +159,21 @@ abstract class AbstractConnectorProfile {
 	// -------------------------------------------------------------------------
 
 	/**
+	 * The server row currently being rendered.
+	 *
+	 * `render_setup_panel()` returns a string while `render_credentials_area()`
+	 * echoes, and the panel is produced by `get_mcp_url_setup_html( $mcp_url )`
+	 * — a public signature that carries no server row. Rather than widen that
+	 * signature, the row is parked here for the duration of one card render so
+	 * the panel can place the Generate controls inside its own disclosure.
+	 *
+	 * Set and cleared by `render_default_card()`; never read outside a render.
+	 *
+	 * @var array<string, mixed>
+	 */
+	private array $rendering_server = array();
+
+	/**
 	 * Render the full connector card — outer frame, header, body, result target.
 	 *
 	 * @experimental May change without notice before 1.0.0.
@@ -176,7 +193,9 @@ abstract class AbstractConnectorProfile {
 		// icons still ship and `get_icon_url()` is unchanged — Discovery DTOs
 		// carry it to the wizard, which has its own presentation.
 		echo '<div class="acrossai-mcp-connector__body">';
+		$this->rendering_server = $server;
 		$this->render_card_body( $server );
+		$this->rendering_server = array();
 		echo '</div>';
 		echo '</section>';
 	}
@@ -193,17 +212,38 @@ abstract class AbstractConnectorProfile {
 	 * @return void
 	 */
 	protected function render_card_body( array $server ): void {
-		$this->render_url_row( $server );
-		$this->render_credentials_area( $server );
-		// Immediately after the Generate button, NOT at the end of the card.
-		// Every connector profile overrides this method as
-		// `parent::render_card_body(); <how-to panel>`, so emitting the target
-		// here puts the generated credentials between the button that produced
-		// them and the instructions that consume them. Rendering it after the
-		// parent call — which is what happened until 0.9.13 — pushed
-		// "Credentials generated" below a full page of setup steps, so the
-		// once-visible client secret appeared far from the button just clicked.
-		$this->render_result_target( $server );
+		$spec = $this->get_setup_spec( self::mcp_url_for_server( $server ) );
+
+		if ( array() === $spec ) {
+			return;
+		}
+
+		// Echoed directly, NOT through wp_kses_post().
+		//
+		// The panel now carries the Generate controls inside its disclosure,
+		// and kses strips `<input>` outright — so a server that already has an
+		// OAuth client would lose the field showing its client id. The markup
+		// is first-party and every interpolated value is escaped where it is
+		// written, so the sanitiser guards nothing here.
+		//
+		// `get_mcp_url_setup_html()` still returns the same panel WITHOUT the
+		// controls, and companions overriding it are still sandboxed by the
+		// caller that echoes their string.
+		echo $this->render_setup_panel( $spec, self::mcp_url_for_server( $server ), true ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- First-party markup, escaped at each interpolation.
+	}
+
+	/**
+	 * Per-connector content for the setup panel.
+	 *
+	 * Returning an empty array — the default — means this profile does not
+	 * use the shared panel, and the card body renders nothing.
+	 *
+	 * @param string $mcp_url This server's MCP endpoint.
+	 * @return array<string, mixed> Spec for {@see self::render_setup_panel()}.
+	 */
+	protected function get_setup_spec( string $mcp_url ): array {
+		unset( $mcp_url );
+		return array();
 	}
 
 	/**
@@ -466,6 +506,194 @@ abstract class AbstractConnectorProfile {
 	}
 
 	/**
+	 * The name to suggest when a client asks what to call this connection.
+	 *
+	 * The site title, lowercased with spaces and punctuation collapsed to
+	 * hyphens — `sanitize_title()`, via the same `SiteSlug` helper that names
+	 * the config-file entry on the Clients tab. One site therefore reads the
+	 * same whichever way it was connected.
+	 *
+	 * Lives here rather than on a profile because more than one client asks
+	 * for a name, and they must not disagree about the answer.
+	 */
+	public function get_connector_name(): string {
+		return SiteSlug::get();
+	}
+
+	/**
+	 * Render a connector setup panel from a declarative spec.
+	 *
+	 * Every profile emits the same shape — heading, a one-click row or the
+	 * note explaining its absence, numbered manual steps, a plan footnote,
+	 * two disclosures and a docs link. Only the content differs, so the
+	 * markup lives here once instead of being copy-pasted five times and
+	 * drifting the way the per-profile walkthroughs did.
+	 *
+	 * Spec keys, all optional unless noted:
+	 *
+	 *   name            string  Client name, used in generated sentences. Required.
+	 *   lead            string  One paragraph under the heading. Required.
+	 *   one_click_url   string  Deep link. Absent means this client has none.
+	 *   one_click_label string  Button text.
+	 *   one_click_help  string  Sentence beside the button.
+	 *   blocked_reason  string  Shown instead of the button when the deep link
+	 *                           exists but cannot work here (see $reachable).
+	 *   steps           array   [ text, url (bool), copy (string), cmd (string),
+	 *                           note (string), open (bool) ]. Required.
+	 *   open_label      string  Label for a step's "open settings" button.
+	 *   open_url        string  Where that button goes.
+	 *   plan            string  Plan-availability footnote.
+	 *   other           array   [ label, desc, cmd ] for the first disclosure.
+	 *   docs_url        string  The full guide. Required.
+	 *
+	 * @param array<string, mixed> $spec    Panel content.
+	 * @param string               $mcp_url This server's MCP endpoint.
+	 * @param bool                 $with_credentials Include the Generate controls. True only
+	 *                                                for the admin card; the string form omits them.
+	 * @return string HTML.
+	 */
+	protected function render_setup_panel( array $spec, string $mcp_url, bool $with_credentials = false ): string {
+		$name      = (string) ( $spec['name'] ?? '' );
+		$steps     = is_array( $spec['steps'] ?? null ) ? $spec['steps'] : array();
+		$one_click = (string) ( $spec['one_click_url'] ?? '' );
+		$blocked   = (string) ( $spec['blocked_reason'] ?? '' );
+
+		ob_start();
+		?>
+		<div class="acrossai-mcp-connector-panel__setup">
+			<?php // No heading: the tab strip directly above already names the connector. ?>
+			<p class="acrossai-mcp-setup__lead"><?php echo esc_html( (string) ( $spec['lead'] ?? '' ) ); ?></p>
+
+			<?php if ( '' !== $one_click && '' === $blocked ) : ?>
+				<div class="acrossai-mcp-setup__oneclick">
+					<a class="acrossai-mcp-setup__cta" href="<?php echo esc_url( $one_click ); ?>" target="_blank" rel="noopener noreferrer">
+						<?php echo esc_html( (string) ( $spec['one_click_label'] ?? '' ) ); ?>
+						<span aria-hidden="true">&#8599;</span>
+					</a>
+					<span class="acrossai-mcp-setup__oneclick-help"><?php echo esc_html( (string) ( $spec['one_click_help'] ?? '' ) ); ?></span>
+				</div>
+			<?php elseif ( '' !== $one_click ) : ?>
+				<div class="acrossai-mcp-setup__oneclick is-blocked">
+					<div class="acrossai-mcp-setup__oneclick-row">
+						<span class="acrossai-mcp-setup__cta is-disabled" aria-disabled="true"><?php echo esc_html( (string) ( $spec['one_click_label'] ?? '' ) ); ?></span>
+						<span class="acrossai-mcp-setup__oneclick-help"><?php esc_html_e( 'Unavailable on this site.', 'acrossai-mcp-manager' ); ?></span>
+					</div>
+					<p class="acrossai-mcp-setup__warn"><?php echo esc_html( $blocked ); ?></p>
+				</div>
+			<?php endif; ?>
+
+			<div class="acrossai-mcp-setup__manual">
+				<p class="acrossai-mcp-setup__rule">
+					<span><?php echo '' !== $one_click ? esc_html__( 'Or add it by hand', 'acrossai-mcp-manager' ) : esc_html__( 'Add it by hand', 'acrossai-mcp-manager' ); ?></span>
+				</p>
+
+				<ol class="acrossai-mcp-setup__steps">
+					<?php foreach ( $steps as $step ) : ?>
+						<li class="acrossai-mcp-setup__step">
+							<span class="acrossai-mcp-setup__step-text"><?php echo esc_html( (string) ( $step['text'] ?? '' ) ); ?></span>
+
+							<?php if ( ! empty( $step['url'] ) ) : ?>
+								<span class="acrossai-mcp-setup__urlrow">
+									<code class="acrossai-mcp-setup__url"><?php echo esc_html( $mcp_url ); ?></code>
+									<button type="button" class="acrossai-mcp-setup__copy" data-acrossai-copy="mcp-url" data-acrossai-copy-text="<?php echo esc_attr( $mcp_url ); ?>"><?php esc_html_e( 'Copy URL', 'acrossai-mcp-manager' ); ?></button>
+								</span>
+							<?php endif; ?>
+
+							<?php if ( '' !== (string) ( $step['copy'] ?? '' ) ) : ?>
+								<span class="acrossai-mcp-setup__urlrow">
+									<code class="acrossai-mcp-setup__url"><?php echo esc_html( (string) $step['copy'] ); ?></code>
+									<button type="button" class="acrossai-mcp-setup__copy" data-acrossai-copy="setup-value" data-acrossai-copy-text="<?php echo esc_attr( (string) $step['copy'] ); ?>"><?php esc_html_e( 'Copy', 'acrossai-mcp-manager' ); ?></button>
+								</span>
+							<?php endif; ?>
+
+							<?php if ( ! empty( $step['cmd'] ) ) : ?>
+								<span class="acrossai-mcp-setup__cmdrow">
+									<code class="acrossai-mcp-setup__cmd"><?php echo esc_html( (string) $step['cmd'] ); ?></code>
+									<button type="button" class="acrossai-mcp-setup__copy is-dark" data-acrossai-copy="setup-cmd" data-acrossai-copy-text="<?php echo esc_attr( (string) $step['cmd'] ); ?>"><?php esc_html_e( 'Copy', 'acrossai-mcp-manager' ); ?></button>
+								</span>
+							<?php endif; ?>
+
+							<?php if ( ! empty( $step['open'] ) && '' !== (string) ( $spec['open_url'] ?? '' ) ) : ?>
+								<a class="acrossai-mcp-setup__open" href="<?php echo esc_url( (string) $spec['open_url'] ); ?>" target="_blank" rel="noopener noreferrer">
+									<?php echo esc_html( (string) ( $spec['open_label'] ?? '' ) ); ?>
+									<span aria-hidden="true">&#8599;</span>
+								</a>
+							<?php endif; ?>
+							<?php if ( '' !== (string) ( $step['note'] ?? '' ) ) : ?>
+								<span class="acrossai-mcp-setup__step-note"><?php echo esc_html( (string) $step['note'] ); ?></span>
+							<?php endif; ?>
+						</li>
+					<?php endforeach; ?>
+				</ol>
+
+				<?php if ( '' !== (string) ( $spec['plan'] ?? '' ) ) : ?>
+					<p class="acrossai-mcp-setup__plan"><?php echo esc_html( (string) $spec['plan'] ); ?></p>
+				<?php endif; ?>
+			</div>
+
+			<div class="acrossai-mcp-setup__alert">
+				<strong><?php esc_html_e( 'Connection failing?', 'acrossai-mcp-manager' ); ?></strong>
+				<span><?php esc_html_e( 'Disable any other MCP plugins on this site. AI clients may get confused when multiple OAuth endpoints are detected.', 'acrossai-mcp-manager' ); ?></span>
+			</div>
+
+			<div class="acrossai-mcp-setup__more">
+				<?php if ( is_array( $spec['other'] ?? null ) ) : ?>
+					<details class="acrossai-mcp-setup__disclosure">
+						<summary><?php echo esc_html( (string) ( $spec['other']['label'] ?? '' ) ); ?></summary>
+						<div class="acrossai-mcp-setup__disclosure-body">
+							<p><?php echo esc_html( (string) ( $spec['other']['desc'] ?? '' ) ); ?></p>
+							<span class="acrossai-mcp-setup__cmdrow">
+								<code class="acrossai-mcp-setup__cmd"><?php echo esc_html( (string) ( $spec['other']['cmd'] ?? '' ) ); ?></code>
+								<button type="button" class="acrossai-mcp-setup__copy is-dark" data-acrossai-copy="setup-other" data-acrossai-copy-text="<?php echo esc_attr( (string) ( $spec['other']['cmd'] ?? '' ) ); ?>"><?php esc_html_e( 'Copy', 'acrossai-mcp-manager' ); ?></button>
+							</span>
+						</div>
+					</details>
+				<?php endif; ?>
+
+				<details class="acrossai-mcp-setup__disclosure">
+					<summary><?php esc_html_e( 'Use a manual OAuth client instead', 'acrossai-mcp-manager' ); ?></summary>
+					<div class="acrossai-mcp-setup__disclosure-body acrossai-mcp-setup__creds">
+						<p>
+						<?php
+						printf(
+							/* translators: %s: the AI client name, e.g. "Claude". */
+							esc_html__( 'Only if %s asks for a client ID and secret. Creates a new OAuth client for this server.', 'acrossai-mcp-manager' ),
+							esc_html( $name )
+						);
+						?>
+						</p>
+						<?php
+						// The controls themselves, not a pointer to them. Both
+						// echo, so they run inside this buffer.
+						if ( $with_credentials && array() !== $this->rendering_server ) {
+							$this->render_credentials_area( $this->rendering_server );
+							$this->render_result_target( $this->rendering_server );
+						}
+						?>
+					</div>
+				</details>
+			</div>
+
+			<?php if ( '' !== (string) ( $spec['docs_url'] ?? '' ) ) : ?>
+				<p class="acrossai-mcp-setup__docs">
+					<a href="<?php echo esc_url( (string) $spec['docs_url'] ); ?>" target="_blank" rel="noopener noreferrer">
+						<?php
+						printf(
+							/* translators: %s: the AI client name, e.g. "Claude". */
+							esc_html__( 'Read the full %s guide', 'acrossai-mcp-manager' ),
+							esc_html( $name )
+						);
+						?>
+						<span aria-hidden="true">&#8599;</span>
+					</a>
+				</p>
+			<?php endif; ?>
+		</div>
+		<?php
+		return (string) ob_get_clean();
+	}
+
+	/**
 	 * F024 FR-024-019 — HTML setup instructions for pasting the MCP URL
 	 * into this connector's AI client. Rendered inside the Generate panel.
 	 *
@@ -482,6 +710,15 @@ abstract class AbstractConnectorProfile {
 	 * @return string HTML.
 	 */
 	public function get_mcp_url_setup_html( string $mcp_url ): string {
+		$spec = $this->get_setup_spec( $mcp_url );
+
+		if ( array() !== $spec ) {
+			// No credential controls: this string is also consumed by the
+			// Quick Connect wizard and the Discovery DTO, neither of which
+			// should carry admin-only buttons.
+			return $this->render_setup_panel( $spec, $mcp_url );
+		}
+
 		return sprintf(
 			'<p>%s</p><p><code>%s</code></p>',
 			esc_html__( 'Copy the URL above and paste it into your AI client&#8217;s connector settings. The AI client will handle credential registration automatically.', 'acrossai-mcp-manager' ),

@@ -69,12 +69,16 @@ $accent-callout-b: #c3d9ed;
 }
 
 .acrossai-mcp-connector {
-	background: #fff;
-	border: 1px solid $card-border;
-	border-radius: $card-radius;
-	padding: 28px 32px;
-	margin: 0 0 20px;
-	box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+	// Chrome removed. The setup panel inside renders its own card — border,
+	// padding and shadow — so styling this element too produced a card inside
+	// a card with doubled insets. This is now a plain grouping element that
+	// carries the connector slug for JS and nothing visual.
+	background: none;
+	border: 0;
+	border-radius: 0;
+	padding: 0;
+	margin: 0;
+	box-shadow: none;
 }
 
 // ---- Body -------------------------------------------------------------
@@ -82,7 +86,10 @@ $accent-callout-b: #c3d9ed;
 .acrossai-mcp-connector__body {
 	display: flex;
 	flex-direction: column;
-	gap: 16px;
+	gap: 0;
+	border: 0;
+	padding: 0;
+	margin: 0;
 }
 
 .acrossai-mcp-connector__label {
@@ -298,17 +305,24 @@ $accent-callout-b: #c3d9ed;
 	color: #1d2327;
 }
 
-.acrossai-mcp-connector-panel__setup {
-	margin-top: 20px;
-	padding: 16px;
-	background: $accent-callout;
-	border-left: 4px solid $accent;
-	border-radius: 3px;
-
-	p { margin: 0 0 8px; }
-	p:last-child { margin-bottom: 0; }
-	code { background: $accent-bg; padding: 1px 6px; border-radius: 3px; font-size: 12px; }
-}
+// The blue-callout styling of `.acrossai-mcp-connector-panel__setup` that
+// stood here was a leftover from before F095 T078 moved the panel into
+// `_connector-setup-panel.scss`. Because that partial is imported at the top
+// of this file, the later rule here won the cascade and silently replaced the
+// shared white card with a tinted callout — on THIS surface only.
+//
+// Quick Connect imports the same partial without an override, so the two
+// surfaces rendered the same component differently, which is precisely what
+// the shared partial exists to prevent. Deleting the override restores one
+// look in both places; the element-level rules below still apply.
+// Nothing styles `.acrossai-mcp-connector-panel__setup` here any more.
+//
+// The element rules that stood here — a `code` background and paragraph
+// margins — came from the pre-F095 callout and outlived it. Because this
+// file imports the shared partial at the top, they won the cascade and
+// silently repainted the panel's own URL and command blocks: a #eef4fb
+// tint over the intended #f6f7f7, and 1px 6px padding fighting a fixed
+// 40px height. The panel now owns every element inside it.
 
 .acrossai-mcp-connector-panel__advanced {
 	margin-top: 24px;

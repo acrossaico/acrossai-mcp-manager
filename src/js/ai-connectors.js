@@ -762,6 +762,25 @@ import '../scss/ai-connectors.scss';
 	// ---- Copy / Reveal --------------------------------------------------
 
 	function handleCopy( btn ) {
+		// The setup panel's copy buttons carry their value on the button
+		// itself: they sit beside a <code> element, not the <input> inside a
+		// .acrossai-mcp-connector__copy-row that the credential rows use.
+		// Without this branch those buttons matched the delegated listener,
+		// found no row, and returned silently — a button that looked live and
+		// copied nothing.
+		const literal = btn.getAttribute( 'data-acrossai-copy-text' );
+		if ( null !== literal ) {
+			if ( navigator.clipboard && window.isSecureContext ) {
+				navigator.clipboard
+					.writeText( literal )
+					.then( () => flashCopied( btn ) )
+					.catch( () => fallbackCopyText( literal, btn ) );
+			} else {
+				fallbackCopyText( literal, btn );
+			}
+			return;
+		}
+
 		const row = btn.closest( '.acrossai-mcp-connector__copy-row' );
 		if ( ! row ) {
 			return;
@@ -780,6 +799,23 @@ import '../scss/ai-connectors.scss';
 		} else {
 			fallbackCopy( input, btn );
 		}
+	}
+
+	function fallbackCopyText( text, btn ) {
+		const scratch = document.createElement( 'textarea' );
+		scratch.value = text;
+		scratch.setAttribute( 'readonly', '' );
+		scratch.style.position = 'fixed';
+		scratch.style.opacity = '0';
+		document.body.appendChild( scratch );
+		scratch.select();
+		try {
+			document.execCommand( 'copy' );
+			flashCopied( btn );
+		} catch {
+			// Clipboard unavailable; the value is on screen to select by hand.
+		}
+		scratch.remove();
 	}
 
 	function fallbackCopy( input, btn ) {

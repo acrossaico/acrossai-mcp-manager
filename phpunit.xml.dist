@@ -177,6 +177,7 @@
             <directory>tests/phpunit/Utilities</directory>
             <directory>tests/phpunit/Includes/Utilities</directory>
             <directory>tests/phpunit/Uninstall</directory>
+            <directory>tests/phpunit/ConnectorProfiles</directory>
         </testsuite>
     </testsuites>
 
