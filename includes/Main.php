@@ -249,12 +249,17 @@ final class Main {
 		\AcrossAI_MCP_Manager\Includes\Database\MCPServerTool\Table::instance();
 		// F037 — MCPServerMeta per-request boot per DEC-BERLINDB-TABLE-REQUEST-BOOT.
 		// Generic per-server key-value meta table (WP-canonical shape:
-		// meta_id, server_id, meta_key, meta_value). Backs F037's Embeds tab
-		// (`_embeds_enabled` + `_embeds_clients` meta_keys) + reusable for any
-		// future per-server key-value setting. Replaces the retired
-		// `wp_acrossai_mcp_server_embed_transports` junction table +
-		// `wp_acrossai_mcp_servers.embeds_enabled` column (both DROPped by
-		// MCPServer\Table::upgrade_to_1_1_4).
+		// meta_id, server_id, meta_key, meta_value), reusable for any
+		// per-server setting. Its one caller today is acrossai-pro's Embeds
+		// tab (`_embeds_enabled` + `_embeds_clients`), which reaches it across
+		// the plugin boundary — this plugin writes nothing here itself, and
+		// must keep booting the table regardless, or Pro's settings have
+		// nowhere to live.
+		//
+		// This table is also why a per-server setting needs no schema change:
+		// it replaced the `wp_acrossai_mcp_server_embed_transports` junction
+		// table and the `wp_acrossai_mcp_servers.embeds_enabled` column, both
+		// DROPped by MCPServer\Table::upgrade_to_1_1_4.
 		\AcrossAI_MCP_Manager\Includes\Database\MCPServerMeta\Table::instance();
 
 		// F095 — OAuth tables, per DEC-BERLINDB-TABLE-REQUEST-BOOT. Request-time
