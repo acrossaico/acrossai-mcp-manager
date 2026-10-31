@@ -285,89 +285,37 @@ final class GrokConnectorProfile extends \AcrossAI_MCP_Manager\Includes\Connecto
 	 * Dynamic Client Registration, so no credentials need to be pasted.
 	 *
 	 * @param string $mcp_url MCP endpoint URL.
-	 * @return string HTML.
+	 * @return array<string, mixed> Spec for the shared panel renderer.
 	 */
-	public function get_mcp_url_setup_html( string $mcp_url ): string {
-		$docs_url = 'https://acrossai.co/grok-connectors/';
-		ob_start();
-		?>
-		<div class="acrossai-mcp-connector-panel__setup">
-			<h4 class="acrossai-mcp-connector-panel__setup-title"><?php esc_html_e( 'How to connect Grok', 'acrossai-mcp-manager' ); ?></h4>
-			<p class="acrossai-mcp-connector-panel__setup-lead"><?php esc_html_e( 'Grok exposes custom MCP connectors at grok.com/connectors for individual accounts (feature availability depends on your current xAI plan — SuperGrok / X Premium+ / free where enabled), and at the console.x.ai admin surface for Business and Enterprise teams. Both paths end with an OAuth consent screen on this WordPress site.', 'acrossai-mcp-manager' ); ?></p>
+	protected function get_setup_spec( string $mcp_url ): array {
+		$spec = array(
+			'name'       => 'Grok',
+			'lead'       => __( 'Grok reaches your site over OAuth. You approve once on a WordPress consent screen.', 'acrossai-mcp-manager' ),
+			'open_label' => __( 'Open Grok connectors', 'acrossai-mcp-manager' ),
+			'open_url'   => 'https://grok.com/connectors',
+			'steps'      => array(
+				array( 'text' => __( 'In Grok, open Settings > Connectors', 'acrossai-mcp-manager' ) ),
+				array( 'text' => __( 'Click New Connector, then choose Custom to open the "Custom Connector" dialog', 'acrossai-mcp-manager' ) ),
+				array(
+					'text' => __( 'Fill in Name', 'acrossai-mcp-manager' ),
+					'copy' => $this->get_connector_name(),
+					'note' => __( 'Anything works — the name is only so you recognise this connector in your list. This one matches the site.', 'acrossai-mcp-manager' ),
+				),
+				array(
+					'text' => __( 'Paste the MCP endpoint URL into Server URL', 'acrossai-mcp-manager' ),
+					'url'  => true,
+				),
+				array(
+					'text' => __( 'Click Add Connector, then Connect, and approve the consent screen', 'acrossai-mcp-manager' ),
+					'note' => __( 'There is nothing else to fill in — Grok registers itself and signs in through your browser.', 'acrossai-mcp-manager' ),
+					'open' => true,
+				),
+			),
+			'plan'       => __( 'Availability depends on your xAI plan. On Business and Enterprise an admin adds the connector from the console.x.ai admin surface instead — that one is different: it does not register itself, so the OAuth credentials must be filled in by hand.', 'acrossai-mcp-manager' ),
+			'docs_url'   => 'https://acrossai.co/docs/connect-grok-troubleshooting/',
+		);
 
-			<section class="acrossai-mcp-connector-panel__setup-section">
-				<h5><?php esc_html_e( 'Individual account (grok.com)', 'acrossai-mcp-manager' ); ?></h5>
-				<ol class="acrossai-mcp-connector-panel__setup-steps">
-					<li>
-					<?php
-						printf(
-							/* translators: %s: URL to grok.com/connectors */
-							esc_html__( 'Sign in and open %s in your browser.', 'acrossai-mcp-manager' ),
-							'<a href="https://grok.com/connectors" target="_blank" rel="noopener noreferrer">grok.com/connectors</a>'
-						);
-					?>
-						</li>
-					<li><?php esc_html_e( 'Click New Connector, then choose Custom.', 'acrossai-mcp-manager' ); ?></li>
-					<li>
-					<?php
-						printf(
-							/* translators: %s: MCP URL as inline code */
-							esc_html__( 'Paste %s as the MCP server URL and give the connector a name (e.g. AcrossAI). Leave the Advanced OAuth fields empty — on grok.com Grok registers itself via Dynamic Client Registration. The console.x.ai admin surface below is different: it requires the manual credentials.', 'acrossai-mcp-manager' ),
-							'<code>' . esc_html( $mcp_url ) . '</code>'
-						);
-					?>
-						</li>
-					<li><?php esc_html_e( 'Click Add, then Connect, and approve the OAuth consent screen when it opens on this WordPress site.', 'acrossai-mcp-manager' ); ?></li>
-				</ol>
-			</section>
-
-			<section class="acrossai-mcp-connector-panel__setup-section">
-				<h5><?php esc_html_e( 'Team / Enterprise (Admin adds once, teammates authorize)', 'acrossai-mcp-manager' ); ?></h5>
-				<p><em><?php esc_html_e( 'Regular team members can’t add a connector on Grok Business or Enterprise — the "Add Connector" surface is admin-only. Once the admin saves the connector, every teammate sees it on grok.com/connectors and authorizes it themselves.', 'acrossai-mcp-manager' ); ?></em></p>
-				<ol class="acrossai-mcp-connector-panel__setup-steps">
-					<li>
-					<?php
-						printf(
-							/* translators: %s: URL to the xAI console */
-							esc_html__( 'Admin-only: sign in with Team Read-Write permissions at %s and select your team.', 'acrossai-mcp-manager' ),
-							'<a href="https://console.x.ai" target="_blank" rel="noopener noreferrer">console.x.ai</a>'
-						);
-					?>
-						</li>
-					<li><?php esc_html_e( 'Open Grok Business → Connectors and click + Add Connector.', 'acrossai-mcp-manager' ); ?></li>
-					<li>
-					<?php
-						printf(
-							/* translators: %s: MCP URL as inline code */
-							esc_html__( 'Select Other, name the connector (e.g. AcrossAI), and paste %s as the MCP server URL. This surface does NOT self-register — use Generate credentials above, then fill in the Client ID, Client Secret, Authorization Endpoint, Token Endpoint, Scopes and Token Auth Method exactly as the panel that appears lists them, and save.', 'acrossai-mcp-manager' ),
-							'<code>' . esc_html( $mcp_url ) . '</code>'
-						);
-					?>
-						</li>
-					<li>
-					<?php
-						printf(
-							/* translators: %s: URL to grok.com/connectors */
-							esc_html__( 'Each teammate then opens %s, clicks Connect on the AcrossAI row, and approves the OAuth consent screen on this WordPress site.', 'acrossai-mcp-manager' ),
-							'<a href="https://grok.com/connectors" target="_blank" rel="noopener noreferrer">grok.com/connectors</a>'
-						);
-					?>
-						</li>
-				</ol>
-			</section>
-
-			<p class="acrossai-mcp-connector-panel__setup-footnote">
-				<?php
-				printf(
-					/* translators: %s: link to the AcrossAI Grok Connectors docs */
-					esc_html__( 'Still stuck? Full walkthroughs, screenshots, and troubleshooting live at %s.', 'acrossai-mcp-manager' ),
-					'<a href="' . esc_url( $docs_url ) . '" target="_blank" rel="noopener noreferrer">acrossai.co/grok-connectors/</a>'
-				);
-				?>
-			</p>
-		</div>
-		<?php
-		return (string) ob_get_clean();
+		return $spec;
 	}
 
 	/**
@@ -376,11 +324,6 @@ final class GrokConnectorProfile extends \AcrossAI_MCP_Manager\Includes\Connecto
 	 * @param array<string, mixed> $server Server row.
 	 * @return void
 	 */
-	protected function render_card_body( array $server ): void {
-		parent::render_card_body( $server );
-		$mcp_url = self::mcp_url_for_server( $server );
-		echo wp_kses_post( $this->get_mcp_url_setup_html( $mcp_url ) );
-	}
 
 	// F021 Phase 9 (2026-07-11): render_tab_section is now inherited from
 	// AbstractConnectorProfile::render_default_card. The base plugin's shared

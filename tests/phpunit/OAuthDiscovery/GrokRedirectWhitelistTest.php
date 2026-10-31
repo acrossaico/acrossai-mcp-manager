@@ -91,26 +91,37 @@ final class GrokRedirectWhitelistTest extends TestCase {
 	 * `render_default_card()` after the override put a once-visible client
 	 * secret below a full page of setup steps.
 	 */
-	public function test_result_target_renders_inside_card_body_not_after_it(): void {
+	public function test_result_target_renders_next_to_the_generate_button(): void {
 		$src = file_get_contents( dirname( __DIR__, 3 ) . '/includes/Connectors/AbstractConnectorProfile.php' );
 		self::assertNotFalse( $src );
 		$src = (string) $src;
 
-		$body_pos = strpos( $src, 'protected function render_card_body( array $server ): void {' );
-		$target   = strpos( $src, '$this->render_result_target( $server );', (int) $body_pos );
-		$body_end = strpos( $src, 'protected function render_result_target', (int) $body_pos );
+		// The controls moved out of render_card_body() and into the setup
+		// panel's "Use a manual OAuth client instead" disclosure. What must
+		// not change is the adjacency: a client secret is shown once, so it
+		// has to appear beside the button that produced it rather than
+		// somewhere further down the card.
+		$creds  = strpos( $src, '$this->render_credentials_area( $this->rendering_server );' );
+		$target = strpos( $src, '$this->render_result_target( $this->rendering_server );' );
 
-		self::assertIsInt( $body_pos );
-		self::assertIsInt( $target );
+		self::assertIsInt( $creds, 'The Generate controls must render inside the setup panel.' );
+		self::assertIsInt( $target, 'The result target must render inside the setup panel.' );
 		self::assertLessThan(
-			(int) $body_end,
 			(int) $target,
-			'render_card_body() must emit the result target itself.'
+			(int) $creds,
+			'The result target must follow the Generate button, not precede it.'
+		);
+
+		$between = substr( $src, (int) $creds, (int) $target - (int) $creds );
+		self::assertDoesNotMatchRegularExpression(
+			'/\becho\b|\bprintf\(/',
+			$between,
+			'Nothing may be emitted between the Generate button and its result target.'
 		);
 
 		self::assertSame(
 			1,
-			substr_count( $src, '$this->render_result_target( $server );' ),
+			substr_count( $src, '$this->render_result_target(' ),
 			'Exactly one emission point, or the JS querySelector picks the wrong container.'
 		);
 	}
@@ -119,11 +130,42 @@ final class GrokRedirectWhitelistTest extends TestCase {
 	 * The DCR panel and the generated-credentials panel must not contradict
 	 * each other now that both paths are live.
 	 */
-	public function test_dcr_panel_scopes_its_leave_blank_advice_to_grok_com(): void {
+	public function test_panel_does_not_imply_the_admin_surface_self_registers(): void {
+		$src = $this->grok_source();
+
+		// grok.com's Custom Connector dialog takes a name and a URL and
+		// registers itself. The console.x.ai admin surface does neither — it
+		// needs OAuth credentials pasted in. A panel that describes only the
+		// first and says nothing about the second sends a Business admin to
+		// save a connector that can never authorise.
 		self::assertStringContainsString(
-			'console.x.ai admin surface below is different',
-			$this->grok_source(),
-			'"Leave Advanced OAuth fields empty" is true for grok.com only.'
+			'console.x.ai',
+			$src,
+			'The panel must name the admin surface, which behaves differently.'
+		);
+		self::assertStringContainsString(
+			'filled in by hand',
+			$src,
+			'It must say the admin surface needs credentials, not self-registration.'
+		);
+
+		// The step list mirrors a dialog with no OAuth fields at all, so
+		// "leave them empty" advice would describe the wrong screen there.
+		//
+		// Scoped to get_setup_spec() deliberately: the same phrase appears in
+		// get_setup_instructions(), the panel shown after credentials are
+		// generated, where it is correct and already qualified with "on an
+		// individual grok.com account". Asserting against the whole file
+		// would forbid a true sentence.
+		$spec_start = strpos( $src, 'protected function get_setup_spec' );
+		self::assertIsInt( $spec_start, 'get_setup_spec() must exist.' );
+		$spec_end = strpos( $src, "\n\t}", (int) $spec_start );
+		$spec_src = substr( $src, (int) $spec_start, (int) $spec_end - (int) $spec_start );
+
+		self::assertStringNotContainsString(
+			'Advanced OAuth fields',
+			$spec_src,
+			'The step list describes a dialog that has no such fields.'
 		);
 	}
 }

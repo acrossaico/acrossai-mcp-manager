@@ -72,6 +72,42 @@ final class LocalEnvironment {
 	}
 
 	/**
+	 * True iff a third party on the public internet could fetch `$url`.
+	 *
+	 * Distinct from `needs_tls_bypass()`, which asks whether *this* machine
+	 * is talking to a local site. This asks the opposite question — whether
+	 * somebody ELSE can reach it — and so both conditions are required:
+	 *
+	 *   - the scheme is `https`, because hosted AI clients refuse plain HTTP;
+	 *   - the host is not a local-only name, because `.local`, `.test`,
+	 *     `localhost` and the loopback addresses resolve on this machine only.
+	 *
+	 * A reachable-looking URL is not a guarantee: the site may still sit
+	 * behind a firewall or basic auth. This is a cheap pre-flight that
+	 * catches the case we can be certain about, so a one-click connect
+	 * button is not offered where it provably cannot complete.
+	 *
+	 * @param string $url Absolute URL to test.
+	 */
+	public static function is_publicly_reachable( string $url ): bool {
+		if ( '' === $url || ! function_exists( 'wp_parse_url' ) ) {
+			return false;
+		}
+
+		$scheme = strtolower( (string) wp_parse_url( $url, PHP_URL_SCHEME ) );
+		if ( 'https' !== $scheme ) {
+			return false;
+		}
+
+		$host = strtolower( (string) wp_parse_url( $url, PHP_URL_HOST ) );
+		if ( '' === $host ) {
+			return false;
+		}
+
+		return ! self::is_local_host( $host );
+	}
+
+	/**
 	 * True iff the current site meets the FR-001 conditions to auto-inject
 	 * NODE_TLS_REJECT_UNAUTHORIZED=0 into generated MCP client JSON.
 	 * Fires on any local-looking site regardless of scheme (Clarification

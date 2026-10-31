@@ -244,117 +244,43 @@ final class GeminiConnectorProfile extends \AcrossAI_MCP_Manager\Includes\Connec
 	 * pre-generated OAuth credentials from the Generate panel above.
 	 *
 	 * @param string $mcp_url MCP endpoint URL.
-	 * @return string HTML.
+	 * @return array<string, mixed> Spec for the shared panel renderer.
 	 * @since 0.6.0
 	 */
-	public function get_mcp_url_setup_html( string $mcp_url ): string {
-		$docs_url = 'https://acrossai.co/gemini-connectors/';
-		// Gemini CLI's remote HTTP transport field is `httpUrl` (verified against
-		// google-gemini/gemini-cli docs) — not `url`.
-		$cli_json = '{
-  "mcpServers": {
-    "acrossai": {
-      "httpUrl": "' . $mcp_url . '"
-    }
-  }
-}';
-		ob_start();
-		?>
-		<div class="acrossai-mcp-connector-panel__setup">
-			<h4 class="acrossai-mcp-connector-panel__setup-title"><?php esc_html_e( 'How to connect Gemini', 'acrossai-mcp-manager' ); ?></h4>
-			<p class="acrossai-mcp-connector-panel__setup-lead"><?php esc_html_e( 'Consumer Gemini (gemini.google.com) does NOT accept custom MCP servers — its Spark connectors are partnership-only. Custom MCP lives in three places: the Gemini CLI, Gemini Enterprise Business Edition (business.gemini.google), and Gemini Enterprise Standard/Plus/Frontline (Google Cloud Console). Every Gemini Enterprise edition requires StreamableHTTP transport — SSE is not supported.', 'acrossai-mcp-manager' ); ?></p>
+	protected function get_setup_spec( string $mcp_url ): array {
+		$spec = array(
+			'name'       => 'Gemini',
+			'lead'       => __( 'Gemini reaches your site over OAuth. You approve once on a WordPress consent screen — no token to copy.', 'acrossai-mcp-manager' ),
+			'open_label' => __( 'Open Gemini settings', 'acrossai-mcp-manager' ),
+			'open_url'   => 'https://gemini.google.com/personalization-settings',
+			'steps'      => array(
+				array( 'text' => __( 'In Gemini, open Settings > Personal Intelligence', 'acrossai-mcp-manager' ) ),
+				array( 'text' => __( 'Open Connected Apps, then the Connectors tab', 'acrossai-mcp-manager' ) ),
+				array( 'text' => __( 'Click + Custom to open "Connect to an MCP server"', 'acrossai-mcp-manager' ) ),
+				array(
+					'text' => __( 'Paste the MCP endpoint URL into MCP Server URL', 'acrossai-mcp-manager' ),
+					'url'  => true,
+					'note' => __( 'The dialog asks for nothing else — there is no name field to fill in.', 'acrossai-mcp-manager' ),
+				),
+				array(
+					'text' => __( 'Leave Additional settings empty', 'acrossai-mcp-manager' ),
+					'note' => __( 'Client ID and Client secret stay blank — Gemini registers itself. Fill them only if it asks, using Generate credentials below.', 'acrossai-mcp-manager' ),
+				),
+				array(
+					'text' => __( 'Click Next, then approve the consent screen', 'acrossai-mcp-manager' ),
+					'open' => true,
+				),
+			),
+			'plan'       => __( 'Works on a consumer Google account. Gemini Enterprise provisions MCP servers through its own admin console instead — see the full guide.', 'acrossai-mcp-manager' ),
+			'other'      => array(
+				'label' => __( 'Gemini CLI (terminal)', 'acrossai-mcp-manager' ),
+				'desc'  => __( 'Run this, then finish the browser sign-in the CLI prints.', 'acrossai-mcp-manager' ),
+				'cmd'   => sprintf( 'gemini mcp add --transport http acrossai %s', $mcp_url ),
+			),
+			'docs_url'   => 'https://acrossai.co/docs/connect-gemini-troubleshooting/',
+		);
 
-			<section class="acrossai-mcp-connector-panel__setup-section">
-				<h5><?php esc_html_e( 'Gemini CLI (terminal)', 'acrossai-mcp-manager' ); ?></h5>
-				<ol class="acrossai-mcp-connector-panel__setup-steps">
-					<li>
-					<?php
-						printf(
-							/* translators: %s: install command as inline code */
-							esc_html__( 'Install the CLI: %s.', 'acrossai-mcp-manager' ),
-							'<code>npm install -g @google/gemini-cli</code>'
-						);
-					?>
-						</li>
-					<li>
-					<?php
-						printf(
-							/* translators: 1: global config path as inline code, 2: project config path as inline code */
-							esc_html__( 'Open (or create) %1$s (global) or %2$s (this project only).', 'acrossai-mcp-manager' ),
-							'<code>~/.gemini/settings.json</code>',
-							'<code>.gemini/settings.json</code>'
-						);
-					?>
-						</li>
-					<li>
-					<?php
-						printf(
-							/* translators: %s: field name as inline code */
-							esc_html__( 'Merge this entry into the mcpServers block (or paste it whole if the file is empty). Note: Gemini CLI uses %s for remote HTTP servers, not "url":', 'acrossai-mcp-manager' ),
-							'<code>httpUrl</code>'
-						);
-					?>
-						<pre class="acrossai-mcp-connector-panel__setup-cmd"><code><?php echo esc_html( $cli_json ); ?></code></pre>
-					</li>
-					<li>
-					<?php
-						printf(
-							/* translators: %s: CLI command as inline code */
-							esc_html__( 'Run %s and follow the browser OAuth flow when the CLI prints the authorization URL.', 'acrossai-mcp-manager' ),
-							'<code>gemini</code>'
-						);
-					?>
-						</li>
-				</ol>
-			</section>
-
-			<section class="acrossai-mcp-connector-panel__setup-section">
-				<h5><?php esc_html_e( 'Gemini Enterprise — Business Edition (business.gemini.google)', 'acrossai-mcp-manager' ); ?></h5>
-				<p><em><?php esc_html_e( 'Admin-only. Business Edition tenants: only Team admins see the Add MCP Server option; every teammate can use the server once it is enabled.', 'acrossai-mcp-manager' ); ?></em></p>
-				<ol class="acrossai-mcp-connector-panel__setup-steps">
-					<li>
-					<?php
-						printf(
-							/* translators: %s: URL to Gemini Enterprise Business console */
-							esc_html__( 'Sign in as a Team admin at %s and click Settings & help → your team → Manage team → Connected apps.', 'acrossai-mcp-manager' ),
-							'<a href="https://business.gemini.google/" target="_blank" rel="noopener noreferrer">business.gemini.google</a>'
-						);
-					?>
-						</li>
-					<li><?php esc_html_e( 'Click Add MCP Server. In MCP Info, fill Name (e.g. "AcrossAI"), Description, and paste the MCP Server URL below:', 'acrossai-mcp-manager' ); ?>
-						<p><code><?php echo esc_html( $mcp_url ); ?></code></p>
-					</li>
-					<li><?php esc_html_e( 'Under Authentication settings, choose OAuth 2.0. Click Generate credentials above to mint an OAuth client, then paste the client_id, client_secret, authorization URL, token URL, and scopes into the matching Enterprise fields (Enterprise does not use Dynamic Client Registration). Click Verify Auth.', 'acrossai-mcp-manager' ); ?></li>
-					<li><?php esc_html_e( 'Save. New connections are disabled by default — go to the Actions page for this server, click Reload custom actions, tick each action you want to expose (up to 100), then click Enable Actions.', 'acrossai-mcp-manager' ); ?></li>
-				</ol>
-			</section>
-
-			<section class="acrossai-mcp-connector-panel__setup-section">
-				<h5><?php esc_html_e( 'Gemini Enterprise — Standard / Plus / Frontline (Google Cloud Console)', 'acrossai-mcp-manager' ); ?></h5>
-				<p><em><?php esc_html_e( 'These editions provision MCP servers as Data Store connectors in the Google Cloud Console. Business Edition uses the separate business.gemini.google flow above.', 'acrossai-mcp-manager' ); ?></em></p>
-				<ol class="acrossai-mcp-connector-panel__setup-steps">
-					<li><?php esc_html_e( 'Open Google Cloud Console → Gemini Enterprise → Data stores, and click Create data store.', 'acrossai-mcp-manager' ); ?></li>
-					<li><?php esc_html_e( 'Search for and select Custom MCP Server, then choose a multi-region for the data connector and give it a name.', 'acrossai-mcp-manager' ); ?></li>
-					<li><?php esc_html_e( 'Paste the MCP Server URL below (must be HTTPS + StreamableHTTP; SSE is not supported):', 'acrossai-mcp-manager' ); ?>
-						<p><code><?php echo esc_html( $mcp_url ); ?></code></p>
-					</li>
-					<li><?php esc_html_e( 'Choose an authentication mode. For OAuth 2.0, click Generate credentials above to mint an OAuth client, then paste client_id, client_secret, Authorization URL, Token URL, and space-separated scopes; enable PKCE if your policy requires it.', 'acrossai-mcp-manager' ); ?></li>
-					<li><?php esc_html_e( 'Create. Wait for the data store status to become Active, then open Actions → Reload custom actions and enable the actions you want to expose. Configure tool annotations (readOnlyHint / destructiveHint) if your team wants extra confirmation before destructive calls.', 'acrossai-mcp-manager' ); ?></li>
-				</ol>
-			</section>
-
-			<p class="acrossai-mcp-connector-panel__setup-footnote">
-				<?php
-				printf(
-					/* translators: %s: link to the AcrossAI Gemini Connectors docs */
-					esc_html__( 'Still stuck? Full walkthroughs, screenshots, and troubleshooting live at %s.', 'acrossai-mcp-manager' ),
-					'<a href="' . esc_url( $docs_url ) . '" target="_blank" rel="noopener noreferrer">acrossai.co/gemini-connectors/</a>'
-				);
-				?>
-			</p>
-		</div>
-		<?php
-		return (string) ob_get_clean();
+		return $spec;
 	}
 
 	/**
@@ -363,9 +289,4 @@ final class GeminiConnectorProfile extends \AcrossAI_MCP_Manager\Includes\Connec
 	 * @param array<string, mixed> $server Server row.
 	 * @return void
 	 */
-	protected function render_card_body( array $server ): void {
-		parent::render_card_body( $server );
-		$mcp_url = self::mcp_url_for_server( $server );
-		echo wp_kses_post( $this->get_mcp_url_setup_html( $mcp_url ) );
-	}
 }

@@ -11,6 +11,8 @@
 
 namespace AcrossAI_MCP_Manager\Includes\ConnectorProfiles;
 
+use AcrossAI_MCP_Manager\Includes\Utilities\LocalEnvironment;
+
 defined( 'ABSPATH' ) || exit;
 
 /**
@@ -221,6 +223,29 @@ final class ClaudeConnectorProfile extends \AcrossAI_MCP_Manager\Includes\Connec
 	}
 
 	/**
+	 * Claude's undocumented-but-stable deep link into the Add custom
+	 * connector modal, with the name and server URL already filled in.
+	 *
+	 * Anthropic's own documentation describes the manual path only, so this
+	 * is a convenience that must never become load-bearing: every step it
+	 * saves is still written out below it, and a changed or withdrawn link
+	 * costs the operator one extra copy-paste rather than the connection.
+	 *
+	 * Deliberately scoped to the personal surface. `/customize/connectors`
+	 * is a per-account page; Team and Enterprise Owners add connectors in
+	 * Organization settings, which no link can target, so the panel points
+	 * them at the section below instead of implying one button covers all.
+	 *
+	 * @param string $mcp_url This server's MCP endpoint.
+	 */
+	public function get_one_click_connect_url( string $mcp_url ): string {
+		return 'https://claude.ai/customize/connectors?modal=add-custom-connector'
+			. '&connectorName=' . rawurlencode( $this->get_connector_name() )
+			. '&connectorUrl=' . rawurlencode( $mcp_url );
+	}
+
+
+	/**
 	 * F024 (2026-07-11): Claude-branded MCP URL setup instructions.
 	 * Replaces the AbstractConnectorProfile default with step-by-step
 	 * guides covering every Claude surface — the web app at claude.ai, the
@@ -234,102 +259,52 @@ final class ClaudeConnectorProfile extends \AcrossAI_MCP_Manager\Includes\Connec
 	 * boundary — inline HTML is safe; scripts are stripped.
 	 *
 	 * @param string $mcp_url MCP endpoint URL.
-	 * @return string HTML.
+	 * @return array<string, mixed> Spec for the shared panel renderer.
 	 */
-	public function get_mcp_url_setup_html( string $mcp_url ): string {
-		$docs_url = 'https://acrossai.co/claude-connectors/';
-		$cli_cmd  = sprintf( 'claude mcp add --transport http acrossai %s', $mcp_url );
+	protected function get_setup_spec( string $mcp_url ): array {
+		$reachable = LocalEnvironment::is_publicly_reachable( $mcp_url );
+		$host      = (string) wp_parse_url( $mcp_url, PHP_URL_HOST );
 
-		ob_start();
-		?>
-		<div class="acrossai-mcp-connector-panel__setup">
-			<h4 class="acrossai-mcp-connector-panel__setup-title"><?php esc_html_e( 'How to connect Claude', 'acrossai-mcp-manager' ); ?></h4>
-			<p class="acrossai-mcp-connector-panel__setup-lead"><?php esc_html_e( 'Pick the Claude surface you use. Every path ends with an OAuth consent screen on this WordPress site.', 'acrossai-mcp-manager' ); ?></p>
+		$spec = array(
+			'name'            => 'Claude',
+			'lead'            => __( 'Claude reaches your site over OAuth. You approve once on a WordPress consent screen — no token to copy.', 'acrossai-mcp-manager' ),
+			'one_click_url'   => $this->get_one_click_connect_url( $mcp_url ),
+			'one_click_label' => __( 'Connect to Claude (1-click)', 'acrossai-mcp-manager' ),
+			'one_click_help'  => __( 'Opens claude.ai with this server pre-filled. Confirm there to add and connect.', 'acrossai-mcp-manager' ),
+			'blocked_reason'  => $reachable ? '' : sprintf(
+				/* translators: %s: this site's hostname, e.g. "mysite.local". */
+				__( 'Claude connects from Anthropic\'s servers, so it needs a public https:// address. %s only resolves on your machine. Expose it with a tunnel (ngrok, Cloudflare Tunnel), or connect once the site is live.', 'acrossai-mcp-manager' ),
+				$host
+			),
+			'open_label'      => __( 'Open Claude settings', 'acrossai-mcp-manager' ),
+			'open_url'        => 'https://claude.ai/customize/connectors',
+			'steps'           => array(
+				array( 'text' => __( 'In claude.ai, go to Settings > Connectors', 'acrossai-mcp-manager' ) ),
+				array( 'text' => __( 'Click Add custom connector', 'acrossai-mcp-manager' ) ),
+				array(
+					'text' => __( 'Give the connector a name', 'acrossai-mcp-manager' ),
+					'copy' => $this->get_connector_name(),
+					'note' => __( 'Anything works — the name is only so you recognise this connector in your list. This one matches the site.', 'acrossai-mcp-manager' ),
+				),
+				array(
+					'text' => __( 'Paste the MCP endpoint URL as the server URL', 'acrossai-mcp-manager' ),
+					'url'  => true,
+				),
+				array(
+					'text' => __( 'Click Add, then Connect, and approve the consent screen', 'acrossai-mcp-manager' ),
+					'open' => true,
+				),
+			),
+			'plan'            => __( 'Free, Pro and Max accounts. On Team and Enterprise, only Owners can add connectors.', 'acrossai-mcp-manager' ),
+			'other'           => array(
+				'label' => __( 'Claude Code (terminal)', 'acrossai-mcp-manager' ),
+				'desc'  => __( 'Run this, then finish the browser sign-in Claude Code prints.', 'acrossai-mcp-manager' ),
+				'cmd'   => sprintf( 'claude mcp add --transport http acrossai %s', $mcp_url ),
+			),
+			'docs_url'        => 'https://acrossai.co/docs/connect-claude-troubleshooting/',
+		);
 
-			<section class="acrossai-mcp-connector-panel__setup-section">
-				<h5><?php esc_html_e( 'Claude on the web — individual (Pro/Max)', 'acrossai-mcp-manager' ); ?></h5>
-				<ol class="acrossai-mcp-connector-panel__setup-steps">
-					<li>
-					<?php
-						printf(
-							/* translators: %s: URL to Claude on the web */
-							esc_html__( 'Sign in at %s in your browser.', 'acrossai-mcp-manager' ),
-							'<a href="https://claude.ai" target="_blank" rel="noopener noreferrer">claude.ai</a>'
-						);
-					?>
-						</li>
-					<li><?php esc_html_e( 'Open Customize → Connectors, click "+" and choose Add custom connector.', 'acrossai-mcp-manager' ); ?></li>
-					<li>
-					<?php
-						printf(
-							/* translators: %s: MCP URL as inline code */
-							esc_html__( 'Paste %s into the remote MCP server URL field. Leave Advanced settings blank — no Client ID / Client Secret needed.', 'acrossai-mcp-manager' ),
-							'<code>' . esc_html( $mcp_url ) . '</code>'
-						);
-					?>
-						</li>
-					<li><?php esc_html_e( 'Click Add, then Connect, and approve the consent screen when it opens on this WordPress site.', 'acrossai-mcp-manager' ); ?></li>
-				</ol>
-			</section>
-
-			<section class="acrossai-mcp-connector-panel__setup-section">
-				<h5><?php esc_html_e( 'Claude Team / Enterprise (Owner adds once, teammates connect)', 'acrossai-mcp-manager' ); ?></h5>
-				<p><em><?php esc_html_e( 'Regular team members do NOT see an "Add custom connector" option on Team or Enterprise plans. Only Owners and Primary Owners can add a new connector; once they save it, every teammate sees an AcrossAI row they can Connect from Customize → Connectors.', 'acrossai-mcp-manager' ); ?></em></p>
-				<ol class="acrossai-mcp-connector-panel__setup-steps">
-					<li><?php esc_html_e( 'Owner-only: open Organization settings → Connectors, hover over Custom, and select Web.', 'acrossai-mcp-manager' ); ?></li>
-					<li>
-					<?php
-						printf(
-							/* translators: %s: MCP URL as inline code */
-							esc_html__( 'Owner pastes %s as the remote MCP server URL and saves. (Anthropic’s servers must be able to reach this URL over HTTPS — private-network URLs will not work.)', 'acrossai-mcp-manager' ),
-							'<code>' . esc_html( $mcp_url ) . '</code>'
-						);
-					?>
-						</li>
-					<li><?php esc_html_e( 'Every teammate — Owner included — then opens Customize → Connectors, finds the AcrossAI row, clicks Connect, and approves the OAuth consent screen on this WordPress site. Each user’s Claude account is authorized individually; the Owner’s save only makes the connector available.', 'acrossai-mcp-manager' ); ?></li>
-				</ol>
-			</section>
-
-			<section class="acrossai-mcp-connector-panel__setup-section">
-				<h5><?php esc_html_e( 'Claude Code (terminal / CLI)', 'acrossai-mcp-manager' ); ?></h5>
-				<ol class="acrossai-mcp-connector-panel__setup-steps">
-					<li>
-					<?php
-						printf(
-							/* translators: %s: install command as inline code */
-							esc_html__( 'Install Claude Code if you haven’t yet: %s.', 'acrossai-mcp-manager' ),
-							'<code>npm install -g @anthropic-ai/claude-code</code>'
-						);
-					?>
-						</li>
-					<li><?php esc_html_e( 'Open a terminal and run:', 'acrossai-mcp-manager' ); ?>
-						<pre class="acrossai-mcp-connector-panel__setup-cmd"><code><?php echo esc_html( $cli_cmd ); ?></code></pre>
-					</li>
-					<li><?php esc_html_e( 'Follow the browser OAuth flow when Claude Code prints the authorization URL.', 'acrossai-mcp-manager' ); ?></li>
-					<li>
-					<?php
-						printf(
-							/* translators: %s: inline code for the verify command */
-							esc_html__( 'Verify with %s — the acrossai server should list as connected.', 'acrossai-mcp-manager' ),
-							'<code>claude mcp list</code>'
-						);
-					?>
-						</li>
-				</ol>
-			</section>
-
-			<p class="acrossai-mcp-connector-panel__setup-footnote">
-				<?php
-				printf(
-					/* translators: %s: link to the AcrossAI Claude Connectors docs */
-					esc_html__( 'Still stuck? Full walkthroughs, screenshots, and troubleshooting live at %s.', 'acrossai-mcp-manager' ),
-					'<a href="' . esc_url( $docs_url ) . '" target="_blank" rel="noopener noreferrer">acrossai.co/claude-connectors/</a>'
-				);
-				?>
-			</p>
-		</div>
-		<?php
-		return (string) ob_get_clean();
+		return $spec;
 	}
 
 	/**
@@ -344,12 +319,6 @@ final class ClaudeConnectorProfile extends \AcrossAI_MCP_Manager\Includes\Connec
 	 * @param array<string, mixed> $server Server row.
 	 * @return void
 	 */
-	protected function render_card_body( array $server ): void {
-		parent::render_card_body( $server );
-
-		$mcp_url = self::mcp_url_for_server( $server );
-		echo wp_kses_post( $this->get_mcp_url_setup_html( $mcp_url ) );
-	}
 
 	// F021 Phase 9 (2026-07-11): render_tab_section is now inherited from
 	// AbstractConnectorProfile::render_default_card. The base plugin's shared

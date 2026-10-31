@@ -308,125 +308,54 @@ final class CursorConnectorProfile extends \AcrossAI_MCP_Manager\Includes\Connec
 	}
 
 	/**
-	 * Cursor-branded "How to connect" panel. Covers the two paths Cursor
-	 * supports for a remote MCP server — the built-in Settings UI and the
-	 * JSON config file — then links to acrossai.co/cursor-connectors/ for
-	 * the fuller walkthrough. Cursor uses Dynamic Client Registration, so
-	 * no credentials need to be pasted anywhere.
+	 * Setup instructions for this connector, as a spec for the shared
+	 * renderer.
+	 *
+	 * The per-surface walkthroughs that used to live here moved to the
+	 * documentation site; what stays is the fast path plus anything the
+	 * operator cannot get anywhere else, such as a value derived from this
+	 * site. See {@see AbstractConnectorProfile::render_setup_panel()} for
+	 * the spec keys.
+	 *
+	 * Cursor uses Dynamic Client Registration, so no credentials need to be
+	 * pasted anywhere on the usual path.
 	 *
 	 * @param string $mcp_url MCP endpoint URL.
-	 * @return string HTML.
+	 * @return array<string, mixed> Spec for the shared panel renderer.
 	 * @since 0.9.2
 	 */
-	public function get_mcp_url_setup_html( string $mcp_url ): string {
-		$docs_url = 'https://acrossai.co/cursor-connectors/';
-		$json_cfg = '{
-  "mcpServers": {
-    "acrossai": {
-      "url": "' . $mcp_url . '"
-    }
-  }
-}';
-		ob_start();
-		?>
-		<div class="acrossai-mcp-connector-panel__setup">
-			<h4 class="acrossai-mcp-connector-panel__setup-title"><?php esc_html_e( 'How to connect Cursor', 'acrossai-mcp-manager' ); ?></h4>
-			<p class="acrossai-mcp-connector-panel__setup-lead"><?php esc_html_e( 'Custom MCP connectors on Cursor require a paid plan (Pro, Pro+, Ultra, Teams, or Enterprise). The free Hobby plan does not support MCP servers, skills, or hooks. Three places to add the AcrossAI server: the Cursor editor, cursor.com/agents (Cloud / Background Agents), or a JSON config file.', 'acrossai-mcp-manager' ); ?></p>
+	protected function get_setup_spec( string $mcp_url ): array {
+		$spec = array(
+			'name'       => 'Cursor',
+			'lead'       => __( 'Cursor runs on your machine, so it can reach local sites that hosted assistants cannot.', 'acrossai-mcp-manager' ),
+			'open_label' => __( 'Open Cursor settings', 'acrossai-mcp-manager' ),
+			'open_url'   => 'https://cursor.com/settings',
+			'steps'      => array(
+				array( 'text' => __( 'In Cursor, open Settings > MCP & Integrations', 'acrossai-mcp-manager' ) ),
+				array( 'text' => __( 'Click New MCP Server to open the "Add a Custom MCP" dialog', 'acrossai-mcp-manager' ) ),
+				array(
+					'text' => __( 'Fill in Name', 'acrossai-mcp-manager' ),
+					'copy' => $this->get_connector_name(),
+					'note' => __( 'Anything works — the name is only so you recognise this server in your list. This one matches the site.', 'acrossai-mcp-manager' ),
+				),
+				array( 'text' => __( 'Leave Type set to URL, not Command', 'acrossai-mcp-manager' ) ),
+				array(
+					'text' => __( 'Paste the MCP endpoint URL into Server URL', 'acrossai-mcp-manager' ),
+					'url'  => true,
+				),
+				array(
+					'text' => __( 'Leave Headers empty, click Add MCP, then approve the consent screen', 'acrossai-mcp-manager' ),
+					'note' => __( 'No headers are needed — Cursor registers itself and signs in through your browser.', 'acrossai-mcp-manager' ),
+					'open' => true,
+				),
+			),
+			'plan'       => __( 'Custom MCP servers need a paid Cursor plan — the free Hobby plan does not include them.', 'acrossai-mcp-manager' ),
+			'docs_url'   => 'https://acrossai.co/docs/connect-cursor-troubleshooting/',
+		);
 
-			<section class="acrossai-mcp-connector-panel__setup-section">
-				<h5><?php esc_html_e( 'Cursor editor (in-app)', 'acrossai-mcp-manager' ); ?></h5>
-				<ol class="acrossai-mcp-connector-panel__setup-steps">
-					<li><?php esc_html_e( 'Open Cursor and press ⌘/Ctrl + , to open Cursor Settings.', 'acrossai-mcp-manager' ); ?></li>
-					<li><?php esc_html_e( 'In the sidebar, go to Features → MCP, then click + Add New MCP Server.', 'acrossai-mcp-manager' ); ?></li>
-					<li>
-					<?php
-						printf(
-							/* translators: 1: connector name suggestion as inline code, 2: transport type as inline code, 3: MCP URL as inline code */
-							esc_html__( 'Fill the dialog: Name %1$s, Transport Type %2$s (for remote servers), URL %3$s.', 'acrossai-mcp-manager' ),
-							'<code>acrossai</code>',
-							'<code>streamable-http</code>',
-							'<code>' . esc_html( $mcp_url ) . '</code>'
-						);
-					?>
-						</li>
-					<li><?php esc_html_e( 'Save. A green dot next to the server name means it connected. Cursor opens the browser OAuth flow — approve the consent screen on this WordPress site.', 'acrossai-mcp-manager' ); ?></li>
-				</ol>
-			</section>
-
-			<section class="acrossai-mcp-connector-panel__setup-section">
-				<h5><?php esc_html_e( 'Cursor Cloud / Background Agents (cursor.com/agents)', 'acrossai-mcp-manager' ); ?></h5>
-				<ol class="acrossai-mcp-connector-panel__setup-steps">
-					<li>
-					<?php
-						printf(
-							/* translators: %s: URL to Cursor Cloud Agents dashboard */
-							esc_html__( 'Sign in at %s with a paid Cursor account (free Hobby users won’t see the MCP options).', 'acrossai-mcp-manager' ),
-							'<a href="https://cursor.com/agents" target="_blank" rel="noopener noreferrer">cursor.com/agents</a>'
-						);
-					?>
-						</li>
-					<li><?php esc_html_e( 'Open your Agent (or create one), then go to its MCP Servers section and click Add MCP Server.', 'acrossai-mcp-manager' ); ?></li>
-					<li>
-					<?php
-						printf(
-							/* translators: 1: connector name suggestion, 2: transport type as inline code, 3: MCP URL as inline code */
-							esc_html__( 'Fill the fields: Name %1$s, Transport %2$s, URL %3$s. Leave headers/auth empty — the OAuth handshake happens on first use.', 'acrossai-mcp-manager' ),
-							'<code>acrossai</code>',
-							'<code>streamable-http</code>',
-							'<code>' . esc_html( $mcp_url ) . '</code>'
-						);
-					?>
-						</li>
-					<li><?php esc_html_e( 'Save. The Agent lists AcrossAI under its MCP Servers; the first task that uses it triggers the OAuth consent screen on this WordPress site. Teams can also promote a server via "Add to Team Marketplace" to make it available to every teammate’s Agent, IDE, and CLI at once.', 'acrossai-mcp-manager' ); ?></li>
-				</ol>
-			</section>
-
-			<section class="acrossai-mcp-connector-panel__setup-section">
-				<h5><?php esc_html_e( 'JSON config file (~/.cursor/mcp.json or .cursor/mcp.json)', 'acrossai-mcp-manager' ); ?></h5>
-				<ol class="acrossai-mcp-connector-panel__setup-steps">
-					<li>
-					<?php
-						printf(
-							/* translators: 1: global config path as inline code, 2: project config path as inline code */
-							esc_html__( 'Open (or create) %1$s (global — every project on your machine) or %2$s (this project only).', 'acrossai-mcp-manager' ),
-							'<code>~/.cursor/mcp.json</code>',
-							'<code>.cursor/mcp.json</code>'
-						);
-					?>
-						</li>
-					<li><?php esc_html_e( 'Merge this entry into the mcpServers block (or paste it whole if the file is empty):', 'acrossai-mcp-manager' ); ?>
-						<pre class="acrossai-mcp-connector-panel__setup-cmd"><code><?php echo esc_html( $json_cfg ); ?></code></pre>
-					</li>
-					<li><?php esc_html_e( 'Save the file. Cursor picks up the new entry on the next window; if not, reload with ⌘/Ctrl + Shift + P → "Reload Window".', 'acrossai-mcp-manager' ); ?></li>
-					<li><?php esc_html_e( 'Open Cursor Settings → Features → MCP, click the acrossai row, and approve the OAuth consent screen when it opens on this WordPress site.', 'acrossai-mcp-manager' ); ?></li>
-				</ol>
-			</section>
-
-			<p class="acrossai-mcp-connector-panel__setup-footnote">
-				<?php
-				printf(
-					/* translators: %s: link to the AcrossAI Cursor Connectors docs */
-					esc_html__( 'Still stuck? Full walkthroughs, screenshots, and troubleshooting live at %s.', 'acrossai-mcp-manager' ),
-					'<a href="' . esc_url( $docs_url ) . '" target="_blank" rel="noopener noreferrer">acrossai.co/cursor-connectors/</a>'
-				);
-				?>
-			</p>
-		</div>
-		<?php
-		return (string) ob_get_clean();
+		return $spec;
 	}
 
-	/**
-	 * Render the Cursor "How to connect" panel below the standard card.
-	 *
-	 * @param array<string, mixed> $server Server row.
-	 * @return void
-	 */
-	protected function render_card_body( array $server ): void {
-		parent::render_card_body( $server );
-		$mcp_url = self::mcp_url_for_server( $server );
-		echo wp_kses_post( $this->get_mcp_url_setup_html( $mcp_url ) );
-	}
 
 	// render_tab_section is inherited from
 	// AbstractConnectorProfile::render_default_card — the shared CSS + JS
