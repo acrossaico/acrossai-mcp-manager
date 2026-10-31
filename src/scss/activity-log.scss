@@ -1,0 +1,307 @@
+/*
+ * MCP Activity Log — screen styling.
+ *
+ * There was no stylesheet for this screen at all: the entry imported no SCSS,
+ * so webpack never emitted `build/js/activity-log.css` and the `file_exists`
+ * guard in ActivityLogPage silently enqueued nothing. The screen ran on
+ * @wordpress/components defaults, which is why the stat tiles floated as four
+ * separate cards and the table had no header band or row rules.
+ *
+ * Values come from the "MCP Activity Log" design file rather than being
+ * approximated, so a later diff against it means something.
+ *
+ * The one deliberate departure: the design draws the stats as a borderless
+ * grid inside the card. That reads well in a mock at a fixed width, but the
+ * admin menu can collapse and the sidebar reflows, so the cells here wrap and
+ * drop their divider on the wrapped edge instead of leaving a hanging rule.
+ */
+
+$ink: #1e1e1e;
+$muted: #646970;
+$dim: #3c434a;
+$line: #dcdcde;
+$hair: #f0f0f1;
+$band: #f6f7f7;
+$brand: #3858e9;
+$ok: #008a20;
+$bad: #d63638;
+
+.acrossai-mcp-activity {
+	color: $ink;
+
+	// ---- page head ------------------------------------------------------
+	&__lead {
+		margin: 0 0 16px;
+		max-width: 720px;
+		font-size: 13.5px;
+		line-height: 1.6;
+		color: $muted;
+		text-wrap: pretty;
+	}
+
+	// ---- the card everything sits in ------------------------------------
+	// The design wraps the controls, stats, table and footer in one white
+	// card. Without it the stat tiles read as four unrelated widgets.
+	&__card {
+		background: #fff;
+		border: 1px solid $line;
+		display: flex;
+		flex-direction: column;
+	}
+
+	&__controls {
+		// The <Flex> this lands on is emotion-styled and content-box, so the
+		// 28px side padding was added on top of width:100% and pushed the row
+		// 56px wider than the card — the whole page scrolled sideways for it.
+		box-sizing: border-box;
+		display: flex;
+		align-items: flex-end;
+		justify-content: space-between;
+		gap: 20px;
+		flex-wrap: wrap;
+		width: 100%;
+		padding: 20px 28px 16px;
+		border-bottom: 1px solid $hair;
+	}
+
+	// ---- stats ----------------------------------------------------------
+	&__stats {
+		display: grid;
+		grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+		border-bottom: 1px solid $line;
+	}
+
+	&__tile {
+		display: flex;
+		flex-direction: column;
+		gap: 6px;
+		padding: 18px 28px;
+		border-right: 1px solid $hair;
+
+		&:last-child {
+			border-right: 0;
+		}
+	}
+
+	&__tile-label {
+		font-size: 12.5px;
+		line-height: 1.4;
+		color: $muted;
+	}
+
+	&__tile-value {
+		font-size: 26px;
+		font-weight: 600;
+		line-height: 1.15;
+		letter-spacing: -0.3px;
+		font-variant-numeric: tabular-nums;
+	}
+
+	// The context line sits under the tiles, not in one: it describes the
+	// whole period rather than being a fifth metric of the same kind.
+	&__context {
+		margin: 0;
+		padding: 12px 28px;
+		border-bottom: 1px solid $hair;
+		font-size: 12.5px;
+		line-height: 1.5;
+		color: $muted;
+	}
+
+	&__footnote {
+		margin: 0;
+		padding: 14px 28px;
+		font-size: 12.5px;
+		line-height: 1.5;
+		color: $muted;
+	}
+
+	// ---- table ----------------------------------------------------------
+	// DataViews owns this markup, so these reach into its classes. Scoped
+	// under the screen's own root so no other DataViews table is touched.
+	.dataviews-view-table {
+		// DataViews leaves the table at its content width. Inside a full-width
+		// card that left ~740px of empty white to the right of the last column,
+		// which read as a broken layout rather than a roomy one.
+		width: 100%;
+		font-size: 13.5px;
+
+		// The table is border-collapse: separate, so the UA default 2px
+		// border-spacing pushed every cell 2px off the card's 28px gutter.
+		border-spacing: 0;
+
+		// DataViews ships `padding: 1px` on th and td and puts the only real
+		// inset on the header BUTTON (4px 12px). So header labels sat 12px in
+		// while the values under them sat flush against the column edge, and
+		// the first column touched the card border while every other block in
+		// this card is inset 28px. Both insets are set here instead: equal
+		// padding on th and td, the button's own padding zeroed so the two line
+		// up, and a 28px gutter on the outer edges to meet the rest of the card.
+		th,
+		td {
+			padding: 9px 12px;
+		}
+
+		thead th {
+			background: $band;
+			border-top: 1px solid $line;
+			border-bottom: 1px solid $line;
+			font-size: 12px;
+			font-weight: 600;
+			color: $dim;
+			white-space: nowrap;
+			// DataViews centres the header cell, which left every label
+			// floating over the middle of its column instead of sitting above
+			// the first character of the values beneath it.
+			text-align: start;
+			padding-top: 10px;
+			padding-bottom: 10px;
+		}
+
+		tbody td {
+			border-bottom: 1px solid $hair;
+			line-height: 1.45;
+		}
+
+		th:first-child,
+		td:first-child {
+			padding-left: 28px;
+		}
+
+		th:last-child,
+		td:last-child {
+			padding-right: 28px;
+		}
+
+		.dataviews-view-table-header-button {
+			padding: 0;
+			min-height: 0;
+			height: auto;
+		}
+
+		// Give the slack to the prose columns. The table's auto layout shared
+		// it out in proportion to content, which blew Connection out to 508px
+		// of mostly empty space while the figures stayed cramped. `width: 1%`
+		// is the standard way to ask a cell for its content width and no more;
+		// the last five are Status through Actions on both surfaces, with or
+		// without the Server column, so this does not depend on the count.
+		th:first-child,
+		td:first-child,
+		th:nth-last-child(-n + 5),
+		td:nth-last-child(-n + 5) {
+			width: 1%;
+			white-space: nowrap;
+		}
+
+		tbody tr:hover td {
+			background: $band;
+		}
+	}
+
+	// Numeric columns line up on the decimal, and never wrap mid-value.
+	&__num {
+		display: inline-block;
+		font-variant-numeric: tabular-nums;
+		white-space: nowrap;
+	}
+
+	// ---- cell internals -------------------------------------------------
+	&__stamp {
+		display: flex;
+		flex-direction: column;
+		gap: 1px;
+		white-space: nowrap;
+	}
+
+	&__clock {
+		font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+		font-size: 12.5px;
+		font-variant-numeric: tabular-nums;
+	}
+
+	&__date {
+		font-size: 11.5px;
+		color: $muted;
+	}
+
+	&__conn {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		flex-wrap: wrap;
+	}
+
+	&__conn-name {
+		font-weight: 500;
+	}
+
+	&__conn-version {
+		font-size: 12px;
+		color: $muted;
+		font-variant-numeric: tabular-nums;
+	}
+
+	&__chip {
+		padding: 1px 6px;
+		border: 1px solid $line;
+		border-radius: 2px;
+		font-size: 11px;
+		color: #50575e;
+		white-space: nowrap;
+	}
+
+	&__status {
+		display: inline-flex;
+		align-items: center;
+		gap: 6px;
+		font-size: 12.5px;
+
+		&::before {
+			content: "";
+			width: 7px;
+			height: 7px;
+			border-radius: 50%;
+			background: currentcolor;
+			flex: none;
+		}
+
+		&--success {
+			color: $ok;
+		}
+
+		&--error,
+		&--denied,
+		&--invalid_input {
+			color: $bad;
+		}
+	}
+
+	// Duration as a bar plus the figure. The bar is comparative only — it is
+	// scaled against the slowest row on the page, so it answers "which of
+	// these was slow" and deliberately not "how slow in absolute terms".
+	&__dur {
+		display: inline-flex;
+		align-items: center;
+		gap: 8px;
+		white-space: nowrap;
+	}
+
+	&__dur-track {
+		width: 44px;
+		height: 4px;
+		background: $hair;
+		border-radius: 2px;
+		overflow: hidden;
+		display: flex;
+		flex: none;
+	}
+
+	&__dur-fill {
+		background: #8c8f94;
+	}
+
+	&__dur-value {
+		min-width: 44px;
+		font-variant-numeric: tabular-nums;
+	}
+}

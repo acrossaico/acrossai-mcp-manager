@@ -5,7 +5,6 @@
  */
 
 import { __, sprintf } from '@wordpress/i18n';
-import { Flex, FlexItem, Card, CardBody } from '@wordpress/components';
 import { formatContextCost, formatDuration } from './format';
 
 /**
@@ -45,29 +44,22 @@ export default function StatTiles( { summary } ) {
 
 	return (
 		<>
-			<Flex gap={ 3 } align="stretch" wrap>
+			{ /* A bordered grid, not four Cards. The Card version floated them
+			   as separate widgets above an unrelated table; these are one
+			   reading of one period and belong inside the same frame. */ }
+			<div className="acrossai-mcp-activity__stats">
 				{ tiles.map( ( tile ) => (
-					<FlexItem key={ tile.label } style={ { flex: '1 1 180px' } }>
-						<Card size="small">
-							<CardBody>
-								<p
-									className="acrossai-mcp-activity__tile-label"
-									style={ { margin: 0, color: '#646970', fontSize: '12px' } }
-								>
-									{ tile.label }
-								</p>
-								<p
-									className="acrossai-mcp-activity__tile-value"
-									style={ { margin: '4px 0 0', fontSize: '20px', fontWeight: 600 } }
-								>
-									{ tile.value }
-								</p>
-							</CardBody>
-						</Card>
-					</FlexItem>
+					<div className="acrossai-mcp-activity__tile" key={ tile.label }>
+						<span className="acrossai-mcp-activity__tile-label">
+							{ tile.label }
+						</span>
+						<span className="acrossai-mcp-activity__tile-value">
+							{ tile.value }
+						</span>
+					</div>
 				) ) }
-			</Flex>
-			<p className="description" style={ { marginTop: '8px' } }>
+			</div>
+			<p className="acrossai-mcp-activity__context">
 				{ sprintf(
 					/* translators: %s: formatted context size with approximate token count. */
 					__( 'Context returned this period: %s', 'acrossai-mcp-manager' ),

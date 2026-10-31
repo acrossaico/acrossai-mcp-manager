@@ -108,3 +108,31 @@ export function connectionLabel( type ) {
 
 	return labels[ type ] || type;
 }
+
+/**
+ * A derived token count on its own, for the Tokens column.
+ *
+ * Carries the same "≈" marker as formatContextCost, and for the same reason:
+ * this log cannot see real LLM usage, so every figure here is bytes divided by
+ * a constant. A bare number in a sortable column is the easiest thing in the
+ * screen to paste into a cost report, which is exactly what the marker is for.
+ *
+ * @param {number|null} tokens Server-derived approximate token count.
+ * @return {string} e.g. "≈ 3.1k", or an em dash.
+ */
+export function formatApproxTokens( tokens ) {
+	if ( tokens === null || tokens === undefined ) {
+		return '—';
+	}
+
+	const rounded =
+		tokens >= 1000
+			? sprintf( '%sk', ( tokens / 1000 ).toFixed( 1 ) )
+			: String( tokens );
+
+	return sprintf(
+		/* translators: %s: approximate token count, e.g. "3.1k". */
+		__( '≈ %s', 'acrossai-mcp-manager' ),
+		rounded,
+	);
+}

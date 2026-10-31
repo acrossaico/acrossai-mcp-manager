@@ -22,6 +22,7 @@ import {
 import { DataViews } from '@wordpress/dataviews';
 import StatTiles from './StatTiles';
 import DetailPanel from './DetailPanel';
+import '../../scss/activity-log.scss';
 import { getFields, getDefaultView } from './fields';
 
 const NS = '/acrossai-mcp-manager/v1';
@@ -47,7 +48,17 @@ function ActivityLog( { serverId, showServer, config } ) {
 	const [ confirmPurge, setConfirmPurge ] = useState( false );
 	const [ openRow, setOpenRow ] = useState( null );
 
-	const fields = useMemo( () => getFields( showServer ), [ showServer ] );
+	// Scaled against the slowest row currently shown, so the bars answer
+	// "which of these was slow" rather than implying an absolute budget.
+	const maxDurationMs = useMemo(
+		() => events.reduce( ( max, row ) => Math.max( max, row.duration_ms ?? 0 ), 0 ),
+		[ events ],
+	);
+
+	const fields = useMemo(
+		() => getFields( showServer, maxDurationMs ),
+		[ showServer, maxDurationMs ],
+	);
 
 	const load = async () => {
 		setLoading( true );
@@ -161,69 +172,78 @@ function ActivityLog( { serverId, showServer, config } ) {
 				</Notice>
 			) }
 
-			<Flex justify="space-between" align="flex-end" style={ { margin: '12px 0' } } wrap>
-				<FlexItem>
-					<Flex gap={ 2 }>
-						<FlexItem>
-							<Button
-								variant={ eventType === 'request' ? 'primary' : 'secondary' }
-								size="compact"
-								onClick={ () => setEventType( 'request' ) }
-							>
-								{ __( 'Requests', 'acrossai-mcp-manager' ) }
-							</Button>
-						</FlexItem>
-						<FlexItem>
-							{ /* A filter, not a tab: it is one table, and the
+			<div className="acrossai-mcp-activity__card">
+				<Flex justify="space-between" align="flex-end" className="acrossai-mcp-activity__controls" wrap>
+					<FlexItem>
+						<Flex gap={ 2 }>
+							<FlexItem>
+								<Button
+									variant={ eventType === 'request' ? 'primary' : 'secondary' }
+									size="compact"
+									onClick={ () => setEventType( 'request' ) }
+								>
+									{ __( 'Requests', 'acrossai-mcp-manager' ) }
+								</Button>
+							</FlexItem>
+							<FlexItem>
+								{ /* A filter, not a tab: it is one table, and the
 							distinction is why the parent/child tree works. */ }
-							<Button
-								variant={ eventType === 'ability' ? 'primary' : 'secondary' }
-								size="compact"
-								onClick={ () => setEventType( 'ability' ) }
-							>
-								{ __( 'Abilities', 'acrossai-mcp-manager' ) }
-							</Button>
-						</FlexItem>
-					</Flex>
-				</FlexItem>
-				<FlexItem>
-					<SelectControl
-						label={ __( 'Period', 'acrossai-mcp-manager' ) }
-						value={ days }
-						options={ [
-							{ value: '1', label: __( 'Last 24 hours', 'acrossai-mcp-manager' ) },
-							{ value: '7', label: __( 'Last 7 days', 'acrossai-mcp-manager' ) },
-							{ value: '30', label: __( 'Last 30 days', 'acrossai-mcp-manager' ) },
-						] }
-						onChange={ setDays }
-						__nextHasNoMarginBottom
-					/>
-				</FlexItem>
-			</Flex>
+								<Button
+									variant={ eventType === 'ability' ? 'primary' : 'secondary' }
+									size="compact"
+									onClick={ () => setEventType( 'ability' ) }
+								>
+									{ __( 'Abilities', 'acrossai-mcp-manager' ) }
+								</Button>
+							</FlexItem>
+						</Flex>
+					</FlexItem>
+					<FlexItem>
+						<SelectControl
+							label={ __( 'Period', 'acrossai-mcp-manager' ) }
+							value={ days }
+							options={ [
+								{ value: '1', label: __( 'Last 24 hours', 'acrossai-mcp-manager' ) },
+								{ value: '7', label: __( 'Last 7 days', 'acrossai-mcp-manager' ) },
+								{ value: '30', label: __( 'Last 30 days', 'acrossai-mcp-manager' ) },
+							] }
+							onChange={ setDays }
+							__nextHasNoMarginBottom
+						/>
+					</FlexItem>
+				</Flex>
 
-			<StatTiles summary={ summary } />
+				<StatTiles summary={ summary } />
 
-			<div style={ { marginTop: '16px' } }>
-				{ loading ? (
-					<Spinner />
-				) : (
-					<DataViews
-						data={ events }
-						fields={ fields }
-						view={ view }
-						onChangeView={ setView }
-						paginationInfo={ { totalItems: events.length, totalPages: 1 } }
-						getItemId={ ( item ) => String( item.id ) }
-						defaultLayouts={ { table: {} } }
-						actions={ [
-							{
-								id: 'detail',
-								label: __( 'Details', 'acrossai-mcp-manager' ),
-								callback: ( items ) => setOpenRow( items[ 0 ] ),
-							},
-						] }
-					/>
-				) }
+				<div className="acrossai-mcp-activity__table">
+					{ loading ? (
+						<Spinner />
+					) : (
+						<DataViews
+							data={ events }
+							fields={ fields }
+							view={ view }
+							onChangeView={ setView }
+							paginationInfo={ { totalItems: events.length, totalPages: 1 } }
+							getItemId={ ( item ) => String( item.id ) }
+							defaultLayouts={ { table: {} } }
+							actions={ [
+								{
+									id: 'detail',
+									label: __( 'Details', 'acrossai-mcp-manager' ),
+									callback: ( items ) => setOpenRow( items[ 0 ] ),
+								},
+							] }
+						/>
+					) }
+				</div>
+
+				<p className="acrossai-mcp-activity__footnote">
+					{ __(
+						'Token figures are derived from the bytes returned, at roughly four bytes per token. They are an estimate of context size, not billed usage.',
+						'acrossai-mcp-manager',
+					) }
+				</p>
 			</div>
 
 			{ ! loading && events.length === 0 && (
