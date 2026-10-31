@@ -26,18 +26,17 @@ $brand: #3858e9;
 $ok: #008a20;
 $bad: #d63638;
 
+// The per-server Logs tab prints no heading above the card any more, so the
+// card sat flush against the tab bar's bottom border. The global Activity page
+// takes its spacing from the page's own <h1> and lead, which is why this is
+// scoped to the tab's mount point rather than put on the card: a Notice can
+// render above the card there, so the card is not reliably the first child.
+.mcp-tab-panel > #acrossai-mcp-activity-root {
+	margin-top: 20px;
+}
+
 .acrossai-mcp-activity {
 	color: $ink;
-
-	// ---- page head ------------------------------------------------------
-	&__lead {
-		margin: 0 0 16px;
-		max-width: 720px;
-		font-size: 13.5px;
-		line-height: 1.6;
-		color: $muted;
-		text-wrap: pretty;
-	}
 
 	// ---- the card everything sits in ------------------------------------
 	// The design wraps the controls, stats, table and footer in one white
