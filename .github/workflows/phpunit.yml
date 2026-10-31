@@ -251,12 +251,6 @@ jobs:
       - name: Run PHPUnit — F035 discovery suite
         run: vendor/bin/phpunit --bootstrap tests/bootstrap-wp.php --testsuite discovery
 
-      - name: Run PHPUnit — F037 embeds suite
-        run: vendor/bin/phpunit --bootstrap tests/bootstrap-wp.php --testsuite embeds
-
-      - name: Run PHPUnit — F038 user-servers suite
-        run: vendor/bin/phpunit --bootstrap tests/bootstrap-wp.php --testsuite user-servers
-
       - name: Run PHPUnit — remaining suite (REST / utilities / uninstall)
         run: vendor/bin/phpunit --bootstrap tests/bootstrap-wp.php --testsuite remaining
 

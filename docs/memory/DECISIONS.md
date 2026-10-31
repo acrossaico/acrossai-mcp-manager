@@ -2234,7 +2234,16 @@ Related: research.md R3 (observability-fail-forward); future `B-ERROR-LOG-DISCLO
 ### 2026-07-29 - D40 — User-scoped enumeration primitives compose existing gates — never re-implement them
 
 **Status**
-Active
+Active (amended 2026-10-31 — the rule stands; the code it governs moved to acrossai-pro)
+
+**Amendment — 2026-10-31**
+F037's transport subsystem and F038's `[acrossai_mcp_servers]` shortcode both moved to acrossai-pro, and this plugin no longer ships a user-scoped enumeration primitive at all. Do not go looking for one here.
+
+The rule itself is NOT superseded. It survived the move intact because both halves moved together: the primitive still composes `Dto_Source::user_has_server_access()` (which delegates to this plugin's F015 wrapper across the plugin boundary) and `Abstract_Embed_Transport::is_enabled_for_server()`, and still reads neither `_embeds_enabled` nor `_embeds_clients` directly. Splitting them would have broken it — which is precisely why the move waited until both could go at once. Pro enforces the same three grep-gates in its `StorageContractTest`.
+
+What changed is only the address. The canonical example is now `AcrossAI_Pro\Includes\McpEmbeds\UserServers\Abstract_User_Servers_Renderer::get_accessible_servers()`. The sub-rule below — that the abstract base MAY live in the public layer despite D36 — travelled with it for the same reason, and is recorded in that class's docblock.
+
+One naming note worth keeping: the host accessor Pro added for the enumeration is called `enabled_servers()`, deliberately not `accessible_servers()`. It applies no gate; it is the input TO the gates. Naming it for what the caller does with it would have implied the cascade lived in two places, which is the drift this decision exists to prevent.
 
 **Why this is durable**
 F038 introduces the first "list what the current user can reach" primitive on the frontend surface. Two competing implementation shapes appeared during planning: (a) compose the shipped F015 + F037 gate cascade end-to-end (`user_has_server_access` + `is_enabled_for_server`), or (b) inline the underlying meta reads for "performance". The inline approach creates two enumeration paths per subsystem that WILL drift — the exact class of bug F035 fixed for MCP clients (D35, B32). F038 codified the composition-only rule and enforces it via three grep-gates (FR-023, FR-024, FR-025) at review time.
@@ -2254,7 +2263,7 @@ F038 also codified a second sub-rule: the abstract data-only base MAY live under
 - Reconsider: A companion-plugin author who subclasses the base can override `get_accessible_servers()` and skip the gate cascade for their context. That is the base's design (extension surface); documented as consumer responsibility.
 - Reconsider (SEC-001): Consumers passing an arbitrary `$target_user_id` (BuddyPress-style profile widgets) are responsible for their own caller-authority gate. F038 evaluates the F015 gate FOR the target user, not against the calling viewer's authority. Documented in class docblock + contract file.
 
-Canonical example: `public/Renderers/UserServers/AbstractUserServersRenderer::get_accessible_servers()` shipped in F038.
+Canonical example: `public/Renderers/UserServers/AbstractUserServersRenderer::get_accessible_servers()`, shipped in F038 and since relocated — see the amendment above.
 
 Related: D35 (self-contained subsystem contract), D36 (final class for public @experimental — precedent-based deviation documented here), DEC-ACCESS-CONTROL-V2-ADOPTION (F015 wrapper contract), DEC-CLIENT-RENDERER-PUBLIC-API (public/ layer stability), B32 (canonical resolver rule).
 

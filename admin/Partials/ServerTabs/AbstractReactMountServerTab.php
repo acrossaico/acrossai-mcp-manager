@@ -116,8 +116,10 @@
  *
  * - `AbstractServerTab` — parent class; use directly for tabs that don't
  *   need React / REST / persistent state (e.g. read-only info panels).
- * - `AbstractEmbedTransport` — the F037-specific transport gate; unrelated
- *   to this class but often extended by companion plugins alongside it.
+ * - `FilteredServerTab` — for tabs whose visibility depends on the server.
+ *
+ * The F037 transport gate used to be listed here as a thing companion plugins
+ * extend alongside this class. It lives in acrossai-pro now.
  *
  * @package    AcrossAI_MCP_Manager
  * @subpackage Admin/Partials/ServerTabs
