@@ -116,6 +116,32 @@ $bad: #d63638;
 		color: $muted;
 	}
 
+	// ---- DataViews toolbar ----------------------------------------------
+	// The search / filter / view-options row ships with no padding of its own,
+	// so it was a bare 32px strip pressed flush against the card's left edge
+	// and wedged between the context line above and the table's header band
+	// below, with nothing separating the three. Same 28px gutter as every
+	// other block in this card, and room to breathe above and below.
+	/* stylelint-disable-next-line selector-class-pattern -- DataViews' own class name. */
+	.dataviews__view-actions {
+		padding: 14px 28px;
+		align-items: center;
+	}
+
+	// Filters render in their own row once one is added. Top padding is zero
+	// so the filter chips sit under the search box rather than a gap away.
+	/* stylelint-disable-next-line selector-class-pattern -- DataViews' own class name. */
+	.dataviews-filters__container {
+		padding: 0 28px 14px;
+	}
+
+	// The default search box is 182px, which reads as a stub against a table
+	// this wide. Capped at 100% so it still collapses on a narrow screen.
+	.dataviews-search {
+		width: 260px;
+		max-width: 100%;
+	}
+
 	// ---- table ----------------------------------------------------------
 	// DataViews owns this markup, so these reach into its classes. Scoped
 	// under the screen's own root so no other DataViews table is touched.
