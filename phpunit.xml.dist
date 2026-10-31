@@ -90,27 +90,12 @@
             wp_create_nonce, WP_Application_Passwords. Run with
             the bootstrap tests/bootstrap-wp.php.
 
-            Exclude tests/phpunit/Public/Renderers/UserServers/ — that
-            subdirectory is exercised by the separate F038 `user-servers`
-            suite below to avoid double-run.
+            The F038 `user-servers` suite that used to sit below this one, and
+            the UserServers exclude that kept the two from double-running, both
+            went with the [acrossai_mcp_servers] shortcode to acrossai-pro.
         -->
         <testsuite name="renderers">
             <directory>tests/phpunit/Public/Renderers</directory>
-            <exclude>tests/phpunit/Public/Renderers/UserServers</exclude>
-        </testsuite>
-
-        <!--
-            User Servers (Feature 038): tests for
-            public/Renderers/UserServers/ — the [acrossai_mcp_servers]
-            shortcode + AbstractUserServersRenderer reusable base class.
-            Composes F011 MCPServerQuery + F015 access-control wrapper +
-            F035 ConnectionMethodRegistry (via F037 transport DTOs) +
-            F037 AbstractEmbedTransport per-DTO gate. Requires WP for
-            BerlinDB Query, shortcode API, F015 wrapper (optional
-            integration) — use tests/bootstrap-wp.php per A18.
-        -->
-        <testsuite name="user-servers">
-            <directory>tests/phpunit/Public/Renderers/UserServers</directory>
         </testsuite>
 
 
@@ -171,16 +156,13 @@
         </testsuite>
 
         <!--
-            Embeds (Feature 037): tests for includes/Embeds/,
-            admin/Partials/ServerTabs/EmbedsTab.php, and
-            public/Renderers/EmbedBlock/EmbedBlockRenderer.php. Requires WP
-            for BerlinDB Query, WP options, shortcode API, F015 access
-            control wrapper (optional integration) — use tests/bootstrap-wp.php
-            per A18.
+            Feature 037's `embeds` suite stood here. The transport subsystem it
+            covered moved to acrossai-pro, which tests it under
+            `composer test:mcp-embeds` there. The other two paths this comment
+            named — admin/Partials/ServerTabs/EmbedsTab.php and
+            public/Renderers/EmbedBlock/EmbedBlockRenderer.php — had already
+            gone in F182 (#199), which handed the embed surface over.
         -->
-        <testsuite name="embeds">
-            <directory>tests/phpunit/Embeds</directory>
-        </testsuite>
 
         <!--
             Everything that has no thematic suite of its own. These four

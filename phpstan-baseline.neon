@@ -1297,18 +1297,6 @@ parameters:
 			path: includes/Discovery/DiscoveryConnectorAdapter.php
 
 		-
-			message: '#^Call to function is_string\(\) with class\-string will always evaluate to true\.$#'
-			identifier: function.alreadyNarrowedType
-			count: 1
-			path: includes/Embeds/AbstractEmbedTransport.php
-
-		-
-			message: '#^Call to function is_string\(\) with string will always evaluate to true\.$#'
-			identifier: function.alreadyNarrowedType
-			count: 1
-			path: includes/Embeds/AbstractEmbedTransport.php
-
-		-
 			message: '#^Method AcrossAI_MCP_Manager\\Includes\\I18n\:\:do_load_textdomain\(\) has no return type specified\.$#'
 			identifier: missingType.return
 			count: 1
@@ -2309,57 +2297,3 @@ parameters:
 			identifier: missingType.iterableValue
 			count: 1
 			path: public/Renderers/NpmClientBlock.php
-
-		-
-			message: '#^Access to an undefined property object\:\:\$id\.$#'
-			identifier: property.notFound
-			count: 1
-			path: public/Renderers/UserServers/AbstractUserServersRenderer.php
-
-		-
-			message: '#^Access to an undefined property object\:\:\$server_name\.$#'
-			identifier: property.notFound
-			count: 1
-			path: public/Renderers/UserServers/AbstractUserServersRenderer.php
-
-		-
-			message: '#^Access to an undefined property object\:\:\$server_slug\.$#'
-			identifier: property.notFound
-			count: 1
-			path: public/Renderers/UserServers/AbstractUserServersRenderer.php
-
-		-
-			message: '#^Argument of an invalid type int\<min, \-1\>\|int\<1, max\>\|list\<object\> supplied for foreach, only iterables are supported\.$#'
-			identifier: foreach.nonIterable
-			count: 1
-			path: public/Renderers/UserServers/AbstractUserServersRenderer.php
-
-		-
-			message: '#^Call to function is_array\(\) with array\<int, array\<string, mixed\>\> will always evaluate to true\.$#'
-			identifier: function.alreadyNarrowedType
-			count: 1
-			path: public/Renderers/UserServers/AbstractUserServersRenderer.php
-
-		-
-			message: '#^Call to function is_array\(\) with array\<string, mixed\> will always evaluate to true\.$#'
-			identifier: function.alreadyNarrowedType
-			count: 1
-			path: public/Renderers/UserServers/AbstractUserServersRenderer.php
-
-		-
-			message: '#^Call to function is_array\(\) with array\<int, array\<string, mixed\>\> will always evaluate to true\.$#'
-			identifier: function.alreadyNarrowedType
-			count: 1
-			path: public/Renderers/UserServers/UserServersBlock.php
-
-		-
-			message: '#^Call to function is_array\(\) with array\<string, mixed\> will always evaluate to true\.$#'
-			identifier: function.alreadyNarrowedType
-			count: 1
-			path: public/Renderers/UserServers/UserServersBlock.php
-
-		-
-			message: '#^Method AcrossAI_MCP_Manager\\Public\\Renderers\\UserServers\\UserServersBlock\:\:render_shortcode\(\) has parameter \$atts_raw with no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: public/Renderers/UserServers/UserServersBlock.php

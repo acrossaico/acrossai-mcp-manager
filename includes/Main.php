@@ -1291,33 +1291,32 @@ final class Main {
 		 */
 
 		/**
-		 * Feature 038 — [acrossai_mcp_servers] shortcode.
+		 * Feature 038's `[acrossai_mcp_servers]` shortcode was registered
+		 * here. It moved to acrossai-pro along with the F037 embed transport
+		 * subsystem it read through; see that plugin's
+		 * `Includes\McpEmbeds\UserServers`.
 		 *
-		 * User-scoped index widget: lists every MCP server the current
-		 * logged-in user can access (F015 gate) whose F037 Embeds tab
-		 * has the master toggle ON and at least one enabled connection
-		 * method — surfacing per server every enabled NPM / MCP Client
-		 * / AI Connector DTO from F035. Data-only base class
-		 * `AbstractUserServersRenderer` is the extension surface for
-		 * companion plugins (BuddyBoss add-on, WooCommerce My Account,
-		 * WPUM, MemberPress); this wiring only registers the
-		 * first-party concrete `UserServersBlock` shortcode.
+		 * Both halves had to move together. The shortcode rendered only
+		 * servers whose F037 embed toggles were on, and the Embeds tab — the
+		 * only UI that ever wrote those toggles — had already gone to Pro in
+		 * 0.11.0, leaving this registration able to render nothing but an
+		 * empty string. D40's composition rule travelled with the code
+		 * unchanged; see that decision's amendment note.
 		 */
-		$user_servers_block = \AcrossAI_MCP_Manager\Public\Renderers\UserServers\UserServersBlock::instance();
-		$this->loader->add_action(
-			'init',
-			$user_servers_block,
-			'register_shortcode'
-		);
 
 		/**
-		 * Feature 037 — FR-017 server-deletion cleanup listener.
+		 * Per-server meta cleanup on server deletion.
 		 *
 		 * When a server row is deleted (via Settings::handle_actions()
-		 * `action=delete`), prune the corresponding rows from
-		 * `wp_acrossai_mcp_server_embed_transports`. Fires as a listener
-		 * on the `acrossai_mcp_server_deleted` action defined in
+		 * `action=delete`), prune every meta row that belonged to it. Fires as
+		 * a listener on the `acrossai_mcp_server_deleted` action defined in
 		 * Settings::handle_actions().
+		 *
+		 * This arrived with F037 and outlived it. The meta table is generic
+		 * per-server storage owned by this plugin — acrossai-pro's embed
+		 * feature is one tenant of it, not the reason it exists — so the
+		 * listener stays here after the embed subsystem's departure. The
+		 * callback's name is the F037-era one, kept because it is public.
 		 *
 		 * Wired via a closure per D17 A1-transitivity — the Loader-wired
 		 * action fire happens here; the cleanup logic sits inline as a
@@ -1332,12 +1331,13 @@ final class Main {
 	}
 
 	/**
-	 * F037 FR-017 — prune meta rows for a deleted server. Called by the
+	 * Prune every meta row for a deleted server. Called by the
 	 * `acrossai_mcp_server_deleted` listener wired in `define_public_hooks()`.
-	 * Post-refactor: cleans up EVERY meta row for the server (not just
-	 * F037's `_embeds_enabled` + `_embeds_clients` rows) — the meta table
-	 * is generic per-server storage; server deletion should orphan zero
-	 * meta rows.
+	 *
+	 * Deletes EVERY meta row for the server, not just the `_embeds_enabled` /
+	 * `_embeds_clients` pair it was originally written for — the meta table is
+	 * generic per-server storage, and server deletion should orphan zero meta
+	 * rows whichever plugin wrote them.
 	 *
 	 * @param int $server_id Deleted server primary key.
 	 * @return void

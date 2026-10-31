@@ -3,8 +3,12 @@
  * BerlinDB Table subclass for the MCPServerMeta module.
  *
  * Standard WP-style meta table (mirrors wp_postmeta / wp_usermeta) keyed
- * by `server_id`. Backs any per-server key-value setting; F037 uses it as
- * the storage backend for `AbstractEmbedTransport::is_enabled_for_server()`.
+ * by `server_id`. Generic per-server key-value storage owned by this plugin.
+ *
+ * acrossai-pro's embed feature is its largest tenant — it writes the
+ * `_embeds_enabled` and `_embeds_clients` keys through here — but it is a
+ * tenant, not the reason the table exists. Those keys are referenced below
+ * only to explain an upgrade; nothing in this plugin reads them any more.
  *
  * F011 phantom-version guard preserved.
  *
