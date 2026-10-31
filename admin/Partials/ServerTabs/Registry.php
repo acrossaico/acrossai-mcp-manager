@@ -140,9 +140,12 @@ final class Registry {
 			new AccessControlTab(),
 			// The Embeds tab lived here at priority 90 until 0.2.10, when it
 			// was hidden, and was removed outright once acrossai-pro took over
-			// the frontend embed surface. Nothing in this plugin renders an
-			// embed any more; `includes/Embeds/` stays only because
-			// [acrossai_mcp_servers] composes its gates (D40).
+			// the frontend embed surface. F026 then moved the transport
+			// subsystem it read through, so nothing embed-related remains in
+			// this plugin but the meta table Pro stores its per-server
+			// settings in. acrossai-pro registers its own tab against
+			// `AbstractReactMountServerTab`, so it reaches this screen
+			// without an entry here.
 			new McpTrackerTab(),
 			new UpdateServerTab(),
 			new DangerZoneTab(),
