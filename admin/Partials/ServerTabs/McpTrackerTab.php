@@ -75,12 +75,11 @@ final class McpTrackerTab extends AbstractServerTab {
 			? (string) $server['server_slug']
 			: sanitize_title( (string) $server['server_name'] );
 
+		// No heading or lead paragraph here. The tab the operator just clicked
+		// is already labelled "Logs", and the card below opens with the stat
+		// tiles, so an <h2> saying "Logs" and a line restating the tab's
+		// purpose only pushed the content down.
 		echo '<div class="mcp-tab-panel">';
-		printf( '<h2>%s</h2>', esc_html__( 'Logs', 'acrossai-mcp-manager' ) );
-		printf(
-			'<p class="description">%s</p>',
-			esc_html__( 'Requests this server answered, and what ran behind them.', 'acrossai-mcp-manager' )
-		);
 
 		// F096 — the same React app the global Activity page mounts, filtered to
 		// this server with the Server column hidden. One component, two mount
