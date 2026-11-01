@@ -967,6 +967,21 @@ final class Main {
 		$this->loader->add_action( 'admin_menu', $activity_page, 'register_menu', 20 );
 		$this->loader->add_action( 'admin_enqueue_scripts', $activity_page, 'enqueue_assets' );
 
+		// F101 — the connection troubleshooter. Its own submenu at position 9,
+		// directly after Logs: both are screens an operator opens when
+		// something is already wrong, and the diagnostics belong next to the
+		// record of what happened. The REST route is admin-only and runs
+		// nothing on page load — every check makes an outbound HTTP request,
+		// so the operator presses a button.
+		$troubleshoot_page = \AcrossAI_MCP_Manager\Admin\Partials\TroubleshootPage::instance();
+		$this->loader->add_action( 'admin_menu', $troubleshoot_page, 'register_menu', 20 );
+		$this->loader->add_action( 'admin_enqueue_scripts', $troubleshoot_page, 'enqueue_assets' );
+		$this->loader->add_action(
+			'rest_api_init',
+			\AcrossAI_MCP_Manager\Includes\REST\TroubleshootController::instance(),
+			'register_routes'
+		);
+
 		// F096 — ability capture.
 		//
 		// Core instruments WP_Ability::execute() for EVERY caller, so these

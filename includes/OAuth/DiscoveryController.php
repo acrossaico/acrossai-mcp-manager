@@ -46,22 +46,36 @@ final class DiscoveryController {
 	public function render_authorization_server_metadata(): void {
 		self::send_metadata_headers();
 
+		wp_send_json( self::authorization_server_document() );
+	}
+
+	/**
+	 * The authorization-server metadata, as data.
+	 *
+	 * Split out from the renderer so it can be produced without emitting a
+	 * response. The troubleshooter builds the document in-process and compares
+	 * it with what an HTTP fetch of the same URL returns: when they differ, a
+	 * cache is serving something this site no longer says. That comparison is
+	 * only possible if the document exists independently of `wp_send_json()`,
+	 * which exits.
+	 *
+	 * @return array<string, mixed>
+	 */
+	public static function authorization_server_document(): array {
 		$issuer = self::issuer();
 
-		wp_send_json(
-			array(
-				'issuer'                                => $issuer,
-				'authorization_endpoint'                => $issuer . '/authorize',
-				'token_endpoint'                        => $issuer . '/token',
-				'registration_endpoint'                 => rest_url( 'acrossai-mcp-manager/v1/oauth/register' ),
-				'grant_types_supported'                 => array( 'authorization_code', 'refresh_token' ),
-				'response_types_supported'              => array( 'code' ),
-				'token_endpoint_auth_methods_supported' => array( 'none', 'client_secret_post' ),
-				'code_challenge_methods_supported'      => array( 'S256' ),
-				'scopes_supported'                      => array( 'mcp' ),
-				'authorization_response_iss_parameter_supported' => true,
-				'service_documentation'                 => admin_url( 'admin.php?page=acrossai_mcp_manager' ),
-			)
+		return array(
+			'issuer'                                => $issuer,
+			'authorization_endpoint'                => $issuer . '/authorize',
+			'token_endpoint'                        => $issuer . '/token',
+			'registration_endpoint'                 => rest_url( 'acrossai-mcp-manager/v1/oauth/register' ),
+			'grant_types_supported'                 => array( 'authorization_code', 'refresh_token' ),
+			'response_types_supported'              => array( 'code' ),
+			'token_endpoint_auth_methods_supported' => array( 'none', 'client_secret_post' ),
+			'code_challenge_methods_supported'      => array( 'S256' ),
+			'scopes_supported'                      => array( 'mcp' ),
+			'authorization_response_iss_parameter_supported' => true,
+			'service_documentation'                 => admin_url( 'admin.php?page=acrossai_mcp_manager' ),
 		);
 	}
 
@@ -119,13 +133,24 @@ final class DiscoveryController {
 
 		self::send_metadata_headers();
 
-		wp_send_json(
-			array(
-				'resource'                 => '' !== $requested_resource ? $requested_resource : self::default_resource_url(),
-				'authorization_servers'    => array( self::issuer() ),
-				'bearer_methods_supported' => array( 'header' ),
-				'scopes_supported'         => array( 'mcp' ),
-			)
+		wp_send_json( self::protected_resource_document( $requested_resource ) );
+	}
+
+	/**
+	 * The protected-resource metadata, as data. Same reasoning as
+	 * {@see self::authorization_server_document()}.
+	 *
+	 * @param string $requested_resource Absolute resource URL, already
+	 *                                   validated by the caller. Empty uses
+	 *                                   this site's default server.
+	 * @return array<string, mixed>
+	 */
+	public static function protected_resource_document( string $requested_resource = '' ): array {
+		return array(
+			'resource'                 => '' !== $requested_resource ? $requested_resource : self::default_resource_url(),
+			'authorization_servers'    => array( self::issuer() ),
+			'bearer_methods_supported' => array( 'header' ),
+			'scopes_supported'         => array( 'mcp' ),
 		);
 	}
 

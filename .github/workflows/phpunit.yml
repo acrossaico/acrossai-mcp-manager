@@ -258,3 +258,6 @@ jobs:
       # database, hence the WP bootstrap. Also never wired into CI until now.
       - name: Run PHPUnit — activity-log-db suite
         run: vendor/bin/phpunit --bootstrap tests/bootstrap-wp.php --testsuite activity-log-db
+
+      - name: Run PHPUnit — troubleshoot suite (WP bootstrap)
+        run: vendor/bin/phpunit --bootstrap tests/bootstrap-wp.php --testsuite troubleshoot
