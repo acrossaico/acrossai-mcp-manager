@@ -130,7 +130,8 @@ class Settings {
 		// wpb-ac panel.
 		// F030: save_permission_override handles the per-server override toggle
 		// form on the Access Control tab (does NOT touch the wpb-ac panel).
-		if ( ! in_array( $action, array( 'toggle_status', 'delete', 'create', 'update', 'save_permission_override', 'save_instructions' ), true )
+		// Fleet: fleet_add_host joins a fleet, fleet_remove_host leaves one.
+		if ( ! in_array( $action, array( 'toggle_status', 'delete', 'create', 'update', 'save_permission_override', 'save_instructions', 'fleet_add_host', 'fleet_remove_host' ), true )
 			&& ! $this->is_bulk_request()
 		) {
 			return;
@@ -158,6 +159,57 @@ class Settings {
 			}
 
 			$this->redirect_to_list( 'server_toggled' );
+		}
+
+		// ── Fleet: join a fleet ───────────────────────────────────────────────
+		//
+		// POST, unlike its neighbours, because the pairing code is secret-
+		// bearing and a GET would write it into the browser's history, the
+		// server's access log and any referrer sent from the page afterwards.
+		// The one-time nature of the code limits the damage, but a code that
+		// has not been redeemed yet is still worth not logging.
+		if ( 'fleet_add_host' === $action ) {
+			$server_id = isset( $_GET['server'] ) ? absint( $_GET['server'] ) : 0; // phpcs:ignore WordPress.Security.NonceVerification
+			check_admin_referer( 'acrossai_mcp_fleet_add_' . $server_id );
+
+			$code = isset( $_POST['fleet_code'] ) ? sanitize_text_field( wp_unslash( $_POST['fleet_code'] ) ) : '';
+
+			$result = \AcrossAI_MCP_Manager\Includes\Fleet\Pairing::pair(
+				$server_id,
+				$code,
+				get_current_user_id()
+			);
+
+			if ( is_wp_error( $result ) ) {
+				// The reason travels in the URL rather than through a notice
+				// key: these messages are specific to what went wrong — an
+				// expired code, an unreachable site, a refusal the hub itself
+				// worded — and a fixed catalogue could only flatten them back
+				// into "pairing failed", which is the message this whole class
+				// exists to avoid.
+				$this->redirect_to_edit_with_detail( $server_id, 'fleet_add_failed', $result->get_error_message() );
+			}
+
+			$this->redirect_to_edit( $server_id, 'overview', 'fleet_added' );
+		}
+
+		// ── Fleet: leave a fleet ──────────────────────────────────────────────
+		if ( 'fleet_remove_host' === $action ) {
+			$server_id = isset( $_GET['server'] ) ? absint( $_GET['server'] ) : 0; // phpcs:ignore WordPress.Security.NonceVerification
+			$host_key  = isset( $_GET['host'] ) ? sanitize_key( wp_unslash( $_GET['host'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification
+			check_admin_referer( 'acrossai_mcp_fleet_remove_' . $server_id . '_' . $host_key );
+
+			$result = \AcrossAI_MCP_Manager\Includes\Fleet\Pairing::unpair(
+				$server_id,
+				$host_key,
+				get_current_user_id()
+			);
+
+			if ( is_wp_error( $result ) ) {
+				$this->redirect_to_edit_with_detail( $server_id, 'fleet_remove_failed', $result->get_error_message() );
+			}
+
+			$this->redirect_to_edit( $server_id, 'overview', 'fleet_removed' );
 		}
 
 		// ── Single-row delete ─────────────────────────────────────────────────
@@ -478,6 +530,44 @@ class Settings {
 						'page'   => AdminPageSlugs::PARENT,
 						'action' => 'create',
 						'notice' => $notice,
+					),
+					admin_url( 'admin.php' )
+				)
+			)
+		);
+		exit;
+	}
+
+	/**
+	 * Redirect back to a server's Overview carrying a notice AND its reason.
+	 *
+	 * The sibling below takes a notice KEY, which `Notices` maps to fixed
+	 * wording. That is right when there is one way to fail; pairing has many,
+	 * and most of the useful detail is only known at the moment it happens —
+	 * which host was unreachable, what the managing site said when it refused.
+	 * Flattening those into one catalogue entry would throw away the only part
+	 * the operator can act on.
+	 *
+	 * The detail is the plugin's own message or a remote site's, so it is
+	 * carried URL-encoded and escaped again at the render site in `Notices`.
+	 *
+	 * @since 0.4.6
+	 *
+	 * @param int    $server_id Server row id.
+	 * @param string $notice    Notice key.
+	 * @param string $detail    Human-readable reason.
+	 */
+	private function redirect_to_edit_with_detail( int $server_id, string $notice, string $detail ): void {
+		wp_safe_redirect(
+			esc_url_raw(
+				add_query_arg(
+					array(
+						'page'          => AdminPageSlugs::PARENT,
+						'action'        => 'edit',
+						'server'        => $server_id,
+						'tab'           => 'overview',
+						'notice'        => $notice,
+						'notice_detail' => rawurlencode( $detail ),
 					),
 					admin_url( 'admin.php' )
 				)

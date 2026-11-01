@@ -210,7 +210,7 @@ final class FleetTab extends AbstractServerTab {
 				esc_html__( 'No hosts connected.', 'acrossai-mcp-manager' ),
 				esc_html__( 'A host is another WordPress site allowed to run abilities here. You will need a pairing code from it.', 'acrossai-mcp-manager' )
 			);
-			$this->render_add_button();
+			$this->render_add_form( $server_id );
 			return;
 		}
 
@@ -239,7 +239,7 @@ final class FleetTab extends AbstractServerTab {
 		}
 
 		echo '</tbody></table>';
-		$this->render_add_button();
+		$this->render_add_form( $server_id );
 	}
 
 	/**
@@ -283,16 +283,59 @@ final class FleetTab extends AbstractServerTab {
 	}
 
 	/**
-	 * The add-a-host call to action.
+	 * The add-a-host form.
+	 *
+	 * Inline rather than a modal: this is one field and a button, and a modal
+	 * would add a JavaScript dependency to a screen that otherwise needs none.
+	 *
+	 * The consequence of submitting is stated above the button, not after it.
+	 * This is the moment the site mints a credential and sends it to an
+	 * address the operator pasted, and that is worth one plain sentence before
+	 * they commit rather than a surprise afterwards.
 	 *
 	 * @since 0.4.6
+	 *
+	 * @param int $server_id Fleet server id.
 	 */
-	private function render_add_button(): void {
-		printf(
-			'<p><button type="button" class="button button-primary" disabled>%s</button> <span class="description">%s</span></p>',
-			esc_html__( 'Add a host', 'acrossai-mcp-manager' ),
-			esc_html__( 'Pairing arrives in the next release.', 'acrossai-mcp-manager' )
+	private function render_add_form( int $server_id ): void {
+		$action = add_query_arg(
+			array(
+				'page'   => AdminPageSlugs::PARENT,
+				'action' => 'fleet_add_host',
+				'server' => $server_id,
+			),
+			admin_url( 'admin.php' )
 		);
+
+		echo '<form method="post" action="' . esc_url( $action ) . '" class="acrossai-fleet-add">';
+		wp_nonce_field( 'acrossai_mcp_fleet_add_' . $server_id );
+
+		printf(
+			'<p><label for="acrossai-fleet-code"><strong>%s</strong></label></p>',
+			esc_html__( 'Pairing code', 'acrossai-mcp-manager' )
+		);
+
+		printf(
+			'<p><input type="text" id="acrossai-fleet-code" name="fleet_code" class="large-text code" autocomplete="off" spellcheck="false" placeholder="%s" /></p>',
+			esc_attr__( 'fleet_…', 'acrossai-mcp-manager' )
+		);
+
+		printf(
+			'<p class="description">%s</p>',
+			esc_html__( 'Get this from the site that will manage this one, under AcrossAI → Fleet.', 'acrossai-mcp-manager' )
+		);
+
+		printf(
+			'<p class="description">%s</p>',
+			esc_html__( 'Connecting creates an Application Password dedicated to that site and sends it there. Removing the host withdraws it again.', 'acrossai-mcp-manager' )
+		);
+
+		printf(
+			'<p><button type="submit" class="button button-primary">%s</button></p>',
+			esc_html__( 'Connect', 'acrossai-mcp-manager' )
+		);
+
+		echo '</form>';
 	}
 
 	/**
