@@ -27,7 +27,7 @@ defined( 'ABSPATH' ) || exit;
 final class ActivityLogPage {
 
 	/** `?page=` slug for this screen. */
-	public const PAGE_SLUG = 'acrossai_mcp_activity';
+	public const PAGE_SLUG = 'acrossai_mcp_logs';
 
 	/** Script handle and localized object name stem. */
 	private const HANDLE = 'acrossai-mcp-activity-log';
@@ -62,8 +62,8 @@ final class ActivityLogPage {
 	public function register_menu(): void {
 		add_submenu_page(
 			SettingsPage::PARENT_SLUG,
-			__( 'MCP Activity', 'acrossai-mcp-manager' ),
-			__( 'Activity', 'acrossai-mcp-manager' ),
+			__( 'MCP Logs', 'acrossai-mcp-manager' ),
+			__( 'Logs', 'acrossai-mcp-manager' ),
 			'manage_options',
 			self::PAGE_SLUG,
 			array( $this, 'render' ),
@@ -180,7 +180,7 @@ final class ActivityLogPage {
 
 		?>
 		<div class="wrap">
-			<h1><?php esc_html_e( 'MCP Activity', 'acrossai-mcp-manager' ); ?></h1>
+			<h1><?php esc_html_e( 'MCP Logs', 'acrossai-mcp-manager' ); ?></h1>
 			<p class="description">
 				<?php esc_html_e( 'Every request your MCP servers answered, and what ran behind it.', 'acrossai-mcp-manager' ); ?>
 			</p>
