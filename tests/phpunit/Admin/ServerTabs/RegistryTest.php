@@ -186,7 +186,10 @@ final class RegistryTest extends WP_UnitTestCase {
 				'registered_from' => 'plugin',
 			)
 		);
-		$this->assertCount( count( Registry::instance()->all_tabs() ) - 2, $visible );
+		// -2 db-only (UpdateServer, DangerZone) and -1 for the fleet tab: this
+		// fixture is not a fleet server, and exactly one of the
+		// Overview/Fleet pair is ever visible.
+		$this->assertCount( count( Registry::instance()->all_tabs() ) - 3, $visible );
 	}
 
 	/**
@@ -199,7 +202,9 @@ final class RegistryTest extends WP_UnitTestCase {
 				'registered_from' => 'database',
 			)
 		);
-		$this->assertCount( count( Registry::instance()->all_tabs() ), $visible );
+		// Not the full set any more: exactly one of the Overview/Fleet pair is
+		// visible for any server, and this fixture is not a fleet server.
+		$this->assertCount( count( Registry::instance()->all_tabs() ) - 1, $visible );
 	}
 
 	// =========================================================================
@@ -257,6 +262,13 @@ final class RegistryTest extends WP_UnitTestCase {
 		$this->assertSame(
 			array(
 				'overview',       // 10
+				// 10 as well, and that tie is harmless: `FleetTab` and
+				// `OverviewTab` have exactly complementary `visible_for()`, so
+				// at most one of them ever reaches a real server's tab strip.
+				// `for_server()` is the unfiltered list, which is why both are
+				// here. Insertion order breaks the tie and the normalizer
+				// keeps it stable.
+				'fleet',          // 10
 				'connect',        // 20 — F084 container for the five connection methods
 				'tools',          // 50
 				'abilities',      // 60

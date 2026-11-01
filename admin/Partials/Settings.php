@@ -1063,7 +1063,14 @@ class Settings {
 			$tabs[ $tab_obj->slug() ] = $tab_obj->label();
 		}
 		if ( ! array_key_exists( $tab, $tabs ) ) {
-			$tab = 'overview';
+			// The FIRST VISIBLE tab, not the literal 'overview'. A fleet
+			// server has no Overview tab at all — `FleetTab` replaces it
+			// rather than sitting beside it — so hardcoding that slug sent
+			// every unrecognised tab request there to render a tab the nav
+			// does not list and `visible_tabs()` excluded on purpose.
+			// `$tabs` is already in priority order, so this is 'overview'
+			// for every other server exactly as before.
+			$tab = (string) array_key_first( $tabs );
 		}
 
 		echo '<div class="wrap">';

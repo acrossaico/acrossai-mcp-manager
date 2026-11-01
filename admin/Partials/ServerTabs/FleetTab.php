@@ -49,7 +49,7 @@ final class FleetTab extends AbstractServerTab {
 	 * @since 0.4.6
 	 */
 	public function slug(): string {
-		return 'overview';
+		return 'fleet';
 	}
 
 	/**
@@ -58,7 +58,7 @@ final class FleetTab extends AbstractServerTab {
 	 * @since 0.4.6
 	 */
 	public function label(): string {
-		return __( 'Overview', 'acrossai-mcp-manager' );
+		return __( 'Fleet', 'acrossai-mcp-manager' );
 	}
 
 	/**
