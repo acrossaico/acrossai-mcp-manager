@@ -48,6 +48,12 @@ final class ProtectedServers {
 			// so the guard applies again — a protected row the seeder would
 			// only recreate on the next admin request is a confusing delete.
 			DefaultServerSeeder::ACROSSAI_SLUG,
+			// Seeded, so protected on the same grounds. Protection also hides
+			// the Danger Zone and Update Server tabs, which is right here for
+			// a second reason: the route and slug are what paired hubs call,
+			// so letting them be edited would break every connection silently.
+			// Severing a fleet is "remove the host", not "rename the server".
+			DefaultServerSeeder::FLEET_SLUG,
 		);
 	}
 

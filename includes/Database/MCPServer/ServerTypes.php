@@ -70,6 +70,30 @@ final class ServerTypes {
 	public const ACROSSAI = 'acrossai';
 
 	/**
+	 * The Fleet type — a server other WordPress sites call, not AI clients.
+	 *
+	 * Its row is seeded DISABLED and stays that way until a site owner turns
+	 * it on, because being manageable by another site is a decision, never a
+	 * default. It carries the same toolsets as {@see self::ACROSSAI} — a hub
+	 * calls exactly what a local AI client would — but answers on its own
+	 * route, which is the point of the separate row: Logs, Abilities and
+	 * Access Control then govern fleet traffic alone, and disabling or
+	 * deleting it cuts every hub off without touching the site's own MCP
+	 * access at `/acrossai/mcp`.
+	 *
+	 * Deliberately NO `requires`. The toolsets come from the same add-on the
+	 * AcrossAI type needs, so the requirement looks identical — but declaring
+	 * it would make `is_available()` false on a site without the add-on, and
+	 * `compose_effective_tools_for_row()` would then serve `SetupRequired`
+	 * whose message names a plugin that has nothing to do with being managed.
+	 * The row must stay usable regardless: a hub can be paired before the
+	 * add-on arrives, and the toolsets appear by themselves when it does.
+	 *
+	 * @var string
+	 */
+	public const FLEET = 'acrossai-fleet';
+
+	/**
 	 * Filter name — the public extension point. Documented in
 	 * `docs/extending-server-types.md`.
 	 *
@@ -671,6 +695,36 @@ final class ServerTypes {
 					// ships disabled, so nothing was connected to it.
 					'server_route_namespace' => 'acrossai',
 					'server_route'           => 'mcp',
+					'server_version'         => 'v1.0.0',
+				),
+			),
+			self::FLEET    => array(
+				'label'       => __( 'Fleet', 'acrossai-mcp-manager' ),
+				'description' => __( 'Lets WordPress sites you approve run abilities on this site.', 'acrossai-mcp-manager' ),
+				// The same toolsets the AcrossAI type serves. A hub is not a
+				// special kind of caller — it asks for exactly what a local AI
+				// client would, so giving this route its own vocabulary would
+				// mean maintaining two answers to the same question.
+				'tools'       => ToolsetRegistrar::tool_slugs(),
+				'requires'    => null,
+				// Never the default for a new server. An operator reaching for
+				// "Add Server" wants something to connect an AI client to, and
+				// this type is the one kind that cannot be connected to.
+				'is_default'  => false,
+				'server'      => array(
+					'server_name'            => 'Fleet',
+					'server_slug'            => DefaultServerSeeder::FLEET_SLUG,
+					'description'            => __( 'Lets WordPress sites you approve run abilities on this site. Off until you add a host.', 'acrossai-mcp-manager' ),
+					'registered_from'        => 'database',
+					// `/acrossai/fleet`, deliberately NOT sharing `/acrossai/mcp`.
+					// The separate route is what gives this row something to
+					// govern: with it, the Logs tab holds hub traffic and
+					// nothing else, Access Control scopes who may reach it, and
+					// turning the server off stops hubs without touching the
+					// site's own AI access. Sharing a route would leave three
+					// tabs on this row governing nothing.
+					'server_route_namespace' => 'acrossai',
+					'server_route'           => 'fleet',
 					'server_version'         => 'v1.0.0',
 				),
 			),
