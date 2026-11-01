@@ -193,8 +193,28 @@ final class Register {
 			return $this->refuse( __( 'That public key could not be read.', 'acrossai-mcp-manager' ) );
 		}
 
-		$hub_url  = esc_url_raw( (string) $request->get_param( 'hub_url' ) );
+		// Validated BEFORE `esc_url_raw()`, which is the whole point.
+		// `esc_url_raw( 'not-a-url' )` returns `http://not-a-url` — it repairs
+		// schemeless input rather than rejecting it — so checking the result
+		// for a host can never fail and `not-a-url` registered happily.
+		//
+		// This matters more than tidiness: `hub_url` is asserted by the caller,
+		// and `RoutePermission` parses its hostname into the `fleet_peer`
+		// column that attributes every later request in the activity log. A
+		// value that is not a hostname becomes a nonsense identity in an audit
+		// trail. The authoritative identity is `host_key`, which this site
+		// mints; `hub_url` is how a person recognises the hub, and it has to
+		// at least be the kind of thing it claims to be.
+		$submitted = trim( (string) $request->get_param( 'hub_url' ) );
+		$scheme    = strtolower( (string) wp_parse_url( $submitted, PHP_URL_SCHEME ) );
+
+		if ( ! in_array( $scheme, array( 'http', 'https' ), true ) ) {
+			return $this->refuse( __( 'That request did not say which site it came from. The address must be a full URL, including https://.', 'acrossai-mcp-manager' ) );
+		}
+
+		$hub_url  = esc_url_raw( $submitted );
 		$hub_host = (string) wp_parse_url( $hub_url, PHP_URL_HOST );
+
 		if ( '' === $hub_url || '' === $hub_host ) {
 			return $this->refuse( __( 'That request did not say which site it came from.', 'acrossai-mcp-manager' ) );
 		}
