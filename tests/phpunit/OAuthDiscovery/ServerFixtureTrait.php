@@ -54,6 +54,8 @@ trait ServerFixtureTrait {
 		$GLOBALS['acrossai_test_rewrite_rules']  = array();
 		$GLOBALS['acrossai_test_filters']        = array();
 		$GLOBALS['acrossai_test_filter_returns'] = array();
+		$GLOBALS['acrossai_test_options']        = array();
+		$GLOBALS['acrossai_test_flush_count']    = 0;
 		unset( $GLOBALS['acrossai_test_status_header'] );
 		unset( $_GET['resource'] );
 

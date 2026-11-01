@@ -60,7 +60,7 @@ final class OAuthRouter {
 	}
 
 	/**
-	 * Flush rewrite rules once per plugin version.
+	 * Flush rewrite rules when the version changed, or when ours went missing.
 	 *
 	 * `Activator::activate()` flushes, and that covers a fresh install — but
 	 * WordPress does NOT run activation hooks on plugin UPDATE. Without this,
@@ -74,10 +74,16 @@ final class OAuthRouter {
 	 * real site: 404 before the flush, 200 after, with no code change.
 	 *
 	 * Keyed on the plugin version rather than a boolean, so a future release
-	 * that changes the rules re-flushes without needing a new option. Called
-	 * from `Main::reconcile_database_schemas()` on `admin_init` priority 3 —
-	 * the same one-shot lane as the other upgrade routines, and after `init`
-	 * has registered the rules, which is what makes the flush meaningful.
+	 * that changes the rules re-flushes without needing a new option — AND on
+	 * whether the rules are actually in the stored table, so the guard
+	 * repairs a loss it did not cause instead of short-circuiting forever.
+	 * See the comment in the body for how rules go missing without a version
+	 * change; it is the reason operators kept re-saving Permalinks by hand.
+	 *
+	 * Called from `Main::reconcile_database_schemas()` on `admin_init`
+	 * priority 3 — the same one-shot lane as the other upgrade routines, and
+	 * after `init` has registered the rules, which is what makes the flush
+	 * meaningful.
 	 *
 	 * Admin-side only, matching the house pattern: a front-end request never
 	 * pays for it.
@@ -90,7 +96,28 @@ final class OAuthRouter {
 			return;
 		}
 
-		if ( get_option( self::FLUSH_OPTION ) === $current ) {
+		// Plain permalinks: there is no rewrite table to repair, and a
+		// presence check would be unsatisfiable — it would flush on every
+		// admin request, forever. The troubleshooter reports this case
+		// instead, because the fix is choosing a permalink structure.
+		if ( ! self::rewrites_are_possible() ) {
+			return;
+		}
+
+		$version_matches = get_option( self::FLUSH_OPTION ) === $current;
+
+		// The version alone is not enough. It only answers "did WE change the
+		// rules", and the common symptom is the other case entirely: the
+		// rules went missing while our version stood still, so this guard
+		// short-circuited forever and the operator had to re-save Permalinks
+		// by hand. Anything that rewrites the option without our rules
+		// registered does it — another plugin flushing from a context where
+		// our `init` hook has not run, `wp rewrite flush --skip-plugins`, a
+		// database copied from an install where this plugin was inactive, a
+		// restore from before it was installed. Checking presence costs one
+		// lookup in an already-autoloaded option and makes the guard
+		// self-healing instead of one-shot.
+		if ( $version_matches && array() === self::missing_rules() ) {
 			return;
 		}
 
@@ -122,31 +149,81 @@ final class OAuthRouter {
 	 * 0.9.13 — see DECISIONS.md DEC-NO-PATH-INSERTED-AS-METADATA.
 	 */
 	public function register_rewrite_rules(): void {
-		add_rewrite_rule(
-			'^\.well-known/oauth-protected-resource/(.+?)/?$',
-			'index.php?' . self::QUERY_VAR . '=pr-metadata&' . self::RESOURCE_VAR . '=$matches[1]',
-			'top'
+		foreach ( self::rules() as $pattern => $target ) {
+			add_rewrite_rule( $pattern, $target, 'top' );
+		}
+	}
+
+	/**
+	 * The five rules, pattern => target, in registration order.
+	 *
+	 * One source, so registration and `missing_rules()` cannot drift: a rule
+	 * added here is both registered AND checked for, and the presence check
+	 * can never silently pass because it was comparing against a stale copy
+	 * of the list.
+	 *
+	 * Order is load-bearing — see the path-insertion note on
+	 * `register_rewrite_rules()`. An ordered map preserves it.
+	 *
+	 * @return array<string, string>
+	 */
+	private static function rules(): array {
+		return array(
+			'^\.well-known/oauth-protected-resource/(.+?)/?$' => 'index.php?' . self::QUERY_VAR . '=pr-metadata&' . self::RESOURCE_VAR . '=$matches[1]',
+			'^\.well-known/oauth-authorization-server/?$' => 'index.php?' . self::QUERY_VAR . '=as-metadata',
+			'^\.well-known/oauth-protected-resource/?$'   => 'index.php?' . self::QUERY_VAR . '=pr-metadata',
+			'^authorize/?$'                               => 'index.php?' . self::QUERY_VAR . '=authorize',
+			'^token/?$'                                   => 'index.php?' . self::QUERY_VAR . '=token',
 		);
-		add_rewrite_rule(
-			'^\.well-known/oauth-authorization-server/?$',
-			'index.php?' . self::QUERY_VAR . '=as-metadata',
-			'top'
-		);
-		add_rewrite_rule(
-			'^\.well-known/oauth-protected-resource/?$',
-			'index.php?' . self::QUERY_VAR . '=pr-metadata',
-			'top'
-		);
-		add_rewrite_rule(
-			'^authorize/?$',
-			'index.php?' . self::QUERY_VAR . '=authorize',
-			'top'
-		);
-		add_rewrite_rule(
-			'^token/?$',
-			'index.php?' . self::QUERY_VAR . '=token',
-			'top'
-		);
+	}
+
+	/**
+	 * Which of our rules are absent from the stored `rewrite_rules` option.
+	 *
+	 * Read-only and cheap: `rewrite_rules` is an autoloaded option, so this
+	 * costs an array lookup, not a query. Public because the troubleshooter
+	 * reports the same list the flush guard acts on.
+	 *
+	 * Returns an empty array when permalinks are plain — there is no rewrite
+	 * table at all then, so "missing" is not the right description of the
+	 * problem and flushing would not fix it. `rewrites_are_possible()` tells
+	 * the two cases apart.
+	 *
+	 * @return array<int, string> Absent patterns, in registration order.
+	 */
+	public static function missing_rules(): array {
+		if ( ! self::rewrites_are_possible() ) {
+			return array();
+		}
+
+		$stored = get_option( 'rewrite_rules' );
+		if ( ! is_array( $stored ) ) {
+			// No table yet, but permalinks ARE pretty: every rule is missing.
+			return array_keys( self::rules() );
+		}
+
+		$missing = array();
+		foreach ( array_keys( self::rules() ) as $pattern ) {
+			if ( ! isset( $stored[ $pattern ] ) ) {
+				$missing[] = $pattern;
+			}
+		}
+		return $missing;
+	}
+
+	/**
+	 * Whether this site can serve rewrite-based routes at all.
+	 *
+	 * With plain permalinks WordPress keeps no rewrite table, so
+	 * `.well-known/*`, `/authorize` and `/token` can never resolve however
+	 * often they are flushed. The operator has to choose a permalink
+	 * structure; that is a different sentence from "your rules went missing",
+	 * and the two must not be reported as the same failure.
+	 *
+	 * @return bool
+	 */
+	public static function rewrites_are_possible(): bool {
+		return '' !== (string) get_option( 'permalink_structure', '' );
 	}
 
 	/**

@@ -11,6 +11,8 @@ declare( strict_types = 1 );
 
 namespace AcrossAI_MCP_Manager\Includes\OAuth;
 
+use AcrossAI_MCP_Manager\Includes\Utilities\CacheHeaders;
+
 defined( 'ABSPATH' ) || exit;
 
 final class DiscoveryController {
@@ -101,6 +103,10 @@ final class DiscoveryController {
 			status_header( 404 );
 			header( 'Content-Type: application/json; charset=utf-8' );
 			header( 'Cache-Control: no-store' );
+			// Same reason as the success path: a page cache never reads the
+			// header above. Without this, a negative answer produced during a
+			// transient bad state outlives the fix.
+			CacheHeaders::define_donotcache_constant();
 			header( 'Access-Control-Allow-Origin: *' );
 			wp_send_json(
 				array(
@@ -248,11 +254,53 @@ final class DiscoveryController {
 	}
 
 	/**
+	 * Default seconds a discovery document may be cached.
+	 *
+	 * Was 3600. An hour of stale metadata costs far more in support than it
+	 * saves in bandwidth: a document captured while the site was in a
+	 * transient bad state — mid-upgrade, before the rewrite flush, server not
+	 * yet enabled, discovery temporarily owned by another plugin — was served
+	 * for an hour AFTER the operator fixed the real problem, so their re-test
+	 * failed and nothing told them a cache was involved. Sixty seconds still
+	 * absorbs a client's burst of discovery requests during one connection
+	 * attempt, which is all the caching was ever buying.
+	 *
+	 * @var int
+	 */
+	private const METADATA_MAX_AGE = 60;
+
+	/**
 	 * Standard cache + CORS headers for both metadata endpoints.
 	 */
 	private static function send_metadata_headers(): void {
+		/**
+		 * Filters how long a discovery document may be cached, in seconds.
+		 *
+		 * Zero sends `no-store` instead, for a site that would rather pay for
+		 * the requests than ever debug a stale document.
+		 *
+		 * @since 0.4.6
+		 *
+		 * @param int $max_age Seconds. Default 60.
+		 */
+		$max_age = (int) apply_filters( 'acrossai_mcp_discovery_cache_max_age', self::METADATA_MAX_AGE );
+
 		header( 'Content-Type: application/json; charset=utf-8' );
-		header( 'Cache-Control: public, max-age=3600' );
+
+		if ( $max_age > 0 ) {
+			header( sprintf( 'Cache-Control: public, max-age=%d', $max_age ) );
+		} else {
+			header( 'Cache-Control: no-store' );
+		}
+
+		// Headers tell well-behaved HTTP caches what to do. A WordPress page
+		// cache is not an HTTP cache: it stores the response before anything
+		// reads Cache-Control, which is how a customer site ended up serving
+		// an hour-old discovery document that no amount of header-correctness
+		// would have prevented. DONOTCACHEPAGE is the signal nearly every
+		// caching plugin honours, and it is the only one that reaches them.
+		CacheHeaders::define_donotcache_constant();
+
 		header( 'Access-Control-Allow-Origin: *' );
 	}
 

@@ -115,6 +115,10 @@ final class AuthorizationController {
 		if ( ! is_user_logged_in() ) {
 			// FR-008 — send to wp-login, come back here on success.
 			$current_url = self::current_authorize_url();
+			// Anonymous, so a page cache will happily store it — and then
+			// bounce an already-signed-in operator back to the login screen
+			// on their next attempt. The third bare redirect on this path.
+			CacheHeaders::send_no_store();
 			wp_safe_redirect( wp_login_url( $current_url ) );
 			exit;
 		}
@@ -349,6 +353,14 @@ final class AuthorizationController {
 			$params['redirect_uri']
 		);
 
+		// This 302 carries `code=<authorization code>` in its Location. Every
+		// other OAuth response path sends no-store; these two redirects went
+		// out bare because wp_redirect() sends no cache headers of its own.
+		// Codes are single-use and PKCE-bound and most page caches skip
+		// logged-in requests, so this is hardening rather than a live hole —
+		// but an aggressive edge cache is exactly the environment the rest of
+		// this module is written for.
+		CacheHeaders::send_no_store();
 		wp_redirect( $callback ); // phpcs:ignore WordPress.Security.SafeRedirect.wp_redirect_wp_redirect -- Redirect target byte-validated against client's registered URIs.
 		exit;
 	}
@@ -595,6 +607,8 @@ final class AuthorizationController {
 			$args['state'] = rawurlencode( $state );
 		}
 
+		// Matches the success redirect above and every sibling OAuth path.
+		CacheHeaders::send_no_store();
 		wp_redirect( add_query_arg( $args, $redirect_uri ) ); // phpcs:ignore WordPress.Security.SafeRedirect.wp_redirect_wp_redirect -- URI already byte-validated against client's registered set.
 		exit;
 	}
