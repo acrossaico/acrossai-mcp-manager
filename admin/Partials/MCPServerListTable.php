@@ -363,6 +363,23 @@ class MCPServerListTable extends \WP_List_Table {
 			),
 		);
 
+		// A Fleet server is reached by paired WordPress sites, never by an AI
+		// client, so it has no Connect tab. Both `is_method` shortcuts point
+		// INTO that tab — left in place they would be two pills linking to a
+		// screen that does not render for this row. Access Control and
+		// Abilities stay: those are real tabs here, and they are what decides
+		// what a paired hub may do.
+		$is_fleet = ServerTypes::FLEET === (string) ( $item['server_type'] ?? '' );
+
+		if ( $is_fleet ) {
+			$quick_links = array_filter(
+				$quick_links,
+				static function ( array $meta ): bool {
+					return empty( $meta['is_method'] );
+				}
+			);
+		}
+
 		$links_html = '';
 		foreach ( $quick_links as $tab_slug => $meta ) {
 			// F084 — `method_url()` returns a RAW url by contract; it is
@@ -391,20 +408,28 @@ class MCPServerListTable extends \WP_List_Table {
 		// F072 FR-005 — per-row Quick Connect via AcrossAI pill, emitted outside the loop
 		// because Quick Connect via AcrossAI is not a tab (no ?tab= param). Server id is
 		// deep-linked so Step 1 opens with this row preselected.
-		$quick_connect_url = add_query_arg(
-			array(
-				'page'          => AdminPageSlugs::PARENT,
-				'quick-connect' => '1',
-				'step'          => '1',
-				'server'        => (int) $item['id'],
-			),
-			admin_url( 'admin.php' )
-		);
-		$links_html       .= sprintf(
-			'<a href="%s" class="acrossai-quicklink"><span class="dashicons dashicons-admin-tools" aria-hidden="true"></span><span class="acrossai-quicklink-label">%s</span></a>',
-			esc_url( $quick_connect_url ),
-			esc_html__( 'Connect via AcrossAI', 'acrossai-mcp-manager' )
-		);
+		//
+		// Skipped for a Fleet server on the same grounds as the two pills
+		// above: the wizard walks an operator through pointing an AI client at
+		// a server, and this is the one kind of server no AI client connects
+		// to. Offering it here would send them down a flow whose last step
+		// cannot succeed.
+		if ( ! $is_fleet ) {
+			$quick_connect_url = add_query_arg(
+				array(
+					'page'          => AdminPageSlugs::PARENT,
+					'quick-connect' => '1',
+					'step'          => '1',
+					'server'        => (int) $item['id'],
+				),
+				admin_url( 'admin.php' )
+			);
+			$links_html       .= sprintf(
+				'<a href="%s" class="acrossai-quicklink"><span class="dashicons dashicons-admin-tools" aria-hidden="true"></span><span class="acrossai-quicklink-label">%s</span></a>',
+				esc_url( $quick_connect_url ),
+				esc_html__( 'Connect via AcrossAI', 'acrossai-mcp-manager' )
+			);
+		}
 
 		return sprintf(
 			'<div class="acrossai-actions-cell"><div class="acrossai-actions-primary">%s%s</div><div class="acrossai-actions-quicklinks">%s</div></div>',
