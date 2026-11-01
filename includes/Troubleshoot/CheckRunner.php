@@ -17,6 +17,7 @@ use AcrossAI_MCP_Manager\Includes\Troubleshoot\Checks\EdgeLayerCheck;
 use AcrossAI_MCP_Manager\Includes\Troubleshoot\Checks\RewriteRulesCheck;
 use AcrossAI_MCP_Manager\Includes\Troubleshoot\Checks\ServerStateCheck;
 use AcrossAI_MCP_Manager\Includes\Troubleshoot\Checks\UserAgentProbeCheck;
+use AcrossAI_MCP_Manager\Includes\Troubleshoot\Checks\WpCronCheck;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -50,6 +51,7 @@ final class CheckRunner {
 			DiscoveryCheck::class,
 			CacheStalenessCheck::class,
 			UserAgentProbeCheck::class,
+			WpCronCheck::class,
 			EdgeLayerCheck::class,
 		);
 
