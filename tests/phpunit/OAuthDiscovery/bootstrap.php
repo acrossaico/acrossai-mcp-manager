@@ -197,6 +197,28 @@ if ( ! function_exists( 'add_rewrite_rule' ) ) {
 		);
 	}
 }
+// Option store + flush counter for the rewrite flush guard. The guard is a
+// decision made from three reads (plugin version, flush marker, the stored
+// rewrite table) and one side effect, so the only way to test it without a
+// WordPress install is to make all four observable.
+if ( ! function_exists( 'get_option' ) ) {
+	function get_option( $name, $default_value = false ) {
+		return array_key_exists( $name, $GLOBALS['acrossai_test_options'] )
+			? $GLOBALS['acrossai_test_options'][ $name ]
+			: $default_value;
+	}
+}
+if ( ! function_exists( 'update_option' ) ) {
+	function update_option( $name, $value, $autoload = null ) {
+		$GLOBALS['acrossai_test_options'][ $name ] = $value;
+		return true;
+	}
+}
+if ( ! function_exists( 'flush_rewrite_rules' ) ) {
+	function flush_rewrite_rules( $hard = true ) {
+		++$GLOBALS['acrossai_test_flush_count'];
+	}
+}
 if ( ! function_exists( 'add_filter' ) ) {
 	function add_filter( $hook, $callback, $priority = 10, $accepted_args = 1 ) {
 		$GLOBALS['acrossai_test_filters'][] = array(
