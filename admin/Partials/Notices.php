@@ -186,7 +186,17 @@ class Notices {
 			);
 		}
 
-		if ( defined( 'DISABLE_WP_CRON' ) && true === \DISABLE_WP_CRON ) {
+		// Gated on there being something to clean (#56). DISABLE_WP_CRON is the
+		// default in Local by Flywheel, WP Studio and most CI images, so on a
+		// development site with no OAuth clients this notice fired on every
+		// admin page load, forever, to report that a no-op would not run
+		// automatically. A permanent warning about nothing is how an operator
+		// learns to stop reading our notices — including the ones that matter.
+		//
+		// Sites with real OAuth state still get it: there, the rows genuinely
+		// accumulate. The Troubleshoot screen reports the same condition on
+		// demand either way, with the count.
+		if ( defined( 'DISABLE_WP_CRON' ) && true === \DISABLE_WP_CRON && self::has_oauth_data() ) {
 			$notices[] = array(
 				'id'      => 'acrossai_mcp_manager_wp_cron_disabled',
 				'title'   => __( 'WP-Cron is disabled', 'acrossai-mcp-manager' ),
@@ -325,5 +335,53 @@ class Notices {
 
 		return ( false !== stripos( $user_agent, 'Firefox/' ) )
 			|| ( false !== stripos( $user_agent, 'FxiOS/' ) );
+	}
+
+	/**
+	 * Does this site hold any OAuth state the daily cleanup would act on?
+	 *
+	 * Memoized for the request: this runs on every admin page load, and the
+	 * answer cannot change within one.
+	 *
+	 * Counts are capped at one row per table — the question is existence, and
+	 * the notice does not quote a number. The Troubleshoot screen's
+	 * `wp_cron` check does quote one, and counts properly for that reason.
+	 *
+	 * @return bool
+	 */
+	private static function has_oauth_data(): bool {
+		static $has = null;
+
+		if ( null !== $has ) {
+			return $has;
+		}
+
+		$has = false;
+
+		$queries = array(
+			'\\AcrossAI_MCP_Manager\\Includes\\Database\\OAuthClients\\Query',
+			'\\AcrossAI_MCP_Manager\\Includes\\Database\\OAuthTokens\\Query',
+			'\\AcrossAI_MCP_Manager\\Includes\\Database\\OAuthAuthCodes\\Query',
+		);
+
+		foreach ( $queries as $query_class ) {
+			if ( ! class_exists( $query_class ) ) {
+				continue;
+			}
+
+			$rows = $query_class::instance()->query(
+				array(
+					'number' => 1,
+					'fields' => 'ids',
+				)
+			);
+
+			if ( ! empty( $rows ) ) {
+				$has = true;
+				break;
+			}
+		}
+
+		return $has;
 	}
 }
