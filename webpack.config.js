@@ -110,6 +110,15 @@ module.exports = {
 			'src/js/activity-log',
 			'index.js',
 		),
+		// F101 — Connection troubleshooter entry. Plain DOM, not React: the
+		// page is a button and a list of server-rendered verdicts. Imports
+		// ../scss/troubleshoot.scss, emitted alongside as
+		// build/js/troubleshoot.css and enqueued by TroubleshootPage.
+		'js/troubleshoot': path.resolve(
+			process.cwd(),
+			'src/js',
+			'troubleshoot.js',
+		),
 		// F069 — MCP Quick Connect via AcrossAI wizard React entry (mounts the 5-step
 		// wizard app at #acrossai-mcp-quick-connect-root on the plugin
 		// page when ?quick-connect=1 is present). `src/js/quick-connect.js`

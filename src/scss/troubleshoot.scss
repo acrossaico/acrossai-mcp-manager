@@ -1,0 +1,191 @@
+/*
+ * Connection troubleshooter — screen styling.
+ *
+ * A list of verdicts. The only job the colour does is let the operator find
+ * the red rows without reading, so the status colour lives on a left border
+ * and a small badge rather than tinting whole blocks — a page of five tinted
+ * panels is harder to scan than a page of five white ones with one red edge.
+ *
+ * Status is never carried by colour alone: every row states its verdict in
+ * words in the badge.
+ */
+
+$ink: #1e1e1e;
+$muted: #646970;
+$line: #dcdcde;
+$hair: #f0f0f1;
+$band: #f6f7f7;
+$ok: #008a20;
+$warn: #bd8600;
+$bad: #d63638;
+$info: #2271b1;
+
+.acrossai-mcp-troubleshoot {
+
+	.description {
+		max-width: 46rem;
+		font-size: 13.5px;
+		line-height: 1.6;
+		color: $muted;
+		text-wrap: pretty;
+	}
+
+
+	&__summary {
+		margin: 0 0 16px;
+		padding: 12px 16px;
+		border: 1px solid $line;
+		border-left-width: 4px;
+		border-radius: 3px;
+		background: #fff;
+		font-size: 13.5px;
+		line-height: 1.5;
+		color: $ink;
+		max-width: 46rem;
+
+		&--ok {
+			border-left-color: $ok;
+		}
+
+		&--fail {
+			border-left-color: $bad;
+		}
+	}
+
+	&__pending {
+		margin: 0;
+		color: $muted;
+		font-size: 13.5px;
+	}
+
+	&__row {
+		margin: 0 0 10px;
+		padding: 14px 18px;
+		background: #fff;
+		border: 1px solid $line;
+		border-left-width: 4px;
+		border-radius: 3px;
+		max-width: 46rem;
+
+		&--ok {
+			border-left-color: $ok;
+		}
+
+		&--warning {
+			border-left-color: $warn;
+		}
+
+		&--fail {
+			border-left-color: $bad;
+		}
+
+		&--info {
+			border-left-color: $info;
+		}
+
+		&--skipped {
+			border-left-color: $line;
+			background: $band;
+		}
+	}
+
+	&__head {
+		display: flex;
+		align-items: baseline;
+		gap: 10px;
+		flex-wrap: wrap;
+	}
+
+	&__badge {
+		flex: none;
+		padding: 1px 7px;
+		border: 1px solid currentcolor;
+		border-radius: 2px;
+		font-size: 11px;
+		font-weight: 600;
+		text-transform: uppercase;
+		letter-spacing: 0.3px;
+
+		&--ok {
+			color: $ok;
+		}
+
+		&--warning {
+			color: $warn;
+		}
+
+		&--fail {
+			color: $bad;
+		}
+
+		&--info {
+			color: $info;
+		}
+
+		&--skipped {
+			color: $muted;
+		}
+	}
+
+	&__label {
+		font-size: 14px;
+		font-weight: 600;
+		color: $ink;
+	}
+
+	&__message {
+		margin: 8px 0 0;
+		font-size: 13.5px;
+		line-height: 1.6;
+		color: $ink;
+		text-wrap: pretty;
+	}
+
+	// The remedy is set apart from the observation: one describes the site,
+	// the other tells the operator what to do, and running them together as
+	// one paragraph is how a wall of text gets skimmed past.
+	&__remedy {
+		margin: 10px 0 0;
+		padding: 10px 12px;
+		background: $band;
+		border-radius: 3px;
+		font-size: 13px;
+		line-height: 1.6;
+		color: $ink;
+		text-wrap: pretty;
+	}
+
+	&__copy {
+		margin: 12px 0 0;
+		border: 1px solid $line;
+		border-radius: 3px;
+		overflow: hidden;
+	}
+
+	&__copy-bar {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 12px;
+		padding: 8px 10px;
+		background: $band;
+		border-bottom: 1px solid $hair;
+		font-size: 12px;
+		font-weight: 600;
+		color: $muted;
+	}
+
+	&__copy-text {
+		display: block;
+		width: 100%;
+		box-sizing: border-box;
+		border: 0;
+		padding: 10px;
+		font-family: Consolas, Monaco, "Andale Mono", "DejaVu Sans Mono", monospace;
+		font-size: 12px;
+		line-height: 1.55;
+		color: $ink;
+		background: #fff;
+		resize: vertical;
+	}
+}

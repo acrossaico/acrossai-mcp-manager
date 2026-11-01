@@ -165,6 +165,19 @@
         -->
 
         <!--
+            Troubleshoot (F101): the connection troubleshooter's check runner,
+            its result shape, and the two checks whose verdicts are decided
+            from WordPress state rather than an HTTP probe. Needs WP for
+            options, filters and home_url() — run with tests/bootstrap-wp.php.
+            The probe-driven checks are covered by the manual verification in
+            docs/planings-tasks/101-connection-troubleshooter.md: faking a
+            stale cache or a UA block needs a real edge layer, not a stub.
+        -->
+        <testsuite name="troubleshoot">
+            <directory>tests/phpunit/Troubleshoot</directory>
+        </testsuite>
+
+        <!--
             Everything that has no thematic suite of its own. These four
             directories held 7 test files that NO suite referenced, so they had
             never executed in CI even before the WP 4.7.35 harness bug — the
