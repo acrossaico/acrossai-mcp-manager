@@ -458,6 +458,12 @@ final class CliController {
 		}
 		$resolved_server_slug = (string) $server_rows[0]->server_slug;
 
+		// Same rule as every other connect flow: no credential for a server
+		// nothing can connect to.
+		if ( \AcrossAI_MCP_Manager\Includes\Database\MCPServer\NonConnectableServers::is_excluded( $resolved_server_slug ) ) {
+			return $this->error( 'server_not_connectable', 400 );
+		}
+
 		// Step 8 (success path) — create + delete + audit + respond.
 		try {
 			// Q3 — uniqueness suffix from the first 8 hex chars of the raw code.

@@ -171,6 +171,16 @@ final class AuthorizationController {
 		// complete and the legacy paths are removed — at that point 0 means a
 		// genuine resolution bug and should be refused.
 		if ( $server_id_for_settings > 0 ) {
+			// Some servers are not for AI clients at all — the Fleet server
+			// answers only to paired WordPress sites presenting a signature,
+			// so a token minted for it here could never be used. Refused
+			// before any of the connector gates below, because "this
+			// connector is not enabled" would send an operator to a setting
+			// that would not have helped.
+			if ( \AcrossAI_MCP_Manager\Includes\Database\MCPServer\NonConnectableServers::is_excluded_id( $server_id_for_settings ) ) {
+				self::redirect_error( $params['redirect_uri'], 'access_denied', \AcrossAI_MCP_Manager\Includes\Database\MCPServer\NonConnectableServers::refusal_message(), $params['state'] );
+			}
+
 			if ( ! \AcrossAI_MCP_Manager\Includes\Connectors\ConnectorSettings::is_slug_enabled_on_server( $server_id_for_settings, $effective_slug ) ) {
 				self::redirect_error( $params['redirect_uri'], 'access_denied', 'This connector is not enabled on this server.', $params['state'] );
 			}

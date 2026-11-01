@@ -20,6 +20,7 @@
 
 namespace AcrossAI_MCP_Manager\Public\Renderers;
 
+use AcrossAI_MCP_Manager\Includes\Database\MCPServer\NonConnectableServers;
 use AcrossAI_MCP_Manager\Includes\Database\MCPServer\Query as MCPServerQuery;
 use AcrossAI_MCP_Manager\Includes\Utilities\AdminPageSlugs;
 
@@ -88,7 +89,22 @@ abstract class AbstractClientRenderer {
 			$this->render_missing_server_notice();
 			return;
 		}
-		$this->render_body( $rows[0]->to_array(), $context );
+
+		// Every client-config renderer — npm, the MCP client blocks, anything
+		// a companion plugin subclasses in — arrives here, because render()
+		// is final. So one check covers all of them, and a server nothing can
+		// connect to never has connection instructions printed for it.
+		//
+		// Silent rather than a notice: these render on the front end through
+		// shortcodes, where a visitor can do nothing with the explanation and
+		// printing one would name an internal server to them for no reason.
+		$server = $rows[0]->to_array();
+
+		if ( NonConnectableServers::is_excluded( (string) ( $server['server_slug'] ?? '' ) ) ) {
+			return;
+		}
+
+		$this->render_body( $server, $context );
 	}
 
 	/**
