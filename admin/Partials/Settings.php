@@ -130,8 +130,10 @@ class Settings {
 		// wpb-ac panel.
 		// F030: save_permission_override handles the per-server override toggle
 		// form on the Access Control tab (does NOT touch the wpb-ac panel).
-		// Fleet: fleet_add_host joins a fleet, fleet_remove_host leaves one.
-		if ( ! in_array( $action, array( 'toggle_status', 'delete', 'create', 'update', 'save_permission_override', 'save_instructions', 'fleet_add_host', 'fleet_remove_host' ), true )
+		// Fleet: fleet_new_security_id reissues the code a managing site needs,
+		// fleet_remove_host cuts one off. Joining is not an action here — the
+		// managing site calls this site's registration endpoint instead.
+		if ( ! in_array( $action, array( 'toggle_status', 'delete', 'create', 'update', 'save_permission_override', 'save_instructions', 'fleet_new_security_id', 'fleet_remove_host' ), true )
 			&& ! $this->is_bulk_request()
 		) {
 			return;
@@ -161,36 +163,21 @@ class Settings {
 			$this->redirect_to_list( 'server_toggled' );
 		}
 
-		// ── Fleet: join a fleet ───────────────────────────────────────────────
+		// ── Fleet: replace the security ID ────────────────────────────────────
 		//
-		// POST, unlike its neighbours, because the pairing code is secret-
-		// bearing and a GET would write it into the browser's history, the
-		// server's access log and any referrer sent from the page afterwards.
-		// The one-time nature of the code limits the damage, but a code that
-		// has not been redeemed yet is still worth not logging.
-		if ( 'fleet_add_host' === $action ) {
+		// There is no "add host" action here any more. A managing site connects
+		// by calling this site's registration endpoint with the security ID
+		// below, so the only thing this screen does is issue and replace that
+		// ID. Nothing is pasted in, and this site never calls out.
+		if ( 'fleet_new_security_id' === $action ) {
 			$server_id = isset( $_GET['server'] ) ? absint( $_GET['server'] ) : 0; // phpcs:ignore WordPress.Security.NonceVerification
-			check_admin_referer( 'acrossai_mcp_fleet_add_' . $server_id );
+			check_admin_referer( 'acrossai_mcp_fleet_newid_' . $server_id );
 
-			$code = isset( $_POST['fleet_code'] ) ? sanitize_text_field( wp_unslash( $_POST['fleet_code'] ) ) : '';
-
-			$result = \AcrossAI_MCP_Manager\Includes\Fleet\Pairing::pair(
-				$server_id,
-				$code,
-				get_current_user_id()
-			);
-
-			if ( is_wp_error( $result ) ) {
-				// The reason travels in the URL rather than through a notice
-				// key: these messages are specific to what went wrong — an
-				// expired code, an unreachable site, a refusal the hub itself
-				// worded — and a fixed catalogue could only flatten them back
-				// into "pairing failed", which is the message this whole class
-				// exists to avoid.
-				$this->redirect_to_edit_with_detail( $server_id, 'fleet_add_failed', $result->get_error_message() );
+			if ( $server_id > 0 ) {
+				\AcrossAI_MCP_Manager\Includes\Fleet\SecurityId::regenerate( $server_id );
 			}
 
-			$this->redirect_to_edit( $server_id, 'overview', 'fleet_added' );
+			$this->redirect_to_edit( $server_id, 'overview', 'fleet_new_id' );
 		}
 
 		// ── Fleet: leave a fleet ──────────────────────────────────────────────
@@ -199,14 +186,18 @@ class Settings {
 			$host_key  = isset( $_GET['host'] ) ? sanitize_key( wp_unslash( $_GET['host'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification
 			check_admin_referer( 'acrossai_mcp_fleet_remove_' . $server_id . '_' . $host_key );
 
-			$result = \AcrossAI_MCP_Manager\Includes\Fleet\Pairing::unpair(
-				$server_id,
-				$host_key,
-				get_current_user_id()
-			);
+			// Removing the record IS the revocation: the host's access was
+			// that stored public key, so once it is gone its signatures
+			// verify against nothing. There is no credential left behind to
+			// clean up, which is the point of the signature design.
+			$removed = \AcrossAI_MCP_Manager\Includes\Fleet\Hosts::remove( $server_id, $host_key );
 
-			if ( is_wp_error( $result ) ) {
-				$this->redirect_to_edit_with_detail( $server_id, 'fleet_remove_failed', $result->get_error_message() );
+			if ( ! $removed ) {
+				$this->redirect_to_edit_with_detail(
+					$server_id,
+					'fleet_remove_failed',
+					__( 'That host is already gone.', 'acrossai-mcp-manager' )
+				);
 			}
 
 			$this->redirect_to_edit( $server_id, 'overview', 'fleet_removed' );

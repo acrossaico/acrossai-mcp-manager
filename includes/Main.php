@@ -685,6 +685,18 @@ final class Main {
 		$fleet_route = \AcrossAI_MCP_Manager\Includes\Fleet\RoutePermission::instance();
 		$this->loader->add_filter( 'rest_pre_dispatch', $fleet_route, 'gate_fleet_route', 10, 3 );
 
+		/**
+		 * Fleet registration — the one call a managing site makes before it
+		 * holds anything this site would recognise.
+		 *
+		 * Unauthenticated by necessity: issuing the trust IS the call. The
+		 * site's security ID authenticates it, a per-IP limiter stops that
+		 * being guessed, and Fleet access must already be switched on. See
+		 * Fleet\Register for why that combination is enough.
+		 */
+		$fleet_register = \AcrossAI_MCP_Manager\Includes\Fleet\Register::instance();
+		$this->loader->add_action( 'rest_api_init', $fleet_register, 'register_routes' );
+
 		// F040 follow-up: the OAuth HTTPS and OAuth-cron-disabled notices moved
 		// to the acrossai-ai-connectors companion plugin — mcp-manager no longer
 		// owns the OAuth token endpoint or the OAuth cleanup cron, so those

@@ -95,9 +95,8 @@ class Notices {
 			),
 			// Fleet. The two failures carry their own reason appended below;
 			// the entries here supply only the sentence that frames it.
-			'fleet_added'         => array( 'success', __( 'Host connected. It can now run abilities on this site.', 'acrossai-mcp-manager' ) ),
-			'fleet_removed'       => array( 'success', __( 'Host removed and its credential withdrawn.', 'acrossai-mcp-manager' ) ),
-			'fleet_add_failed'    => array( 'error', __( 'Could not connect that host.', 'acrossai-mcp-manager' ) ),
+			'fleet_new_id'        => array( 'success', __( 'New security ID generated. Give it to the site you want to connect; already-connected hosts are unaffected.', 'acrossai-mcp-manager' ) ),
+			'fleet_removed'       => array( 'success', __( 'Host removed. Its signatures no longer verify, so it can no longer reach this site.', 'acrossai-mcp-manager' ) ),
 			'fleet_remove_failed' => array( 'error', __( 'Could not remove that host.', 'acrossai-mcp-manager' ) ),
 		);
 

@@ -31,6 +31,7 @@ namespace AcrossAI_MCP_Manager\Admin\Partials\ServerTabs;
 
 use AcrossAI_MCP_Manager\Includes\Database\MCPServer\ServerTypes;
 use AcrossAI_MCP_Manager\Includes\Fleet\Hosts;
+use AcrossAI_MCP_Manager\Includes\Fleet\SecurityId;
 use AcrossAI_MCP_Manager\Includes\Utilities\AdminPageSlugs;
 
 defined( 'ABSPATH' ) || exit;
@@ -208,9 +209,9 @@ final class FleetTab extends AbstractServerTab {
 			printf(
 				'<p>%s</p><p class="description">%s</p>',
 				esc_html__( 'No hosts connected.', 'acrossai-mcp-manager' ),
-				esc_html__( 'A host is another WordPress site allowed to run abilities here. You will need a pairing code from it.', 'acrossai-mcp-manager' )
+				esc_html__( 'A host is another WordPress site allowed to run abilities here. Give it the security ID below and it will connect itself.', 'acrossai-mcp-manager' )
 			);
-			$this->render_add_form( $server_id );
+			$this->render_security_id( $server_id, $is_enabled );
 			return;
 		}
 
@@ -239,7 +240,7 @@ final class FleetTab extends AbstractServerTab {
 		}
 
 		echo '</tbody></table>';
-		$this->render_add_form( $server_id );
+		$this->render_security_id( $server_id, $is_enabled );
 	}
 
 	/**
@@ -283,59 +284,77 @@ final class FleetTab extends AbstractServerTab {
 	}
 
 	/**
-	 * The add-a-host form.
+	 * The security ID a managing site needs, and how to use it.
 	 *
-	 * Inline rather than a modal: this is one field and a button, and a modal
-	 * would add a JavaScript dependency to a screen that otherwise needs none.
+	 * Shown rather than collected. The code is generated here and read OUT of
+	 * this site, which is what makes it proof of access to it — a code pasted
+	 * IN could have come from anyone, including someone who talked an
+	 * administrator into pasting it.
 	 *
-	 * The consequence of submitting is stated above the button, not after it.
-	 * This is the moment the site mints a credential and sends it to an
-	 * address the operator pasted, and that is worth one plain sentence before
-	 * they commit rather than a surprise afterwards.
+	 * Printed in plain text on purpose. It authenticates exactly one
+	 * registration and is replaced the moment it is used, so hiding it behind a
+	 * reveal control would add ceremony without adding protection.
+	 *
+	 * @since 0.4.6
+	 *
+	 * @param int  $server_id  Fleet server id.
+	 * @param bool $is_enabled Whether Fleet access is on.
+	 */
+	private function render_security_id( int $server_id, bool $is_enabled ): void {
+		printf( '<h2>%s</h2>', esc_html__( 'Add this site to a fleet', 'acrossai-mcp-manager' ) );
+
+		if ( ! $is_enabled ) {
+			printf(
+				'<p class="description">%s</p>',
+				esc_html__( 'Turn Fleet access on first. A managing site cannot connect while it is off.', 'acrossai-mcp-manager' )
+			);
+			return;
+		}
+
+		printf(
+			'<p class="description">%s</p>',
+			esc_html__( 'Give these two values to the site that will manage this one. It connects to this site; there is nothing to paste back here.', 'acrossai-mcp-manager' )
+		);
+
+		echo '<table class="form-table" role="presentation"><tbody>';
+
+		printf(
+			'<tr><th scope="row">%1$s</th><td><code style="font-size:15px;letter-spacing:.08em">%2$s</code> <a href="%3$s" class="button button-small">%4$s</a><p class="description">%5$s</p></td></tr>',
+			esc_html__( 'Security ID', 'acrossai-mcp-manager' ),
+			esc_html( SecurityId::get( $server_id ) ),
+			esc_url( $this->regenerate_url( $server_id ) ),
+			esc_html__( 'Generate a new one', 'acrossai-mcp-manager' ),
+			esc_html__( 'Single use — it is replaced automatically as soon as a site connects with it. Already-connected hosts are unaffected.', 'acrossai-mcp-manager' )
+		);
+
+		printf(
+			'<tr><th scope="row">%1$s</th><td><code>%2$s</code></td></tr>',
+			esc_html__( 'This site’s address', 'acrossai-mcp-manager' ),
+			esc_html( home_url() )
+		);
+
+		echo '</tbody></table>';
+	}
+
+	/**
+	 * Link that replaces the security ID.
 	 *
 	 * @since 0.4.6
 	 *
 	 * @param int $server_id Fleet server id.
 	 */
-	private function render_add_form( int $server_id ): void {
-		$action = add_query_arg(
-			array(
-				'page'   => AdminPageSlugs::PARENT,
-				'action' => 'fleet_add_host',
-				'server' => $server_id,
+	private function regenerate_url( int $server_id ): string {
+		return wp_nonce_url(
+			add_query_arg(
+				array(
+					'page'   => AdminPageSlugs::PARENT,
+					'action' => 'fleet_new_security_id',
+					'server' => $server_id,
+				),
+				admin_url( 'admin.php' )
 			),
-			admin_url( 'admin.php' )
+			'acrossai_mcp_fleet_newid_' . $server_id
 		);
-
-		echo '<form method="post" action="' . esc_url( $action ) . '" class="acrossai-fleet-add">';
-		wp_nonce_field( 'acrossai_mcp_fleet_add_' . $server_id );
-
-		printf(
-			'<p><label for="acrossai-fleet-code"><strong>%s</strong></label></p>',
-			esc_html__( 'Pairing code', 'acrossai-mcp-manager' )
-		);
-
-		printf(
-			'<p><input type="text" id="acrossai-fleet-code" name="fleet_code" class="large-text code" autocomplete="off" spellcheck="false" placeholder="%s" /></p>',
-			esc_attr__( 'fleet_…', 'acrossai-mcp-manager' )
-		);
-
-		printf(
-			'<p class="description">%s</p>',
-			esc_html__( 'Get this from the site that will manage this one, under AcrossAI → Fleet.', 'acrossai-mcp-manager' )
-		);
-
-		printf(
-			'<p class="description">%s</p>',
-			esc_html__( 'Connecting creates an Application Password dedicated to that site and sends it there. Removing the host withdraws it again.', 'acrossai-mcp-manager' )
-		);
-
-		printf(
-			'<p><button type="submit" class="button button-primary">%s</button></p>',
-			esc_html__( 'Connect', 'acrossai-mcp-manager' )
-		);
-
-		echo '</form>';
 	}
 
 	/**

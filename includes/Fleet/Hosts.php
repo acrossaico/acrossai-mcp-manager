@@ -1,24 +1,31 @@
 <?php
 /**
- * The list of hubs allowed to manage this site.
+ * The hubs allowed to manage this site, and the keys that prove them.
  *
- * A "host" is another WordPress site that may call this site's Fleet endpoint.
- * The list lives in the existing per-server meta table against the Fleet
- * server's own row, so this adds no schema: one key, one JSON array, read and
- * written here and nowhere else.
+ * A "host" is another WordPress site that may call this site's Fleet
+ * endpoint. The list lives in the existing per-server meta table against the
+ * Fleet server's own row, so this adds no schema: one key, one JSON array,
+ * read and written here and nowhere else.
  *
- * ## What is NOT stored here
+ * ## There is no secret in here
  *
- * No credential. When a host is added, this site mints an Application Password
- * and sends the secret to the hub — the hub needs it to make calls, this site
- * does not. What stays behind is the password's **UUID**, which is the only
- * thing required to revoke it.
+ * Each host record holds that hub's **public** key. The hub keeps the private
+ * half and signs every request with it; this site only ever verifies. So the
+ * worst a database leak on a managed site yields is a list of public keys,
+ * which are useless to whoever steals them — they cannot be used to sign
+ * anything, and they are not reusable against any other site.
  *
- * That asymmetry is the security property worth protecting: a leaked database
- * on a managed site exposes no credential for any hub, because the secret was
- * never written down here. Do not "improve" this by caching the secret for
- * display — there is no screen that needs it, and a site owner who wants a
- * host gone removes it, which revokes rather than reveals.
+ * That is the whole reason the signature design was chosen over handing each
+ * hub an Application Password. Do not reintroduce a stored credential here;
+ * if a future caller seems to need one, the design has gone wrong upstream.
+ *
+ * ## What the user id is for
+ *
+ * A verified signature has to become a WordPress user before the MCP stack
+ * can check a capability or attribute a log entry. Each host records which
+ * user it acts as, chosen by the administrator who paired it. A paired hub is
+ * therefore exactly as powerful as that user — no more, and no less — and
+ * removing the host ends it.
  *
  * @package    AcrossAI_MCP_Manager
  * @subpackage Includes\Fleet
@@ -38,10 +45,6 @@ final class Hosts {
 	/**
 	 * Meta key holding the JSON array of hosts.
 	 *
-	 * Prefixed `_fleet_` rather than `_acrossai_pro_`: this is the free
-	 * plugin's own data on the free plugin's own server row. Pro reads none
-	 * of it.
-	 *
 	 * @since 0.4.6
 	 * @var   string
 	 */
@@ -50,14 +53,14 @@ final class Hosts {
 	/**
 	 * Every host currently allowed to manage this site.
 	 *
-	 * Malformed entries are dropped rather than repaired. A host record that
-	 * cannot be read cannot be revoked either, so surfacing it in the UI would
-	 * offer the owner a control that does nothing.
+	 * Malformed entries are dropped rather than repaired. A record that
+	 * cannot be read cannot be removed either, so showing it would offer the
+	 * owner a control that does nothing.
 	 *
 	 * @since 0.4.6
 	 *
 	 * @param int $server_id The Fleet server's primary key.
-	 * @return array<int, array{key: string, host: string, url: string, uuid: string, added_at: int, last_call_at: int}>
+	 * @return array<int, array{key: string, host: string, url: string, pubkey: string, user_id: int, added_at: int, last_call_at: int}>
 	 */
 	public static function all( int $server_id ): array {
 		if ( $server_id <= 0 ) {
@@ -96,7 +99,7 @@ final class Hosts {
 	 */
 	public static function find( int $server_id, string $key ): ?array {
 		foreach ( self::all( $server_id ) as $host ) {
-			if ( $host['key'] === $key ) {
+			if ( hash_equals( $host['key'], $key ) ) {
 				return $host;
 			}
 		}
@@ -107,10 +110,10 @@ final class Hosts {
 	/**
 	 * Add a host, or replace one already recorded under the same key.
 	 *
-	 * Re-pairing an existing host is a replace rather than a second row: two
+	 * Re-registering an existing hub replaces rather than appends: two
 	 * entries for one hub would leave the owner unsure which Remove button
-	 * cuts it off, and the stale entry's UUID would keep a live credential
-	 * alive after the visible one was removed.
+	 * cuts it off, and the stale entry's key would keep working after the
+	 * visible one was gone.
 	 *
 	 * @since 0.4.6
 	 *
@@ -139,9 +142,9 @@ final class Hosts {
 	/**
 	 * Remove a host.
 	 *
-	 * Only forgets the record. Revoking the Application Password is the
-	 * caller's job and must happen first — a forgotten UUID is a credential
-	 * nobody can revoke, which is strictly worse than a remembered one.
+	 * Nothing to revoke elsewhere: the hub's access WAS this record. Once it
+	 * is gone its signatures verify against nothing and the next call is
+	 * refused, with no credential left anywhere to clean up.
 	 *
 	 * @since 0.4.6
 	 *
@@ -205,53 +208,29 @@ final class Hosts {
 	}
 
 	/**
-	 * Whether an Application Password UUID belongs to a paired host.
-	 *
-	 * The question {@see RoutePermission} asks on every fleet request, so it
-	 * reads the same list the admin screen shows — removing a host on screen
-	 * closes the door on the next call, with nothing to invalidate.
-	 *
-	 * @since 0.4.6
-	 *
-	 * @param int    $server_id The Fleet server's primary key.
-	 * @param string $uuid      Application Password UUID presented by the caller.
-	 * @return array<string, mixed>|null The matching host, or null.
-	 */
-	public static function find_by_uuid( int $server_id, string $uuid ): ?array {
-		if ( '' === $uuid ) {
-			return null;
-		}
-
-		foreach ( self::all( $server_id ) as $host ) {
-			if ( '' !== $host['uuid'] && hash_equals( $host['uuid'], $uuid ) ) {
-				return $host;
-			}
-		}
-
-		return null;
-	}
-
-	/**
 	 * Coerce one stored entry into the documented shape, or reject it.
 	 *
-	 * `key` and `url` are the two that cannot be defaulted: without a key the
-	 * entry cannot be addressed by the Remove button, and without a URL there
-	 * is nothing to show the owner about who is reaching their site.
+	 * `key`, `url` and `pubkey` cannot be defaulted: without a key the entry
+	 * cannot be addressed by the Remove button, without a URL there is
+	 * nothing to show the owner about who is reaching their site, and without
+	 * a public key the record could never authenticate anything — an entry
+	 * missing it would be a host that appears connected and is not.
 	 *
 	 * @since 0.4.6
 	 *
 	 * @param mixed $entry Candidate entry.
-	 * @return array{key: string, host: string, url: string, uuid: string, added_at: int, last_call_at: int}|null
+	 * @return array{key: string, host: string, url: string, pubkey: string, user_id: int, added_at: int, last_call_at: int}|null
 	 */
 	private static function normalize( $entry ): ?array {
 		if ( ! is_array( $entry ) ) {
 			return null;
 		}
 
-		$key = isset( $entry['key'] ) && is_string( $entry['key'] ) ? sanitize_key( $entry['key'] ) : '';
-		$url = isset( $entry['url'] ) && is_string( $entry['url'] ) ? esc_url_raw( $entry['url'] ) : '';
+		$key    = isset( $entry['key'] ) && is_string( $entry['key'] ) ? sanitize_key( $entry['key'] ) : '';
+		$url    = isset( $entry['url'] ) && is_string( $entry['url'] ) ? esc_url_raw( $entry['url'] ) : '';
+		$pubkey = isset( $entry['pubkey'] ) && is_string( $entry['pubkey'] ) ? trim( $entry['pubkey'] ) : '';
 
-		if ( '' === $key || '' === $url ) {
+		if ( '' === $key || '' === $url || '' === $pubkey ) {
 			return null;
 		}
 
@@ -264,7 +243,8 @@ final class Hosts {
 			'key'          => $key,
 			'host'         => $host,
 			'url'          => $url,
-			'uuid'         => isset( $entry['uuid'] ) && is_string( $entry['uuid'] ) ? $entry['uuid'] : '',
+			'pubkey'       => $pubkey,
+			'user_id'      => isset( $entry['user_id'] ) ? absint( $entry['user_id'] ) : 0,
 			'added_at'     => isset( $entry['added_at'] ) ? absint( $entry['added_at'] ) : 0,
 			'last_call_at' => isset( $entry['last_call_at'] ) ? absint( $entry['last_call_at'] ) : 0,
 		);
@@ -273,9 +253,10 @@ final class Hosts {
 	/**
 	 * Persist the list, deleting the row when it empties.
 	 *
-	 * Absence is the canonical "no hosts" state, so an empty array removes the
-	 * row rather than storing `[]` — the two would otherwise read differently
-	 * to anything inspecting the meta table while meaning the same thing.
+	 * Absence is the canonical "no hosts" state, so an empty array removes
+	 * the row rather than storing `[]` — the two would otherwise read
+	 * differently to anything inspecting the meta table while meaning the
+	 * same thing.
 	 *
 	 * @since 0.4.6
 	 *

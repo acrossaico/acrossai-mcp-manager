@@ -1,38 +1,33 @@
 <?php
 /**
- * Restricts the Fleet endpoint to credentials this site handed to a hub.
+ * Lets a signed request from a paired hub through, and nothing else.
  *
- * ## Why this class has to exist
- *
- * Without it the Fleet route is not a fleet route at all — it is a second
- * admin endpoint with a different name.
+ * ## Why this exists at all
  *
  * {@see \AcrossAI_MCP_Manager\Includes\AccessControl\TransportPermissionDefault}
  * answers the transport's question with a *capability*, and for a server with
  * no access-control rule that answer is `manage_options`. A capability cannot
- * distinguish one credential from another, so every Application Password
- * belonging to any administrator on this site would satisfy it — including
- * passwords minted for entirely unrelated integrations, and the site owner's
- * own. Pairing would grant nothing, and removing a host would take nothing
- * away.
+ * distinguish one caller from another, so without this class the Fleet route
+ * would be satisfied by any administrator credential on the site. Pairing
+ * would grant nothing and removing a host would take nothing away.
  *
- * So the identity check happens here instead: the Application Password UUID
- * presented on the request must match one this site recorded when it paired a
- * hub. That check is the thing that makes "Remove" on the Fleet panel mean
- * something, because it reads the same list the panel writes.
+ * ## It also supplies the user
  *
- * ## Why UUID rather than user
+ * A signature is not a WordPress login, and everything downstream — the
+ * capability check, the per-ability exposure gates, the activity log — needs
+ * one. So a verified signature is exchanged here for the user the host was
+ * paired as, via `wp_set_current_user()`.
  *
- * Pairing mints a password on an existing administrator, so the acting user is
- * indistinguishable between hubs. The UUID is the only part that is per-hub,
- * which is why {@see Hosts} keeps it and why removing a host revokes the
- * password rather than merely forgetting it.
+ * That exchange is the real grant, and it is worth being plain about: a
+ * paired hub can do exactly what that user can do. The limit is chosen when
+ * the host is paired, enforced by every gate that already exists downstream,
+ * and ended by removing the host.
  *
- * ## What this deliberately does not do
+ * ## Why `rest_pre_dispatch`
  *
- * It does not replace the capability gate or the per-ability exposure gates —
- * it runs in front of them. A paired hub still has to pass everything a local
- * AI client passes. This only answers "are you a hub we know?".
+ * It runs after authentication and before `permission_callback`, which is the
+ * only window where the user can still be set in time to be checked. Later is
+ * too late; earlier runs for every REST request on the site.
  *
  * @package    AcrossAI_MCP_Manager
  * @subpackage Includes\Fleet
@@ -47,7 +42,6 @@ use AcrossAI_MCP_Manager\Includes\Database\MCPServer\DefaultServerSeeder;
 use AcrossAI_MCP_Manager\Includes\Database\MCPServer\Query as MCPServerQuery;
 use WP_Error;
 use WP_REST_Request;
-use WP_REST_Server;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -62,9 +56,8 @@ final class RoutePermission {
 	private static ?self $instance = null;
 
 	/**
-	 * Memoized Fleet server row for this request: id + route, or false when
-	 * the row is absent. Resolved at most once however many times the filter
-	 * fires.
+	 * Memoized Fleet server for this request: id + route, or false when the
+	 * row is absent.
 	 *
 	 * @since 0.4.6
 	 * @var   array{id: int, route: string}|false|null
@@ -92,9 +85,6 @@ final class RoutePermission {
 	/**
 	 * Filter callback for `rest_pre_dispatch`.
 	 *
-	 * Returning a WP_Error short-circuits the request before the route's own
-	 * callback runs, so a refused hub never reaches the MCP handler.
-	 *
 	 * @since 0.4.6
 	 *
 	 * @param mixed $result  Response to replace the request with, or null.
@@ -103,41 +93,53 @@ final class RoutePermission {
 	 * @return mixed Unchanged `$result`, or a WP_Error refusing the call.
 	 */
 	public function gate_fleet_route( $result, $server, $request ) { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.Found -- Signature fixed by the filter.
-		// Something upstream already decided the answer; do not second-guess it.
-		if ( null !== $result ) {
-			return $result;
-		}
-
-		if ( ! $request instanceof WP_REST_Request ) {
+		if ( null !== $result || ! $request instanceof WP_REST_Request ) {
 			return $result;
 		}
 
 		$fleet = $this->fleet_server();
-		if ( false === $fleet ) {
+		if ( false === $fleet || ltrim( (string) $request->get_route(), '/' ) !== $fleet['route'] ) {
 			return $result;
 		}
 
-		if ( ltrim( (string) $request->get_route(), '/' ) !== $fleet['route'] ) {
-			return $result;
-		}
-
-		$uuid = $this->presented_uuid();
-		if ( '' === $uuid ) {
-			// No Application Password on the request. A signed-in administrator
-			// with a cookie lands here too, and is refused on purpose: this
-			// endpoint exists for paired sites, and the site's own AI access
-			// is a different route that already works for them.
+		$host_key = (string) $request->get_header( Signature::HEADER_HOST );
+		if ( '' === $host_key ) {
 			return $this->refuse(
-				__( 'This endpoint is only reachable by a site you have paired. Add it under MCP → Servers → Fleet.', 'acrossai-mcp-manager' )
+				__( 'This endpoint is only reachable by a site you have paired. Add this site to a fleet under MCP → Servers → Fleet.', 'acrossai-mcp-manager' )
 			);
 		}
 
-		$host = Hosts::find_by_uuid( (int) $fleet['id'], $uuid );
+		$host = Hosts::find( (int) $fleet['id'], $host_key );
 		if ( null === $host ) {
 			return $this->refuse(
-				__( 'That credential is not paired with this site. Ask for a new pairing code.', 'acrossai-mcp-manager' )
+				__( 'That managing site is not paired with this one. Ask it to connect again.', 'acrossai-mcp-manager' )
 			);
 		}
+
+		$verdict = Signature::verify(
+			(string) $host['pubkey'],
+			$host_key,
+			(int) $request->get_header( Signature::HEADER_TIMESTAMP ),
+			(string) $request->get_header( Signature::HEADER_NONCE ),
+			(string) $request->get_body(),
+			(string) $request->get_header( Signature::HEADER_SIGNATURE )
+		);
+
+		if ( true !== $verdict ) {
+			return $this->refuse( $this->explain( (string) $verdict ) );
+		}
+
+		// The user the host was paired as. Absent or deleted means the grant
+		// no longer has anything behind it — refuse rather than fall through
+		// to whatever user context happens to be lying around.
+		$user_id = (int) $host['user_id'];
+		if ( $user_id <= 0 || ! get_userdata( $user_id ) ) {
+			return $this->refuse(
+				__( 'The account this managing site was connected as no longer exists. Remove the host and connect again.', 'acrossai-mcp-manager' )
+			);
+		}
+
+		wp_set_current_user( $user_id );
 
 		Hosts::touch( (int) $fleet['id'], (string) $host['key'] );
 
@@ -145,26 +147,36 @@ final class RoutePermission {
 	}
 
 	/**
-	 * The Application Password UUID authenticating this request, or ''.
+	 * Turn a verification reason into something an operator can act on.
 	 *
-	 * Core sets this global from `rest_application_password_collect_status`
-	 * once `wp_validate_application_password` succeeds, so its presence is
-	 * proof an Application Password authenticated — not merely that one was
-	 * offered.
+	 * These are distinct problems with distinct fixes, which is why
+	 * {@see Signature::verify()} reports them separately instead of
+	 * returning false.
 	 *
 	 * @since 0.4.6
+	 *
+	 * @param string $reason Machine-readable reason.
 	 */
-	private function presented_uuid(): string {
-		return isset( $GLOBALS['wp_rest_application_password_uuid'] )
-			? (string) $GLOBALS['wp_rest_application_password_uuid']
-			: '';
+	private function explain( string $reason ): string {
+		switch ( $reason ) {
+			case 'clock_skew':
+				return __( 'That request was signed too long ago, or the two sites’ clocks disagree. Check the server time on both.', 'acrossai-mcp-manager' );
+			case 'replay':
+				return __( 'That request has already been used once and cannot be repeated.', 'acrossai-mcp-manager' );
+			case 'no_openssl':
+				return __( 'This site cannot verify signatures because the OpenSSL extension is unavailable. Ask your host to enable it.', 'acrossai-mcp-manager' );
+			case 'bad_key':
+				return __( 'The key stored for that managing site is unreadable. Remove the host and connect again.', 'acrossai-mcp-manager' );
+			default:
+				return __( 'That request was not signed by the site it claims to come from.', 'acrossai-mcp-manager' );
+		}
 	}
 
 	/**
 	 * Resolve the Fleet server row, memoized per request.
 	 *
-	 * Matched on SLUG, not on route. The slug is plugin-managed and protected;
-	 * the route is read from the row so that a reconciler change to the
+	 * Matched on SLUG, not route: the slug is plugin-managed and protected,
+	 * while the route is read from the row, so a reconciler change to the
 	 * address cannot leave this gate watching the wrong one.
 	 *
 	 * @since 0.4.6
@@ -189,9 +201,6 @@ final class RoutePermission {
 			return false;
 		}
 
-		// Read through an array cast: the query returns a plain object whose
-		// shape static analysis cannot see, and the surrounding code already
-		// treats these rows as loose data.
 		$row       = (array) $rows[0];
 		$id        = isset( $row['id'] ) ? (int) $row['id'] : 0;
 		$namespace = isset( $row['server_route_namespace'] ) ? (string) $row['server_route_namespace'] : '';
@@ -213,10 +222,9 @@ final class RoutePermission {
 	/**
 	 * Build the refusal.
 	 *
-	 * 403 rather than 401 throughout: the caller did authenticate, it simply
-	 * is not a hub this site knows. A 401 would invite the client to retry
-	 * with different credentials, which is the wrong advice — the fix is on
-	 * the pairing screen, and the message says so.
+	 * 403 throughout, never 401: a 401 invites the client to retry with
+	 * different credentials, and there are no credentials to retry with. The
+	 * fix is always on the pairing screen, and the message says so.
 	 *
 	 * @since 0.4.6
 	 *
