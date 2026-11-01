@@ -967,6 +967,23 @@ final class Main {
 		$this->loader->add_action( 'admin_menu', $activity_page, 'register_menu', 20 );
 		$this->loader->add_action( 'admin_enqueue_scripts', $activity_page, 'enqueue_assets' );
 
+		// #181 — purge cached discovery documents when what they describe
+		// changes. BerlinDB fires `transition_mcp_server_{column}` from
+		// update_item(), so hooking the transition covers every writer — the
+		// admin form, REST, the seeder, WP-CLI, a companion plugin — rather
+		// than the four save paths that happen to exist today.
+		$discovery_invalidator = \AcrossAI_MCP_Manager\Includes\OAuth\DiscoveryCacheInvalidator::class;
+		foreach ( $discovery_invalidator::watched_columns() as $watched_column ) {
+			$this->loader->add_action(
+				'transition_mcp_server_' . $watched_column,
+				$discovery_invalidator,
+				'on_change',
+				10,
+				3
+			);
+		}
+		$this->loader->add_action( 'mcp_server_deleted', $discovery_invalidator, 'on_delete', 10, 2 );
+
 		// F101 — the connection troubleshooter. Its own submenu at position 9,
 		// directly after Logs: both are screens an operator opens when
 		// something is already wrong, and the diagnostics belong next to the

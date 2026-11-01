@@ -330,6 +330,91 @@ final class DiscoveryController {
 	}
 
 	/**
+	 * Scheme, host and port of this site, with no path.
+	 *
+	 * The `.well-known` segment goes at the HOST root — before any
+	 * subdirectory, never after it — so these URLs cannot be built with
+	 * `home_url( $path )` on a subdirectory install without producing a path
+	 * that does not exist.
+	 *
+	 * @return string e.g. `https://example.com` or `https://example.com:8443`.
+	 */
+	public static function origin(): string {
+		$parts  = wp_parse_url( home_url( '/' ) );
+		$scheme = isset( $parts['scheme'] ) ? (string) $parts['scheme'] : 'https';
+		$host   = isset( $parts['host'] ) ? (string) $parts['host'] : '';
+		$port   = isset( $parts['port'] ) ? ':' . (int) $parts['port'] : '';
+
+		return $scheme . '://' . $host . $port;
+	}
+
+	/**
+	 * Every discovery URL this site serves or has served, absolute.
+	 *
+	 * The two bare documents, plus the RFC 9728 §3.1 path-inserted form for
+	 * each server — that last one is what MCP hosts actually probe, and it
+	 * carries the same cache headers, so a list that skipped it would skip
+	 * the stale copy that matters.
+	 *
+	 * DISABLED servers are included deliberately. A caller purging after a
+	 * change needs the URL of the server that was just switched OFF far more
+	 * than the ones still on: that is the document which has just started
+	 * lying. Filtering to enabled rows produced exactly that hole, caught by
+	 * watching a real admin disable.
+	 *
+	 * @return array<int, string>
+	 */
+	public static function document_urls(): array {
+		$origin = self::origin();
+		$urls   = array(
+			$origin . '/.well-known/oauth-authorization-server',
+			$origin . '/.well-known/oauth-protected-resource',
+		);
+
+		if ( ! class_exists( '\\AcrossAI_MCP_Manager\\Includes\\Database\\MCPServer\\Query' ) ) {
+			return $urls;
+		}
+
+		$servers = \AcrossAI_MCP_Manager\Includes\Database\MCPServer\Query::instance()->query(
+			array( 'number' => 100 )
+		);
+
+		if ( ! is_array( $servers ) ) {
+			return $urls;
+		}
+
+		foreach ( $servers as $server ) {
+			$namespace = ! empty( $server->server_route_namespace )
+				? (string) $server->server_route_namespace
+				: 'mcp';
+			$route     = isset( $server->server_route ) ? (string) $server->server_route : '';
+
+			if ( '' === $route ) {
+				continue;
+			}
+
+			$resource = rest_url( trailingslashit( $namespace ) . $route );
+			$path     = (string) wp_parse_url( $resource, PHP_URL_PATH );
+
+			// On a site with plain permalinks `rest_url()` returns the
+			// `?rest_route=` form, whose PATH is just `/index.php` — the route
+			// lives in the query string. Appending that to the well-known
+			// prefix yields `/.well-known/oauth-protected-resource/index.php`,
+			// which is not a URL anything requests. Such a site cannot serve
+			// the `.well-known` rewrites at all, so there is nothing here to
+			// list; requiring the route to appear in the path says so without
+			// having to ask the rewrite layer.
+			if ( '' === $path || false === strpos( $path, $route ) ) {
+				continue;
+			}
+
+			$urls[] = $origin . '/.well-known/oauth-protected-resource' . $path;
+		}
+
+		return array_values( array_unique( $urls ) );
+	}
+
+	/**
 	 * Bare issuer URL. FR-001 requires no trailing slash.
 	 *
 	 * @return string

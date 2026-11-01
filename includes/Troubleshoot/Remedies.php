@@ -35,13 +35,23 @@ final class Remedies {
 	public const ANTHROPIC_EGRESS_V6 = '2607:6bc0::/48';
 
 	/**
+	 * The hosting guidance this ticket text summarises.
+	 *
+	 * Included in the paste-able block so the person reading the ticket —
+	 * usually a host's support engineer, not the site owner — can see why the
+	 * exclusions are being asked for rather than treating the list as "please
+	 * turn off your firewall".
+	 */
+	public const DOC_URL = 'https://github.com/acrossaico/acrossai-mcp-manager/blob/main/docs/hosting-firewall-and-cache.md';
+
+	/**
 	 * The paths an AI host touches, as a block for a hosting ticket.
 	 */
 	public static function paths_for_support(): string {
 		$origin = untrailingslashit( home_url() );
 
 		return sprintf(
-			/* translators: 1: site origin, 2: IPv4 CIDR, 3: IPv6 CIDR */
+			/* translators: 1: site origin, 2: IPv4 CIDR, 3: IPv6 CIDR, 4: documentation URL */
 			__(
 				"Please exclude these paths from caching, bot filtering, WAF rules and redirects on %1\$s:
 
@@ -57,12 +67,15 @@ and allow requests from Anthropic's outbound addresses:
   %2\$s
   %3\$s
 
-Context: AI clients connect with non-browser user agents (Claude uses python-httpx), so generic \"block Python\" or \"block bots\" rules reject them before WordPress runs. These are public metadata endpoints; they expose no private data.",
+Context: AI clients connect with non-browser user agents (Claude uses python-httpx), so generic \"block Python\" or \"block bots\" rules reject them before WordPress runs. These are public metadata endpoints; they expose no private data.
+
+Full guidance: %4\$s",
 				'acrossai-mcp-manager'
 			),
 			$origin,
 			self::ANTHROPIC_EGRESS_V4,
-			self::ANTHROPIC_EGRESS_V6
+			self::ANTHROPIC_EGRESS_V6,
+			self::DOC_URL
 		);
 	}
 }
