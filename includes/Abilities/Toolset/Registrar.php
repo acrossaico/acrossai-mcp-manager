@@ -70,7 +70,7 @@ final class Registrar {
 	 *
 	 * DECLARED, not derived. The slugs are read at seed time — before any
 	 * ability exists — so this cannot ask the registry what is present; that is
-	 * the entire point. A server created today carries all fifteen dormant, and
+	 * the entire point. A server created today carries all fourteen dormant, and
 	 * they light up when the AcrossAI Abilities Manager add-on arrives, with no
 	 * type switch and no Reset.
 	 *
@@ -125,7 +125,7 @@ final class Registrar {
 	 *
 	 * Answers the admin's question — "what IS this tool?" — for Toolsets whose
 	 * abilities are not registered on this site. That is the ordinary state of
-	 * an AcrossAI server before the add-on arrives: its fifteen tools are
+	 * an AcrossAI server before the add-on arrives: its fourteen tools are
 	 * declared in advance, so without this the Tools tab printed a bare slug
 	 * twice with no description and a working server read as a broken one.
 	 *
