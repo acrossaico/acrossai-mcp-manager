@@ -144,7 +144,11 @@ final class ActivityLogConstantsTest extends TestCase {
 			'Ability runs are the noisier half and must not be kept longer than requests.'
 		);
 		$this->assertSame( 4, ActivityLogConstants::DEFAULT_BYTES_PER_TOKEN );
-		$this->assertSame( '1.1.0', ActivityLogConstants::TABLE_VERSION );
+		// Bumped for `fleet_peer` + its `type_peer_created` index. Pinned here on
+		// purpose: the version must move in the same commit as the
+		// `$upgrades` entry that services it, or installs silently skip the
+		// migration (B34).
+		$this->assertSame( '1.2.0', ActivityLogConstants::TABLE_VERSION );
 		$this->assertSame( 'acrossai_mcp_activity_log', ActivityLogConstants::TABLE );
 	}
 }

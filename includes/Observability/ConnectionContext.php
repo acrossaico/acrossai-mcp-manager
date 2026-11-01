@@ -16,6 +16,7 @@ declare( strict_types = 1 );
 namespace AcrossAI_MCP_Manager\Includes\Observability;
 
 use AcrossAI_MCP_Manager\Includes\Database\MCPServer\Query as MCPServerQuery;
+use AcrossAI_MCP_Manager\Includes\Fleet\FleetContext;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -37,6 +38,17 @@ final class ConnectionContext {
 	/** Cookie + REST nonce: the admin UI and Quick Connect preview. */
 	public const TYPE_BROWSER = 'browser';
 
+	/**
+	 * A signature-verified call from another WordPress site managing this one.
+	 *
+	 * Needed because the fleet route authenticates by RSA signature and then
+	 * sets a current user, so without this the request satisfies
+	 * `is_user_logged_in()` and reports itself as `browser` — a signed
+	 * server-to-server call recorded in an audit log as somebody clicking
+	 * around the admin.
+	 */
+	public const TYPE_FLEET = 'fleet';
+
 	/** None of the above matched. */
 	public const TYPE_UNKNOWN = 'unknown';
 
@@ -50,15 +62,26 @@ final class ConnectionContext {
 	/**
 	 * Resolve the connection type for the request in flight.
 	 *
-	 * Order matters. OAuth is checked first because it is the most specific
-	 * signal and the only one that distinguishes a connector-backed client from
-	 * a bare one. Application password is checked before cookie because WordPress
-	 * sets a current user for both, so "is there a logged-in user" cannot tell
-	 * them apart on its own.
+	 * Order matters, most specific first. Fleet leads: the route sets a current
+	 * user after verifying a signature, so every later test would otherwise
+	 * report `browser`. OAuth comes next because it is the only signal that
+	 * distinguishes a connector-backed client from a bare one. Application
+	 * password is checked before cookie because WordPress sets a current user
+	 * for both, so "is there a logged-in user" cannot tell them apart on its
+	 * own.
 	 *
 	 * @return string One of the TYPE_* constants.
 	 */
 	public static function resolve_type(): string {
+		// First, and before the OAuth check: a fleet request carries no bearer
+		// and no application password, so every test below it would fall
+		// through to `browser` on the strength of the user the route set. This
+		// is also the most specific signal available — it is only ever true
+		// after a signature has verified.
+		if ( FleetContext::is_fleet() ) {
+			return self::TYPE_FLEET;
+		}
+
 		$auth = AuthContextHolder::instance();
 
 		if ( $auth->is_oauth() ) {
@@ -85,6 +108,20 @@ final class ConnectionContext {
 	 */
 	public static function connector_slug(): string {
 		return AuthContextHolder::instance()->get_connector_slug();
+	}
+
+	/**
+	 * Hostname of the fleet host driving this request, or '' when none is.
+	 *
+	 * Reads through to {@see FleetContext} rather than duplicating its state,
+	 * so there is one place a fleet identity is established and one place it is
+	 * read from. Empty on every non-fleet request, which is almost all of them.
+	 *
+	 * @since 0.3.8
+	 * @return string
+	 */
+	public static function fleet_peer(): string {
+		return FleetContext::peer();
 	}
 
 	/**

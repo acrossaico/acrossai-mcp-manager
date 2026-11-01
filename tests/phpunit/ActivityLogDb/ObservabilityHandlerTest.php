@@ -11,6 +11,7 @@
 
 namespace AcrossAI_MCP_Manager\Tests\ActivityLogDb;
 
+use AcrossAI_MCP_Manager\Includes\Fleet\FleetContext;
 use AcrossAI_MCP_Manager\Includes\Abilities\AbilityActivityRecorder;
 use AcrossAI_MCP_Manager\Includes\Database\ActivityLog\Query;
 use AcrossAI_MCP_Manager\Includes\Database\ActivityLog\Row;
@@ -35,12 +36,17 @@ class ObservabilityHandlerTest extends \WP_UnitTestCase {
 		Table::instance()->maybe_upgrade();
 		AuthContextHolder::instance()->clear();
 		ConnectionContext::flush_cache();
+		// One PHP process runs every case, and a fleet identity is per-request
+		// state. Without this a marked peer would bleed into later tests and
+		// turn them green for the wrong reason.
+		FleetContext::reset();
 		unset( $GLOBALS['wp_rest_application_password_uuid'] );
 	}
 
 	public function tear_down() {
 		unset( $GLOBALS['wp_rest_application_password_uuid'] );
 		AuthContextHolder::instance()->clear();
+		FleetContext::reset();
 		parent::tear_down();
 	}
 
@@ -207,7 +213,7 @@ class ObservabilityHandlerTest extends \WP_UnitTestCase {
 		$this->assertSame( 'ping', $this->newest()->method, 'An operator can turn ping back on.' );
 	}
 
-	// --- connection_type, all five branches ---
+	// --- connection_type, all six branches ---
 
 	public function test_connection_type_ai_connector_when_the_client_has_a_connector_profile(): void {
 		AuthContextHolder::instance()->capture_oauth_context( 'claude', 'Claude Desktop' );
@@ -253,6 +259,51 @@ class ObservabilityHandlerTest extends \WP_UnitTestCase {
 		$GLOBALS['wp_rest_application_password_uuid'] = 'some-uuid';
 
 		$this->assertSame( 'ai-connector', ConnectionContext::resolve_type() );
+	}
+
+	/**
+	 * A verified fleet host is `fleet`, and the peer reaches the row.
+	 *
+	 * @since 0.3.8
+	 */
+	public function test_connection_type_fleet_and_the_peer_is_recorded(): void {
+		FleetContext::mark( 'hub.example.com', 'hub-example-com-abc123' );
+
+		$this->assertSame( 'fleet', ConnectionContext::resolve_type() );
+
+		( new ActivityObservabilityHandler() )->record_event( 'mcp.request', $this->tags(), 1.0 );
+
+		$row = $this->newest();
+
+		$this->assertSame( 'fleet', $row->connection_type );
+		$this->assertSame( 'hub.example.com', $row->fleet_peer );
+	}
+
+	/**
+	 * THE REGRESSION THIS COLUMN EXISTS FOR.
+	 *
+	 * `RoutePermission` calls `wp_set_current_user()` after verifying a
+	 * signature, so a fleet request satisfies `is_user_logged_in()` and was
+	 * recorded as `browser` — a signed server-to-server call showing up in an
+	 * audit log as somebody clicking around the admin. Fleet is resolved before
+	 * the cookie branch precisely so this cannot come back.
+	 *
+	 * @since 0.3.8
+	 */
+	public function test_fleet_beats_the_logged_in_user_its_own_route_set(): void {
+		wp_set_current_user( self::factory()->user->create( array( 'role' => 'administrator' ) ) );
+		FleetContext::mark( 'agency.example', 'agency-example-abc123' );
+
+		$this->assertSame( 'fleet', ConnectionContext::resolve_type() );
+	}
+
+	/** Non-fleet rows must carry an empty peer, not a stale one. */
+	public function test_a_non_fleet_request_records_no_peer(): void {
+		$GLOBALS['wp_rest_application_password_uuid'] = 'some-uuid';
+
+		( new ActivityObservabilityHandler() )->record_event( 'mcp.request', $this->tags(), 1.0 );
+
+		$this->assertSame( '', $this->newest()->fleet_peer );
 	}
 
 	// --- FR-013: never throw ---

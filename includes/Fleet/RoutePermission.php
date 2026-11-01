@@ -141,6 +141,27 @@ final class RoutePermission {
 
 		wp_set_current_user( $user_id );
 
+		// AFTER the signature verified and the user resolved, never before.
+		// `wp_set_current_user()` above is what makes this necessary: from here
+		// on the request is indistinguishable from a logged-in browser session,
+		// and the activity log recorded it as exactly that until this existed.
+		// Marking a claimed identity before verification would attribute
+		// refused requests to the host they merely named.
+		//
+		// The HOSTNAME, parsed from the stored URL — deliberately not
+		// `$host['host']`, which `Register` fills with the hub's display name
+		// and only falls back to a hostname. A name is not an identity: two
+		// hubs both called "My Agency" would be one indistinguishable peer in
+		// the audit log, and a hub renaming itself would split its own history
+		// in two. The label stays the right thing to show in the host list,
+		// where there is a row to disambiguate it.
+		$peer = (string) wp_parse_url( (string) ( $host['url'] ?? '' ), PHP_URL_HOST );
+
+		FleetContext::mark(
+			'' !== $peer ? $peer : (string) ( $host['host'] ?? '' ),
+			(string) $host['key']
+		);
+
 		Hosts::touch( (int) $fleet['id'], (string) $host['key'] );
 
 		return $result;

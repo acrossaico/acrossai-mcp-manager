@@ -245,6 +245,7 @@ class ActivityObservabilityHandler implements McpObservabilityHandlerInterface {
 			'server_id'        => ConnectionContext::server_id_for_slug( $slug ),
 			'connection_type'  => ConnectionContext::resolve_type(),
 			'connector_slug'   => ConnectionContext::connector_slug(),
+			'fleet_peer'       => ConnectionContext::fleet_peer(),
 			'client_name'      => $client['name'],
 			'client_version'   => $client['version'],
 			'transport'        => $this->tag( $tags, 'transport' ),

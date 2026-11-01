@@ -507,7 +507,15 @@ class Query extends \BerlinDB\Database\Kern\Query {
 		$cached = get_transient( $key );
 
 		// B11 again: validate the shape, not merely that something came back.
-		if ( is_array( $cached ) && isset( $cached['event_type'] ) && is_array( $cached['event_type'] ) ) {
+		//
+		// `fleet_peer` is named explicitly as well as `event_type` because it
+		// was added after this cache shipped: a payload written before the
+		// upgrade is a well-formed array missing one key, and without this test
+		// it would keep being served for the rest of its TTL and the new filter
+		// control would be absent for no visible reason.
+		if ( is_array( $cached )
+			&& isset( $cached['event_type'], $cached['fleet_peer'] )
+			&& is_array( $cached['event_type'] ) ) {
 			return $cached;
 		}
 
@@ -516,7 +524,11 @@ class Query extends \BerlinDB\Database\Kern\Query {
 
 		// Allow-listed against the schema, not caller-supplied — B7 applies to
 		// reads as much as writes once a column name reaches SQL.
-		$columns = array( 'event_type', 'connection_type', 'invoked_via', 'status', 'method', 'component_category' );
+		// `fleet_peer` is here so the UI can offer "everything this hub did" as
+		// a dropdown rather than a free-text box. It is empty on every
+		// non-fleet row and the `<> ''` test below skips those, so a site that
+		// has never joined a fleet gets an empty list and no filter control.
+		$columns = array( 'event_type', 'connection_type', 'invoked_via', 'status', 'method', 'component_category', 'fleet_peer' );
 
 		foreach ( $columns as $column ) {
 			$sql = "SELECT DISTINCT `{$column}` FROM `{$table}`

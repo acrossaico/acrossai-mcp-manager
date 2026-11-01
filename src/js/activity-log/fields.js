@@ -86,7 +86,13 @@ export function getFields( showServer, maxDurationMs = 0 ) {
 					return item.invoked_via || '—';
 				}
 
-				const client = [ item.client_name, item.client_version ].filter( Boolean ).join( ' ' );
+				// A fleet call carries no clientInfo — there is no AI client on
+				// the far end, there is another WordPress site. Its hostname is
+				// the equivalent identity, so it goes where the client name
+				// would, and the column stays informative instead of reading
+				// as a bare "Fleet host" with nothing to attribute it to.
+				const client = item.fleet_peer
+					|| [ item.client_name, item.client_version ].filter( Boolean ).join( ' ' );
 				const how = item.connector_label || connectionLabel( item.connection_type );
 
 				return client ? `${ client } · ${ how }` : how;
@@ -98,14 +104,18 @@ export function getFields( showServer, maxDurationMs = 0 ) {
 
 				const how = item.connector_label || connectionLabel( item.connection_type );
 
+				// See getValue above: the peer hostname stands in for the
+				// client name on fleet rows. Reusing `__conn-name` rather than
+				// adding a class keeps the two identities visually identical,
+				// which is correct — they answer the same question.
 				return (
 					<span className="acrossai-mcp-activity__conn">
-						{ item.client_name && (
+						{ ( item.fleet_peer || item.client_name ) && (
 							<span className="acrossai-mcp-activity__conn-name">
-								{ item.client_name }
+								{ item.fleet_peer || item.client_name }
 							</span>
 						) }
-						{ item.client_version && (
+						{ ! item.fleet_peer && item.client_version && (
 							<span className="acrossai-mcp-activity__conn-version">
 								{ item.client_version }
 							</span>

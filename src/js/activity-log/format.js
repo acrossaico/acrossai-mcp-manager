@@ -103,6 +103,7 @@ export function connectionLabel( type ) {
 		oauth: __( 'OAuth client', 'acrossai-mcp-manager' ),
 		'app-password': __( 'Application password', 'acrossai-mcp-manager' ),
 		browser: __( 'Browser', 'acrossai-mcp-manager' ),
+		fleet: __( 'Fleet host', 'acrossai-mcp-manager' ),
 		unknown: __( 'Unknown', 'acrossai-mcp-manager' ),
 	};
 

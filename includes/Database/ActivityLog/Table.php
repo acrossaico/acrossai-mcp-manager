@@ -58,6 +58,7 @@ class Table extends \BerlinDB\Database\Kern\Table {
 	 */
 	protected $upgrades = array(
 		'1.1.0' => 'upgrade_to_1_1_0',
+		'1.2.0' => 'upgrade_to_1_2_0',
 	);
 
 	/**
@@ -191,6 +192,65 @@ class Table extends \BerlinDB\Database\Kern\Table {
 
 					return false;
 				}
+			}
+		}
+
+		return true;
+	}
+
+	/**
+	 * 1.2.0 — add `fleet_peer` and the `type_peer_created` index.
+	 *
+	 * The column is added here rather than left to `SchemaReconciler`, even
+	 * though the reconciler exists precisely to add declared-but-missing
+	 * columns. Two reasons, both ordering:
+	 *
+	 *   1. The reconciler runs AFTER this upgrade loop (see
+	 *      `Main::reconcile_database_schemas()`), so waiting for it would mean
+	 *      the `ADD INDEX` below referenced a column that did not exist yet
+	 *      and the whole migration would fail on its first run, succeed on the
+	 *      second, and look flaky in between.
+	 *   2. An index is something the reconciler never touches at all, so the
+	 *      unstamped version is this migration's only retry — the same
+	 *      situation `upgrade_to_1_1_0()` documents.
+	 *
+	 * Both statements are guarded and idempotent, so replaying this is safe;
+	 * `maybe_upgrade()` above deliberately replays the whole chain when the
+	 * version option has gone missing.
+	 *
+	 * @return bool True when the column and its index are both present.
+	 */
+	protected function upgrade_to_1_2_0(): bool {
+		global $wpdb;
+
+		$table = $wpdb->prefix . ActivityLogConstants::TABLE;
+
+		if ( ! $this->column_exists( 'fleet_peer' ) ) {
+			// Placed after `connector_slug` to match Schema.php, so a human
+			// reading `DESCRIBE` sees the same order as the declaration. Width
+			// and default are the Schema's, not invented here.
+			// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching,WordPress.DB.DirectDatabaseQuery.SchemaChange -- DDL over a plugin-owned table with hardcoded identifiers; $wpdb->prepare() does not support DDL identifiers.
+			$added = $wpdb->query(
+				"ALTER TABLE `{$table}` ADD COLUMN `fleet_peer` varchar(191) NOT NULL DEFAULT '' AFTER `connector_slug`"
+			);
+
+			if ( false === $added ) {
+				/** This action is documented in includes/Database/CliAuthLog/Table.php */
+				do_action( 'acrossai_mcp_schema_upgrade_failed', ActivityLogConstants::TABLE, '1.2.0', $wpdb->last_error );
+
+				return false;
+			}
+		}
+
+		if ( ! $this->index_exists( 'type_peer_created' ) ) {
+			// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching,WordPress.DB.DirectDatabaseQuery.SchemaChange -- As above.
+			$indexed = $wpdb->query( "ALTER TABLE `{$table}` ADD INDEX `type_peer_created` (`event_type`, `fleet_peer`, `created_at`)" );
+
+			if ( false === $indexed ) {
+				/** This action is documented in includes/Database/CliAuthLog/Table.php */
+				do_action( 'acrossai_mcp_schema_upgrade_failed', ActivityLogConstants::TABLE, '1.2.0', $wpdb->last_error );
+
+				return false;
 			}
 		}
 

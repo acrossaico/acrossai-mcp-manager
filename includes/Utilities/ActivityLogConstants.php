@@ -40,8 +40,13 @@ final class ActivityLogConstants {
 	 * column changed, so a reader could mistake it for a no-op bump; it is not.
 	 * dbDelta leaves an existing index alone, so the physical keys only change
 	 * because `Table::upgrade_to_1_1_0()` drops and rebuilds them.
+	 *
+	 * `1.2.0` adds `fleet_peer` and its `type_peer_created` index. The column alone
+	 * would have needed no callback — `SchemaReconciler` adds declared-but-
+	 * missing columns as its backstop — but it reconciles columns only, so the
+	 * index needs `Table::upgrade_to_1_2_0()` to exist at all.
 	 */
-	public const TABLE_VERSION = '1.1.0';
+	public const TABLE_VERSION = '1.2.0';
 
 	// --- Event vocabulary (the `event_type` discriminator) ---
 
