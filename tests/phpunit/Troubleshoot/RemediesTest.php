@@ -72,4 +72,18 @@ final class RemediesTest extends WP_UnitTestCase {
 	public function test_it_names_this_site(): void {
 		self::assertStringContainsString( untrailingslashit( home_url() ), Remedies::paths_for_support() );
 	}
+
+	/**
+	 * The person reading the ticket is usually a host's support engineer, not
+	 * the site owner. Without the reason, a bare list of paths and CIDRs
+	 * reads as "please turn off your firewall".
+	 */
+	public function test_it_links_to_the_hosting_guidance(): void {
+		self::assertStringContainsString( Remedies::DOC_URL, Remedies::paths_for_support() );
+	}
+
+	public function test_the_doc_url_points_at_a_file_that_exists(): void {
+		self::assertStringEndsWith( 'docs/hosting-firewall-and-cache.md', Remedies::DOC_URL );
+		self::assertFileExists( dirname( __DIR__, 3 ) . '/docs/hosting-firewall-and-cache.md' );
+	}
 }

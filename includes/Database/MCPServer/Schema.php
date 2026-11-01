@@ -65,11 +65,19 @@ class Schema extends \BerlinDB\Database\Kern\Schema {
 		),
 
 		// Enabled toggle (0/1).
+		//
+		// `transition` makes BerlinDB fire `transition_mcp_server_is_enabled`
+		// from update_item(). It is an application-level flag — it changes no
+		// SQL and needs no migration. The discovery cache invalidator listens
+		// on it (#181): this column decides whether a server appears in the
+		// discovery documents at all, so every cached copy goes stale the
+		// moment it changes.
 		array(
-			'name'    => 'is_enabled',
-			'type'    => 'tinyint',
-			'length'  => '1',
-			'default' => 0,
+			'name'       => 'is_enabled',
+			'type'       => 'tinyint',
+			'length'     => '1',
+			'default'    => 0,
+			'transition' => true,
 		),
 
 		// Origin: 'plugin' (self-managed) or third-party plugin slug.
@@ -80,20 +88,24 @@ class Schema extends \BerlinDB\Database\Kern\Schema {
 			'default' => 'plugin',
 		),
 
-		// REST route namespace segment.
+		// REST route namespace segment. Transitions for the same reason as
+		// is_enabled: it forms part of the resource URL a discovery document
+		// advertises.
 		array(
-			'name'    => 'server_route_namespace',
-			'type'    => 'varchar',
-			'length'  => '100',
-			'default' => 'mcp',
+			'name'       => 'server_route_namespace',
+			'type'       => 'varchar',
+			'length'     => '100',
+			'default'    => 'mcp',
+			'transition' => true,
 		),
 
-		// REST route path segment.
+		// REST route path segment. Transitions — see server_route_namespace.
 		array(
-			'name'    => 'server_route',
-			'type'    => 'varchar',
-			'length'  => '255',
-			'default' => '',
+			'name'       => 'server_route',
+			'type'       => 'varchar',
+			'length'     => '255',
+			'default'    => '',
+			'transition' => true,
 		),
 
 		// Server version string.
