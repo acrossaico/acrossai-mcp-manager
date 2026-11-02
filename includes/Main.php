@@ -705,9 +705,6 @@ final class Main {
 		// registered above; dismiss + persistence are handled by
 		// acrossai-co/main-menu 0.0.30's SummaryNoticeEmitter.
 
-		// TODO (phase N): wire Admin\Partials\ApplicationPasswords.
-		// $app_passwords = \AcrossAI_MCP_Manager\Admin\Partials\ApplicationPasswords::instance();
-
 		/**
 		 * Phase 4 gap closure — Feature-009 (2026-07-01). Boots the WP MCP
 		 * adapter singleton when at least one enabled MCP server row exists.
@@ -1164,9 +1161,6 @@ final class Main {
 			2
 		);
 
-		// TODO (phase 5): wire REST\CliController.
-		// $cli_controller = \AcrossAI_MCP_Manager\Includes\REST\CliController::instance();
-		// $this->loader->add_action( 'rest_api_init', $cli_controller, 'register_routes' );
 	}
 
 	/**

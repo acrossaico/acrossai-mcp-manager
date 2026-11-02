@@ -81,13 +81,21 @@ final class ServerTypes {
 	 * deleting it cuts every hub off without touching the site's own MCP
 	 * access at `/acrossai/mcp`.
 	 *
-	 * Deliberately NO `requires`. The toolsets come from the same add-on the
-	 * AcrossAI type needs, so the requirement looks identical — but declaring
-	 * it would make `is_available()` false on a site without the add-on, and
-	 * `compose_effective_tools_for_row()` would then serve `SetupRequired`
-	 * whose message names a plugin that has nothing to do with being managed.
-	 * The row must stay usable regardless: a hub can be paired before the
-	 * add-on arrives, and the toolsets appear by themselves when it does.
+	 * Declares the SAME `requires` as the AcrossAI type, because it serves the
+	 * same toolsets and they come from the same add-on.
+	 *
+	 * This was deliberately `null` for a while, on two beliefs that both turned
+	 * out to be wrong. That `SetupRequired` would name an irrelevant plugin: it
+	 * names acrossai-abilities-manager, which is precisely what this type
+	 * requires. And that declaring it would stop a hub pairing before the add-on
+	 * arrived: `is_available()` only decides which TOOLS
+	 * `compose_effective_tools_for_row()` serves, and pairing goes through
+	 * `/fleet/register`, a route that never consults it.
+	 *
+	 * So the `null` bought nothing and cost the check — the type claimed to be
+	 * available on a site where its tools could not exist, and a hub calling in
+	 * got an empty answer instead of one saying what was missing. The toolsets
+	 * still appear by themselves when the add-on arrives.
 	 *
 	 * @var string
 	 */
@@ -706,7 +714,17 @@ final class ServerTypes {
 				// client would, so giving this route its own vocabulary would
 				// mean maintaining two answers to the same question.
 				'tools'       => ToolsetRegistrar::tool_slugs(),
-				'requires'    => null,
+				// The SAME requirement as the AcrossAI type, because it serves
+				// the same toolsets — they come from acrossai-abilities-manager,
+				// so without it this route has nothing to offer either.
+				//
+				// This was `null` for a while on the belief that declaring it
+				// would make `SetupRequired` name the wrong plugin. It does
+				// not: that message names acrossai-abilities-manager, which is
+				// exactly what this type requires. The `null` bought nothing
+				// and cost the availability check — the type claimed to be
+				// available on a site where its tools could not exist.
+				'requires'    => self::ACROSSAI_REQUIRES,
 				// Never the default for a new server. An operator reaching for
 				// "Add Server" wants something to connect an AI client to, and
 				// this type is the one kind that cannot be connected to.
