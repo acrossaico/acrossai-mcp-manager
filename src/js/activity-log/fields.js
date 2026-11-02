@@ -91,8 +91,8 @@ export function getFields( showServer, maxDurationMs = 0 ) {
 				// the equivalent identity, so it goes where the client name
 				// would, and the column stays informative instead of reading
 				// as a bare "Fleet host" with nothing to attribute it to.
-				const client = item.fleet_peer
-					|| [ item.client_name, item.client_version ].filter( Boolean ).join( ' ' );
+				const client = item.fleet_peer ||
+					[ item.client_name, item.client_version ].filter( Boolean ).join( ' ' );
 				const how = item.connector_label || connectionLabel( item.connection_type );
 
 				return client ? `${ client } · ${ how }` : how;
