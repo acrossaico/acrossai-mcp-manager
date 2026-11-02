@@ -76,3 +76,31 @@ jobs:
             --no-inline-config \
             --parser-options=ecmaVersion:latest,sourceType:module \
             src/js/backend.js
+
+      # The committed bundle must match the committed source.
+      #
+      # `build/` is tracked in this repository, so a change to `src/js/` that
+      # is not rebuilt ships as a non-feature: the source says one thing and
+      # the file the browser loads says another. That happened — a commit
+      # changed `src/js/activity-log/` and the bundle it was serving stayed
+      # eighteen hours behind, so the feature was never live and nothing
+      # failed to say so.
+      #
+      # `build-zip.yml` already runs `npm run build`, but only on `main` and
+      # only to package a zip; it never compares the result against what is
+      # committed. This does, and on pull requests, where it can still be
+      # fixed by the person who caused it.
+      #
+      # Reuses the Node setup above rather than adding a job, so the cost is a
+      # webpack run on a checkout that is already prepared.
+      #
+      # Catches CODE changes, not comment-only ones — webpack strips comments,
+      # so editing only a comment in `src/js/` leaves the bundle byte-identical
+      # and this stays green. Verified both ways rather than assumed.
+      - name: Verify the committed bundle matches the source
+        run: |
+          npm run build
+          if ! git diff --exit-code --stat -- build/; then
+            echo "::error::build/ is out of date. Run 'npm run build' and commit the result."
+            exit 1
+          fi
