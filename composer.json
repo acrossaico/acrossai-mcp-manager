@@ -21,7 +21,7 @@
         "automattic/jetpack-autoloader": "^6.0",
         "wpboilerplate/wpb-access-control": "^3.2.0",
         "berlindb/core": "^3.0.0",
-        "acrossai-co/main-menu": "0.0.34",
+        "acrossai-co/main-menu": "0.0.38",
         "wordpress/mcp-adapter": "^0.7.0"
     },
     "keywords": [
