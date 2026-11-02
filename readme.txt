@@ -4,7 +4,7 @@ Tags: mcp, ai, mcp-adapter, claude, chatgpt
 Requires at least: 6.9
 Requires PHP: 8.1
 Tested up to: 7.1
-Stable tag: 0.4.5
+Stable tag: 0.4.6
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -87,7 +87,7 @@ Access control decides what an assistant **may** do. The activity log records wh
 * **It tells you when it is failing.** An empty log and a broken log look identical, so the screen and Site Health both say so when writes are failing, when the table cannot be reached, or when the daily cleanup has not run.
 * **Private by design.** Sensitive values are redacted by key name before anything is stored, response bodies are never kept, and WordPress's own personal-data export and erase both reach it — erasing clears the person from the record while keeping the event, so the audit history stays intact.
 
-Find it under **MCP → Activity Log**, or on any individual server's own tab.
+Find it under **AcrossAI → Logs**, or on any individual server's own tab.
 
 = Full Control Over Every Ability =
 
@@ -147,7 +147,7 @@ AcrossAI is two free plugins on WordPress.org: MCP Manager (the server, connecto
 
 = Can I see what the AI did to my site? =
 
-Yes. **MCP → Activity Log** records every request an assistant made and every ability that ran to fulfil it, with the two linked so you can open one entry and read the whole call. It records from the moment you update — requests kept 30 days, ability runs 7, capped at 50,000 entries, all adjustable, and either half can be switched off on the MCP settings tab.
+Yes. **AcrossAI → Logs** records every request an assistant made and every ability that ran to fulfil it, with the two linked so you can open one entry and read the whole call. It records from the moment you update — requests kept 30 days, ability runs 7, capped at 50,000 entries, all adjustable, and either half can be switched off on the MCP settings tab.
 
 If recording ever fails, the screen and Site Health say so rather than showing an empty list, because a broken log and a quiet one otherwise look the same.
 
@@ -240,6 +240,9 @@ Documentation: [acrossai.co/docs](https://acrossai.co/docs/). Every ability, sea
 
 == Upgrade Notice ==
 
+= 0.4.6 =
+Removes the `[acrossai_mcp_servers]` shortcode and the embeds block — both moved to AcrossAI Pro. If you use that shortcode on a page, install AcrossAI Pro before updating or the page will show nothing in its place. Everything else is safe to update: servers, connections and abilities are untouched, no reconnecting is needed and there is no database change. Adds a Troubleshoot screen, and fixes connection details being cached for an hour and OAuth addresses 404ing until Permalinks were re-saved.
+
 = 0.4.3 =
 Adds a Firefox-only note explaining why a connection can fail silently there, and stops an uninstall leaving one settings row behind. No settings change and no reconnecting needed.
 
@@ -258,6 +261,19 @@ The AcrossAI server is recommended again and preselected in Quick Connect. Exist
 == Changelog ==
 
 The complete release history lives at [acrossai.co/changelog](https://acrossai.co/changelog/).
+
+= 0.4.6 =
+* **Removed: the front-end embed shortcode and block.** `[acrossai_mcp_servers]`, the per-server Embeds tab and the transports behind them have moved to AcrossAI Pro, which is where the rest of the publishing surface already lived. If you have that shortcode on a page it will stop rendering when you update, and the page will show nothing in its place — install AcrossAI Pro to keep it. Nothing else is affected: servers, connections, abilities and access control are untouched, and no connected assistant notices the difference.
+* **New: a Troubleshoot screen that says why an assistant cannot connect.** Until now the admin showed nothing when a connection failed — the assistant reported its own unhelpful error and every check you could reach said the site was healthy, because it was. The new screen under **AcrossAI → Troubleshoot** probes this site the way an assistant does and reports eight checks with a plain-language reason and, where it helps, text you can paste straight into a hosting ticket. It runs only when you press the button, and it changes nothing.
+* **It names the plugin that is blocking you.** If something refuses unauthenticated access to the REST API — which blocks the very first step of every connection, before any credential exists — the screen now names the plugin responsible and quotes the error that plugin returned, instead of telling you "a security plugin" and leaving you to deactivate thirty of them one at a time.
+* **It checks the things that actually break connections.** Whether a cache is serving an assistant a stale copy of your site's connection details; whether a security rule is rejecting non-browser visitors (Claude connects as `python-httpx`, and "block Python" rules ship switched on in some firewall plugins); whether the OAuth web addresses resolve at all; and which caching or security layers sit in front of the site. It is honest about its own blind spot: every check runs from the site to itself, so it cannot see a block based on where the visitor is connecting from, and it says so rather than showing a green tick.
+* **Fixed: your site told every cache to keep its connection details for an hour.** The documents an assistant reads to learn how to connect were being served with an instruction to cache them for sixty minutes, and nothing told caches to skip them. On one site that meant an operator fixed a real problem, tested again, and still failed — for an hour, with no sign anywhere that a cache was involved. The window is now sixty seconds, page caches are told explicitly not to store these documents, and when you change a server's address or switch it off the affected documents are purged immediately.
+* **Fixed: OAuth web addresses could 404 until you re-saved Permalinks.** Four addresses an assistant needs are built from WordPress's permalink rules, and those rules can go missing for reasons that have nothing to do with this plugin — another plugin rebuilding them, a database copied from a site where this plugin was switched off, a restore. The plugin only noticed when its own version changed, so the rest of the time the fix was to visit **Settings → Permalinks** and press Save. It now checks the rules are actually there on each admin page load and repairs them itself. A site using Plain permalinks is reported separately, because those addresses can never work there and no amount of repairing changes that.
+* **Fixed: the activity log screen had no styling at all.** It had been running on browser defaults since it shipped: four stat boxes floating loose, a table with no header band, no row lines, and columns that filled barely half the screen. It now has the layout it was designed with, plus a column showing roughly how many tokens each response returned.
+* **Changed: "Activity" is now "Logs".** The menu entry, the page title and the web address all say Logs. The per-server tab was already called Logs, so the two now agree. Any bookmark to the old address will need updating.
+* **Changed: the AI Connectors panel now matches each assistant's real dialog.** The steps for Claude, ChatGPT, Gemini, Grok and Cursor were written from memory and had drifted from what those products actually show. Each one has been rewritten against the current dialog, with the fields named as they appear on screen, and Claude gains a one-click button that opens its connector dialog with everything filled in.
+* **New: let your AI client set itself up.** Alongside the manual instructions for all sixteen supported clients, there is now a block of text you can paste into the client itself, telling it to open its own configuration file and add the server. Same configuration either way — it just does the file editing for you.
+* **Fixed: a permanent warning on sites that will never need it.** The notice about WordPress scheduled tasks being switched off appeared on every admin page, forever, on every local and staging install — to report that a clean-up with nothing to clean would not run. It now appears only once there is OAuth data to clean up, and a site that runs scheduled tasks from a real cron entry can say so and silence it for good.
 
 = 0.4.5 =
 * **Fixed: the Activity Log screen never loaded.** The screen introduced in 0.4.4 rendered blank on every site. Its JavaScript declared a dependency on a WordPress component that does not exist, and WordPress refuses to load a script whose dependencies are missing — so nothing ran, and nothing anywhere said why. Underneath that, the screen was looking for its own built files in the wrong folder, which is what made it fall back to that bad dependency list in the first place. Both are fixed, and the screen now loads at **MCP → Activity Log** and on each server's **Logs** tab. Nothing was lost: the log has been recording correctly all along, it simply could not be displayed. No settings change and no database change — updating is enough.
