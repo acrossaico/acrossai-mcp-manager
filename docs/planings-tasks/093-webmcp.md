@@ -1,0 +1,615 @@
+# Planning: WebMCP — the server's tool list in the browser (Feature 093)
+
+Issue: [#127](https://github.com/acrossai-co/acrossai-mcp-manager/issues/127)
+
+## In plain English
+
+Today an AI assistant reaches this site from **outside** — Claude on your desktop, Cursor in your
+editor — over our remote MCP server. The assistant is somewhere else, and it calls in.
+
+WebMCP is the other direction. The browser tab itself declares what it can do, and an agent
+already *inside* the browser — Gemini in Chrome, ChatGPT's browser, an extension — calls those
+tools directly instead of squinting at the screen and clicking buttons.
+
+We already have everything this needs: the abilities, the per-server exposure rules, and a
+per-server tool list the admin has already curated. This feature puts that list in the browser.
+
+The reason this is a handful of tools and not 370 is the entire design. A page that declares one
+tool per ability hands the agent a 370-item menu in a single prompt. We now have field evidence
+for what happens when you try: a competing WordPress bridge registered 296 tools and **ChatGPT
+switched WebMCP off for that document entirely.**
+
+**The browser gets exactly what the chosen server says it gets.** WebMCP gets its own submenu
+under AcrossAI: a page that explains what this is, and a dropdown listing your servers by name.
+Pick one, and that server decides everything else —
+
+- its **Tools** tab decides which tools appear,
+- its **Abilities** tab decides what sits behind them,
+- its **Access Control** tab decides who may use them at all; if the rule is not satisfied, no
+  tools are shown.
+
+Need a server dedicated to browser agents? Create one the normal way and select it here. There is
+no second place to curate anything, and nothing new to learn: it is the same server model that
+already serves remote AI clients, pointed at the browser instead.
+
+It ships **off by default**, behind a beta gate, on admin screens only.
+
+## This supersedes the issue's "register the triple" design
+
+The issue specifies registering the three meta-tools — `mcp-adapter/discover-abilities`,
+`…/get-ability-info`, `…/execute-ability` — mapped to `wp_discover_abilities` and friends. Checked
+against real data, that design breaks on the very server it names as the default:
+
+| Server | Type | `tool_*` meta flags | Curated tools | Effective list |
+|---|---|---|---|---|
+| 3 — Default MCP Server | `mcp-adapter` | all **on** | `mcp-adapter/server-guide` | **4 tools** |
+| 5 — **AcrossAI** (`acrossai-mcp-server`) | `acrossai` | all **off** | 14 × `toolset/*` | **14 tools** |
+
+The recommended default server has **all three meta-tool flags set to 0**. It does not use the
+triple at all — it exposes fourteen `toolset/*` dispatchers (`appearance`, `blocks`, `cache`,
+`configuration`, `content`, `cron`, `database`, `diagnostics`, `files`, `integrations`, `other`,
+`server-guide`, `updates`, `users`). So the issue's design would, for its own default, register
+three tools the admin explicitly switched **off** and none of the fourteen they actually curated.
+
+The fix is not a different hardcoded list. It is to stop hardcoding:
+
+> **Register `ToolPolicy::compose_for_row( $row )`.**
+
+That method (`includes/Database/MCPServer/ToolPolicy.php:123`) already composes the effective list
+— the union of enabled protocol columns mapped through `COLUMN_MAP`, plus curated slugs from
+`MCPServerToolQuery::get_added_slugs()`, deduped with stable ordering. It is the single source of
+truth behind the *Added as tools* panel. Calling it means the WebMCP page inherits the Tools tab
+for free, and keeps inheriting it when F092's stable-tool-menu work changes what is on the list.
+
+The count stays safe either way: **4 or 14**, both far under the ~30 respira-press found workable
+and two orders of magnitude under the 296 that broke ChatGPT. Bounded by curation rather than by
+a hardcoded constant — which is the property we actually wanted.
+
+The triple is not special-cased out, either. On an `mcp-adapter`-type server its three flags are
+on, so `compose_for_row()` returns them and they get registered. The issue's design is the
+*subset* this produces for one server type.
+
+## Is there a library? No — and that is the finding
+
+Checked by reading the four WebMCP plugins already installed on the dev site rather than by
+guessing. **Not one of them bundles a library.** The entire client side of this feature is plain
+JavaScript against a three-method browser API:
+
+| Plugin | JS size | API used | Verdict |
+|---|---|---|---|
+| **WP-WebMCP** | 10 KB | `document.modelContext.registerTool`, navigator fallbacks | current — best local reference |
+| **ibs-webmcp-gateway** | 12.6 KB | `document.modelContext` → `registerTool` | current |
+| **webmcp-bridge** (wordpress.org) | 6.9 KB | `navigator.modelContext.provideContext()` only | **dead API** |
+| **agentgate-for-webmcp** | 2.9 KB | `navigator.modelContext.provideContext()` only | **dead API** |
+
+All unminified, none with a build step for the bridge, none importing anything. The biggest is
+12.6 KB of hand-written code. There is no npm package to adopt and no dependency to carry — the
+browser-facing work here is a few hundred lines.
+
+**`webmcp-bridge`, the one on wordpress.org, is broken on current Chrome.** It registers solely
+through `navigator.modelContext.provideContext()`: `navigator.modelContext` was removed in Chrome
+152, and `provideContext` is exactly the batch call that silently no-ops against ChatGPT's frozen
+object. `agentgate-for-webmcp` has the same defect. Two of the four published implementations do
+nothing at all on a current browser — which is worth knowing before treating wp.org presence as
+evidence that an approach works.
+
+### What to copy from WP-WebMCP, and where to go further
+
+Its `registerTools()` is the shape we want, and it independently arrived at two things the plan
+already specifies — a feature-detect ladder with no polyfill, and `await registerTool()` one tool
+at a time rather than a batch call. It also adds a `_registered` guard against double
+registration, which is worth taking.
+
+**Where it is not enough for us:** it creates *one* `AbortController` for all tools and aborts it
+on `pagehide`.
+
+```js
+window.addEventListener( "pagehide", function () { controller.abort(); }, { once: true } );
+```
+
+`pagehide` does not fire on a SPA route change. In the block editor — where this feature is most
+useful and where our plan scopes it — the admin moves between screens without a page unload, so
+that controller never aborts and the previous screen's tools stay registered. This is precisely
+the lifetime gap the issue called out ("page load does not bound tool lifetime"), and the best
+local implementation has it. Our per-tool signal aborted on route change (T18) is a real
+improvement over the state of the art here, not a refinement of it.
+
+### Consequence: the polyfill becomes a question, not a default
+
+The issue assumes we bundle `@mcp-b/webmcp-polyfill`. **Nobody does**, and the polyfill is where
+the shadowing hazard lives (D3) — a polyfill that replaces the host getter blinds native agents
+entirely. The two working plugins simply feature-detect and do nothing when the API is absent.
+
+So v1 ships with no polyfill, and the polyfill becomes exactly what Phase 0 is for: it is only
+worth carrying if T1 shows it reaches an audience native detection does not (extension agents).
+If it does, add it then — behind the same detect, never over it.
+
+## Do we build an agent? No — and here is how to see it working
+
+**We publish tools. We never build the thing that calls them.** The agent is the browser's own
+(Gemini in Chrome), the browser vendor's (ChatGPT's browser), or an extension the user installs.
+Our side ends at "the page has declared these tools."
+
+That raises the fair question of how anyone verifies it, and the answer has three layers — only
+the last of which needs an agent at all.
+
+**Layer 1 — the REST routes. No browser, no agent.** `/webmcp/tools`, `/webmcp/execute` and
+`/webmcp/nonce` are ordinary authenticated REST endpoints; curl or Postman exercises the whole
+server side, including every gate. This is the bulk of the feature and the bulk of the risk, and
+it is testable the day Phase 1 lands. WP-WebMCP's own `docs/live-site-testing-process.md` runbook
+is almost entirely this — manifest, discovery, capability and denial checks over plain HTTP.
+
+**Layer 2 — did registration happen? Browser console, still no agent.**
+
+```js
+document.modelContext                      // undefined → nothing will ever see your tools
+typeof document.modelContext.registerTool  // "function" → the bridge can register
+```
+
+T14's Supported / Not supported indicator is this check, surfaced on our own page so an admin
+never has to open a console. WP-WebMCP's `assets/admin.js` has exactly this in a `supported()`
+helper, and it is the cheapest support-ticket prevention in the feature.
+
+**Layer 3 — an agent actually calling a tool.** Cheapest first:
+
+| Route | What it needs | Good for |
+|---|---|---|
+| **Tool inspector extension** | Chrome 150+, WebMCP flag at `chrome://flags`, loaded unpacked | **development.** Lists the page's registered tools and executes them by hand. A Gemini API key is optional — listing and manual execution work without one; only the agent-loop transcript needs it |
+| **Gemini in Chrome** | Chrome 149–156 + origin-trial token | the real native audience, and the Phase-0 question |
+| **ChatGPT's browser** | — | confirms the frozen-object path (T2) |
+| **Extension agents** (MCP-B, Claude in Chrome) | the extension | the cross-browser audience, and whether a polyfill is worth carrying |
+
+The practical consequence: **development does not need the origin-trial token.** A `chrome://flags`
+toggle plus the inspector extension is enough to see tools listed and run them by hand. The token
+matters for shipping to real users on stable Chrome — it is a release concern, not a build-it
+concern, which de-risks the 2026-11-16 trial deadline for everything except Phase 0's T1.
+
+One caution: the inspector is a third-party extension loaded unpacked, so it belongs on a
+development profile, not on the browser anyone uses for production admin work.
+
+## How Laravel handles this — and it validates the design
+
+Laravel has solved our exact problem, twice over:
+[SytxLabs/LaravelWebMCP](https://github.com/SytxLabs/LaravelWebMCP) and
+[fosseva/laravel-web-mcp](https://github.com/fosseva/laravel-web-mcp). The first is the closer
+match, and its one-line pitch is our D11 thesis in someone else's words:
+
+> *Expose `laravel/mcp` tools and resources as WebMCP tools in the browser. **Write once, use over
+> MCP and WebMCP.***
+
+It arrived independently at five decisions already in this plan:
+
+| Their choice | Our decision |
+|---|---|
+| Reuses the existing MCP tool definitions; no parallel system | D7 / D11 |
+| *"Authorization reuses the existing MCP server's logic — no reimplementation"*, in the same request context | **D11** |
+| Authorization runs **twice** — on manifest generation **and** on execution | **T8b** (gate the list, not just the call) |
+| **No polyfill.** Feature-detect `'modelContext' in document`, otherwise a no-op | D3 / T15 |
+| **One `AbortController` per tool**; *"unregistration only through `abort()`"* | T18 |
+
+That last one is worth dwelling on: Laravel uses one controller **per tool**, which is what our
+plan specifies and what WP-WebMCP does not do. Two independent implementations reaching the same
+shape, against the one local plugin that shares a single controller, is about as much confidence
+as this question can give.
+
+They also re-register on SPA navigation — `livewire:navigated`, `turbo:load` — which is the Laravel
+equivalent of our block-editor problem, and confirms it is a real class of bug rather than a
+WordPress quirk.
+
+### Two things they do better than this plan
+
+**1. Per-tool opt-in, default hidden.** A tool is invisible to the browser unless its class carries
+`#[WebMcp(...)]`. Their attribute vocabulary is richer than anything we have: `mode`, `exposedTo`,
+**`confirm`**, `untrusted`, `allowAppOnly`.
+
+This is a different axis from ours and we are missing it. Our plan has **admin** curation — which
+tools this site's operator chose, via the Tools tab. Laravel adds **developer** eligibility —
+whether a tool is safe for a browser at all. They are not substitutes. An ability can be perfectly
+reasonable over remote MCP, where OAuth and audience binding apply, and wrong in a page where any
+in-page agent can call it with the admin's own cookie.
+
+Our v1 approximates this with a blunt instrument: "read-only abilities only" (D5 / T20). The
+principled version is a flag on the ability's **meta**, which costs us almost nothing because
+`ExposureResolver` already reads `meta` and `meta.mcp.public` already exists. A `meta.webmcp`
+eligibility flag slots into the model we have rather than needing new machinery — and their
+`confirm` option is the consent story we deferred, expressed per tool instead of as a global
+read-only switch.
+
+**2. Manifest diffing rather than blanket re-registration.** On navigation they re-read the
+embedded manifests and diff: *"servers whose manifest left the page are unregistered, new or
+changed ones are registered, identical ones are left alone."* Our T18 aborts and re-registers
+wholesale on every route change, which churns tools the agent may be mid-call on. Diffing is
+strictly better and costs one comparison.
+
+Also worth copying: *"The package refuses foreign URLs and only talks to its own origin."*
+
+### One concrete gift
+
+They name the Chrome flag outright: **`chrome://flags/#enable-webmcp-testing`**. That is T0's
+missing detail, and it confirms the finding above — development needs a flag, not an origin-trial
+token.
+
+## What Novamira is doing about this — nothing
+
+Asked directly, because they are the obvious comparison. The answer is clean:
+
+**Novamira does not implement WebMCP.** It is a remote MCP server in the same category as MCP
+Manager — an external agent (Claude Code, Claude Desktop, Cursor, VS Code, Windsurf, Zed) calls
+*into* WordPress through an MCP bridge, with PHP execution and filesystem access as its
+differentiator. The model runs in the developer's IDE or terminal, never in the page. Their
+published roadmap is ACF / JetEngine / Meta Box / Pods / ASE specialisations — deeper abilities
+for the same remote transport, not browser tools.
+
+So there is no Novamira design to copy or contradict here, and no competitive pressure from them
+on this feature. The useful comparison turned out to be somebody else entirely.
+
+## The prior art that actually matters
+
+The issue's prior-art list missed the most advanced implementation of this idea in WordPress:
+**[respira-press/webmcp-for-wordpress](https://github.com/respira-press/webmcp-for-wordpress)**,
+which claims the first WordPress site with working site tools in ChatGPT's browser. Five findings
+from it change our plan:
+
+**1. The 296-tool failure — our core thesis, measured.**
+They registered one tool per ability and *"296 registered tools made ChatGPT disable WebMCP for
+the document entirely."* They retreated to *"a curated ~30-tool, page-scoped set."* This is the
+strongest possible validation of registering the curated list rather than the catalogue: our
+4-or-14 sits comfortably inside the band they found workable, and it is bounded by what an admin
+chose rather than by how many abilities happen to be installed.
+
+**2. ChatGPT's `modelContext` is frozen and implements only `registerTool`.**
+Their batch `provideContext()` call *"silently no-ops"* against a frozen object. They now
+*"register tools one at a time through `registerTool` when it exists."* Our plan already registers
+individually; this confirms it is mandatory, not stylistic, and that `provideContext` must not
+appear anywhere in our bridge.
+
+**3. Slashes in the URL path will 404 on Apache.**
+Apache's `AllowEncodedSlashes Off` broke their routes; they encode `/` as `__` and map it back in
+the sanitizer. **This bites us harder than it bit them** — every one of our ability slugs contains
+a slash (`mcp-adapter/discover-abilities`, `toolset/content`). Design rule below.
+
+**4. Two-nonce design.** `wp_rest` in `X-WP-Nonce` authenticates the cookie; a separate app-layer
+CSRF token rides `X-WMCP-Nonce`. Their discovery endpoint initially 401'd because the first fetch
+omitted a nonce entirely — worth knowing before we debug it ourselves.
+
+**5. A real consent model exists and it is staged edits.** `create-page-duplicate` →
+`approve-duplicate` / `reject-duplicate`: the agent stages a reviewable duplicate and a human
+approves it *on the page you are both looking at*. That is a far better answer to our open consent
+question than "restrict to read-only", and it is a candidate for v2 rather than v1.
+
+One more, from an unrelated bug report
+([traali/basketball-stats#8](https://github.com/traali/basketball-stats/pull/8)): a polyfill that
+`defineProperty`s over the host getter means **native agents never see the tools at all** —
+ChatGPT Desktop and Chrome origin-trial consumers read the host `document.modelContext`. The rule
+is: feature-detect `document.modelContext.registerTool`, never `defineProperty` over a host
+getter, polyfill only when the API is absent. Our issue already said "skip the polyfill when
+native exists"; this is the field evidence for why that is load-bearing rather than tidy.
+
+## Decisions this adds to the issue
+
+| # | Decision | Why |
+|---|---|---|
+| D1 | **Ability slugs travel in the JSON body, never in the URL path.** Routes are `POST /webmcp/execute` with `{"slug": "..."}`, not `/webmcp/execute/{slug}`. | Every slug contains `/`. Apache `AllowEncodedSlashes Off` 404s it. Avoids their `__` escaping hack entirely rather than reimplementing it. |
+| D2 | **`provideContext` is forbidden in the bridge.** Register each of the three via `registerTool`, awaiting the Promise. | Frozen object in ChatGPT's browser silently no-ops a batch call. |
+| D3 | **Never `defineProperty` over `document.modelContext`.** Feature-detect `.registerTool`. No polyfill in v1 — load one only if Phase 0 proves it reaches an audience native detection does not, and then behind the detect, never over it. | A shadowing polyfill blinds native agents — the exact failure we would otherwise ship to Chrome users. |
+| D4 | **Two-nonce auth**: `wp_rest` in `X-WP-Nonce` plus our own CSRF token. Send a nonce on the *discovery* call too. | Matches the only working implementation; their 401 was caused by omitting it on discovery. |
+| D5 | **Consent v1 stays read-only**, with staged-duplicate approval recorded as the v2 design rather than invented later. | Gives the read-only restriction an exit path instead of leaving it a dead end. |
+| D6 | **Establish server context; do not re-implement the permission chain.** Set `CurrentServerHolder` to the selected server for the duration of the request, then call the existing `Execute` / `Discover` / `GetAbilityInfo` paths unchanged. | See below — the chain is already written, and re-implementing it silently drops four steps. |
+| D7 | **Register `ToolPolicy::compose_for_row()`, not a hardcoded triple.** The tool list is whatever the selected server's Tools tab shows. | The recommended default server has all three meta-tool flags **off** and 14 curated toolsets. Hardcoding the triple would expose tools the admin disabled and miss every one they chose. See the section above. |
+| D8 | **Tool names derive from slugs, deterministically and stably** — `toolset/content` → `wp_toolset_content`, `mcp-adapter/execute-ability` → `wp_mcp_adapter_execute_ability`. One rule, no per-tool mapping table. | WebMCP names must be identifier-shaped (no `/`) and stable across sessions; a hand-maintained map would drift the moment a toolset is added. |
+| D9 | **Access Control must pass before a single tool is registered.** Check `user_has_server_access( get_current_user_id(), $server_id )` at the top of the bridge's bootstrap and again on every REST call. If it fails, register nothing and return nothing. | The server owns tools, abilities *and* who may reach it. Registering first and refusing later leaks the catalogue — see below. |
+| D10 | **WebMCP gets its own submenu, not a Settings tab**, under the AcrossAI parent. It explains what WebMCP is and how it works, then offers the server dropdown. | It needs room to teach — this is a beta of an API most admins have never heard of. A settings tab is the wrong shape for a page that is half documentation. |
+| D11 | **Build one context wrapper that makes a WebMCP request behave like an MCP request**, rather than re-implementing any gate. Set `CurrentServerHolder`, then replay the vendor filters with the real `McpServer`. | Turns three not-firing gates into one solved problem, and keeps the browser path and the remote path literally the same code. See below. |
+
+### D11 — one wrapper, and every gate works unchanged
+
+The three not-firing gates (D6, D9) look like three problems. They are one, and it has one fix:
+**run the WebMCP request as if it were an MCP request from the selected server.**
+
+The transport does exactly two things our gates depend on, and both are reproducible:
+
+1. It sets `CurrentServerHolder` to a real `\WP\MCP\Core\McpServer`. We can get that same object
+   outside a transport request — `McpAdapter::instance()->get_servers()` returns every registered
+   server, and `$mcp_server->get_server_id()` is the slug, so the selected server is a lookup, not
+   a construction. `CurrentServerHolder::capture_from_request()` already does precisely this walk
+   (`includes/Abilities/CurrentServerHolder.php:137`); the wrapper matches on slug instead of on
+   route.
+2. It applies the vendor filters, passing that object. We can apply the same filters ourselves.
+
+So the wrapper is roughly:
+
+```php
+WebMcpContext::with( $server_slug, function ( McpServer $mcp_server ) {
+    // 1. listing — our access-control list gate fires here, unchanged
+    $tools = apply_filters( 'mcp_adapter_tools_list', $tools, $mcp_server, null );
+
+    // 2. calling — all three call-time gates fire here, in priority order
+    $args = apply_filters( 'mcp_adapter_pre_tool_call', $args, $tool_name, $mcp_tool, $mcp_server );
+    if ( is_wp_error( $args ) ) { return $args; }
+} );
+```
+
+with `CurrentServerHolder::set()` on entry and `clear()` in a `finally`.
+
+**What that buys, for free, in the correct order** — `mcp_adapter_pre_tool_call` already carries
+three independent enforcement layers at three priorities:
+
+| Priority | Gate | Enforces |
+|---|---|---|
+| 10 | `AcrossAI_MCP_Access_Control::gate_mcp_tool_call` | who may reach this server |
+| 20 | `AbilityExposureGate::gate_tool_call_by_exposure` | the Abilities tab |
+| 30 | `ToolExposureGate::gate_tool_call_by_curation` | the Tools tab |
+
+Plus `mcp_adapter_tools_list` → `gate_mcp_tools_list()` for hiding the list itself.
+
+Re-implementing that in a WebMCP controller means reproducing four gates across four priorities
+and keeping them in step with the remote path forever — and the first time they drift, the drift
+is a security bug, not a rendering bug. The wrapper means there is nothing to keep in step: the
+browser path and the remote path are the *same* path, entered differently.
+
+It also answers D9's awkward edge. We do not need to decide how much to trust
+`user_has_server_access()`'s five fail-open branches, because the access-control gate runs itself,
+from its own hook, with the same arguments it gets on the remote path.
+
+**This is the single highest-leverage task in the feature.** Build it first in Phase 1; everything
+else in that phase becomes thin.
+
+One caveat to settle on the spike: the vendor filters are a *vendor* contract, so replaying them
+is a supported-but-unofficial use. If a future adapter release changes a signature, the wrapper is
+the one place that breaks — which is still far better than four places, and is worth a contract
+test pinning the four hook names and their argument counts.
+
+### D9 in full — the third gate that will not fire
+
+This is the same structural trap as D6, and it is now the third instance of it. **Three independent
+gates all hook the vendor MCP transport, and none of them fire for a WebMCP request:**
+
+| Gate | Hook | How it finds the server | WebMCP |
+|---|---|---|---|
+| Ability exposure | `AbilityHelpers::apply_exposure_filter()` | `CurrentServerHolder` (transport-populated) | **silent, fails open** to `meta.mcp.public` |
+| Access control — list | `gate_mcp_tools_list()` on `mcp_adapter_tools_list` | the `$server` object argument | **never called** |
+| Access control — execute | `gate_mcp_tool_call()` on `mcp_adapter_pre_tool_call` | the `$server` object argument | **never called** |
+
+Each resolves the server from something only the MCP transport provides — `CurrentServerHolder`
+for the first, a `\WP\MCP\Core\McpServer` argument for the other two. A WebMCP request arrives over
+plain REST with a cookie. None of that context exists, so all three quietly do nothing.
+
+**Registering tools and refusing them later is not good enough**, and we have already paid for
+that lesson in this codebase. The access-control audit that produced
+`gate_mcp_tools_list()` / `gate_mcp_resources_list()` / `gate_mcp_prompts_list()` found exactly
+this shape: a user outside a server's access rule was correctly refused *execution* while still
+being served the full `tools/list` — every tool name and description. The fix was to hide the list,
+not just block the call. A WebMCP bridge that registers first and checks later reintroduces that
+disclosure in the browser, where the tool list is handed to an AI with no further prompting.
+
+So the order is: **check access, then compose, then register.** `user_has_server_access()` is the
+entry point and already does the slug lookup internally — but note it is deliberately **fail-open
+in five branches** (manager unavailable, no user, no server, missing row, empty slug). For the
+remote transport that is the right default. For WebMCP it is not: the bridge must treat anything
+other than an explicit `true` from a *fully resolved* context as a refusal, which means checking
+the preconditions itself rather than leaning on the helper's return value alone.
+
+### D6 in full — this is the sharpest finding in the review
+
+The issue proposes rebuilding the permission chain in the new controller:
+
+```
+ExposureResolver::resolve_effective( … )  →  $ability->has_permission( $input )  →  wp_execute_ability( … )
+```
+
+That chain is wrong in detail and redundant in shape. `Execute::check_permission()`
+(`includes/Abilities/Execute.php:36`) **already is** the canonical chain, and it does four things
+the proposed version does not:
+
+1. tool-level capability check via the `mcp_adapter_execute_ability_capability` filter (default `read`);
+2. an existence check guarded against the WP 6.9 `_doing_it_wrong` notice that firing
+   `wp_get_ability()` on an unregistered name now emits;
+3. `AbilityArgumentNormalizer::normalize()` **before** the permission call;
+4. the actual method is **`$ability->check_permissions( $parameters )`** — `has_permission()` as
+   written in the issue does not exist.
+
+And the real reason to reuse rather than rebuild: exposure is not resolved from an argument at
+all. `AbilityHelpers::apply_exposure_filter()` reads
+`CurrentServerHolder::instance()->get_server_id()`, and that holder is populated from the **vendor
+MCP transport**. A WebMCP request has no transport context, so it returns `null` — and the
+documented behaviour on `null` is, verbatim:
+
+> *Fail-open pattern: callers must treat null as "no per-server context available" (typically →
+> fall back to `meta.mcp.public`).*
+
+**Fail-open.** A WebMCP controller that forgets to establish context does not merely lose the
+per-server rules — it silently widens to every ability carrying `meta.mcp.public`, ignoring the
+admin's selection entirely. That is the same class of hole the issue correctly identified in the
+generic `/wp-abilities/v1/` route, reachable through our own new controller instead.
+
+So the server-side work is not "re-implement the gate". It is **"establish the context the gate
+already reads, and fail closed if it cannot be established."** Either resolve the vendor
+`McpServer` for the selected slug and `CurrentServerHolder::set()` it, or add a narrow
+id-override to the holder for non-transport callers — `set()` currently requires a
+`\WP\MCP\Core\McpServer` object, so which of the two is cheaper is a Phase-1 spike, not a
+decision to take on paper now.
+
+## Open question — still open
+
+**Can Gemini in Chrome see polyfilled tools, or does it require native + an origin-trial token?**
+
+I could not settle this from public sources, and I want to be explicit about why: searching for it
+returns *our own issue #127* among the top results, so the "Gemini almost certainly talks to
+Blink's internal agent runtime" line reads as external confirmation when it is in fact our own
+text being indexed back at us. It is still a hypothesis, not a finding.
+
+What *is* independently confirmed: without the origin-trial token `document.modelContext` does not
+exist at all in Chrome, so the feature-detect is doing real work on every stable-Chrome install.
+
+This stays task one.
+
+## Tasks
+
+### Phase 0 — settle the blocker before writing product code (half a day)
+
+- **T0** Set up the development harness before anything else: Chrome 150+, WebMCP flag enabled at
+  `chrome://flags/#enable-webmcp-testing`, tool-inspector extension loaded unpacked on a **development profile**. This is
+  what makes every later task observable, and it needs no origin-trial token.
+- **T1** Static page, polyfill, no token, one trivial tool. Open in Chrome with Gemini.
+  Does Gemini call it? This answers whether native and polyfill are substitutes or two separate
+  audiences — and therefore whether the origin-trial token is mandatory plumbing or optional.
+- **T2** Same page in ChatGPT's browser. Confirm the frozen-object behaviour first-hand and that
+  one-at-a-time `registerTool` succeeds where a batch call does not.
+- **T3** Confirm the polyfill package identity and that it does not shadow a native
+  implementation. The issue names `@mcp-b/webmcp-polyfill`; `MiguelsPizza/webmcp-polyfill` also
+  exists. Pick on the shadowing behaviour in D3, not on name recognition.
+
+**If T1 says Gemini cannot see polyfilled tools**, native and polyfill serve different audiences,
+both are required, and the origin-trial token becomes mandatory — with a hard deadline, since the
+trial ends **2026-11-16**.
+
+### Phase 1 — server side, fail closed
+
+- **T4** `WebMcpController` under `acrossai-mcp/v1/webmcp/` — `tools`, `execute`, `nonce`. Its own
+  namespace; do **not** reuse `/wp-json/wp-abilities/v1/…` (see the issue: the exposure gate hooks
+  the vendor MCP transport and no-ops without a `$server`, so the generic route exposes
+  `is_exposed = 0` abilities).
+- **T5 — `WebMcpContext`, the wrapper. Build this first; everything else leans on it** (D11).
+  Look up the `McpServer` by slug from `McpAdapter::instance()->get_servers()`,
+  `CurrentServerHolder::set()` it, run the caller's closure, `clear()` in a `finally`. Fail closed
+  when no registered server matches the slug — that is the case where the holder would otherwise
+  stay null and every gate would fail open.
+- **T5a** Inside the wrapper, replay the vendor filters so the already-wired gates fire
+  themselves: `mcp_adapter_tools_list` (3 args) when listing, `mcp_adapter_pre_tool_call` (4 args)
+  before executing, honouring a returned `WP_Error` as a refusal. That is access control (10),
+  ability exposure (20) and tool curation (30) enforced in one call, by the same code the remote
+  path uses.
+- **T5b** Contract test pinning the four hook names and their argument counts, so an adapter
+  upgrade that changes a signature fails a test rather than silently un-gating the browser path.
+- **T6** With context established, delegate to the existing `Execute` / `Discover` /
+  `GetAbilityInfo` paths unchanged. Do **not** re-derive the chain in the controller.
+- **T7** **Assert context, fail closed.** If `get_server_id()` is null inside the wrapper, return
+  403 — never proceed. The holder's documented fallback is fail-*open* to `meta.mcp.public`, which
+  is precisely the wrong default here. Its own regression test: a request with no context must be
+  refused, not silently widened.
+- **T8** Fail closed on every other degenerate case too: no row for the slug, `is_enabled = 0`,
+  **`compose_for_row()` returns an empty list**, empty exposure list. A dangling selection must
+  never fall back to the default server. Note the degenerate case is now "no tools composed", not
+  "all three flags off" — the recommended server runs with all three flags off by design.
+- **T8a** `GET /webmcp/tools` returns `ToolPolicy::compose_for_row( $row )` (D7) with each tool's
+  label, description and input schema, so the bridge registers from one authoritative response
+  rather than reconstructing the list client-side.
+- **T8b** **Access control is enforced by the replayed gate, not by a second implementation**
+  (D9 + D11). Because `mcp_adapter_tools_list` and `mcp_adapter_pre_tool_call` run inside the
+  wrapper, `gate_mcp_tools_list()` and `gate_mcp_tool_call()` fire with the same arguments they
+  get remotely — so there is no judgement call about how far to trust
+  `user_has_server_access()`'s fail-open branches. Keep the regression test regardless, stated as
+  behaviour rather than implementation: **a user outside the server's access rule must receive no
+  tool names at all**, not merely a refused execution. That is the exact disclosure the earlier
+  audit found on the remote path, and the browser is a worse place to repeat it.
+- **T9** Two-nonce auth (D4) and the `/nonce` refresh route. Build the refresh in now — WP nonces
+  last 12–24h and an agent in a long-open editor tab *will* outlive one.
+
+### Phase 2 — the WebMCP submenu
+
+- **T10** Register a **submenu under the AcrossAI parent** (D10), alongside MCP and Connect, via
+  `add_submenu_page()` in `admin/Partials/Menu.php`. Not a tab on the shared Settings page — the
+  page is half explainer and needs the room. Options still registered against their own
+  `option_group` so nothing collides.
+- **T11** Two options: `acrossai_mcp_webmcp_enabled` (bool, default 0) and
+  `acrossai_mcp_webmcp_server` (**slug**, default `''`). Resolve the default lazily to
+  `DefaultServerSeeder::ACROSSAI_SLUG` at read time; never write a concrete id at activation.
+- **T11a** **The explainer.** Top of the page: what WebMCP is, that the browser agent calls tools
+  instead of clicking the screen, which browsers can see it today, and that everything about
+  *what* it can do lives on the chosen server. Most admins have never heard of this API; the page
+  has to teach before it configures.
+- **T12** **Server dropdown, by name.** Lists `is_enabled = 1` servers, showing the names the
+  admin knows them by (*AcrossAI*, *Default MCP Server*, *My own server*), defaulting to
+  **AcrossAI Recommended** (`acrossai-mcp-server`) — the same row `ProtectedServers` treats as
+  recommended on the servers list, so both screens agree which one is blessed. Creating a server
+  dedicated to WebMCP needs no new UI: make one the normal way and pick it here.
+- **T13** **Show the consequence, own nothing.** For the selected server render its composed tool
+  list (the same *Added as tools* names), the effective ability count behind them, and its access
+  rule — each deep-linking to the tab that owns it:
+  `…&action=edit&server={id}&tab=tools`, `…&tab=abilities`, `…&tab=access-control`.
+  The WebMCP page never becomes a second place to curate. Tools, abilities and who may reach them
+  are the server's business; this page selects a server and reports what that choice means.
+- **T13a** **Access-control state is part of that display, and it gates the page's own promise.**
+  If the current admin does not satisfy the selected server's rule, say so plainly and show no
+  tool list — the same refusal the bridge will perform (D9), surfaced where it can be fixed rather
+  than discovered as silence in the browser.
+- **T14** Live browser feature-detect in the tab. Without it, an admin on Safari enables the
+  feature, sees nothing happen anywhere, and files a bug.
+
+### Phase 3 — the bridge
+
+- **T15** Feature-detect `document.modelContext.registerTool`; never shadow (D3). **No polyfill in
+  v1** — neither working local plugin ships one, and the polyfill is where the shadowing hazard
+  lives. Add it only if Phase 0 (T1) proves it reaches an audience native detection does not, and
+  then behind the detect, never over it. If it is ever added it must be bundled locally: wp.org
+  forbids remote assets and the admin CSP blocks a CDN.
+- **T15a** Guard against double registration (`_registered`-style latch), as WP-WebMCP does — an
+  admin screen that re-runs the bootstrap must not register the same tool twice.
+- **T16** Register **each tool returned by `/webmcp/tools`** via `registerTool`, one at a time,
+  awaiting the Promise (D2). `document.modelContext` only — `navigator.modelContext` was removed
+  in Chrome 152.
+- **T17** Names identifier-shaped and **stable**, derived by rule (D8): `toolset/content` →
+  `wp_toolset_content`, `mcp-adapter/execute-ability` → `wp_mcp_adapter_execute_ability`. Agents
+  that have seen the site before will reuse them, so the rule must be deterministic and must not
+  change once shipped.
+- **T18** Withdraw on navigation — one `AbortSignal` **per tool**, aborted on **route change**, not
+  just `pagehide`. The block editor is SPA-shaped, so page load does not bound tool lifetime. This
+  is the one place we knowingly go beyond the best local plugin: WP-WebMCP aborts a single shared
+  controller on `pagehide`, which never fires on an SPA route change and leaves the previous
+  screen's tools live. Laravel's package uses one controller per tool and re-registers on
+  `livewire:navigated` / `turbo:load`, so two independent implementations agree with us here.
+- **T18a** **Diff, do not churn.** On a route change, compare the new tool list against the
+  registered one: unregister what left, register what is new, **leave identical tools alone** —
+  Laravel's manifest-diffing behaviour. Blanket abort-and-re-register tears down tools the agent
+  may be mid-call on, for no benefit when nothing changed.
+- **T18b** Same-origin only: the bridge talks to its own site and refuses foreign URLs.
+- **T19** Admin screens only for v1.
+
+### Phase 4 — safety rails
+
+- **T20** Read-only abilities only; `execute` behind an explicit second toggle (D5).
+- **T20a** **Per-tool browser eligibility via ability meta** — the principled version of T20,
+  borrowed from Laravel's `#[WebMcp]` attribute. Admin curation (Tools tab) answers *which tools
+  this operator wants*; this answers *which tools are safe in a page at all*. They are different
+  questions and we currently only ask the first. A `meta.webmcp` flag costs almost nothing:
+  `ExposureResolver` already reads `meta`, and `meta.mcp.public` already establishes the pattern.
+  Default closed, like theirs. Their `confirm` option is the per-tool consent story we deferred to
+  v2 — design the flag so it can carry that later rather than being a bare boolean.
+- **T21** Log server-selection changes. Switching servers now changes the **tool names
+  themselves** — an `acrossai` server registers `wp_toolset_*`, an `mcp-adapter` server registers
+  `wp_mcp_adapter_*`. That is more visible to an agent than the issue assumed (it expected only
+  the contents behind three fixed names to change), but a live session still holds the old set
+  until it re-reads, so withdraw-and-re-register on change rather than relying on the agent to
+  notice.
+- **T22** Orphaned tool rows: `wp_acrossai_mcp_server_tools` on the dev site holds 14 rows for
+  `server_id = 6`, a server that no longer exists in `wp_acrossai_mcp_servers`. Deleting a server
+  leaves its curated tools behind. Harmless today because `compose_for_row()` is called with a
+  live row, but it is a second reason to **key the WebMCP selection by slug, never by id** — an id
+  that gets reused inherits a dead server's tool list.
+
+## What this is not
+
+- **Not a frontend feature.** `execute-ability` is a universal execution layer by design. On the
+  public frontend that hands every in-page agent the full exposed surface with no consent model.
+- **Not a replacement for the remote MCP server.** For anyone without an in-browser agent the
+  remote server is the better path and this reaches nobody.
+- **Not a second curation screen.** The WebMCP page selects a server and reports the consequence. Tools, abilities and access are owned by that server's own tabs and nowhere else.
+- **Not a consent model.** v1 restricts rather than solves. Staged duplicates (D5) is the design
+  to grow into.
+- **Not permanent plumbing.** The origin trial ends **2026-11-16**. Whatever Phase 0 concludes
+  about tokens has a shelf life, and the polyfill tier is what carries cross-browser until
+  Firefox/Safari ship natively — not expected before late 2027.
+
+## Sources
+
+- [respira-press/webmcp-for-wordpress](https://github.com/respira-press/webmcp-for-wordpress)
+- [traali/basketball-stats#8](https://github.com/traali/basketball-stats/pull/8)
+- [use-novamira/novamira](https://github.com/use-novamira/novamira)
+- [Novamira review — WP Mayor](https://wpmayor.com/novamira-review/)
+- [Novamira docs](https://novamira.ai/docs/getting-started/)
+- [code-atlantic/webmcp-abilities](https://github.com/code-atlantic/webmcp-abilities)
+- [SytxLabs/LaravelWebMCP](https://github.com/SytxLabs/LaravelWebMCP)
+- [fosseva/laravel-web-mcp](https://github.com/fosseva/laravel-web-mcp)
+- [mario-oliver/model-context-tool-inspector](https://github.com/mario-oliver/model-context-tool-inspector)
+- [WordPress/ai#448](https://github.com/WordPress/ai/issues/448)
+- [wordpress-playground#4301](https://github.com/WordPress/wordpress-playground/pull/4301)
