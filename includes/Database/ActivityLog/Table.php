@@ -230,9 +230,7 @@ class Table extends \BerlinDB\Database\Kern\Table {
 			// reading `DESCRIBE` sees the same order as the declaration. Width
 			// and default are the Schema's, not invented here.
 			// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching,WordPress.DB.DirectDatabaseQuery.SchemaChange -- DDL over a plugin-owned table with hardcoded identifiers; $wpdb->prepare() does not support DDL identifiers.
-			$added = $wpdb->query(
-				"ALTER TABLE `{$table}` ADD COLUMN `fleet_peer` varchar(191) NOT NULL DEFAULT '' AFTER `connector_slug`"
-			);
+			$added = $wpdb->query( "ALTER TABLE `{$table}` ADD COLUMN `fleet_peer` varchar(191) NOT NULL DEFAULT '' AFTER `connector_slug`" );
 
 			if ( false === $added ) {
 				/** This action is documented in includes/Database/CliAuthLog/Table.php */

@@ -123,8 +123,8 @@ class Schema extends \BerlinDB\Database\Kern\Schema {
 		//
 		// Serves both directions of Fleet from one column, which is why it is
 		// not called `host` or `child`:
-		//   - on a managed site, the hub that called in;
-		//   - on a hub, the managed site it called out to.
+		// - on a managed site, the hub that called in;
+		// - on a hub, the managed site it called out to.
 		// Empty on every non-fleet row, which is almost all of them.
 		//
 		// A hostname rather than either side's opaque key, because this column

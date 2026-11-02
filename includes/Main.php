@@ -1160,7 +1160,6 @@ final class Main {
 			10,
 			2
 		);
-
 	}
 
 	/**
