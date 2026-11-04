@@ -38,7 +38,13 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@1d0ff469b7ec7b3cb9d8673fde0c81c44821de2a # v4
         with:
-          node-version: '18'
+          # Read from .nvmrc rather than pinned here. This was '18', while
+          # .nvmrc has said 20 for some time — harmless until the bundle check
+          # below started running `npm run build`, which needs
+          # Array.prototype.toSorted (Node 20+) via copy-webpack-plugin. The
+          # job failed with "toSorted is not a function" on every pull request.
+          # Taking the version from the file means the two cannot drift again.
+          node-version-file: '.nvmrc'
           cache: 'npm'
 
       # `--legacy-peer-deps` is required — @wordpress/dataviews@17 pins
@@ -97,6 +103,22 @@ jobs:
       # Catches CODE changes, not comment-only ones — webpack strips comments,
       # so editing only a comment in `src/js/` leaves the bundle byte-identical
       # and this stays green. Verified both ways rather than assumed.
+      # `npm run build` needs Composer's vendor tree: `src/js/access-control.js`
+      # and `src/js/quick-connect.js` both import
+      # `vendor/wpboilerplate/wpb-access-control`, and `@wpb/access-control`
+      # resolves there too. Without this the build fails with three
+      # "Module not found" errors — so fixing only the Node version above
+      # would have moved the failure rather than removed it.
+      - name: Setup PHP (the bundle imports from Composer's vendor tree)
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.1'
+          coverage: none
+          tools: composer:v2
+
+      - name: Install Composer dependencies
+        run: composer install --no-dev --no-interaction --no-progress --prefer-dist
+
       - name: Verify the committed bundle matches the source
         run: |
           npm run build
