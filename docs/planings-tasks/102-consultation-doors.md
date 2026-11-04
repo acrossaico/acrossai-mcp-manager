@@ -1,7 +1,7 @@
 # Planning: Consultation Doors (Feature 102)
 
 **Status: implemented on acrossai.co, 2026-11-04.** The plugin-side change is in this repo and
-uncommitted at time of writing; everything else is live.
+on a branch for review; everything else is live.
 
 ## In plain English
 
@@ -10,13 +10,20 @@ with no explanation of what you were booking. It is now **two doors behind one p
 
 | URL | Renders |
 |---|---|
+| `/consultations/` | a Fluent Forms request, answered by hand — **the bare URL is the free door** |
+| `/consultations/?type=free` | the same thing |
 | `/consultations/?type=paid` | Google Calendar appointment embed |
-| `/consultations/` | the same thing — the bare URL is an alias |
-| `/consultations/?type=free` | a Fluent Forms request, answered by hand |
 
-Only the exact string `free` opens the free door. `paid`, an empty `?type=`, a misspelling, and a
-parameter stripped by a cache or a link shortener all resolve to paid — **the request fails toward
-the page that asks for a licence, never toward the one that gives time away.**
+Only the exact string `paid` opens the paid door. `free`, an empty `?type=`, a misspelling, and a
+parameter stripped by a cache or a link shortener all resolve to free. The bare URL is the one
+people share, link and find in search, so it lands on the door anyone can use rather than on a
+licence wall.
+
+That choice has a cost, and it is the opposite of what the first build did: a Pro customer whose
+query string gets stripped arrives at the form instead of the calendar. **That is the cheaper of
+the two mistakes** — the free door carries an "Already have a licence? Book now" link straight to
+`?type=paid`, so they are one click from the right place, whereas the reverse stranded a
+non-customer on a page that demanded a licence key and offered no way forward.
 
 ## What replaced the original plan
 
@@ -105,7 +112,9 @@ version. Deliberately not changed here; fix them when you next touch those pages
 - `/contact/` and `/support/` carry bugs 1 and 2 above, untouched.
 - Mobile iframe crop (`245px / 1115px`) was derived by applying the same +35px shift as desktop.
   **Not verified on a real phone** — check it before you rely on it.
-- Nothing was committed in this repo.
+- The `main-menu` side of this ships separately: the Consultations admin page is rebuilt for the
+  two doors in [acrossaico/main-menu#3](https://github.com/acrossaico/main-menu/pull/3). Once that
+  merges and is tagged 0.0.39, bump this repo off the `0.0.38` pin to pick it up.
 
 ## Still worth deciding
 
