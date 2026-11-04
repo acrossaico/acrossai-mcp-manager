@@ -38,7 +38,13 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@1d0ff469b7ec7b3cb9d8673fde0c81c44821de2a # v4
         with:
-          node-version: '18'
+          # Read from .nvmrc rather than pinned here. This was '18', while
+          # .nvmrc has said 20 for some time — harmless until the bundle check
+          # below started running `npm run build`, which needs
+          # Array.prototype.toSorted (Node 20+) via copy-webpack-plugin. The
+          # job failed with "toSorted is not a function" on every pull request.
+          # Taking the version from the file means the two cannot drift again.
+          node-version-file: '.nvmrc'
           cache: 'npm'
 
       # `--legacy-peer-deps` is required — @wordpress/dataviews@17 pins
@@ -76,3 +82,47 @@ jobs:
             --no-inline-config \
             --parser-options=ecmaVersion:latest,sourceType:module \
             src/js/backend.js
+
+      # The committed bundle must match the committed source.
+      #
+      # `build/` is tracked in this repository, so a change to `src/js/` that
+      # is not rebuilt ships as a non-feature: the source says one thing and
+      # the file the browser loads says another. That happened — a commit
+      # changed `src/js/activity-log/` and the bundle it was serving stayed
+      # eighteen hours behind, so the feature was never live and nothing
+      # failed to say so.
+      #
+      # `build-zip.yml` already runs `npm run build`, but only on `main` and
+      # only to package a zip; it never compares the result against what is
+      # committed. This does, and on pull requests, where it can still be
+      # fixed by the person who caused it.
+      #
+      # Reuses the Node setup above rather than adding a job, so the cost is a
+      # webpack run on a checkout that is already prepared.
+      #
+      # Catches CODE changes, not comment-only ones — webpack strips comments,
+      # so editing only a comment in `src/js/` leaves the bundle byte-identical
+      # and this stays green. Verified both ways rather than assumed.
+      # `npm run build` needs Composer's vendor tree: `src/js/access-control.js`
+      # and `src/js/quick-connect.js` both import
+      # `vendor/wpboilerplate/wpb-access-control`, and `@wpb/access-control`
+      # resolves there too. Without this the build fails with three
+      # "Module not found" errors — so fixing only the Node version above
+      # would have moved the failure rather than removed it.
+      - name: Setup PHP (the bundle imports from Composer's vendor tree)
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.1'
+          coverage: none
+          tools: composer:v2
+
+      - name: Install Composer dependencies
+        run: composer install --no-dev --no-interaction --no-progress --prefer-dist
+
+      - name: Verify the committed bundle matches the source
+        run: |
+          npm run build
+          if ! git diff --exit-code --stat -- build/; then
+            echo "::error::build/ is out of date. Run 'npm run build' and commit the result."
+            exit 1
+          fi

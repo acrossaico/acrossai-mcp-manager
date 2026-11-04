@@ -117,10 +117,16 @@ class SchemaContractTest extends \WP_UnitTestCase {
 		}
 	}
 
-	/** 32 columns: 16 on both event kinds, 12 request-only, 4 ability-only. */
-	public function test_column_count_is_the_documented_thirty_two(): void {
-		$this->assertCount( 32, ( new Schema() )->columns );
-		$this->assertCount( 32, self::$live );
+	/**
+	 * 33 columns: 16 on both event kinds, 13 request-only, 4 ability-only.
+	 *
+	 * The 33rd is `fleet_peer` (schema 1.2.0), which is request-only — an
+	 * ability row inherits its caller's identity through `parent_id` and has
+	 * no peer of its own.
+	 */
+	public function test_column_count_is_the_documented_thirty_three(): void {
+		$this->assertCount( 33, ( new Schema() )->columns );
+		$this->assertCount( 33, self::$live );
 	}
 
 	/**
@@ -307,7 +313,7 @@ class SchemaContractTest extends \WP_UnitTestCase {
 			}
 		}
 
-		$this->assertSame( 6, $checked, 'Expected 6 composite indexes; update this test if the count changed deliberately.' );
+		$this->assertSame( 7, $checked, 'Expected 7 composite indexes; update this test if the count changed deliberately.' );
 	}
 
 	/**
@@ -388,8 +394,12 @@ class SchemaContractTest extends \WP_UnitTestCase {
 			);
 		}
 
+		// The whole chain runs from the seeded 1.0.0, so the stamp lands on the
+		// CURRENT target rather than on 1.1.0. Asserted against the constant so
+		// a later bump does not require editing this test — the 1.1.0-specific
+		// effects are the re-keyed indexes checked above, not the stamp.
 		$this->assertSame(
-			'1.1.0',
+			ActivityLogConstants::TABLE_VERSION,
 			(string) get_option( ActivityLogConstants::OPTION_DB_VERSION ),
 			'The migration should stamp the new version once it has actually run.'
 		);
@@ -509,6 +519,12 @@ class SchemaContractTest extends \WP_UnitTestCase {
 			'parent_id'          => 'parent',
 			'server_id'          => 'server_type_created',
 			'user_id'            => 'type_user_created',
+			// Deliberately indexed rather than listed as an exception below.
+			// Cardinality is the number of hubs managing this site — low — but
+			// the predicate is "everything one peer did", which scans the whole
+			// retention window without a key. Unlike the exceptions, it is also
+			// the column an operator reaches for during an incident.
+			'fleet_peer'         => 'type_peer_created',
 		);
 
 		// Low cardinality; served by type_created plus the period bound. SC-026.
@@ -549,9 +565,9 @@ class SchemaContractTest extends \WP_UnitTestCase {
 
 		// And the map must stay exhaustive against the controller.
 		$this->assertSame(
-			10,
+			11,
 			count( $indexed ) + count( $unindexed ),
-			'ActivityLogController offers ten filters; update this map when that changes.'
+			'ActivityLogController offers eleven filters; update this map when that changes.'
 		);
 	}
 

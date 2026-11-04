@@ -230,12 +230,13 @@ final class ActivityLogController {
 			'parent_id'          => $id,
 			'server_id'          => $id,
 			'user_id'            => $id,
-			'connection_type'    => $enum( array( 'ai-connector', 'oauth', 'app-password', 'browser', 'unknown' ) ),
+			'connection_type'    => $enum( array( 'ai-connector', 'oauth', 'app-password', 'browser', 'fleet', 'unknown' ) ),
 			'invoked_via'        => $enum( array( 'mcp', 'rest', 'cli', 'admin', 'unknown' ) ),
 			'status'             => $enum( array( 'success', 'error', 'denied', 'invalid_input' ) ),
 			'method'             => $text,
 			'component_name'     => $text,
 			'component_category' => $text,
+			'fleet_peer'         => $text,
 			'date_from'          => $text,
 			'date_to'            => $text,
 			'search'             => $text,
@@ -398,7 +399,7 @@ final class ActivityLogController {
 	private function filters_from( WP_REST_Request $request ): array {
 		$filters = array();
 
-		foreach ( array( 'event_type', 'connection_type', 'invoked_via', 'status', 'method', 'component_name', 'component_category' ) as $key ) {
+		foreach ( array( 'event_type', 'connection_type', 'invoked_via', 'status', 'method', 'component_name', 'component_category', 'fleet_peer' ) as $key ) {
 			$value = (string) $request->get_param( $key );
 
 			if ( '' !== $value ) {
@@ -463,6 +464,7 @@ final class ActivityLogController {
 			'connection_type'      => $row->connection_type,
 			'connector_slug'       => $row->connector_slug,
 			'connector_label'      => $row->connector_label,
+			'fleet_peer'           => $row->fleet_peer,
 			'invoked_via'          => $row->invoked_via,
 			'client_name'          => $row->client_name,
 			'client_version'       => $row->client_version,

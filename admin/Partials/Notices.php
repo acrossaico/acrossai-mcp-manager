@@ -71,38 +71,58 @@ class Notices {
 		}
 
 		$messages = array(
-			'server_created'   => array( 'success', __( 'Server created.', 'acrossai-mcp-manager' ) ),
-			'server_saved'     => array( 'success', __( 'Server saved.', 'acrossai-mcp-manager' ) ),
-			'server_deleted'   => array( 'success', __( 'Server deleted.', 'acrossai-mcp-manager' ) ),
-			'server_toggled'   => array( 'success', __( 'Server status toggled.', 'acrossai-mcp-manager' ) ),
-			'bulk_completed'   => array( 'success', __( 'Bulk action completed.', 'acrossai-mcp-manager' ) ),
-			'slug_exists'      => array( 'error', __( 'Slug already in use.', 'acrossai-mcp-manager' ) ),
-			'empty_name'       => array( 'error', __( 'Server name is required.', 'acrossai-mcp-manager' ) ),
-			'db_error'         => array( 'error', __( 'Database write failed.', 'acrossai-mcp-manager' ) ),
-			'server_not_found' => array( 'error', __( 'Server not found.', 'acrossai-mcp-manager' ) ),
-			'server_protected' => array( 'error', __( 'This server is managed by the plugin and cannot be edited or deleted.', 'acrossai-mcp-manager' ) ),
+			'server_created'      => array( 'success', __( 'Server created.', 'acrossai-mcp-manager' ) ),
+			'server_saved'        => array( 'success', __( 'Server saved.', 'acrossai-mcp-manager' ) ),
+			'server_deleted'      => array( 'success', __( 'Server deleted.', 'acrossai-mcp-manager' ) ),
+			'server_toggled'      => array( 'success', __( 'Server status toggled.', 'acrossai-mcp-manager' ) ),
+			'bulk_completed'      => array( 'success', __( 'Bulk action completed.', 'acrossai-mcp-manager' ) ),
+			'slug_exists'         => array( 'error', __( 'Slug already in use.', 'acrossai-mcp-manager' ) ),
+			'empty_name'          => array( 'error', __( 'Server name is required.', 'acrossai-mcp-manager' ) ),
+			'db_error'            => array( 'error', __( 'Database write failed.', 'acrossai-mcp-manager' ) ),
+			'server_not_found'    => array( 'error', __( 'Server not found.', 'acrossai-mcp-manager' ) ),
+			'server_protected'    => array( 'error', __( 'This server is managed by the plugin and cannot be edited or deleted.', 'acrossai-mcp-manager' ) ),
 			// F090 — a refused enable MUST say what is missing (FR-015).
 			// Silently doing nothing is the failure mode this feature exists to
 			// remove, so the refusal gets its own notice rather than sharing a
 			// generic one.
-			'type_unavailable' => array(
+			'type_unavailable'    => array(
 				'error',
 				__( 'That server could not be enabled: its server type requires the AcrossAI Abilities Manager plugin to be installed and activated. Install it, or change the server type on the Tools tab.', 'acrossai-mcp-manager' ),
 			),
-			'bulk_partial'     => array(
+			'bulk_partial'        => array(
 				'warning',
 				__( 'Some servers were skipped: their server type requires the AcrossAI Abilities Manager plugin to be installed and activated.', 'acrossai-mcp-manager' ),
 			),
+			// Fleet. The two failures carry their own reason appended below;
+			// the entries here supply only the sentence that frames it.
+			'fleet_new_id'        => array( 'success', __( 'New security ID generated. Give it to the site you want to connect; already-connected hosts are unaffected.', 'acrossai-mcp-manager' ) ),
+			'fleet_removed'       => array( 'success', __( 'Host removed. Its signatures no longer verify, so it can no longer reach this site.', 'acrossai-mcp-manager' ) ),
+			'fleet_remove_failed' => array( 'error', __( 'Could not remove that host.', 'acrossai-mcp-manager' ) ),
 		);
 
 		if ( ! isset( $messages[ $notice ] ) ) {
 			return;
 		}
 
+		$text = $messages[ $notice ][1];
+
+		// Some actions carry their own reason, because a fixed catalogue
+		// cannot hold it: pairing fails differently every time, and the part
+		// worth reading is which site was unreachable or what it said when it
+		// refused. The detail arrives through the URL and may have originated
+		// on another site, so it is treated as untrusted — sanitized on the
+		// way in, escaped on the way out — and APPENDED rather than replacing
+		// the catalogue line, which supplies the context it needs.
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$detail = isset( $_GET['notice_detail'] ) ? sanitize_text_field( wp_unslash( $_GET['notice_detail'] ) ) : '';
+		if ( '' !== $detail ) {
+			$text .= ' ' . $detail;
+		}
+
 		printf(
 			'<div class="notice notice-%s is-dismissible"><p>%s</p></div>',
 			esc_attr( $messages[ $notice ][0] ),
-			esc_html( $messages[ $notice ][1] )
+			esc_html( $text )
 		);
 	}
 

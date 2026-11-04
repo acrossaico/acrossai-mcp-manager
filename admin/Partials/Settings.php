@@ -130,7 +130,10 @@ class Settings {
 		// wpb-ac panel.
 		// F030: save_permission_override handles the per-server override toggle
 		// form on the Access Control tab (does NOT touch the wpb-ac panel).
-		if ( ! in_array( $action, array( 'toggle_status', 'delete', 'create', 'update', 'save_permission_override', 'save_instructions' ), true )
+		// Fleet: fleet_new_security_id reissues the code a managing site needs,
+		// fleet_remove_host cuts one off. Joining is not an action here — the
+		// managing site calls this site's registration endpoint instead.
+		if ( ! in_array( $action, array( 'toggle_status', 'delete', 'create', 'update', 'save_permission_override', 'save_instructions', 'fleet_new_security_id', 'fleet_remove_host' ), true )
 			&& ! $this->is_bulk_request()
 		) {
 			return;
@@ -158,6 +161,46 @@ class Settings {
 			}
 
 			$this->redirect_to_list( 'server_toggled' );
+		}
+
+		// ── Fleet: replace the security ID ────────────────────────────────────
+		//
+		// There is no "add host" action here any more. A managing site connects
+		// by calling this site's registration endpoint with the security ID
+		// below, so the only thing this screen does is issue and replace that
+		// ID. Nothing is pasted in, and this site never calls out.
+		if ( 'fleet_new_security_id' === $action ) {
+			$server_id = isset( $_GET['server'] ) ? absint( $_GET['server'] ) : 0; // phpcs:ignore WordPress.Security.NonceVerification
+			check_admin_referer( 'acrossai_mcp_fleet_newid_' . $server_id );
+
+			if ( $server_id > 0 ) {
+				\AcrossAI_MCP_Manager\Includes\Fleet\SecurityId::regenerate( $server_id );
+			}
+
+			$this->redirect_to_edit( $server_id, 'overview', 'fleet_new_id' );
+		}
+
+		// ── Fleet: leave a fleet ──────────────────────────────────────────────
+		if ( 'fleet_remove_host' === $action ) {
+			$server_id = isset( $_GET['server'] ) ? absint( $_GET['server'] ) : 0; // phpcs:ignore WordPress.Security.NonceVerification
+			$host_key  = isset( $_GET['host'] ) ? sanitize_key( wp_unslash( $_GET['host'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification
+			check_admin_referer( 'acrossai_mcp_fleet_remove_' . $server_id . '_' . $host_key );
+
+			// Removing the record IS the revocation: the host's access was
+			// that stored public key, so once it is gone its signatures
+			// verify against nothing. There is no credential left behind to
+			// clean up, which is the point of the signature design.
+			$removed = \AcrossAI_MCP_Manager\Includes\Fleet\Hosts::remove( $server_id, $host_key );
+
+			if ( ! $removed ) {
+				$this->redirect_to_edit_with_detail(
+					$server_id,
+					'fleet_remove_failed',
+					__( 'That host is already gone.', 'acrossai-mcp-manager' )
+				);
+			}
+
+			$this->redirect_to_edit( $server_id, 'overview', 'fleet_removed' );
 		}
 
 		// ── Single-row delete ─────────────────────────────────────────────────
@@ -478,6 +521,44 @@ class Settings {
 						'page'   => AdminPageSlugs::PARENT,
 						'action' => 'create',
 						'notice' => $notice,
+					),
+					admin_url( 'admin.php' )
+				)
+			)
+		);
+		exit;
+	}
+
+	/**
+	 * Redirect back to a server's Overview carrying a notice AND its reason.
+	 *
+	 * The sibling below takes a notice KEY, which `Notices` maps to fixed
+	 * wording. That is right when there is one way to fail; pairing has many,
+	 * and most of the useful detail is only known at the moment it happens —
+	 * which host was unreachable, what the managing site said when it refused.
+	 * Flattening those into one catalogue entry would throw away the only part
+	 * the operator can act on.
+	 *
+	 * The detail is the plugin's own message or a remote site's, so it is
+	 * carried URL-encoded and escaped again at the render site in `Notices`.
+	 *
+	 * @since 0.4.6
+	 *
+	 * @param int    $server_id Server row id.
+	 * @param string $notice    Notice key.
+	 * @param string $detail    Human-readable reason.
+	 */
+	private function redirect_to_edit_with_detail( int $server_id, string $notice, string $detail ): void {
+		wp_safe_redirect(
+			esc_url_raw(
+				add_query_arg(
+					array(
+						'page'          => AdminPageSlugs::PARENT,
+						'action'        => 'edit',
+						'server'        => $server_id,
+						'tab'           => 'overview',
+						'notice'        => $notice,
+						'notice_detail' => rawurlencode( $detail ),
 					),
 					admin_url( 'admin.php' )
 				)
@@ -982,7 +1063,14 @@ class Settings {
 			$tabs[ $tab_obj->slug() ] = $tab_obj->label();
 		}
 		if ( ! array_key_exists( $tab, $tabs ) ) {
-			$tab = 'overview';
+			// The FIRST VISIBLE tab, not the literal 'overview'. A fleet
+			// server has no Overview tab at all — `FleetTab` replaces it
+			// rather than sitting beside it — so hardcoding that slug sent
+			// every unrecognised tab request there to render a tab the nav
+			// does not list and `visible_tabs()` excluded on purpose.
+			// `$tabs` is already in priority order, so this is 'overview'
+			// for every other server exactly as before.
+			$tab = (string) array_key_first( $tabs );
 		}
 
 		echo '<div class="wrap">';

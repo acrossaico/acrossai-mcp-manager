@@ -68,6 +68,25 @@ final class OverviewTab extends AbstractServerTab {
 	}
 
 	/**
+	 * Every server EXCEPT a Fleet one, where {@see FleetTab} stands in this
+	 * slot instead and answers a different question — who may manage this
+	 * site, rather than what this server is.
+	 *
+	 * The two tabs share the `overview` slug on purpose, so existing
+	 * `&tab=overview` links and the first-tab fallback reach whichever one
+	 * applies with no redirect and no special case. That only holds while
+	 * exactly one of them is visible for a given server: keep this condition
+	 * and `FleetTab::visible_for()` exact opposites.
+	 *
+	 * @since 0.4.6
+	 * @param array<string, mixed> $server Server row data.
+	 * @return bool
+	 */
+	public function visible_for( array $server ): bool {
+		return ServerTypes::FLEET !== ( $server['server_type'] ?? '' );
+	}
+
+	/**
 	 * Renders the read-only info dashboard.
 	 *
 	 * @since 0.0.6

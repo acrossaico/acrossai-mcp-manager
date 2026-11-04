@@ -21,6 +21,7 @@
 namespace AcrossAI_MCP_Manager\Admin\Partials\ServerTabs;
 
 use AcrossAI_MCP_Manager\Admin\Partials\ServerTabs\Connect\MethodRegistry;
+use AcrossAI_MCP_Manager\Includes\Database\MCPServer\ServerTypes;
 use AcrossAI_MCP_Manager\Includes\Utilities\AdminPageSlugs;
 use AcrossAI_MCP_Manager\Includes\Utilities\LocalEnvironment;
 
@@ -92,6 +93,23 @@ final class ConnectTab extends AbstractServerTab {
 	 */
 	public function priority(): int {
 		return 20;
+	}
+
+	/**
+	 * Hidden on Fleet servers.
+	 *
+	 * Every method behind this tab answers "how do I point an AI client at
+	 * this server", and no AI client connects to a Fleet server — other
+	 * WordPress sites do, by pairing. Leaving the tab in place would offer an
+	 * operator connection strings that work only as far as the Fleet route's
+	 * own permission check, which refuses anything that is not a paired host.
+	 *
+	 * @since 0.4.6
+	 * @param array<string, mixed> $server Server row data.
+	 * @return bool
+	 */
+	public function visible_for( array $server ): bool {
+		return ServerTypes::FLEET !== ( $server['server_type'] ?? '' );
 	}
 
 	/**

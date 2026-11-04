@@ -119,6 +119,29 @@ class Schema extends \BerlinDB\Database\Kern\Schema {
 			'length'  => '64',
 			'default' => '',
 		),
+		// The OTHER WordPress site involved in this event, as a hostname.
+		//
+		// Serves both directions of Fleet from one column, which is why it is
+		// not called `host` or `child`:
+		// - on a managed site, the hub that called in;
+		// - on a hub, the managed site it called out to.
+		// Empty on every non-fleet row, which is almost all of them.
+		//
+		// A hostname rather than either side's opaque key, because this column
+		// exists to be read and filtered by an operator, and neither
+		// `host_key` nor `site_key` means anything to one. The keys stay where
+		// they are useful — in the host list and the roster.
+		//
+		// Until this existed the information was only in `user_agent`, which is
+		// displayed but not filterable, so "show me everything that hub did"
+		// could not be asked. 191 is the utf8mb4-safe indexed varchar length.
+		array(
+			'name'     => 'fleet_peer',
+			'type'     => 'varchar',
+			'length'   => '191',
+			'default'  => '',
+			'sortable' => true,
+		),
 		// Observed value is the short label `HTTP`, not a class FQN.
 		array(
 			'name'    => 'transport',
@@ -348,6 +371,19 @@ class Schema extends \BerlinDB\Database\Kern\Schema {
 			'name'    => 'type_connection_created',
 			'type'    => 'key',
 			'columns' => array( 'event_type', 'connection_type', 'created_at' ),
+		),
+		// "Everything this peer did, newest first."
+		//
+		// Leads with `event_type` like its four siblings, not with the column
+		// it is named for. `fleet_peer` is non-empty only on request rows, so
+		// the discriminator selects nothing extra here — but
+		// `ActivityLogController` defaults `event_type` on EVERY list query, so
+		// omitting it would leave that predicate to be checked against each row
+		// instead of resolved inside the key.
+		array(
+			'name'    => 'type_peer_created',
+			'type'    => 'key',
+			'columns' => array( 'event_type', 'fleet_peer', 'created_at' ),
 		),
 		array(
 			'name'    => 'type_user_created',

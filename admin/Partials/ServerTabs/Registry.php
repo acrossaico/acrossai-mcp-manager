@@ -129,6 +129,11 @@ final class Registry {
 	public function all_tabs(): array {
 		return array(
 			new OverviewTab(),
+			// Stands in the Overview slot on Fleet servers only. Both carry
+			// the `overview` slug and their `visible_for()` conditions are
+			// exact opposites, so precisely one is ever live for a server and
+			// `&tab=overview` resolves without a redirect.
+			new FleetTab(),
 			// F084 — NpmTab, ClientsTab, the AI-connectors entry and WpCliTab moved
 			// one level down into ConnectTab's `?method=` navigation. The four
 			// classes are unchanged and still instantiable; only their

@@ -148,9 +148,21 @@ final class QuickConnectControllerTest extends WP_UnitTestCase {
 	public function test_post_step_1_select_existing_server_persists_to_scratchpad(): void {
 		wp_set_current_user( $this->admin_id );
 
-		// Ensure the default seeded server exists so we have a valid id.
-		$servers = MCPServerQuery::instance()->query( array( 'number' => 1 ) );
-		$this->assertNotEmpty( $servers, 'Default seeded server must exist for this test.' );
+		// Name the server rather than taking whichever row comes first.
+		//
+		// This asked for `number => 1` and trusted it to be the default
+		// server. BerlinDB orders by `id DESC` by default, so it actually
+		// returned the NEWEST seeded row — which became the Fleet server, the
+		// one server Quick Connect is designed to refuse (it is in
+		// `NonConnectableServers`, because no AI client connects to it). The
+		// test then read that correct refusal as a regression.
+		$servers = MCPServerQuery::instance()->query(
+			array(
+				'server_slug' => DefaultServerSeeder::ACROSSAI_SLUG,
+				'number'      => 1,
+			)
+		);
+		$this->assertNotEmpty( $servers, 'The AcrossAI seeded server must exist for this test.' );
 		$server_id = (int) $servers[0]->id;
 
 		$req = new WP_REST_Request( 'POST', '/acrossai-mcp-manager/v1/quick-connect/step' );

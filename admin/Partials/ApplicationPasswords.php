@@ -169,6 +169,16 @@ class ApplicationPasswords {
 			);
 		}
 
+		// A credential for a server no client may connect to is a credential
+		// that fails on first use. Refuse before minting rather than after.
+		if ( \AcrossAI_MCP_Manager\Includes\Database\MCPServer\NonConnectableServers::is_excluded_id( $server_id ) ) {
+			return new \WP_Error(
+				'acrossai_mcp_server_not_connectable',
+				\AcrossAI_MCP_Manager\Includes\Database\MCPServer\NonConnectableServers::refusal_message(),
+				array( 'status' => 400 )
+			);
+		}
+
 		$app_name = $this->build_app_name(
 			$server_id,
 			(string) $request->get_param( 'client' ),

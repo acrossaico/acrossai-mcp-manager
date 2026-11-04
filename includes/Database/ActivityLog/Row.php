@@ -30,6 +30,7 @@ class Row extends \BerlinDB\Database\Kern\Row {
 	/** @var string */      public $client_name        = '';
 	/** @var string */      public $client_version     = '';
 	/** @var string */      public $connector_slug     = '';
+	/** @var string */      public $fleet_peer         = '';
 	/** @var string */      public $transport          = '';
 	/** @var string */      public $method             = '';
 	/** @var string */      public $protocol_version   = '';

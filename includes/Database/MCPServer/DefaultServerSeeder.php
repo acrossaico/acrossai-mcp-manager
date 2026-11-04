@@ -92,6 +92,17 @@ final class DefaultServerSeeder {
 	public const ACROSSAI_SLUG = 'acrossai-mcp-server';
 
 	/**
+	 * Slug of the Fleet row — the endpoint other WordPress sites call.
+	 *
+	 * Seeded like the two above and protected for the same reason, but it is
+	 * the one seeded row whose disabled state is load-bearing rather than
+	 * merely cautious: while it is off, no hub can reach this site at all.
+	 * `initial` below ships every row disabled, so nothing extra is needed to
+	 * get that — but do not "tidy" this row into being enabled on insert.
+	 */
+	public const FLEET_SLUG = 'acrossai-fleet-server';
+
+	/**
 	 * Declarative definitions for every plugin-managed server row, keyed by slug.
 	 *
 	 * Derived from `ServerTypes::seeded_servers()` since 0.3.6 rather than

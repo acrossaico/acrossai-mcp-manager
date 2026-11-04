@@ -39,6 +39,7 @@ namespace AcrossAI_MCP_Manager\Includes\REST;
 use AcrossAI_MCP_Manager\Includes\Database\MCPServer\PolicyTransition;
 use AcrossAI_MCP_Manager\Includes\Database\MCPServer\Query as MCPServerQuery;
 use AcrossAI_MCP_Manager\Includes\Database\MCPServer\ServerEnablement;
+use AcrossAI_MCP_Manager\Includes\Database\MCPServer\NonConnectableServers;
 use AcrossAI_MCP_Manager\Includes\Database\MCPServer\ServerTypes;
 use AcrossAI_MCP_Manager\Includes\Database\MCPServer\ToolPolicy;
 use AcrossAI_MCP_Manager\Includes\Database\MCPServerAbility\ExposureResolver as MCPServerAbilityExposureResolver;
@@ -682,6 +683,17 @@ final class QuickConnectController {
 				array( 'status' => 410 )
 			);
 		}
+		// Hiding an excluded server from the picker is presentation; this is
+		// the boundary. The wizard accepts `?server=N` from the URL, so a
+		// stale bookmark or a hand-built request could still name one that
+		// was never offered.
+		if ( NonConnectableServers::is_excluded_id( $server_id ) ) {
+			return new WP_Error(
+				'acrossai_mcp_quick_connect_server_excluded',
+				esc_html( NonConnectableServers::refusal_message() ),
+				array( 'status' => 400 )
+			);
+		}
 		$scratchpad['server_id']     = $server_id;
 		$scratchpad['create_intent'] = false;
 		return $scratchpad;
@@ -887,6 +899,13 @@ final class QuickConnectController {
 
 		$dtos = array();
 		foreach ( (array) $rows as $row ) {
+			// Servers nothing connects to are not candidates for a wizard
+			// whose whole job is producing connection details. See
+			// QuickConnectExclusions for why the list lives there.
+			if ( NonConnectableServers::is_excluded( isset( $row->server_slug ) ? (string) $row->server_slug : '' ) ) {
+				continue;
+			}
+
 			$namespace  = isset( $row->server_route_namespace ) ? (string) $row->server_route_namespace : 'mcp';
 			$route      = isset( $row->server_route ) ? (string) $row->server_route : '';
 			$route_full = ltrim( $namespace, '/' ) . ( '' !== $route ? '/' . ltrim( $route, '/' ) : '' );

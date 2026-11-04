@@ -667,6 +667,36 @@ final class Main {
 		$transport_default = \AcrossAI_MCP_Manager\Includes\AccessControl\TransportPermissionDefault::instance();
 		$this->loader->add_filter( 'mcp_adapter_default_transport_permission_user_capability', $transport_default, 'filter_default_capability', 10, 2 );
 
+		/**
+		 * Fleet route — only credentials this site handed to a paired hub.
+		 *
+		 * Needed because the gate above answers with a CAPABILITY, and for a
+		 * server with no access-control rule that answer is `manage_options`.
+		 * A capability cannot tell one Application Password from another, so
+		 * without this every admin password on the site — including ones
+		 * minted for unrelated integrations — would satisfy the Fleet route,
+		 * pairing would grant nothing, and removing a host would take nothing
+		 * away.
+		 *
+		 * On `rest_pre_dispatch` so a refused caller never reaches the MCP
+		 * handler, and ahead of the per-ability gates rather than instead of
+		 * them: a paired hub still passes everything a local client passes.
+		 */
+		$fleet_route = \AcrossAI_MCP_Manager\Includes\Fleet\RoutePermission::instance();
+		$this->loader->add_filter( 'rest_pre_dispatch', $fleet_route, 'gate_fleet_route', 10, 3 );
+
+		/**
+		 * Fleet registration — the one call a managing site makes before it
+		 * holds anything this site would recognise.
+		 *
+		 * Unauthenticated by necessity: issuing the trust IS the call. The
+		 * site's security ID authenticates it, a per-IP limiter stops that
+		 * being guessed, and Fleet access must already be switched on. See
+		 * Fleet\Register for why that combination is enough.
+		 */
+		$fleet_register = \AcrossAI_MCP_Manager\Includes\Fleet\Register::instance();
+		$this->loader->add_action( 'rest_api_init', $fleet_register, 'register_routes' );
+
 		// F040 follow-up: the OAuth HTTPS and OAuth-cron-disabled notices moved
 		// to the acrossai-ai-connectors companion plugin — mcp-manager no longer
 		// owns the OAuth token endpoint or the OAuth cleanup cron, so those
@@ -674,9 +704,6 @@ final class Main {
 		// (US4 — FR-015 + Q3) migrated to the shared `acrossai_notices` filter
 		// registered above; dismiss + persistence are handled by
 		// acrossai-co/main-menu 0.0.30's SummaryNoticeEmitter.
-
-		// TODO (phase N): wire Admin\Partials\ApplicationPasswords.
-		// $app_passwords = \AcrossAI_MCP_Manager\Admin\Partials\ApplicationPasswords::instance();
 
 		/**
 		 * Phase 4 gap closure — Feature-009 (2026-07-01). Boots the WP MCP
@@ -1133,10 +1160,6 @@ final class Main {
 			10,
 			2
 		);
-
-		// TODO (phase 5): wire REST\CliController.
-		// $cli_controller = \AcrossAI_MCP_Manager\Includes\REST\CliController::instance();
-		// $this->loader->add_action( 'rest_api_init', $cli_controller, 'register_routes' );
 	}
 
 	/**
