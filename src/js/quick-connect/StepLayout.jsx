@@ -182,7 +182,7 @@ const StepLayout = ( {
 					target="_blank"
 					rel="noopener noreferrer"
 				>
-					{ __( 'Free Consultations ↗', 'acrossai-mcp-manager' ) }
+					{ __( 'Consultations ↗', 'acrossai-mcp-manager' ) }
 				</a>
 				{ ! isDone && (
 					<a
