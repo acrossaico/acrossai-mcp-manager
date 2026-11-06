@@ -820,6 +820,20 @@ $acmcp-surface: #f6f7f7;
 	font-size: 12.5px;
 }
 
+// A group of lettered sub-steps on a server tab (Fleet pairing). The component
+// itself is defined above and shared with the Quick Connect manual route; this
+// only spaces the group below the section's description, and keeps a long site
+// address from pushing the tab sideways. Scoped to the wrapper so the wizard's
+// own use of the component is untouched.
+.acrossai-mcp-substeps {
+	margin-top: 18px;
+
+	.acrossai-mcp-key {
+		max-width: 100%;
+		overflow-x: auto;
+	}
+}
+
 .acrossai-mcp-paths {
 	display: grid;
 	grid-template-columns: auto minmax(0, 1fr) auto;
