@@ -13,7 +13,7 @@
         },
         {
             "type": "vcs",
-            "url": "https://github.com/acrossai-co/main-menu"
+            "url": "https://github.com/acrossaico/main-menu"
         }
     ],
     "require": {
@@ -21,7 +21,7 @@
         "automattic/jetpack-autoloader": "^6.0",
         "wpboilerplate/wpb-access-control": "^3.2.0",
         "berlindb/core": "^3.0.0",
-        "acrossai-co/main-menu": "0.0.38",
+        "acrossai-co/main-menu": "0.0.39",
         "wordpress/mcp-adapter": "^0.7.0"
     },
     "keywords": [
