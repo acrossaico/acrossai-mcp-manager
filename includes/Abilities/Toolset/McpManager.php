@@ -40,6 +40,16 @@ final class McpManager extends Base_Toolset_Ability {
 	public const GROUP = 'mcp-manager';
 
 	/**
+	 * This dispatcher's ability slug.
+	 *
+	 * A constant as well as {@see self::slug()} because {@see Guide} has to
+	 * name it from outside the instance — see its NOT_A_SUBJECT list.
+	 *
+	 * @var string
+	 */
+	public const SLUG = 'toolset/mcp-manager';
+
+	/**
 	 * @return string
 	 */
 	protected function group(): string {
@@ -50,7 +60,7 @@ final class McpManager extends Base_Toolset_Ability {
 	 * @return string
 	 */
 	protected function slug(): string {
-		return 'toolset/mcp-manager';
+		return self::SLUG;
 	}
 
 	/**
