@@ -316,24 +316,63 @@ final class FleetTab extends AbstractServerTab {
 			esc_html__( 'Give these two values to the site that will manage this one. It connects to this site; there is nothing to paste back here.', 'acrossai-mcp-manager' )
 		);
 
-		echo '<table class="form-table" role="presentation"><tbody>';
+		echo '<div class="acrossai-mcp-substeps">';
 
+		// (a) The security ID.
 		printf(
-			'<tr><th scope="row">%1$s</th><td><code style="font-size:15px;letter-spacing:.08em">%2$s</code> <a href="%3$s" class="button button-small">%4$s</a><p class="description">%5$s</p></td></tr>',
-			esc_html__( 'Security ID', 'acrossai-mcp-manager' ),
+			'<div class="acrossai-mcp-substep">
+				<span class="acrossai-mcp-substep__mark">a</span>
+				<div class="acrossai-mcp-substep__body">
+					<span class="acrossai-mcp-substep__title">%1$s</span>
+					<div class="acrossai-mcp-substep__inline">
+						<code class="acrossai-mcp-key" id="acrossai-fleet-security-id">%2$s</code>
+						<button type="button" class="button button-small copy-to-clipboard" data-copy-target="#acrossai-fleet-security-id">%3$s</button>
+						<a href="%4$s" class="button button-small">%5$s</a>
+					</div>
+					<span class="acrossai-mcp-substep__hint">%6$s</span>
+				</div>
+			</div>',
+			esc_html__( 'Copy the security ID', 'acrossai-mcp-manager' ),
 			esc_html( SecurityId::get( $server_id ) ),
+			esc_html__( 'Copy', 'acrossai-mcp-manager' ),
 			esc_url( $this->regenerate_url( $server_id ) ),
 			esc_html__( 'Generate a new one', 'acrossai-mcp-manager' ),
 			esc_html__( 'Single use — it is replaced automatically as soon as a site connects with it. Already-connected hosts are unaffected.', 'acrossai-mcp-manager' )
 		);
 
+		// (b) This site's address.
 		printf(
-			'<tr><th scope="row">%1$s</th><td><code>%2$s</code></td></tr>',
-			esc_html__( 'This site’s address', 'acrossai-mcp-manager' ),
-			esc_html( home_url() )
+			'<div class="acrossai-mcp-substep">
+				<span class="acrossai-mcp-substep__mark">b</span>
+				<div class="acrossai-mcp-substep__body">
+					<span class="acrossai-mcp-substep__title">%1$s</span>
+					<div class="acrossai-mcp-substep__inline">
+						<code class="acrossai-mcp-key" id="acrossai-fleet-address">%2$s</code>
+						<button type="button" class="button button-small copy-to-clipboard" data-copy-target="#acrossai-fleet-address">%3$s</button>
+					</div>
+				</div>
+			</div>',
+			esc_html__( 'Copy this site’s address', 'acrossai-mcp-manager' ),
+			esc_html( home_url() ),
+			esc_html__( 'Copy', 'acrossai-mcp-manager' )
 		);
 
-		echo '</tbody></table>';
+		// (c) What the other site does with them. No control here on purpose —
+		// the step exists so the screen ends by saying the pairing finishes
+		// elsewhere, rather than leaving the reader waiting for a button.
+		printf(
+			'<div class="acrossai-mcp-substep">
+				<span class="acrossai-mcp-substep__mark">c</span>
+				<div class="acrossai-mcp-substep__body">
+					<span class="acrossai-mcp-substep__title">%1$s</span>
+					<span class="acrossai-mcp-substep__hint">%2$s</span>
+				</div>
+			</div>',
+			esc_html__( 'Paste both into the managing site', 'acrossai-mcp-manager' ),
+			esc_html__( 'That site connects to this one and pairs itself. Nothing comes back here to paste, and this screen does not need to stay open. The host appears in the list above once it has connected.', 'acrossai-mcp-manager' )
+		);
+
+		echo '</div>';
 	}
 
 	/**
