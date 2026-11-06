@@ -4,7 +4,7 @@ Tags: mcp, ai, mcp-adapter, claude, chatgpt
 Requires at least: 6.9
 Requires PHP: 8.1
 Tested up to: 7.1
-Stable tag: 0.4.6
+Stable tag: 0.4.7
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -240,6 +240,9 @@ Documentation: [acrossai.co/docs](https://acrossai.co/docs/). Every ability, sea
 
 == Upgrade Notice ==
 
+= 0.4.7 =
+Adds Fleet, which lets an agency's WordPress site manage yours. It is switched off by default and does nothing until you pair it yourself, and your existing AI access is untouched — no reconnecting is needed. This release does change the database: the activity log gains a column recording which managing site made a request, applied automatically on update.
+
 = 0.4.6 =
 Removes the `[acrossai_mcp_servers]` shortcode and the embeds block — both moved to AcrossAI Pro. If you use that shortcode on a page, install AcrossAI Pro before updating or the page will show nothing in its place. Everything else is safe to update: servers, connections and abilities are untouched, no reconnecting is needed and there is no database change. Adds a Troubleshoot screen, and fixes connection details being cached for an hour and OAuth addresses 404ing until Permalinks were re-saved.
 
@@ -261,6 +264,15 @@ The AcrossAI server is recommended again and preselected in Quick Connect. Exist
 == Changelog ==
 
 The complete release history lives at [acrossai.co/changelog](https://acrossai.co/changelog/).
+
+= 0.4.7 =
+* **New: another WordPress site can now look after this one — Fleet, the free half.** An agency running AcrossAI Pro can manage your site from their own dashboard, and you stay on the free plugin. A new server called **Fleet** is seeded for you and is **switched off by default** — nothing can reach your site until you turn it on and pair it yourself.
+* **You start the pairing, not them.** You paste a security ID from their dashboard and press Connect; your site introduces itself to theirs. Nobody types your admin password into somebody else's site, and you can remove the host at any time from your own screen — their access stops immediately, without asking them.
+* **Their access is a signature, not a password.** Every request from the hub is signed, and your site stores only the public half. There is no shared credential sitting in your database to leak, and no secret ever travels inside a web address where it would be written into server logs and browser history.
+* **Fleet traffic is kept separate from your own.** It arrives on its own address, so the AI access you already use is untouched and entirely independent. The Logs, Abilities and Access Control tabs on the Fleet server therefore describe hub activity and nothing else.
+* **The activity log now records which hub did what.** A managing site's actions used to be filed as if someone had clicked them in a browser, which hid the one fact you would actually want after the event. Fleet requests are now attributed to the hub that made them, and can be filtered that way.
+* **Changed: the Consultations screen shows both ways to book.** It offered a single "Book a free consultation" button that led to a page requiring an AcrossAI Pro licence — so a free user followed a link promising something free and was then told they needed to buy something. It now shows both routes: request a free call and get a reply by email, or, with a Pro licence, pick your own slot in a live calendar.
+* **Fixed: Quick Connect offered servers that cannot be connected to.** Some server types exist to be reached by other software rather than by an assistant. They were listed anyway, so choosing one led to a connection that could never complete.
 
 = 0.4.6 =
 * **Removed: the front-end embed shortcode and block.** `[acrossai_mcp_servers]`, the per-server Embeds tab and the transports behind them have moved to AcrossAI Pro, which is where the rest of the publishing surface already lived. If you have that shortcode on a page it will stop rendering when you update, and the page will show nothing in its place — install AcrossAI Pro to keep it. Nothing else is affected: servers, connections, abilities and access control are untouched, and no connected assistant notices the difference.
