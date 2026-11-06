@@ -872,6 +872,16 @@ $acmcp-surface: #f6f7f7;
 // which are still legitimately form-tables.
 
 .acrossai-fleet {
+	// Every other server tab opens with an `<h2>` — "MCP Tools", "Abilities" —
+	// and it is that heading's default margin, not any rule of ours, that
+	// separates the panel from the tab strip. This tab has no heading by
+	// design: each card carries its own title, and a duplicate "Fleet" above
+	// them would say nothing. Losing the heading lost the gap with it, so the
+	// cards sat flush against the tabs.
+	//
+	// 24px rather than matching the heading's 1em, because that is the rhythm
+	// this block already uses between and inside its columns.
+	margin-top: 24px;
 	display: grid;
 	// min() floor rather than a media query: what matters is the column getting
 	// too narrow for the endpoint field, and that depends on whether the admin
