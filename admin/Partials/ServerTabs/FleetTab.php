@@ -39,6 +39,28 @@ defined( 'ABSPATH' ) || exit;
 final class FleetTab extends AbstractServerTab {
 
 	/**
+	 * Allowed HTML for the access switch.
+	 *
+	 * `wp_kses_post()` cannot carry this element: its global attribute list
+	 * (see `_wp_add_global_attributes()`) has `role` and `aria-label` but no
+	 * `aria-checked`, so the state attribute is stripped and the switch
+	 * announces its role without ever saying which way it is set.
+	 *
+	 * @since 0.4.8
+	 * @var array<string, array<string, bool>>
+	 */
+	private const SWITCH_ALLOWED_HTML = array(
+		'a'    => array(
+			'href'         => true,
+			'class'        => true,
+			'role'         => true,
+			'aria-checked' => true,
+			'aria-label'   => true,
+		),
+		'span' => array( 'class' => true ),
+	);
+
+	/**
 	 * Returns the tab slug.
 	 *
 	 * Deliberately `overview`, not `fleet`. This tab stands in the Overview
@@ -113,8 +135,17 @@ final class FleetTab extends AbstractServerTab {
 			);
 		}
 
+		// Two columns on a wide screen, one on a narrow one. `auto-fit` with a
+		// `min()` floor rather than a media query: the breakpoint that matters
+		// is the column becoming too narrow for the endpoint field, which
+		// depends on the admin menu being collapsed, not on the viewport.
+		echo '<div class="acrossai-fleet">';
+		echo '<div class="acrossai-fleet__col">';
 		$this->render_state( $server, $is_enabled );
 		$this->render_hosts( $server_id, $hosts, $is_enabled );
+		echo '</div>';
+		$this->render_security_id( $server_id, $is_enabled );
+		echo '</div>';
 
 		echo '</div>';
 	}
@@ -133,23 +164,57 @@ final class FleetTab extends AbstractServerTab {
 			. (string) ( $server['server_route'] ?? '' )
 		);
 
-		echo '<table class="form-table" role="presentation"><tbody>';
-
 		printf(
-			'<tr><th scope="row">%1$s</th><td>%2$s<p class="description">%3$s</p></td></tr>',
+			'<div class="aa-card">
+				<div class="aa-card__head aa-card__head--split">
+					<div class="aa-card__headmain">
+						<span class="aa-card__titlerow">
+							<span class="aa-card__title">%1$s</span>
+							%2$s
+						</span>
+						<span class="aa-card__sub">%3$s</span>
+					</div>
+					%4$s
+				</div>
+				<div class="aa-card__body%5$s">
+					<span class="aa-label">%6$s</span>
+					<div class="aa-field">
+						<span class="aa-field__value aa-field__value--mono" id="acrossai-fleet-endpoint">%7$s</span>
+						<button type="button" class="aa-field__btn copy-to-clipboard" data-copy-target="#acrossai-fleet-endpoint">%8$s</button>
+					</div>
+					<span class="aa-hint">%9$s</span>
+				</div>
+			</div>',
 			esc_html__( 'Fleet access', 'acrossai-mcp-manager' ),
-			wp_kses_post( $this->render_toggle( $server, $is_enabled ) ),
-			esc_html__( 'Lets WordPress sites you approve run abilities on this site.', 'acrossai-mcp-manager' )
-		);
-
-		printf(
-			'<tr><th scope="row">%1$s</th><td><code>%2$s</code><p class="description">%3$s</p></td></tr>',
+			wp_kses_post( $this->render_status_pill( $is_enabled ) ),
+			esc_html__( 'Lets WordPress sites you approve run abilities on this site.', 'acrossai-mcp-manager' ),
+			// Not wp_kses_post(): WordPress's global attribute allowlist carries
+			// `role` and `aria-label` but NOT `aria-checked`, so kses_post
+			// silently drops it — leaving a role="switch" with no state, which
+			// is invalid ARIA and announces nothing useful.
+			wp_kses( $this->render_toggle( $server, $is_enabled ), self::SWITCH_ALLOWED_HTML ),
+			$is_enabled ? '' : ' is-dimmed',
 			esc_html__( 'Endpoint', 'acrossai-mcp-manager' ),
 			esc_html( $endpoint ),
+			esc_html__( 'Copy', 'acrossai-mcp-manager' ),
 			esc_html__( 'Paired sites call this address. Your own AI clients keep using this site’s other MCP servers.', 'acrossai-mcp-manager' )
 		);
+	}
 
-		echo '</tbody></table>';
+	/**
+	 * The On/Off pill beside the card title.
+	 *
+	 * @since 0.4.8
+	 *
+	 * @param bool $is_enabled Whether the server is enabled.
+	 * @return string Pre-escaped HTML.
+	 */
+	private function render_status_pill( bool $is_enabled ): string {
+		return sprintf(
+			'<span class="aa-pill %1$s"><span class="aa-pill__dot"></span>%2$s</span>',
+			$is_enabled ? 'aa-pill--on' : 'aa-pill--off',
+			esc_html( $is_enabled ? __( 'On', 'acrossai-mcp-manager' ) : __( 'Off', 'acrossai-mcp-manager' ) )
+		);
 	}
 
 	/**
@@ -166,12 +231,6 @@ final class FleetTab extends AbstractServerTab {
 	 * @return string Pre-escaped HTML.
 	 */
 	private function render_toggle( array $server, bool $is_enabled ): string {
-		$badge = sprintf(
-			'<span class="acrossai-status-badge %1$s">%2$s</span>',
-			$is_enabled ? 'acrossai-status-active' : 'acrossai-status-inactive',
-			esc_html( $is_enabled ? __( 'On', 'acrossai-mcp-manager' ) : __( 'Off', 'acrossai-mcp-manager' ) )
-		);
-
 		$url = wp_nonce_url(
 			add_query_arg(
 				array(
@@ -185,11 +244,22 @@ final class FleetTab extends AbstractServerTab {
 			'acrossai_mcp_toggle_' . (int) $server['id']
 		);
 
-		return $badge . sprintf(
-			' &nbsp;<a href="%1$s" class="%2$s">%3$s</a>',
+		// A link styled as a switch, not an <input>. The state change is a
+		// navigation — same `toggle_status` handler the servers list uses — so
+		// a checkbox would promise an instant flip this screen does not do, and
+		// would need JavaScript to deliver it. role/aria-checked tell assistive
+		// technology what it looks like; the label says what activating it does,
+		// because "switch, on" alone does not say which way it will move.
+		return sprintf(
+			'<a href="%1$s" class="aa-switch %2$s" role="switch" aria-checked="%3$s" aria-label="%4$s"><span class="aa-switch__knob"></span></a>',
 			esc_url( $url ),
-			esc_attr( $is_enabled ? 'button button-small' : 'button button-primary button-small' ),
-			esc_html( $is_enabled ? __( 'Turn off', 'acrossai-mcp-manager' ) : __( 'Turn on', 'acrossai-mcp-manager' ) )
+			$is_enabled ? 'aa-switch--on' : 'aa-switch--off',
+			$is_enabled ? 'true' : 'false',
+			esc_attr(
+				$is_enabled
+					? __( 'Turn Fleet access off', 'acrossai-mcp-manager' )
+					: __( 'Turn Fleet access on', 'acrossai-mcp-manager' )
+			)
 		);
 	}
 
@@ -203,20 +273,17 @@ final class FleetTab extends AbstractServerTab {
 	 * @param bool                             $is_enabled Whether the server is enabled.
 	 */
 	private function render_hosts( int $server_id, array $hosts, bool $is_enabled ): void {
-		printf( '<h2>%s</h2>', esc_html__( 'Connected hosts', 'acrossai-mcp-manager' ) );
-
-		if ( empty( $hosts ) ) {
-			printf(
-				'<p>%s</p><p class="description">%s</p>',
-				esc_html__( 'No hosts connected.', 'acrossai-mcp-manager' ),
-				esc_html__( 'A host is another WordPress site allowed to run abilities here. Give it the security ID below and it will connect itself.', 'acrossai-mcp-manager' )
-			);
-			$this->render_security_id( $server_id, $is_enabled );
-			return;
-		}
-
 		printf(
-			'<p class="description">%s</p>',
+			'<div class="aa-card">
+				<div class="aa-card__head">
+					<span class="aa-card__titlerow">
+						<h2 class="aa-card__title">%1$s</h2>
+						<span class="aa-card__count">%2$s</span>
+					</span>
+					<p class="aa-card__sub">%3$s</p>
+				</div>',
+			esc_html__( 'Connected hosts', 'acrossai-mcp-manager' ),
+			esc_html( (string) count( $hosts ) ),
 			wp_kses_post(
 				sprintf(
 					/* translators: 1: Abilities tab link, 2: Logs tab link. */
@@ -227,20 +294,22 @@ final class FleetTab extends AbstractServerTab {
 			)
 		);
 
-		printf(
-			'<table class="wp-list-table widefat striped"%s><thead><tr><th>%s</th><th>%s</th><th>%s</th><th></th></tr></thead><tbody>',
-			$is_enabled ? '' : ' style="opacity:0.6"',
-			esc_html__( 'Host', 'acrossai-mcp-manager' ),
-			esc_html__( 'Connected', 'acrossai-mcp-manager' ),
-			esc_html__( 'Last call', 'acrossai-mcp-manager' ),
-		);
+		if ( empty( $hosts ) ) {
+			printf(
+				'<div class="aa-card__empty">%s</div>',
+				esc_html__( 'No hosts yet. A host appears here once it has connected.', 'acrossai-mcp-manager' )
+			);
+			echo '</div>';
+			return;
+		}
+
+		printf( '<div class="aa-hostlist%s">', $is_enabled ? '' : ' is-dimmed' );
 
 		foreach ( $hosts as $host ) {
 			$this->render_host_row( $server_id, $host );
 		}
 
-		echo '</tbody></table>';
-		$this->render_security_id( $server_id, $is_enabled );
+		echo '</div></div>';
 	}
 
 	/**
@@ -269,14 +338,27 @@ final class FleetTab extends AbstractServerTab {
 		);
 
 		printf(
-			'<tr><td><strong>%1$s</strong></td><td>%2$s</td><td>%3$s</td><td style="text-align:right"><a href="%4$s" class="button button-small">%5$s</a></td></tr>',
+			'<div class="aa-host">
+				<span class="aa-host__icon" aria-hidden="true">
+					<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="12" rx="1"></rect><path d="M8 20h8"></path><path d="M12 16v4"></path></svg>
+				</span>
+				<span class="aa-host__main">
+					<span class="aa-host__name">%1$s</span>
+					<span class="aa-host__meta">%2$s</span>
+				</span>
+				<a href="%3$s" class="aa-host__remove">%4$s</a>
+			</div>',
 			esc_html( (string) $host['host'] ),
-			esc_html( $added > 0 ? (string) wp_date( (string) get_option( 'date_format' ), $added ) : __( 'unknown', 'acrossai-mcp-manager' ) ),
 			esc_html(
-				$last > 0
-					/* translators: %s: human-readable time difference, e.g. "2 minutes". */
-					? sprintf( __( '%s ago', 'acrossai-mcp-manager' ), human_time_diff( $last ) )
-					: __( 'never', 'acrossai-mcp-manager' )
+				sprintf(
+					/* translators: 1: date the host connected, 2: how long ago its last call was. */
+					__( 'Connected %1$s · Last call %2$s', 'acrossai-mcp-manager' ),
+					$added > 0 ? (string) wp_date( (string) get_option( 'date_format' ), $added ) : __( 'unknown', 'acrossai-mcp-manager' ),
+					$last > 0
+						/* translators: %s: human-readable time difference, e.g. "2 minutes". */
+						? sprintf( __( '%s ago', 'acrossai-mcp-manager' ), human_time_diff( $last ) )
+						: __( 'never', 'acrossai-mcp-manager' )
+				)
 			),
 			esc_url( $remove_url ),
 			esc_html__( 'Remove', 'acrossai-mcp-manager' )
@@ -301,39 +383,92 @@ final class FleetTab extends AbstractServerTab {
 	 * @param bool $is_enabled Whether Fleet access is on.
 	 */
 	private function render_security_id( int $server_id, bool $is_enabled ): void {
-		printf( '<h2>%s</h2>', esc_html__( 'Add this site to a fleet', 'acrossai-mcp-manager' ) );
-
-		if ( ! $is_enabled ) {
-			printf(
-				'<p class="description">%s</p>',
-				esc_html__( 'Turn Fleet access on first. A managing site cannot connect while it is off.', 'acrossai-mcp-manager' )
-			);
-			return;
-		}
-
 		printf(
-			'<p class="description">%s</p>',
+			'<div class="aa-card aa-card--pair">
+				<div class="aa-card__head">
+					<h2 class="aa-card__title">%1$s</h2>
+					<p class="aa-card__sub">%2$s</p>
+				</div>
+				<div class="aa-steps">',
+			esc_html__( 'Add this site to a fleet', 'acrossai-mcp-manager' ),
 			esc_html__( 'Give these two values to the site that will manage this one. It connects to this site; there is nothing to paste back here.', 'acrossai-mcp-manager' )
 		);
 
-		echo '<table class="form-table" role="presentation"><tbody>';
-
+		// Step 1 — the security ID, with regenerate beside copy.
 		printf(
-			'<tr><th scope="row">%1$s</th><td><code style="font-size:15px;letter-spacing:.08em">%2$s</code> <a href="%3$s" class="button button-small">%4$s</a><p class="description">%5$s</p></td></tr>',
-			esc_html__( 'Security ID', 'acrossai-mcp-manager' ),
+			'<div class="aa-step">
+				<div class="aa-step__rail"><span class="aa-step__mark">1</span><span class="aa-step__line"></span></div>
+				<div class="aa-step__body">
+					<span class="aa-step__title">%1$s</span>
+					<div class="aa-field">
+						<span class="aa-field__value aa-field__value--id" id="acrossai-fleet-security-id">%2$s</span>
+						<a href="%3$s" class="aa-field__btn aa-field__btn--ghost" title="%4$s">
+							<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-3-6.7"></path><path d="M21 4v5h-5"></path></svg>%5$s
+						</a>
+						<button type="button" class="aa-field__btn aa-field__btn--primary copy-to-clipboard" data-copy-target="#acrossai-fleet-security-id">%6$s</button>
+					</div>
+					<span class="aa-hint">%7$s</span>
+				</div>
+			</div>',
+			esc_html__( 'Copy the security ID', 'acrossai-mcp-manager' ),
 			esc_html( SecurityId::get( $server_id ) ),
 			esc_url( $this->regenerate_url( $server_id ) ),
-			esc_html__( 'Generate a new one', 'acrossai-mcp-manager' ),
+			esc_attr__( 'Generate a new one', 'acrossai-mcp-manager' ),
+			esc_html__( 'New', 'acrossai-mcp-manager' ),
+			esc_html__( 'Copy', 'acrossai-mcp-manager' ),
 			esc_html__( 'Single use — it is replaced automatically as soon as a site connects with it. Already-connected hosts are unaffected.', 'acrossai-mcp-manager' )
 		);
 
+		// Step 2 — this site's address.
 		printf(
-			'<tr><th scope="row">%1$s</th><td><code>%2$s</code></td></tr>',
-			esc_html__( 'This site’s address', 'acrossai-mcp-manager' ),
-			esc_html( home_url() )
+			'<div class="aa-step">
+				<div class="aa-step__rail"><span class="aa-step__mark">2</span><span class="aa-step__line"></span></div>
+				<div class="aa-step__body">
+					<span class="aa-step__title">%1$s</span>
+					<div class="aa-field">
+						<span class="aa-field__value aa-field__value--mono" id="acrossai-fleet-address">%2$s</span>
+						<button type="button" class="aa-field__btn aa-field__btn--primary copy-to-clipboard" data-copy-target="#acrossai-fleet-address">%3$s</button>
+					</div>
+				</div>
+			</div>',
+			esc_html__( 'Copy this site’s address', 'acrossai-mcp-manager' ),
+			esc_html( home_url() ),
+			esc_html__( 'Copy', 'acrossai-mcp-manager' )
 		);
 
-		echo '</tbody></table>';
+		// Step 3 — outlined mark and no control, because nothing here does it.
+		// The step exists so the card ends by saying where the pairing
+		// completes, rather than on a value with no next action.
+		printf(
+			'<div class="aa-step aa-step--last">
+				<div class="aa-step__rail"><span class="aa-step__mark aa-step__mark--outline">3</span></div>
+				<div class="aa-step__body">
+					<span class="aa-step__title">%1$s</span>
+					<span class="aa-hint">%2$s</span>
+				</div>
+			</div>',
+			esc_html__( 'Paste both into the managing site', 'acrossai-mcp-manager' ),
+			esc_html__( 'That site connects to this one and pairs itself. Nothing comes back here to paste, and this screen does not need to stay open. The host appears in the list above once it has connected.', 'acrossai-mcp-manager' )
+		);
+
+		// Footer states the one precondition. The steps stay readable while
+		// Fleet access is off — hiding them would mean an operator setting this
+		// up could not see what they are about to need, and the ID is inert
+		// until the route answers anyway.
+		printf(
+			'</div>
+			<div class="aa-card__foot">
+				<span class="aa-dot %1$s"></span>
+				<span>%2$s</span>
+			</div>
+		</div>',
+			$is_enabled ? 'aa-dot--on' : 'aa-dot--off',
+			esc_html(
+				$is_enabled
+					? __( 'Ready for a site to connect', 'acrossai-mcp-manager' )
+					: __( 'Turn on Fleet access to accept new hosts', 'acrossai-mcp-manager' )
+			)
+		);
 	}
 
 	/**
