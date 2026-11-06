@@ -43,9 +43,15 @@ defined( 'ABSPATH' ) || exit;
 final class Registrar {
 
 	/**
-	 * The twelve WordPress groups, in the order the add-on declared them.
+	 * The dispatchers this plugin constructs, in menu order.
 	 *
-	 * @var string[]
+	 * Typed as class-strings of {@see Base_Toolset_Ability} rather than plain
+	 * strings: that IS the contract — `register()` news each one up and
+	 * `tool_metadata()` calls a method only the base class defines — and saying
+	 * so lets a static analyser catch a wrong entry here instead of leaving a
+	 * runtime `instanceof` to skip it silently.
+	 *
+	 * @var array<int, class-string<Base_Toolset_Ability>>
 	 */
 	private const CORE = array(
 		Content::class,
@@ -80,6 +86,14 @@ final class Registrar {
 	 * integration here is named for the plugin it serves. It is being rebuilt
 	 * as `toolset/updraftplus` and `toolset/all-in-one-wp-migration` — see the
 	 * issue on acrossai-abilities-manager. The abilities behind it were kept.
+	 *
+	 * `toolset/mcp-manager` is deliberately ABSENT. Its members ship with this
+	 * plugin, so unlike every entry here it is always registered — and a type
+	 * that claims it would stop falling back to the legacy set on a site
+	 * without the add-on, because the declaration would no longer be empty.
+	 * Claiming nothing leaves it in the unclaimed pool, which is offered on
+	 * every server type, so an operator can add it anywhere. See
+	 * {@see McpManager::declare_server_type_tool()}.
 	 *
 	 * Three of these are NOT in {@see self::CORE}, and each for its own reason:
 	 * `integrations` spans every non-default group rather than owning one;
@@ -144,11 +158,12 @@ final class Registrar {
 		$metadata = array();
 
 		foreach ( array_merge( self::CORE, array( Integrations::class ) ) as $toolset ) {
+			// No instanceof guard: CORE is typed as class-string<Base_Toolset_Ability>,
+			// so a wrong entry is a static error at the list rather than a row
+			// quietly missing from the metadata at runtime.
 			$instance = ( new \ReflectionClass( $toolset ) )->newInstanceWithoutConstructor();
 
-			if ( $instance instanceof Base_Toolset_Ability ) {
-				$metadata[] = $instance->tool_metadata();
-			}
+			$metadata[] = $instance->tool_metadata();
 		}
 
 		$metadata[] = array(
@@ -183,6 +198,12 @@ final class Registrar {
 		foreach ( self::CORE as $toolset ) {
 			new $toolset();
 		}
+
+		// Not in CORE: CORE is the AcrossAI type's vocabulary, and this one is
+		// claimed by no type (see TOOL_SLUGS). It still has to be constructed,
+		// because its abilities ship with this plugin and are available on
+		// every site.
+		new McpManager();
 
 		// Spans every non-default group, so it must exist even when none of the
 		// twelve above register — it is how a client reaches plugin capability
