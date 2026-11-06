@@ -73,8 +73,18 @@ final class LogFilters {
 				'meta'                => array(
 					'acrossai' => array( 'tab_group' => McpManager::GROUP ),
 					'mcp'      => array(
+						// public:true is required — ToolsetExposureBridge
+						// defaults a member's visibility to this flag, so a
+						// private member is invisible to its own dispatcher.
 						'public' => true,
-						'type'   => 'resource',
+						// 'tool', not 'resource'. A resource-typed ability is
+						// injected into every server's resources list by
+						// AbilityDiscovery::for_server(), which would advertise
+						// these directly to clients and bypass the dispatcher
+						// entirely. Tools come from the curated per-server set
+						// instead, and these are not in that pool, so the type
+						// leaves them reachable only through toolset/mcp-manager.
+						'type'   => 'tool',
 					),
 				),
 				'input_schema'        => array(
