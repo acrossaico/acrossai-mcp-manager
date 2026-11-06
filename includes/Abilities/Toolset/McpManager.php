@@ -61,6 +61,35 @@ final class McpManager extends Base_Toolset_Ability {
 	}
 
 	/**
+	 * Contribute nothing to the server-type registry.
+	 *
+	 * The base class declares its dispatcher into the `acrossai` server type
+	 * and, crucially, sets that type's `requires` to null — "the requirement is
+	 * this plugin, and if this code is running it is met". That reasoning holds
+	 * for every OTHER dispatcher, because each only reaches this point when the
+	 * AcrossAI Abilities Manager add-on has registered its group's abilities.
+	 *
+	 * It does not hold here. This Toolset's members ship with this plugin, so
+	 * it registers on every site — including sites with no add-on at all. The
+	 * inherited behaviour therefore announced that the AcrossAI type needed
+	 * nothing, on precisely the sites where its toolsets cannot exist, and
+	 * `FleetTypeRequirementTest` caught it.
+	 *
+	 * Declaring nothing has a second effect worth stating, because it is also
+	 * desirable: no server type claims `toolset/mcp-manager`, so it stays in
+	 * the unclaimed pool that {@see Registrar} offers on EVERY type. An
+	 * operator can add it to any server; Reset writes it on none. That is the
+	 * right default for a tool that reads this site's own traffic.
+	 *
+	 * @since  0.4.8
+	 * @param  mixed $types Server types, untouched.
+	 * @return mixed
+	 */
+	public function declare_server_type_tool( $types ) {
+		return $types;
+	}
+
+	/**
 	 * @return string
 	 */
 	protected function toolset_description(): string {

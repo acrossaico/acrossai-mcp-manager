@@ -23,6 +23,7 @@ use AcrossAI_MCP_Manager\Includes\Abilities\Toolset\AbilityGroup;
 use AcrossAI_MCP_Manager\Includes\Abilities\Toolset\McpManager;
 use AcrossAI_MCP_Manager\Includes\Utilities\ActivityLogConstants;
 use AcrossAI_MCP_Manager\Includes\Database\ActivityLog\Query;
+use AcrossAI_MCP_Manager\Includes\Database\MCPServer\ServerTypes;
 use AcrossAI_MCP_Manager\Includes\Database\ActivityLog\Row;
 use WP_UnitTestCase;
 
@@ -102,6 +103,49 @@ class ActivityLogAbilitiesTest extends WP_UnitTestCase {
 
 	public function test_the_dispatcher_is_registered(): void {
 		$this->assertTrue( wp_has_ability( 'toolset/mcp-manager' ) );
+	}
+
+	public function test_the_dispatcher_contributes_nothing_to_the_server_type_registry(): void {
+		// The regression this exists for: Base_Toolset_Ability declares its
+		// dispatcher into the `acrossai` type and sets that type's `requires`
+		// to null — "if this code is running, the requirement is met". True for
+		// every other dispatcher, because each only reaches that point once the
+		// add-on has registered its group. NOT true here: these members ship
+		// with this plugin, so on a site with no add-on at all this one would
+		// have announced that the AcrossAI type needed nothing.
+		$seed = array(
+			'acrossai' => array(
+				'label'    => 'AcrossAI',
+				'requires' => 'acrossai-abilities-manager',
+				'tools'    => array( 'toolset/content' ),
+			),
+		);
+
+		$this->assertSame( $seed, ( new McpManager() )->declare_server_type_tool( $seed ) );
+	}
+
+	public function test_no_server_type_claims_the_log_toolset(): void {
+		// Claiming it would stop `tools_for()` falling back to the legacy set
+		// on a site without the add-on, because the declaration would no longer
+		// be empty — Reset would then write this one tool over the operator's
+		// curation. Unclaimed, it is offered on every type instead.
+		foreach ( ServerTypes::all() as $slug => $type ) {
+			$this->assertNotContains(
+				'toolset/mcp-manager',
+				$type['tools'],
+				"server type {$slug} claims the log toolset"
+			);
+		}
+	}
+
+	public function test_the_log_toolset_is_offered_on_every_server_type(): void {
+		foreach ( array( ServerTypes::LEGACY, ServerTypes::ACROSSAI, ServerTypes::FLEET ) as $slug ) {
+			$this->assertContains(
+				'toolset/mcp-manager',
+				ServerTypes::pool( $slug ),
+				"the log toolset is not offered on {$slug}"
+			);
+		}
 	}
 
 	public function test_the_log_is_admin_only(): void {

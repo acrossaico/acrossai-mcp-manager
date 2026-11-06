@@ -65,13 +65,6 @@ final class Registrar {
 		Database::class,
 		Files::class,
 		Diagnostics::class,
-
-		// Not a WordPress group like the eleven above: its members are the
-		// activity-log abilities THIS plugin registers, rather than ones the
-		// AcrossAI Abilities Manager add-on supplies. Dispatch is identical —
-		// membership still resolves through `meta.acrossai.tab_group` — so it
-		// belongs in the same list rather than beside it.
-		McpManager::class,
 	);
 
 	/**
@@ -94,9 +87,13 @@ final class Registrar {
 	 * as `toolset/updraftplus` and `toolset/all-in-one-wp-migration` — see the
 	 * issue on acrossai-abilities-manager. The abilities behind it were kept.
 	 *
-	 * `mcp-manager` IS in {@see self::CORE} despite not being a WordPress group:
-	 * its members are this plugin's own activity-log abilities, so unlike the
-	 * add-on's groups it is present on every site this plugin runs on.
+	 * `toolset/mcp-manager` is deliberately ABSENT. Its members ship with this
+	 * plugin, so unlike every entry here it is always registered — and a type
+	 * that claims it would stop falling back to the legacy set on a site
+	 * without the add-on, because the declaration would no longer be empty.
+	 * Claiming nothing leaves it in the unclaimed pool, which is offered on
+	 * every server type, so an operator can add it anywhere. See
+	 * {@see McpManager::declare_server_type_tool()}.
 	 *
 	 * Three of these are NOT in {@see self::CORE}, and each for its own reason:
 	 * `integrations` spans every non-default group rather than owning one;
@@ -124,7 +121,6 @@ final class Registrar {
 		'toolset/diagnostics',
 		'toolset/other',
 		'toolset/integrations',
-		'toolset/mcp-manager',
 		Guide::SLUG,
 	);
 
@@ -202,6 +198,12 @@ final class Registrar {
 		foreach ( self::CORE as $toolset ) {
 			new $toolset();
 		}
+
+		// Not in CORE: CORE is the AcrossAI type's vocabulary, and this one is
+		// claimed by no type (see TOOL_SLUGS). It still has to be constructed,
+		// because its abilities ship with this plugin and are available on
+		// every site.
+		new McpManager();
 
 		// Spans every non-default group, so it must exist even when none of the
 		// twelve above register — it is how a client reaches plugin capability
