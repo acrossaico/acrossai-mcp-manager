@@ -26,6 +26,7 @@ use AcrossAI_MCP_Manager\Includes\Abilities\Toolset\Base_Toolset_Ability;
 use AcrossAI_MCP_Manager\Includes\Abilities\Toolset\Category_Registrar;
 use AcrossAI_MCP_Manager\Includes\Abilities\Toolset\Guide;
 use AcrossAI_MCP_Manager\Includes\Abilities\Toolset\Integrations;
+use AcrossAI_MCP_Manager\Includes\Abilities\Toolset\McpManager;
 use AcrossAI_MCP_Manager\Includes\Abilities\Toolset\Registrar;
 use ReflectionClass;
 use WP_UnitTestCase;
@@ -121,6 +122,28 @@ class RegistrarTest extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Drop the one Toolset this plugin ships members for.
+	 *
+	 * Every other dispatcher stays unregistered in the test environment because
+	 * its group's abilities come from the AcrossAI Abilities Manager add-on,
+	 * which is not installed here. `toolset/mcp-manager` is the exception: its
+	 * abilities ship with this plugin, so it always registers.
+	 *
+	 * The Guide tests below are about the branch where there is NOTHING to
+	 * describe. Removing it restores that condition instead of inverting the
+	 * assertion and losing the branch.
+	 *
+	 * @return void
+	 */
+	private function forget_own_toolset(): void {
+		foreach ( array( 'toolset/mcp-manager' ) as $slug ) {
+			if ( wp_has_ability( $slug ) ) {
+				wp_unregister_ability( $slug );
+			}
+		}
+	}
+
+	/**
 	 * Every dispatcher file in the directory is actually constructed.
 	 *
 	 * The failure this catches is silent: a new Toolset class ships, nothing
@@ -132,7 +155,10 @@ class RegistrarTest extends WP_UnitTestCase {
 			static function ( string $class ): string {
 				return ( new ReflectionClass( $class ) )->getShortName();
 			},
-			array_merge( $this->core_classes(), array( Integrations::class, Guide::class ) )
+			// McpManager is constructed by `register()` like the other two, but
+			// is deliberately NOT in CORE: CORE is the AcrossAI type's
+			// vocabulary and no type claims this one.
+			array_merge( $this->core_classes(), array( Integrations::class, McpManager::class, Guide::class ) )
 		);
 
 		$on_disk = array();
@@ -198,9 +224,9 @@ class RegistrarTest extends WP_UnitTestCase {
 			'Constructing the dispatchers must not register anything by itself.'
 		);
 		$this->assertSame(
-			$hooks + count( $this->core_classes() ) + 2,
+			$hooks + count( $this->core_classes() ) + 3,
 			$this->abilities_init_callback_count(),
-			'Each dispatcher, plus Integrations and the Guide, attaches one hook.'
+			'Each dispatcher, plus Integrations, McpManager and the Guide, attaches one hook.'
 		);
 	}
 
@@ -255,6 +281,7 @@ class RegistrarTest extends WP_UnitTestCase {
 	 */
 	public function test_the_guide_declines_when_there_is_nothing_to_describe() {
 		Category_Registrar::instance()->register();
+		$this->forget_own_toolset();
 
 		$this->assertSame(
 			array(),
@@ -277,6 +304,7 @@ class RegistrarTest extends WP_UnitTestCase {
 	 */
 	public function test_a_guide_that_declined_contributes_no_slug() {
 		Category_Registrar::instance()->register();
+		$this->forget_own_toolset();
 
 		$guide = new Guide();
 		$this->inside_abilities_init( array( $guide, 'register' ) );
