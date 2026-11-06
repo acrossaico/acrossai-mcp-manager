@@ -122,28 +122,6 @@ class RegistrarTest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Drop the one Toolset this plugin ships members for.
-	 *
-	 * Every other dispatcher stays unregistered in the test environment because
-	 * its group's abilities come from the AcrossAI Abilities Manager add-on,
-	 * which is not installed here. `toolset/mcp-manager` is the exception: its
-	 * abilities ship with this plugin, so it always registers.
-	 *
-	 * The Guide tests below are about the branch where there is NOTHING to
-	 * describe. Removing it restores that condition instead of inverting the
-	 * assertion and losing the branch.
-	 *
-	 * @return void
-	 */
-	private function forget_own_toolset(): void {
-		foreach ( array( 'toolset/mcp-manager' ) as $slug ) {
-			if ( wp_has_ability( $slug ) ) {
-				wp_unregister_ability( $slug );
-			}
-		}
-	}
-
-	/**
 	 * Every dispatcher file in the directory is actually constructed.
 	 *
 	 * The failure this catches is silent: a new Toolset class ships, nothing
@@ -281,7 +259,6 @@ class RegistrarTest extends WP_UnitTestCase {
 	 */
 	public function test_the_guide_declines_when_there_is_nothing_to_describe() {
 		Category_Registrar::instance()->register();
-		$this->forget_own_toolset();
 
 		$this->assertSame(
 			array(),
@@ -304,7 +281,6 @@ class RegistrarTest extends WP_UnitTestCase {
 	 */
 	public function test_a_guide_that_declined_contributes_no_slug() {
 		Category_Registrar::instance()->register();
-		$this->forget_own_toolset();
 
 		$guide = new Guide();
 		$this->inside_abilities_init( array( $guide, 'register' ) );

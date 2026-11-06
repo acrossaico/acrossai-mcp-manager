@@ -77,11 +77,22 @@ final class Guide {
 	 * describing?" — and the answer has to exclude the thing that only exists
 	 * to say there is not.
 	 *
+	 * `toolset/mcp-manager` is excluded for a related but distinct reason. Its
+	 * abilities ship with THIS plugin, so unlike the add-on's groups it is
+	 * registered on a bare site — and no server type claims it, so it is not
+	 * part of any server's starting vocabulary. Counting it would publish a
+	 * guide on every bare site, and that is not cosmetic: `toolset/server-guide`
+	 * IS in a type's declared tools, so a registered guide makes that
+	 * declaration narrow to one entry instead of none, and
+	 * `ServerTypes::tools_for()` stops falling back to the legacy set — Reset
+	 * would write the guide alone over an operator's curated tools.
+	 *
 	 * @var string[]
 	 */
 	private const NOT_A_SUBJECT = array(
 		self::SLUG,
 		SetupRequired::SLUG,
+		McpManager::SLUG,
 	);
 
 	/**
