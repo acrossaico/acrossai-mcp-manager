@@ -74,26 +74,91 @@ The array KEY is the slug, passed through `sanitize_key()`. An empty key drops t
 
 `tools` decides one thing: what **Reset** and **Switch** write into a server's tool storage.
 
-It does **not** restrict what the operator may add by hand. The picker offers every
-tool-level ability registered on the site, on every server type — so an AcrossAI server can
-still be given one of the three `mcp-adapter/*` protocol tools if that is what the site needs,
-and an MCP Adapter server can be given a toolset.
-
-That is the §1 table in practice: a type is a named template, never a runtime filter.
+It does **not** restrict what the operator may add by hand.
 
 ```
 Reset on an `acrossai` server      -> that type's toolsets only
 Reset on an `mcp-adapter` server   -> the three protocol tools only
-The picker, on either              -> everything registered
+The picker, on either              -> this type's tools, plus every
+                                      registered tool no type has claimed
 ```
 
-An earlier iteration subtracted any tool claimed by a different type from the pool. It made
-the two questions — *what does Reset write?* and *what may the operator add?* — into one, and
-the answer to the second was wrong: an operator who wanted a single protocol tool on an
-AcrossAI server simply could not have it.
+**The pool is scoped to the type (since 0.3.6).** An earlier iteration offered every
+tool-level ability on the site regardless of type. That was reversed: an AcrossAI server was
+being offered the four `mcp-adapter/*` tools — another server's entire vocabulary, under a
+heading naming this one — and the header counted the configured set against a pool that
+excluded it, reading "15 of 4".
 
-**Practical consequence for contributors**: naming a slug in your `tools` affects only what
-Reset writes for servers of *your* type. It takes nothing away from anyone else.
+What is withheld is only vocabulary **another type has claimed**. A tool-level ability that no
+type claims is still offered everywhere, so a plugin contributing a tool of its own via
+`acrossai_mcp_manager_tool_abilities` keeps working unchanged.
+
+**Practical consequence for contributors**: naming a slug in your `tools` affects what Reset
+writes for servers of *your* type, and removes that slug from the unclaimed pool other types
+are offered. To put a tool on a type you do not own, use the filter in §2.2 rather than
+re-registering their entry.
+
+### 2.2 Adding tools to a type you do not own — `acrossai_mcp_server_type_tools`
+
+`acrossai_mcp_server_types` registers a type, and its dedup is slug-keyed **last-wins**. That
+is the wrong tool for *adding one toolset to someone else's type*: you would have to
+re-declare the whole entry — clobbering its label, description and `requires` — and whichever
+plugin ran last would win, silently dropping the other's contribution.
+
+`acrossai_mcp_server_type_tools` receives the **resolved** list and hands it back, so
+contributions compose:
+
+```php
+add_filter(
+	'acrossai_mcp_server_type_tools',
+	function ( array $tools, string $slug ): array {
+		if ( 'acrossai-fleet' !== $slug ) {
+			return $tools;
+		}
+
+		$tools[] = 'toolset/my-plugin';
+
+		return $tools;
+	},
+	10,
+	2
+);
+```
+
+**Where it lands.** The filter runs inside `ServerTypes::declared_tools()`, the single
+writer-side source of truth, so one callback reaches every writer at once:
+
+| Surface | Effect |
+|---|---|
+| **Reset to Type Defaults** | restores your toolset along with the type's own |
+| Server creation | a new server of that type is created with it |
+| Type switch | switching to that type writes it |
+| The Tools tab picker | `pool()` builds on `declared_tools()`, so it is **offered**, not only restored |
+
+That last row matters: without it, an added toolset would appear only after someone pressed
+Reset, and the picker would disagree with the list beside it.
+
+#### Guarantees
+
+- **Runs on the legacy fallback too.** A server whose type was removed with its plugin still
+  passes through the filter — that is exactly when a contributor still wants its toolset.
+- **Coercion** — non-string members are dropped, values are trimmed, blanks removed, then
+  `array_unique` → `array_values`. A non-array return is ignored.
+- **Returning `[]` is ignored.** This list is *written over* a server's curated tools, so an
+  empty result would wipe it. Same guard the declaration and result checks already enforce. To
+  strip a type down, return the slugs you do want — not nothing.
+- **Not narrowed to registered abilities**, matching the rest of `declared_tools()`. Declaring
+  a slug whose plugin is not installed yet is deliberate; it lights up when the ability
+  registers. `registered_only()` narrows wherever that matters.
+
+#### Which filter do I want?
+
+| You want to… | Use |
+|---|---|
+| ship a whole new server type | `acrossai_mcp_server_types` (§2) |
+| add a tool to an existing type | `acrossai_mcp_server_type_tools` (this section) |
+| register a tool-level ability at all | `acrossai_mcp_manager_tool_abilities` |
+| change one particular server's tools | `acrossai_mcp_manager_server_tools` |
 
 ## 3. The placeholder → companion override pattern
 

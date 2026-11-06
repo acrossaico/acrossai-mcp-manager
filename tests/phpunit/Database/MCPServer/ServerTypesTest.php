@@ -480,4 +480,144 @@ class ServerTypesTest extends WP_UnitTestCase {
 		// the three layers diverge and the admin contradicts the gate.
 		$this->assertTrue( ServerTypes::is_available( 'weird' ) );
 	}
+
+	// ------------------------------------------------------------------
+	// acrossai_mcp_server_type_tools — adding to a type you do not own.
+	// ------------------------------------------------------------------
+
+	public function test_tools_filter_appends_to_a_types_declared_tools(): void {
+		$before = ServerTypes::declared_tools( ServerTypes::LEGACY );
+
+		add_filter(
+			ServerTypes::TOOLS_FILTER,
+			static function ( array $tools ): array {
+				$tools[] = 'toolset/third-party';
+				return $tools;
+			}
+		);
+
+		$after = ServerTypes::declared_tools( ServerTypes::LEGACY );
+
+		$this->assertContains( 'toolset/third-party', $after );
+
+		// Additive, not replacing: everything the type declared survives.
+		foreach ( $before as $slug ) {
+			$this->assertContains( $slug, $after );
+		}
+	}
+
+	public function test_tools_filter_receives_the_type_slug(): void {
+		$seen = array();
+
+		add_filter(
+			ServerTypes::TOOLS_FILTER,
+			static function ( array $tools, string $slug ) use ( &$seen ): array {
+				$seen[] = $slug;
+				return $tools;
+			},
+			10,
+			2
+		);
+
+		ServerTypes::declared_tools( ServerTypes::LEGACY );
+
+		$this->assertSame( array( ServerTypes::LEGACY ), $seen );
+	}
+
+	public function test_tools_filter_can_target_one_type_only(): void {
+		add_filter(
+			ServerTypes::TOOLS_FILTER,
+			static function ( array $tools, string $slug ): array {
+				if ( ServerTypes::LEGACY !== $slug ) {
+					return $tools;
+				}
+				$tools[] = 'toolset/legacy-only';
+				return $tools;
+			},
+			10,
+			2
+		);
+
+		$this->assertContains( 'toolset/legacy-only', ServerTypes::declared_tools( ServerTypes::LEGACY ) );
+		$this->assertNotContains( 'toolset/legacy-only', ServerTypes::declared_tools( ServerTypes::ACROSSAI ) );
+	}
+
+	public function test_tools_filter_returning_empty_is_ignored(): void {
+		// Reset WRITES this list over a server's curated rows, so honouring an
+		// empty return would wipe the operator's curation. Same guard the
+		// declaration and result checks already enforce.
+		$before = ServerTypes::declared_tools( ServerTypes::LEGACY );
+
+		add_filter( ServerTypes::TOOLS_FILTER, static fn (): array => array() );
+
+		$this->assertSame( $before, ServerTypes::declared_tools( ServerTypes::LEGACY ) );
+	}
+
+	public function test_tools_filter_returning_a_non_array_is_ignored(): void {
+		$before = ServerTypes::declared_tools( ServerTypes::LEGACY );
+
+		add_filter( ServerTypes::TOOLS_FILTER, static fn () => 'not-an-array' );
+
+		$this->assertSame( $before, ServerTypes::declared_tools( ServerTypes::LEGACY ) );
+	}
+
+	public function test_tools_filter_drops_blanks_non_strings_and_duplicates(): void {
+		add_filter(
+			ServerTypes::TOOLS_FILTER,
+			static function ( array $tools ): array {
+				$tools[] = 'toolset/dup';
+				$tools[] = 'toolset/dup';
+				$tools[] = '  toolset/padded  ';
+				$tools[] = '   ';
+				$tools[] = array( 'nested' );
+				$tools[] = 42;
+				return $tools;
+			}
+		);
+
+		$after = ServerTypes::declared_tools( ServerTypes::LEGACY );
+
+		$this->assertSame( array( 'toolset/dup' ), array_values( array_filter( $after, static fn ( $t ) => 'toolset/dup' === $t ) ) );
+		$this->assertContains( 'toolset/padded', $after );
+		$this->assertNotContains( '   ', $after );
+		$this->assertNotContains( '', $after );
+		$this->assertSame( $after, array_values( array_filter( $after, 'is_string' ) ) );
+	}
+
+	public function test_tools_filter_also_runs_on_the_legacy_fallback(): void {
+		// A server whose type was removed with its plugin falls back to the
+		// legacy set. That is exactly when a contributor still wants its
+		// toolset restored, so the filter must run there too.
+		add_filter(
+			ServerTypes::TOOLS_FILTER,
+			static function ( array $tools ): array {
+				$tools[] = 'toolset/survives-fallback';
+				return $tools;
+			}
+		);
+
+		$this->assertContains(
+			'toolset/survives-fallback',
+			ServerTypes::declared_tools( 'a-type-that-was-never-registered' )
+		);
+	}
+
+	public function test_tools_filter_reaches_the_tools_tab_pool(): void {
+		// pool() builds on declared_tools(), so an added toolset is OFFERED in
+		// the picker rather than appearing only after a Reset. Without this the
+		// picker would disagree with the list beside it.
+		add_filter(
+			ServerTypes::TOOLS_FILTER,
+			static function ( array $tools, string $slug ): array {
+				if ( ServerTypes::LEGACY === $slug ) {
+					$tools[] = 'toolset/offered-too';
+				}
+				return $tools;
+			},
+			10,
+			2
+		);
+
+		$this->assertContains( 'toolset/offered-too', ServerTypes::pool( ServerTypes::LEGACY ) );
+	}
 }
