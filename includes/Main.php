@@ -841,6 +841,22 @@ final class Main {
 			20
 		);
 
+		// The activity-log abilities behind `toolset/mcp-manager`. Priority 20
+		// matches the others here; they read a table this plugin owns and
+		// depend on nothing the registry is still assembling, so the ordering
+		// is for consistency rather than necessity. Their dispatcher is
+		// constructed by Toolset\Registrar alongside the rest.
+		foreach (
+			array(
+				\AcrossAI_MCP_Manager\Includes\Abilities\ActivityLog\QueryLogs::class,
+				\AcrossAI_MCP_Manager\Includes\Abilities\ActivityLog\GetLog::class,
+				\AcrossAI_MCP_Manager\Includes\Abilities\ActivityLog\LogFilters::class,
+				\AcrossAI_MCP_Manager\Includes\Abilities\ActivityLog\SummarizeLogs::class,
+			) as $log_ability
+		) {
+			$this->loader->add_action( 'wp_abilities_api_init', $log_ability, 'register', 20 );
+		}
+
 		// The MCP Adapter server type's guide. Priority 20 for the same reason
 		// as SetupRequired: after CallbackReplacer (10) has finished rebinding
 		// the vendor meta-tools, so nothing it describes is still in flux.

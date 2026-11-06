@@ -43,9 +43,15 @@ defined( 'ABSPATH' ) || exit;
 final class Registrar {
 
 	/**
-	 * The twelve WordPress groups, in the order the add-on declared them.
+	 * The dispatchers this plugin constructs, in menu order.
 	 *
-	 * @var string[]
+	 * Typed as class-strings of {@see Base_Toolset_Ability} rather than plain
+	 * strings: that IS the contract — `register()` news each one up and
+	 * `tool_metadata()` calls a method only the base class defines — and saying
+	 * so lets a static analyser catch a wrong entry here instead of leaving a
+	 * runtime `instanceof` to skip it silently.
+	 *
+	 * @var array<int, class-string<Base_Toolset_Ability>>
 	 */
 	private const CORE = array(
 		Content::class,
@@ -59,6 +65,13 @@ final class Registrar {
 		Database::class,
 		Files::class,
 		Diagnostics::class,
+
+		// Not a WordPress group like the eleven above: its members are the
+		// activity-log abilities THIS plugin registers, rather than ones the
+		// AcrossAI Abilities Manager add-on supplies. Dispatch is identical —
+		// membership still resolves through `meta.acrossai.tab_group` — so it
+		// belongs in the same list rather than beside it.
+		McpManager::class,
 	);
 
 	/**
@@ -80,6 +93,10 @@ final class Registrar {
 	 * integration here is named for the plugin it serves. It is being rebuilt
 	 * as `toolset/updraftplus` and `toolset/all-in-one-wp-migration` — see the
 	 * issue on acrossai-abilities-manager. The abilities behind it were kept.
+	 *
+	 * `mcp-manager` IS in {@see self::CORE} despite not being a WordPress group:
+	 * its members are this plugin's own activity-log abilities, so unlike the
+	 * add-on's groups it is present on every site this plugin runs on.
 	 *
 	 * Three of these are NOT in {@see self::CORE}, and each for its own reason:
 	 * `integrations` spans every non-default group rather than owning one;
@@ -107,6 +124,7 @@ final class Registrar {
 		'toolset/diagnostics',
 		'toolset/other',
 		'toolset/integrations',
+		'toolset/mcp-manager',
 		Guide::SLUG,
 	);
 
@@ -144,11 +162,12 @@ final class Registrar {
 		$metadata = array();
 
 		foreach ( array_merge( self::CORE, array( Integrations::class ) ) as $toolset ) {
+			// No instanceof guard: CORE is typed as class-string<Base_Toolset_Ability>,
+			// so a wrong entry is a static error at the list rather than a row
+			// quietly missing from the metadata at runtime.
 			$instance = ( new \ReflectionClass( $toolset ) )->newInstanceWithoutConstructor();
 
-			if ( $instance instanceof Base_Toolset_Ability ) {
-				$metadata[] = $instance->tool_metadata();
-			}
+			$metadata[] = $instance->tool_metadata();
 		}
 
 		$metadata[] = array(
