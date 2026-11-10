@@ -54,7 +54,7 @@ There is no action that *creates* a member, and that is the gap.
 
 | Repo | Half | Work |
 | --- | --- | --- |
-| `acrossai-pro` | hub | A `connect` action on `toolset/fleet`, wrapping `Pairing::connect()` |
+| `acrossai-pro` | hub | A second Fleet ability, `fleet/add-site`, wrapping `Pairing::connect()` |
 | `acrossai-mcp-manager` | child | Fleet tab redesign: prompt first, security ID as the fallback |
 
 The child cannot host the ability: it has no keypair, no roster, and is not the party doing the
@@ -62,16 +62,47 @@ registering.
 
 ## The ability contract (Pro)
 
-Extend the existing `action` enum rather than registering a second ability — a caller already
-knows this toolset's three verbs, and pairing is the natural fourth.
+**Decision (2026-11-10, revised): a second, standalone ability — `fleet/add-site` — not a fifth
+action on `toolset/fleet`.**
 
-    action: "connect"
+The first draft of this doc proposed extending the action enum. That was wrong once the existing
+ability was read properly. `toolset/fleet` is **transport**: its four actions all forward a call
+to a site that is already in the roster, and its own docblock says so — *"Not a cargo ability:
+this is transport"*, which is why it carries `mcp.public => false`. Pairing forwards nothing. It
+is the one fleet operation that does its work locally, on the hub, and it is the only one that
+can run when the roster is empty. Folding it into the forwarder would mean an action that ignores
+every other field in the schema.
+
+The Fleet tab on AcrossAI → Abilities currently holds exactly one row. It should hold two.
+
+    fleet/add-site
       site_url     string, required  — the child site's address
       security_id  string, required  — twelve characters from that site's Fleet tab
       confirmed    bool              — required before anything is written
 
-Returns the roster entry — site key and label — so the model can go straight to `tools` and
-`call` against the site it just added.
+Label: **Add a site to this fleet**. The slug follows the ecosystem's verb-noun convention
+(`mcp-manager/query-logs`, `file-manager/read-file`) and the hub's own vocabulary — `toolset/fleet`
+describes itself as *"Manage other WordPress sites from this one"*, so "add a site" is the phrase
+already in use. `fleet/pair-site` was the alternative; rejected because a model matching a user's
+"add this site to my fleet" will reach for `add` first, and the internal term *pairing* appears
+nowhere a caller can see.
+
+Returns the roster entry — site key and label — so the model can go straight to `toolset/fleet`
+`tools` and `call` against the site it just added.
+
+### How it becomes callable
+
+Same path its sibling uses, which is not the obvious one. Registration alone does not make an
+ability an MCP tool here; the `acrossai_mcp_manager_tool_abilities` filter promotes a slug to
+tool level (`acrossai-pro/includes/Main.php:1194`). Being promoted also marks the slug protected,
+and protected slugs are excluded from tab grouping — so a second opt-in,
+`acrossai_abilities_manager_groupable_protected_slugs` (`Main.php:1198`), is what keeps it
+visible in the Fleet tab.
+
+`fleet/add-site` must be added to **both** filters, or it is either uncallable or invisible.
+
+Keep `mcp.public => false`, matching the sibling: tool-level promotion is what exposes it, and
+setting `public` as well would advertise it a second time through discover-abilities.
 
 Three constraints, each with a reason:
 
@@ -88,20 +119,48 @@ Three constraints, each with a reason:
 
 ## The prompt (child)
 
-Short, because there is nothing to describe but one call:
+**Must work in any LLM, not just Claude.** Feature 099's prompt could lean on Claude Desktop's
+config file and restart behaviour. This one is pasted into whatever the operator's hub is
+connected to — Claude, ChatGPT, Gemini, Cursor, a local model — so it names no vendor, no app and
+no file, and assumes nothing about how the client renders tools.
 
-    Please add this WordPress site to your fleet.
+    Add this WordPress site to the fleet this hub manages.
 
-    - Site URL: https://example.com
-    - Security ID: a7f3k9x2m1qp
+        Site URL:     https://example.com
+        Security ID:  a7f3k9x2m1qp
 
-    Use the fleet toolset's "connect" action with that URL and security ID. Tell me the site
-    name it reports back once it is paired.
+    Call your "fleet/add-site" tool with site_url and security_id set to the two values
+    above. Some clients list it as "fleet-add-site".
 
-**Paste it into an AI connected to your hub — not to this site.** This is the one real footgun:
-the child's own MCP server has no fleet toolset, so pasting it in the wrong chat fails in a way
-that reads like a broken feature. The UI copy has to say which chat, in the block itself, not in
-a tooltip.
+    Call it first without confirming. It will change nothing and reply with the name of the
+    site it is about to add — show me that name and wait for my yes. Then call it again with
+    confirmed set to true.
+
+    When it succeeds, tell me the site name and site key it returns.
+
+    If you have no such tool, stop and tell me. It means this conversation is connected to
+    the wrong WordPress site: the tool lives on the hub that will manage this site, not on
+    this site itself.
+
+Six properties that make it portable, each deliberate:
+
+1. **No vendor, app or file name.** Nothing to go stale, nothing that reads as wrong to a user
+   on a different client.
+2. **Both tool spellings.** Clients normalise `/` differently; naming both removes a guess.
+3. **The confirm handshake is spelled out.** A weaker model will not infer a two-call protocol
+   from a schema field. Stating it in prose is what makes `confirmed` work across models rather
+   than only in ones that read schemas carefully.
+4. **Field names, not prose descriptions.** `site_url` and `security_id` verbatim, so a model
+   that cannot see the schema still fills them correctly.
+5. **A required read-back.** The operator gets a value to check — the difference between "it
+   said it worked" and evidence that it did.
+6. **A named failure mode.** The wrong-chat case is the one real footgun and it otherwise fails
+   looking like a broken feature. Telling the model to stop and say so converts it into a
+   sentence the operator can act on.
+
+**Paste it into the hub's chat, not this site's.** The child's own MCP server has no fleet tools
+at all. The UI copy has to say which chat in the block itself, not in a tooltip — point 6 is the
+in-prompt backstop for when someone gets it wrong anyway.
 
 Render the block only when fleet access is ON. `Register` refuses registration against a site that
 has not opted in, so offering the prompt while it is off is an instruction that cannot succeed.
@@ -140,18 +199,22 @@ Worth deciding explicitly (see open questions): whether to make the ID single-us
 
 ## Tasks
 
-- **TASK-1 (Pro)** — Add `connect` to the `action` enum and `input_schema`; add
-  `Ability::connect_site()` wrapping `Pairing::connect()`; honour `confirmed` and `can_dispatch()`;
-  pass `WP_Error` codes through.
-- **TASK-2 (Pro)** — Tests: unconfirmed call names the site and writes nothing; each of the four
-  `Pairing::connect()` failure modes surfaces distinctly; `can_dispatch() === false` refuses.
-- **TASK-3 (child)** — Build the prompt string from this site's URL + `SecurityId::get()`. Render
+- **TASK-1 (Pro)** — New `includes/Fleet/Add_Site_Ability.php` registering `fleet/add-site`
+  against `Ability::CATEGORY` and `Ability::TAB_GROUP`, wrapping `Pairing::connect()`; honour
+  `confirmed` and `can_dispatch()`; pass `WP_Error` codes through; `mcp.public => false`.
+- **TASK-2 (Pro)** — Wire the slug into BOTH `acrossai_mcp_manager_tool_abilities` and
+  `acrossai_abilities_manager_groupable_protected_slugs` in `Main.php`. Missing the first makes it
+  uncallable; missing the second drops it out of the Fleet tab.
+- **TASK-3 (Pro)** — Tests: unconfirmed call names the site and writes nothing; each
+  `Pairing::connect()` failure mode surfaces distinctly; `can_dispatch() === false` refuses; the
+  Fleet tab holds two rows, not one.
+- **TASK-4 (child)** — Build the prompt string from this site's URL + `SecurityId::get()`. Render
   only when fleet access is on.
-- **TASK-4 (child)** — Rebuild the pairing card: prompt first, Copy button, which-chat line,
+- **TASK-5 (child)** — Rebuild the pairing card: prompt first, Copy button, which-chat line,
   by-hand section demoted, rotate control beside the ID.
-- **TASK-5 (child)** — Tests: prompt absent when fleet is off; prompt carries the current ID;
+- **TASK-6 (child)** — Tests: prompt absent when fleet is off; prompt carries the current ID;
   regenerating the ID changes the prompt.
-- **TASK-6** — End to end: pair a sandbox child from a hub chat, confirm the roster row, rotate
+- **TASK-7** — End to end: pair a sandbox child from a hub chat, confirm the roster row, rotate
   the ID, confirm the pairing still works.
 
 ### Quality gates
