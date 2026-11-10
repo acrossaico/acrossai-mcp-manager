@@ -31,7 +31,8 @@ chosen over issuing an Application Password (`includes/Fleet/Register.php`).
 The security ID is what authenticates the call. It is guarded by constant-time comparison,
 per-IP rate limiting, and the requirement that fleet access be switched on at all.
 
-So the hub is always the caller. Any "add a site" ability therefore belongs on the hub, not here.
+So the hub is always the caller, and it is the hub that keeps the roster. Both an "add a site"
+and a "remove a site" ability therefore belong on the hub, not here.
 
 ## The one call that makes this cheap
 
@@ -44,17 +45,18 @@ Checked for UI coupling: no `current_user_can`, no `$_POST`, no `check_admin_ref
 `wp_die`. It generates the keypair, posts to the child, stores the roster row, and returns either
 the site array or a `WP_Error`.
 
-**No refactor is needed.** The new ability is a wrapper.
+**No refactor is needed.** Both new abilities are wrappers over methods the hub's own admin
+buttons already call.
 
 ## The split across two repos
 
 `toolset/fleet` already exists — in Pro, at `acrossai-pro/includes/Fleet/Ability.php:71`. Its
 actions are `sites`, `tools`, `call`, `ask`: all of them operate a fleet that already exists.
-There is no action that *creates* a member, and that is the gap.
+There is no action that *creates* or *removes* a member, and that is the gap.
 
 | Repo | Half | Work |
 | --- | --- | --- |
-| `acrossai-pro` | hub | A second Fleet ability, `fleet/add-site`, wrapping `Pairing::connect()` |
+| `acrossai-pro` | hub | Two Fleet abilities — `fleet/add-site` wrapping `Pairing::connect()`, `fleet/remove-site` wrapping `Roster::remove()` |
 | `acrossai-mcp-manager` | child | Fleet tab redesign: prompt first, security ID as the fallback |
 
 The child cannot host the ability: it has no keypair, no roster, and is not the party doing the
@@ -73,7 +75,8 @@ is the one fleet operation that does its work locally, on the hub, and it is the
 can run when the roster is empty. Folding it into the forwarder would mean an action that ignores
 every other field in the schema.
 
-The Fleet tab on AcrossAI → Abilities currently holds exactly one row. It should hold two.
+The Fleet tab on AcrossAI → Abilities currently holds exactly one row. With this feature and
+its sibling below it holds three.
 
     fleet/add-site
       site_url     string, required  — the child site's address
@@ -90,7 +93,45 @@ nowhere a caller can see.
 Returns the roster entry — site key and label — so the model can go straight to `toolset/fleet`
 `tools` and `call` against the site it just added.
 
-### How it becomes callable
+## The second ability: `fleet/remove-site`
+
+Pairing without unpairing leaves the fleet one-way, so the Fleet tab gets a third row, not a
+second. Label: **Remove a site from this fleet**.
+
+    fleet/remove-site
+      site         string, required  — the site key from `toolset/fleet` action "sites",
+                                       or the site's URL
+      confirmed    bool              — required before anything is written
+
+One `site` field that takes either form, rather than a `site` / `site_url` pair with a
+"exactly one of" rule. A model that has just run `sites` holds a key; a person pasting a prompt
+holds a URL; both should work without the caller reasoning about which field they are in.
+Resolution is a `Roster::all()` scan, which is a stored array.
+
+It wraps `Roster::remove( string $key )` (`acrossai-pro/includes/Fleet/Roster.php:173`) — exactly
+what the hub's own admin button calls at `admin/Partials/FleetPage.php:135`. No new mechanism.
+
+### Removal is one-sided, and the ability must say so
+
+This is the part to get right in the copy rather than discover later.
+
+`Roster::remove()` drops the hub's row. It does **not** tell the child anything, because there is
+nothing to tell it with: the child exposes exactly one fleet REST route, `Register`
+(`includes/Fleet/Register.php:120`), and there is no revoke counterpart. The child's trust lives
+in its own `_fleet_hosts` meta and is cleared only from its own screen —
+`Hosts::remove()` has exactly one caller, `admin/Partials/Settings.php:193`.
+
+So after `fleet/remove-site` the hub stops managing the site, and the site still holds the hub's
+public key. Anyone restoring that roster row could manage it again without a new handshake.
+
+**This asymmetry is pre-existing, not introduced here** — the hub's admin button behaves
+identically. The ability must be faithful to it rather than quietly doing more, so:
+
+- the success message says the hub has stopped managing the site, and that revoking the hub's
+  access is done on the site itself;
+- a revoke route on the child is recorded as a follow-up below, not smuggled into this feature.
+
+### How they become callable
 
 Same path its sibling uses, which is not the obvious one. Registration alone does not make an
 ability an MCP tool here; the `acrossai_mcp_manager_tool_abilities` filter promotes a slug to
@@ -99,28 +140,36 @@ and protected slugs are excluded from tab grouping — so a second opt-in,
 `acrossai_abilities_manager_groupable_protected_slugs` (`Main.php:1198`), is what keeps it
 visible in the Fleet tab.
 
-`fleet/add-site` must be added to **both** filters, or it is either uncallable or invisible.
+**Both** new slugs must go through **both** filters, or each is either uncallable or invisible.
 
-Keep `mcp.public => false`, matching the sibling: tool-level promotion is what exposes it, and
-setting `public` as well would advertise it a second time through discover-abilities.
+Keep `mcp.public => false` on both, matching the sibling: tool-level promotion is what exposes
+them, and setting `public` as well would advertise them a second time through discover-abilities.
 
-Three constraints, each with a reason:
+Annotations differ, and should. `fleet/add-site` and `fleet/remove-site` both know exactly what
+they do — unlike `toolset/fleet`, whose honest annotation is the cautious one because it depends
+on the forwarded tool. So annotate them truthfully: neither is readonly, `remove-site` IS
+destructive, and both are idempotent (adding a site already in the roster, or removing one that
+is not, changes nothing).
 
-1. **`confirmed` is mandatory.** Pairing grants another site standing control over this one. The
-   toolset already uses this pattern for anything that changes a site; an unconfirmed call must
-   name the site and stop. Calling without it is how the operator sees what they are approving.
-2. **`can_dispatch()` still gates it.** `Ability::CAP_FILTER` (`acrossai_pro_fleet_can_dispatch`)
-   governs the existing actions and must govern this one. Pairing is strictly more sensitive than
-   `sites`, so it cannot be the one action that skips the gate.
+Three constraints, each with a reason. They apply to `fleet/remove-site` below as well.
+
+1. **`confirmed` is mandatory.** Pairing grants another site standing control over this one, and
+   removal silently ends a management relationship someone may still be relying on. The toolset
+   already uses this pattern for anything that changes a site; an unconfirmed call must name the
+   target and stop. Calling without it is how the operator sees what they are approving.
+2. **`can_dispatch()` still gates them.** `Ability::CAP_FILTER` (`acrossai_pro_fleet_can_dispatch`)
+   governs the existing actions and must govern these. Both are more sensitive than `sites`, so
+   neither can be the one that skips the gate — and because they are separate abilities rather
+   than actions on the dispatcher, each needs the check wired explicitly; it is not inherited.
 3. **`WP_Error` passes through unflattened.** `Pairing::connect()` distinguishes "fleet is off on
    that site", "wrong security ID", "unreachable", and "already paired". Collapsing those into one
    failure string would make the prompt path unsupportable — the whole value is the model being
    able to say which of the four went wrong.
 
-## The prompt (child)
+## The prompts (child)
 
 **Must work in any LLM, not just Claude.** Feature 099's prompt could lean on Claude Desktop's
-config file and restart behaviour. This one is pasted into whatever the operator's hub is
+config file and restart behaviour. These are pasted into whatever the operator's hub is
 connected to — Claude, ChatGPT, Gemini, Cursor, a local model — so it names no vendor, no app and
 no file, and assumes nothing about how the client renders tools.
 
@@ -142,7 +191,33 @@ no file, and assumes nothing about how the client renders tools.
     the wrong WordPress site: the tool lives on the hub that will manage this site, not on
     this site itself.
 
-Six properties that make it portable, each deliberate:
+### The removal prompt
+
+Same six rules below. Shorter, because there is no security ID to carry — the hub already knows the site.
+
+    Remove this WordPress site from the fleet this hub manages.
+
+        Site URL: https://example.com
+
+    Call your "fleet/remove-site" tool with site set to the URL above. Some clients list it
+    as "fleet-remove-site".
+
+    Call it first without confirming. It will change nothing and reply with the name of the
+    site it is about to remove — show me that name and wait for my yes. Then call it again
+    with confirmed set to true.
+
+    This stops the hub managing the site. It does not revoke the hub's access on the site
+    itself — say so when you report back, and tell me that is done from that site's own
+    Fleet settings.
+
+    If you have no such tool, stop and tell me. It means this conversation is connected to
+    the wrong WordPress site.
+
+The last paragraph is not boilerplate. Without it a model will report "removed" and the operator
+will reasonably believe access is gone, when the site still holds the hub's public key. Making
+the model state the limit is cheaper and more reliable than hoping the operator reads the docs.
+
+Six properties make both prompts portable, each deliberate:
 
 1. **No vendor, app or file name.** Nothing to go stale, nothing that reads as wrong to a user
    on a different client.
@@ -162,8 +237,11 @@ Six properties that make it portable, each deliberate:
 at all. The UI copy has to say which chat in the block itself, not in a tooltip — point 6 is the
 in-prompt backstop for when someone gets it wrong anyway.
 
-Render the block only when fleet access is ON. `Register` refuses registration against a site that
-has not opted in, so offering the prompt while it is off is an instruction that cannot succeed.
+Each block is gated on its own precondition, and neither is cosmetic. The **add** prompt renders
+only when fleet access is ON: `Register` refuses registration against a site that has not opted
+in, so offering it while off is an instruction that cannot succeed. The **remove** prompt renders
+only when `Hosts::all( $server_id )` is non-empty — there is nothing to remove from a site no hub
+has paired with, and showing it would imply a relationship that does not exist.
 
 ## The Fleet tab redesign (child)
 
@@ -199,23 +277,39 @@ Worth deciding explicitly (see open questions): whether to make the ID single-us
 
 ## Tasks
 
-- **TASK-1 (Pro)** — New `includes/Fleet/Add_Site_Ability.php` registering `fleet/add-site`
-  against `Ability::CATEGORY` and `Ability::TAB_GROUP`, wrapping `Pairing::connect()`; honour
-  `confirmed` and `can_dispatch()`; pass `WP_Error` codes through; `mcp.public => false`.
-- **TASK-2 (Pro)** — Wire the slug into BOTH `acrossai_mcp_manager_tool_abilities` and
-  `acrossai_abilities_manager_groupable_protected_slugs` in `Main.php`. Missing the first makes it
-  uncallable; missing the second drops it out of the Fleet tab.
-- **TASK-3 (Pro)** — Tests: unconfirmed call names the site and writes nothing; each
-  `Pairing::connect()` failure mode surfaces distinctly; `can_dispatch() === false` refuses; the
-  Fleet tab holds two rows, not one.
-- **TASK-4 (child)** — Build the prompt string from this site's URL + `SecurityId::get()`. Render
-  only when fleet access is on.
-- **TASK-5 (child)** — Rebuild the pairing card: prompt first, Copy button, which-chat line,
-  by-hand section demoted, rotate control beside the ID.
-- **TASK-6 (child)** — Tests: prompt absent when fleet is off; prompt carries the current ID;
-  regenerating the ID changes the prompt.
-- **TASK-7** — End to end: pair a sandbox child from a hub chat, confirm the roster row, rotate
-  the ID, confirm the pairing still works.
+**Pro (hub)**
+
+- **TASK-1** — `includes/Fleet/Add_Site_Ability.php`: register `fleet/add-site` against
+  `Ability::CATEGORY` and `Ability::TAB_GROUP`, wrapping `Pairing::connect()`. Honour `confirmed`
+  and `can_dispatch()`; pass `WP_Error` codes through; `mcp.public => false`; annotations
+  `readonly:false, destructive:false, idempotent:true`.
+- **TASK-2** — `includes/Fleet/Remove_Site_Ability.php`: register `fleet/remove-site` the same
+  way, wrapping `Roster::remove()`. `site` resolves a roster key OR a URL via `Roster::all()`.
+  Annotations `readonly:false, destructive:true, idempotent:true`. The success payload states
+  that the site still holds the hub's key.
+- **TASK-3** — Wire both slugs into BOTH `acrossai_mcp_manager_tool_abilities` and
+  `acrossai_abilities_manager_groupable_protected_slugs` in `Main.php`. Missing the first makes an
+  ability uncallable; missing the second drops it off the Fleet tab.
+- **TASK-4** — Tests: an unconfirmed call of each names the target and writes nothing; every
+  `Pairing::connect()` failure mode surfaces distinctly; `remove-site` resolves by key and by URL
+  and is a no-op for an unknown site; `can_dispatch() === false` refuses both; the Fleet tab holds
+  three rows.
+
+**mcp-manager (child)**
+
+- **TASK-5** — Build both prompt strings from this server's URL, `SecurityId::get()` and
+  `Hosts::all()`. Gate each on its own precondition (fleet ON / at least one paired host).
+- **TASK-6** — Rebuild the pairing card: add-prompt first with a Copy button and the which-chat
+  line, remove-prompt beside the paired-host list, by-hand section demoted, rotate control beside
+  the ID.
+- **TASK-7** — Tests: add prompt absent when fleet is off; remove prompt absent with no hosts;
+  prompts carry the current ID and URL; regenerating the ID changes the add prompt.
+
+**Both**
+
+- **TASK-8** — End to end on sandboxes: pair a child from a hub chat, confirm the roster row,
+  rotate the ID, confirm the pairing survives, then remove the site from the same chat and
+  confirm the hub's roster is empty while the child still lists the host.
 
 ### Quality gates
 
@@ -231,7 +325,13 @@ rebuilt and committed or the stale-bundle gate fails.
 2. **Does the hub need the child's name up front?** `Pairing::connect()` learns it from the
    register response. Including it in the prompt would let the model say "pairing *Mumbai
    Community*…" before the call rather than after. Cosmetic, cheap, unconfirmed.
-3. **Copy must say "this server", not "this site".** Verified rather than open: the ID is server
+3. **A revoke route on the child (follow-up, not this feature).** Removal is one-sided because
+   the child has no counterpart to `Register`. A signed `POST .../fleet/revoke` — authenticated
+   by the host key the hub already holds, which `RoutePermission` already knows how to verify —
+   would let `fleet/remove-site` clear both sides in one call. It is a genuine new public surface
+   on the child, so it wants its own planning pass rather than a rider on this one. Until then
+   TASK-2's copy is what keeps the limitation honest.
+4. **Copy must say "this server", not "this site".** Verified rather than open: the ID is server
    meta (`SecurityId::get()` reads `MCPServerMetaQuery::get_meta( $server_id, META_KEY )`), and
    the tab only renders for a server whose type is `ServerTypes::FLEET`
    (`FleetTab.php:103`). So the prompt is naturally per-server and the gate is
