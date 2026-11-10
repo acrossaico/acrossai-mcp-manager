@@ -606,11 +606,6 @@ parameters:
 			count: 1
 			path: includes/Abilities/Toolset/Integrations.php
 
-		-
-			message: '#^Instanceof between AcrossAI_MCP_Manager\\Includes\\Abilities\\Toolset\\Appearance\|AcrossAI_MCP_Manager\\Includes\\Abilities\\Toolset\\Blocks\|AcrossAI_MCP_Manager\\Includes\\Abilities\\Toolset\\Cache\|AcrossAI_MCP_Manager\\Includes\\Abilities\\Toolset\\Configuration\|AcrossAI_MCP_Manager\\Includes\\Abilities\\Toolset\\Content\|AcrossAI_MCP_Manager\\Includes\\Abilities\\Toolset\\Cron\|AcrossAI_MCP_Manager\\Includes\\Abilities\\Toolset\\Database\|AcrossAI_MCP_Manager\\Includes\\Abilities\\Toolset\\Diagnostics\|AcrossAI_MCP_Manager\\Includes\\Abilities\\Toolset\\Files\|AcrossAI_MCP_Manager\\Includes\\Abilities\\Toolset\\Integrations\|AcrossAI_MCP_Manager\\Includes\\Abilities\\Toolset\\Updates\|AcrossAI_MCP_Manager\\Includes\\Abilities\\Toolset\\Users and AcrossAI_MCP_Manager\\Includes\\Abilities\\Toolset\\Base_Toolset_Ability will always evaluate to true\.$#'
-			identifier: instanceof.alwaysTrue
-			count: 1
-			path: includes/Abilities/Toolset/Registrar.php
 
 		-
 			message: '#^Instanceof between WP_Ability and WP_Ability will always evaluate to true\.$#'

@@ -26,6 +26,7 @@ use AcrossAI_MCP_Manager\Includes\Abilities\Toolset\Base_Toolset_Ability;
 use AcrossAI_MCP_Manager\Includes\Abilities\Toolset\Category_Registrar;
 use AcrossAI_MCP_Manager\Includes\Abilities\Toolset\Guide;
 use AcrossAI_MCP_Manager\Includes\Abilities\Toolset\Integrations;
+use AcrossAI_MCP_Manager\Includes\Abilities\Toolset\McpManager;
 use AcrossAI_MCP_Manager\Includes\Abilities\Toolset\Registrar;
 use ReflectionClass;
 use WP_UnitTestCase;
@@ -132,7 +133,10 @@ class RegistrarTest extends WP_UnitTestCase {
 			static function ( string $class ): string {
 				return ( new ReflectionClass( $class ) )->getShortName();
 			},
-			array_merge( $this->core_classes(), array( Integrations::class, Guide::class ) )
+			// McpManager is constructed by `register()` like the other two, but
+			// is deliberately NOT in CORE: CORE is the AcrossAI type's
+			// vocabulary and no type claims this one.
+			array_merge( $this->core_classes(), array( Integrations::class, McpManager::class, Guide::class ) )
 		);
 
 		$on_disk = array();
@@ -198,9 +202,9 @@ class RegistrarTest extends WP_UnitTestCase {
 			'Constructing the dispatchers must not register anything by itself.'
 		);
 		$this->assertSame(
-			$hooks + count( $this->core_classes() ) + 2,
+			$hooks + count( $this->core_classes() ) + 3,
 			$this->abilities_init_callback_count(),
-			'Each dispatcher, plus Integrations and the Guide, attaches one hook.'
+			'Each dispatcher, plus Integrations, McpManager and the Guide, attaches one hook.'
 		);
 	}
 
