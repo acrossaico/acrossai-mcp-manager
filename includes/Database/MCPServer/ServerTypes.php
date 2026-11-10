@@ -110,6 +110,21 @@ final class ServerTypes {
 	public const FILTER = 'acrossai_mcp_server_types';
 
 	/**
+	 * Filter name — the tool list a type restores. Documented in
+	 * `docs/extending-server-types.md` §2.2.
+	 *
+	 * Separate from {@see self::FILTER} because the two answer different
+	 * questions. That one registers a type and is slug-keyed LAST-WINS, so a
+	 * plugin wanting to ADD one toolset to someone else's type has to re-declare
+	 * the whole entry — clobbering its label, description and `requires`, and
+	 * losing a race with any other plugin doing the same. This one receives the
+	 * resolved list and hands it back, so contributions compose.
+	 *
+	 * @var string
+	 */
+	public const TOOLS_FILTER = 'acrossai_mcp_server_type_tools';
+
+	/**
 	 * Plugin folder slug of the sibling that supplies the AcrossAI type's tools.
 	 *
 	 * @var string
@@ -244,11 +259,89 @@ final class ServerTypes {
 		$all  = self::all();
 		$type = $all[ $slug ] ?? null;
 
-		if ( null === $type || empty( $type['tools'] ) ) {
-			return self::registered_only( $all[ self::LEGACY ]['tools'] ?? array() );
+		$tools = ( null === $type || empty( $type['tools'] ) )
+			? self::registered_only( $all[ self::LEGACY ]['tools'] ?? array() )
+			: array_values( (array) $type['tools'] );
+
+		// Filtered on BOTH paths, including the legacy fallback. A server whose
+		// type was removed with its plugin is exactly the case where a
+		// contributor still wants its toolset restored.
+		return self::filter_declared_tools( $tools, $slug );
+	}
+
+	/**
+	 * Let other plugins add to — or remove from — what a type restores.
+	 *
+	 * Runs on the DECLARED list, so a contribution reaches every writer at once:
+	 * Reset to Type Defaults, server creation ({@see ToolPolicy::apply_type_defaults()}),
+	 * a type switch, and the backfill. {@see self::pool()} also builds on this,
+	 * so an added toolset is OFFERED in the Tools tab's picker rather than
+	 * appearing only after a Reset.
+	 *
+	 * Not narrowed to registered abilities, matching the rest of this method:
+	 * declaring a slug whose plugin is not installed yet is deliberate, and
+	 * {@see self::registered_only()} does the narrowing wherever it matters.
+	 *
+	 * The empty guard is the same one the declaration and result checks above
+	 * enforce, for the same reason: Reset WRITES this list, so returning nothing
+	 * wipes the operator's curation. A filter that empties the list is treated
+	 * as a mistake and the unfiltered list is kept — a contributor that really
+	 * means to strip a type down to one tool can still return that one tool.
+	 *
+	 * @since 0.4.8
+	 *
+	 * @param string[] $tools Declared tool slugs before filtering.
+	 * @param string   $slug  Server type slug.
+	 * @return string[]
+	 */
+	private static function filter_declared_tools( array $tools, string $slug ): array {
+		/**
+		 * Filter the tool slugs a server type declares.
+		 *
+		 * Additive by convention — append your own slugs and return the array.
+		 * Returning an empty array is ignored, because this list is written over
+		 * a server's curated tools.
+		 *
+		 * @since 0.4.8
+		 *
+		 * @param string[] $tools Declared tool slugs, in order.
+		 * @param string   $slug  Server type slug, e.g. `acrossai-fleet`.
+		 */
+		/**
+		 * Deliberately widened to mixed. The WordPress stubs infer a filter's
+		 * return from what was passed in, so PHPStan reads this as `string[]`
+		 * and calls the guards below unreachable — but the callbacks are
+		 * third-party code and can return anything at all. The stub describes
+		 * the contract; this describes what actually arrives.
+		 *
+		 * @var mixed $filtered
+		 */
+		$filtered = apply_filters( self::TOOLS_FILTER, $tools, $slug );
+
+		if ( ! is_array( $filtered ) ) {
+			return $tools;
 		}
 
-		return array_values( (array) $type['tools'] );
+		$clean = array();
+
+		foreach ( $filtered as $tool ) {
+			// Scalars only, and no blanks. A filter returning an array or object
+			// member would otherwise reach the write path and fail there, well
+			// away from the plugin that produced it.
+			if ( ! is_string( $tool ) ) {
+				continue;
+			}
+
+			$tool = trim( $tool );
+
+			if ( '' !== $tool ) {
+				$clean[] = $tool;
+			}
+		}
+
+		$clean = array_values( array_unique( $clean ) );
+
+		return array() === $clean ? $tools : $clean;
 	}
 
 
