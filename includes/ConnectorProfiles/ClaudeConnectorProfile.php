@@ -262,8 +262,22 @@ final class ClaudeConnectorProfile extends \AcrossAI_MCP_Manager\Includes\Connec
 	 * @return array<string, mixed> Spec for the shared panel renderer.
 	 */
 	protected function get_setup_spec( string $mcp_url ): array {
-		$reachable = LocalEnvironment::is_publicly_reachable( $mcp_url );
-		$host      = (string) wp_parse_url( $mcp_url, PHP_URL_HOST );
+		// $mcp_url is not always an absolute URL. DiscoveryConnectorAdapter
+		// builds this panel once per pageload, before any server is chosen, and
+		// passes the sentinel `__ACROSSAI_MCP_URL__` for Quick Connect Step 10
+		// to substitute client-side. The sentinel has no scheme and no host, so
+		// asking whether IT is publicly reachable answered "no" on every site —
+		// which disabled 1-click in the wizard even on public https sites, and
+		// left the %s below empty. Step 10's substitution is a plain string
+		// replace, so it could never undo a button rendered disabled.
+		//
+		// Both answers are properties of this site's own address rather than of
+		// the per-server route, so fall back to it whenever what we were handed
+		// has no host. On the server edit screen, where a real URL does arrive,
+		// this resolves to exactly the same decision as before.
+		$probe     = '' === (string) wp_parse_url( $mcp_url, PHP_URL_HOST ) ? rest_url( '/' ) : $mcp_url;
+		$reachable = LocalEnvironment::is_publicly_reachable( $probe );
+		$host      = (string) wp_parse_url( $probe, PHP_URL_HOST );
 
 		$spec = array(
 			'name'            => 'Claude',

@@ -2,11 +2,18 @@
 /**
  * Claude one-click connect — deep link, connector name, reachability gate.
  *
- * The rendered panel is covered by the renderers suite; this suite covers the
- * two decisions behind it, because neither can be exercised from a local dev
- * site: the link is only offered when a third party could actually fetch the
- * URL, and the name has to match what the Clients tab already writes into a
- * config file.
+ * Covers the two decisions behind the button, because neither can be exercised
+ * from a local dev site: the link is only offered when a third party could
+ * actually fetch the URL, and the name has to match what the Clients tab
+ * already writes into a config file.
+ *
+ * It also covers the rendered panel for the one input that is not a URL at all.
+ * Quick Connect Step 10 builds this panel before a server is chosen and passes
+ * the sentinel `__ACROSSAI_MCP_URL__` in the URL's place, so the reachability
+ * gate was deciding whether a placeholder was publicly reachable — always no,
+ * which disabled 1-click in the wizard on every site. Testing the gate in
+ * isolation, as the cases above do, could not see that; these call the panel
+ * the wizard actually consumes.
  *
  * @package AcrossAI_MCP_Manager
  */
@@ -25,6 +32,13 @@ use WP_UnitTestCase;
  * @covers \AcrossAI_MCP_Manager\Includes\Utilities\LocalEnvironment
  */
 final class ClaudeOneClickTest extends WP_UnitTestCase {
+
+	/**
+	 * The sentinel DiscoveryConnectorAdapter passes for Quick Connect.
+	 *
+	 * @var string
+	 */
+	private const SENTINEL = '__ACROSSAI_MCP_URL__';
 
 	/**
 	 * Profile under test.
@@ -205,5 +219,117 @@ final class ClaudeOneClickTest extends WP_UnitTestCase {
 
 		$this->assertSame( 'smith-sons', $query['connectorName'] ?? null );
 		$this->assertSame( $this->profile->get_connector_name(), $query['connectorName'] ?? null );
+	}
+
+	/**
+	 * Pin this site's REST base for the duration of one test.
+	 *
+	 * The harness runs on `http://example.org`, so every reachability verdict
+	 * would otherwise be "no scheme we accept" and the positive cases below
+	 * could not be written at all.
+	 *
+	 * @param  string $base Absolute REST base, e.g. `https://example.com/wp-json/`.
+	 * @return void
+	 */
+	private function pin_rest_url( string $base ): void {
+		add_filter(
+			'rest_url',
+			static function () use ( $base ): string {
+				return $base;
+			},
+			99
+		);
+	}
+
+	/**
+	 * The regression this suite exists for.
+	 *
+	 * Quick Connect Step 10 renders this panel before a server is chosen, so
+	 * it arrives here as the sentinel rather than a URL. Judging the SENTINEL's
+	 * reachability answered "no" on every site on earth, which disabled
+	 * 1-click in the wizard even on public https hosts — and Step 10's
+	 * client-side fix-up is a string replace, so it could not undo a button
+	 * that was already rendered disabled.
+	 */
+	public function test_wizard_sentinel_offers_one_click_on_a_public_site(): void {
+		$this->pin_rest_url( 'https://example.com/wp-json/' );
+
+		$html = $this->profile->get_mcp_url_setup_html( self::SENTINEL );
+
+		$this->assertStringNotContainsString( 'Unavailable on this site.', $html );
+		$this->assertStringNotContainsString( 'is-disabled', $html );
+		$this->assertStringContainsString( 'acrossai-mcp-setup__cta', $html );
+	}
+
+	/**
+	 * The sentinel must reach the browser intact, because Step 10 swaps it for
+	 * the chosen server's URL with `replaceAll`. Enabling the button is only
+	 * half the fix: `esc_url()` mangling the token would hand Claude a deep
+	 * link pointing at a literal `__ACROSSAI_MCP_URL__`.
+	 */
+	public function test_wizard_sentinel_survives_into_the_deep_link(): void {
+		$this->pin_rest_url( 'https://example.com/wp-json/' );
+
+		$html = $this->profile->get_mcp_url_setup_html( self::SENTINEL );
+
+		$this->assertStringContainsString( 'connectorUrl=' . self::SENTINEL, $html );
+	}
+
+	/**
+	 * The gate still has to fire where it was always meant to. A local site
+	 * reached through the sentinel is blocked exactly as a local site reached
+	 * through a real URL is.
+	 */
+	public function test_wizard_sentinel_still_blocks_on_a_local_site(): void {
+		$this->pin_rest_url( 'https://wordpress-7-0.local/wp-json/' );
+
+		$html = $this->profile->get_mcp_url_setup_html( self::SENTINEL );
+
+		$this->assertStringContainsString( 'Unavailable on this site.', $html );
+		$this->assertStringContainsString( 'is-disabled', $html );
+	}
+
+	/**
+	 * The warning names the host. It used to interpolate the sentinel's host —
+	 * which is nothing — producing "a public https:// address.  only resolves
+	 * on your machine", a sentence with its subject missing.
+	 */
+	public function test_blocked_warning_names_the_host(): void {
+		$this->pin_rest_url( 'https://wordpress-7-0.local/wp-json/' );
+
+		$html = $this->profile->get_mcp_url_setup_html( self::SENTINEL );
+
+		$this->assertStringContainsString( 'wordpress-7-0.local', $html );
+		$this->assertStringNotContainsString( 'address.  only resolves', $html );
+	}
+
+	/**
+	 * An absolute URL is still judged on its own host, not on this site's.
+	 * That is the server edit screen's path, where a real per-server URL does
+	 * arrive — the fallback must not capture it.
+	 */
+	public function test_absolute_url_is_judged_on_its_own_host(): void {
+		$this->pin_rest_url( 'https://wordpress-7-0.local/wp-json/' );
+
+		$html = $this->profile->get_mcp_url_setup_html( 'https://example.com/wp-json/acrossai/mcp' );
+
+		$this->assertStringNotContainsString( 'Unavailable on this site.', $html );
+		$this->assertStringContainsString(
+			'connectorUrl=' . rawurlencode( 'https://example.com/wp-json/acrossai/mcp' ),
+			$html
+		);
+	}
+
+	/**
+	 * And the converse: a local absolute URL is blocked even though this
+	 * site's own address is public. Neither direction may leak into the other.
+	 */
+	public function test_absolute_local_url_is_blocked_on_a_public_site(): void {
+		$this->pin_rest_url( 'https://example.com/wp-json/' );
+
+		$html = $this->profile->get_mcp_url_setup_html( 'https://mysite.local/wp-json/acrossai/mcp' );
+
+		$this->assertStringContainsString( 'Unavailable on this site.', $html );
+		$this->assertStringContainsString( 'mysite.local', $html );
 	}
 }
