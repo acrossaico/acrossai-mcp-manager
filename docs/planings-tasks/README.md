@@ -55,6 +55,7 @@ Full file-by-file source→target mapping: [`source-map.md`](source-map.md)
 | 097 | mcp-change-history | 2026-10-16 | Planned (depends on 096) — owns the change log end to end: table, capture, REST, UI | [097-mcp-change-history.md](097-mcp-change-history.md) |
 | 099 | mcp-client-setup-prompt | 2026-10-28 | Implemented (MVP + routes split per Claude Design "MCP Client Config Steps"; both surfaces) | [099-mcp-client-setup-prompt.md](099-mcp-client-setup-prompt.md) — paste-ready prompt that has the AI client edit its own config, beside the manual steps, for all 16 clients; Step 2 is the choice and only the chosen route shows |
 | 102 | consultation-doors | 2026-11-04 | Implemented (live on acrossai.co; plugin-side string + rebuilt bundle uncommitted) | [102-consultation-doors.md](102-consultation-doors.md) — one page, two doors: `?type=paid` (and the bare URL) renders the Google Calendar embed, `?type=free` renders Fluent Forms #6. Supersedes the Pro-only/hide-the-page plan. Records two wrong premises from the first draft and three bugs found while building |
+| 103 | fleet-pairing-prompt | 2026-11-10 | Planned | [103-fleet-pairing-prompt.md](103-fleet-pairing-prompt.md) — pair a child by pasting a prompt into the hub's AI instead of carrying the security ID between tabs. Hub half is a `connect` action on Pro's existing `toolset/fleet` wrapping `Pairing::connect()`; child half is the Fleet tab rebuilt prompt-first. Records the security-ID exposure the prompt introduces |
 
 ---
 
