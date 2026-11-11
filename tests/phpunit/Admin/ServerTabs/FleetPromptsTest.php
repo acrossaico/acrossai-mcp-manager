@@ -1,20 +1,20 @@
 <?php
 /**
- * The paste-able prompts on the Fleet tab.
+ * The paste-able pairing prompt on the Fleet tab.
  *
- * These are instructions a model follows against someone else's live site, so
- * what is pinned here is the parts that make them followable rather than their
+ * This is an instruction a model follows against someone else's live site, so
+ * what is pinned here is the parts that make it followable rather than its
  * prose. Four things matter and none of them are visible from reading the
- * strings once:
+ * string once:
  *
  *  - the values are the CURRENT ones, because a prompt carrying a stale
  *    security ID fails in a way that looks like the feature is broken;
  *  - the two-call protocol is stated in words, because a weaker model will not
  *    infer it from a schema field it may never be shown;
- *  - both spellings of each tool name are present, because clients normalise
+ *  - both spellings of the tool name are present, because clients normalise
  *    `/` differently and a model matching on the wrong one finds nothing;
- *  - no vendor is named, because these go wherever the operator's hub is
- *    connected and Feature 099's Claude-specific prompt is the thing they are
+ *  - no vendor is named, because it goes wherever the operator's managing site
+ *    is connected and Feature 099's Claude-specific prompt is the thing it is
  *    deliberately not.
  *
  * @package AcrossAI_MCP_Manager\Tests
@@ -31,48 +31,24 @@ use WP_UnitTestCase;
 final class FleetPromptsTest extends WP_UnitTestCase {
 
 	/**
-	 * Server id the prompts are built for.
+	 * Server id the prompt is built for.
 	 *
 	 * @var int
 	 */
 	private const SERVER_ID = 4242;
-
-	/**
-	 * Both prompts, for the properties they share.
-	 *
-	 * @return array<string, array{0: string}>
-	 */
-	public function both_prompts(): array {
-		return array(
-			'add'    => array( 'add' ),
-			'remove' => array( 'remove' ),
-		);
-	}
-
-	/**
-	 * Build one by name, so a provider can name them as strings.
-	 *
-	 * @param  string $which 'add' or 'remove'.
-	 * @return string
-	 */
-	private function prompt( string $which ): string {
-		return 'add' === $which
-			? Prompts::add_site( self::SERVER_ID )
-			: Prompts::remove_site();
-	}
 
 	// ─────────────────────────────────────────────────────────────────
 	// The values have to be the live ones
 	// ─────────────────────────────────────────────────────────────────
 
 	/**
-	 * The add prompt carries the security ID this server holds right now.
+	 * It carries the security ID this server holds right now.
 	 *
 	 * The whole flow is "paste this and it works". A prompt built from a
 	 * remembered or defaulted ID would be refused by the registration route
 	 * and read to the operator as a broken feature rather than a stale value.
 	 */
-	public function test_the_add_prompt_carries_the_current_security_id(): void {
+	public function test_it_carries_the_current_security_id(): void {
 		$id = SecurityId::get( self::SERVER_ID );
 
 		$this->assertNotSame( '', $id, 'The fixture produced no security ID.' );
@@ -83,9 +59,9 @@ final class FleetPromptsTest extends WP_UnitTestCase {
 	 * Regenerating the ID changes the prompt.
 	 *
 	 * The ID is spent on every successful registration, so a cached prompt
-	 * would hand the next hub a code that has already been used.
+	 * would hand the next managing site a code that has already been used.
 	 */
-	public function test_regenerating_the_id_changes_the_add_prompt(): void {
+	public function test_regenerating_the_id_changes_the_prompt(): void {
 		$before = Prompts::add_site( self::SERVER_ID );
 
 		SecurityId::regenerate( self::SERVER_ID );
@@ -96,43 +72,21 @@ final class FleetPromptsTest extends WP_UnitTestCase {
 		$this->assertStringContainsString( SecurityId::get( self::SERVER_ID ), $after );
 	}
 
-	/**
-	 * Both carry this site's address, which is how the hub finds it.
-	 *
-	 * @param string $which Which prompt.
-	 *
-	 * @dataProvider both_prompts
-	 */
-	public function test_it_carries_this_sites_address( string $which ): void {
-		$this->assertStringContainsString( home_url(), $this->prompt( $which ) );
-	}
-
-	/** The remove prompt does not carry the security ID — it has no use for one. */
-	public function test_the_remove_prompt_carries_no_security_id(): void {
-		$this->assertStringNotContainsString(
-			SecurityId::get( self::SERVER_ID ),
-			Prompts::remove_site(),
-			'Unpairing needs no credential, so the prompt must not spend one.'
-		);
+	/** It carries this site's address, which is how the managing site finds it. */
+	public function test_it_carries_this_sites_address(): void {
+		$this->assertStringContainsString( home_url(), Prompts::add_site( self::SERVER_ID ) );
 	}
 
 	// ─────────────────────────────────────────────────────────────────
 	// Followable by any model
 	// ─────────────────────────────────────────────────────────────────
 
-	/**
-	 * Each names its tool in both spellings.
-	 *
-	 * @param string $which Which prompt.
-	 *
-	 * @dataProvider both_prompts
-	 */
-	public function test_it_names_the_tool_both_ways( string $which ): void {
-		$slug   = 'add' === $which ? Prompts::ADD_TOOL : Prompts::REMOVE_TOOL;
-		$prompt = $this->prompt( $which );
+	/** It names the tool in both spellings. */
+	public function test_it_names_the_tool_both_ways(): void {
+		$prompt = Prompts::add_site( self::SERVER_ID );
 
-		$this->assertStringContainsString( $slug, $prompt );
-		$this->assertStringContainsString( str_replace( '/', '-', $slug ), $prompt );
+		$this->assertStringContainsString( Prompts::ADD_TOOL, $prompt );
+		$this->assertStringContainsString( str_replace( '/', '-', Prompts::ADD_TOOL ), $prompt );
 	}
 
 	/**
@@ -141,13 +95,9 @@ final class FleetPromptsTest extends WP_UnitTestCase {
 	 * This is the safety property: the first call changes nothing and names
 	 * what it would touch. A model that does not know to make it goes straight
 	 * to the one that acts.
-	 *
-	 * @param string $which Which prompt.
-	 *
-	 * @dataProvider both_prompts
 	 */
-	public function test_it_states_the_confirm_step( string $which ): void {
-		$prompt = $this->prompt( $which );
+	public function test_it_states_the_confirm_step(): void {
+		$prompt = Prompts::add_site( self::SERVER_ID );
 
 		$this->assertStringContainsString( 'without confirming', $prompt );
 		$this->assertStringContainsString( 'confirmed set to true', $prompt );
@@ -155,34 +105,26 @@ final class FleetPromptsTest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Each names the wrong-chat failure.
+	 * It names the wrong-chat failure.
 	 *
 	 * This site's own MCP server has no fleet tools, so pasting into a chat
 	 * connected here fails in a way that reads like a bug. Telling the model
 	 * to stop and say so converts it into a sentence the operator can act on.
-	 *
-	 * @param string $which Which prompt.
-	 *
-	 * @dataProvider both_prompts
 	 */
-	public function test_it_names_the_wrong_chat_failure( string $which ): void {
-		$this->assertStringContainsString( 'wrong WordPress site', $this->prompt( $which ) );
+	public function test_it_names_the_wrong_chat_failure(): void {
+		$this->assertStringContainsString( 'wrong WordPress site', Prompts::add_site( self::SERVER_ID ) );
 	}
 
 	/**
 	 * No vendor, app or file is named.
 	 *
 	 * Feature 099's prompt could lean on one client's config file and restart
-	 * behaviour. These are pasted into whatever the hub is connected to, and
-	 * naming a vendor is how they would start reading as wrong to everyone
-	 * using a different one.
-	 *
-	 * @param string $which Which prompt.
-	 *
-	 * @dataProvider both_prompts
+	 * behaviour. This one is pasted into whatever the managing site is
+	 * connected to, and naming a vendor is how it would start reading as wrong
+	 * to everyone using a different one.
 	 */
-	public function test_it_names_no_vendor( string $which ): void {
-		$prompt = strtolower( $this->prompt( $which ) );
+	public function test_it_names_no_vendor(): void {
+		$prompt = strtolower( Prompts::add_site( self::SERVER_ID ) );
 
 		foreach ( array( 'claude', 'chatgpt', 'openai', 'gemini', 'cursor', 'anthropic', '.json' ) as $vendor ) {
 			$this->assertStringNotContainsString(
@@ -191,37 +133,6 @@ final class FleetPromptsTest extends WP_UnitTestCase {
 				sprintf( 'The prompt names "%s", which makes it wrong everywhere else.', $vendor )
 			);
 		}
-	}
-
-	// ─────────────────────────────────────────────────────────────────
-	// Unpairing takes two halves
-	// ─────────────────────────────────────────────────────────────────
-
-	/**
-	 * The remove prompt says what it does NOT do.
-	 *
-	 * Telling a hub to forget this site revokes nothing here — that is the
-	 * Remove button beside the host. An operator who does only one of the two
-	 * is left with a host that can still reach this site, believing they have
-	 * disconnected it.
-	 */
-	public function test_the_remove_prompt_says_it_revokes_nothing_here(): void {
-		$prompt = Prompts::remove_site();
-
-		$this->assertStringContainsString( 'does not revoke', $prompt );
-		$this->assertStringContainsString( 'Remove button', $prompt );
-	}
-
-	/**
-	 * The two prompts are not interchangeable.
-	 *
-	 * A guard against the kind of copy-paste slip that would have the Fleet
-	 * tab offer the same block twice under two headings.
-	 */
-	public function test_the_two_prompts_differ(): void {
-		$this->assertNotSame( Prompts::add_site( self::SERVER_ID ), Prompts::remove_site() );
-		$this->assertStringNotContainsString( Prompts::REMOVE_TOOL, Prompts::add_site( self::SERVER_ID ) );
-		$this->assertStringNotContainsString( Prompts::ADD_TOOL, Prompts::remove_site() );
 	}
 
 	/**

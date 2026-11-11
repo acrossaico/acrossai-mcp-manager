@@ -883,20 +883,12 @@ $acmcp-surface: #f6f7f7;
 	// this block already uses between and inside its columns.
 	margin-top: 24px;
 	display: grid;
-	// One column. The pairing card now holds a prompt block, and a block of
-	// prose wrapped into a 440px column is unreadable — which is why the
-	// design moved off two columns rather than widening them.
+	// One full-width stack. Two columns were right while the pairing card held
+	// three short steps; it now holds a prompt, and a block of prose wrapped
+	// into a 440px column is not readable.
 	grid-template-columns: minmax(0, 1fr);
 	gap: 24px;
 	align-items: start;
-	max-width: 860px;
-
-	&__col {
-		display: flex;
-		flex-direction: column;
-		gap: 24px;
-		min-width: 0;
-	}
 
 	.is-dimmed { opacity: 0.5; }
 
@@ -1429,12 +1421,6 @@ $acmcp-surface: #f6f7f7;
 
 	&--manual {
 		padding: 0;
-	}
-
-	// Divider matching the card's own internal rules, for a pane that follows
-	// a list rather than a chooser.
-	&--sep {
-		border-top: 1px solid #f0f0f1;
 	}
 }
 

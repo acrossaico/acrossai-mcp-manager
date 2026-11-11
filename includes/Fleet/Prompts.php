@@ -1,27 +1,27 @@
 <?php
 /**
- * The paste-able prompts on the Fleet tab.
+ * The paste-able pairing prompt on the Fleet tab.
  *
  * Pairing has always meant carrying a twelve-character code between two
  * browser tabs: read it here, switch to the managing site's admin, type it in
- * with this site's address. These are the alternative — a block of prose an
- * operator pastes into whatever AI their hub is already connected to, which
- * calls one ability and is done.
+ * with this site's address. This is the alternative — a block of prose an
+ * operator pastes into whatever AI their managing site is already connected
+ * to, which calls one ability and is done.
  *
  * ## Written for any model, not one
  *
  * Feature 099's prompt could lean on Claude Desktop's config file and restart
- * behaviour. These go into whatever the operator's hub is connected to, so
- * they name no vendor, no app and no file, give both spellings of each tool
- * name because clients normalise `/` differently, and spell the confirm
+ * behaviour. This goes into whatever the operator's managing site is connected
+ * to, so it names no vendor, no app and no file, gives both spellings of the
+ * tool name because clients normalise `/` differently, and spells the confirm
  * handshake out in prose — a weaker model will not infer a two-call protocol
  * from a schema field it may never see.
  *
  * ## Built here rather than in the view
  *
- * They are strings assembled from this site's address, its security ID and
- * whether any host is connected. Keeping that out of the renderer is what
- * lets them be tested without asserting against HTML.
+ * It is a string assembled from this site's address and its security ID.
+ * Keeping that out of the renderer is what lets it be tested without
+ * asserting against HTML.
  *
  * @package    AcrossAI_MCP_Manager
  * @subpackage Includes\Fleet
@@ -35,7 +35,7 @@ namespace AcrossAI_MCP_Manager\Includes\Fleet;
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Prompt text for pairing and unpairing.
+ * Prompt text for pairing.
  *
  * @since 0.4.8
  */
@@ -52,14 +52,6 @@ final class Prompts {
 	 * @var   string
 	 */
 	public const ADD_TOOL = 'fleet/add-site';
-
-	/**
-	 * The hub-side ability that stops a hub managing a site.
-	 *
-	 * @since 0.4.8
-	 * @var   string
-	 */
-	public const REMOVE_TOOL = 'fleet/remove-site';
 
 	/**
 	 * Ask a hub to adopt this site.
@@ -86,37 +78,6 @@ final class Prompts {
 				),
 				self::confirm_step( __( 'the name of the site it is about to add', 'acrossai-mcp-manager' ) ),
 				__( 'When it succeeds, tell me the site name and site key it returns.', 'acrossai-mcp-manager' ),
-				self::wrong_chat(),
-			)
-		);
-	}
-
-	/**
-	 * Ask a hub to stop managing this site.
-	 *
-	 * Worth being exact about what this does, because the obvious reading is
-	 * wrong in a way that matters. It makes the HUB forget this site. It does
-	 * not revoke anything here — that is the Remove button on this screen,
-	 * which is the half that actually ends the host's access. The two are
-	 * separate, and an operator who does only one of them is left with either
-	 * a hub that keeps failing or a host that can still reach this site.
-	 *
-	 * @since  0.4.8
-	 * @return string Plain text, ready to paste.
-	 */
-	public static function remove_site(): string {
-		return self::join(
-			array(
-				__( 'Remove this WordPress site from the fleet this hub manages.', 'acrossai-mcp-manager' ),
-				self::values( array( __( 'Site URL', 'acrossai-mcp-manager' ) => home_url() ) ),
-				sprintf(
-					/* translators: 1: tool name, 2: the same name with a hyphen. */
-					__( 'Call your "%1$s" tool with site set to the URL above. Some clients list it as "%2$s".', 'acrossai-mcp-manager' ),
-					self::REMOVE_TOOL,
-					self::hyphenated( self::REMOVE_TOOL )
-				),
-				self::confirm_step( __( 'the name of the site it is about to remove', 'acrossai-mcp-manager' ) ),
-				__( 'This only stops that hub reaching this site. It does not revoke the host\'s access here — that is done on this site, with the Remove button beside the host.', 'acrossai-mcp-manager' ),
 				self::wrong_chat(),
 			)
 		);

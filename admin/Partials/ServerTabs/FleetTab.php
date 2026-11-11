@@ -136,16 +136,14 @@ final class FleetTab extends AbstractServerTab {
 			);
 		}
 
-		// Two columns on a wide screen, one on a narrow one. `auto-fit` with a
-		// `min()` floor rather than a media query: the breakpoint that matters
-		// is the column becoming too narrow for the endpoint field, which
-		// depends on the admin menu being collapsed, not on the viewport.
+		// One stack, in the order the work happens: what this server is, how to
+		// hand it to a managing site, then who has taken it up. Connected
+		// hosts last because it is the only one that is empty on a new
+		// install, and an empty list is a poor thing to open on.
 		echo '<div class="acrossai-fleet">';
-		echo '<div class="acrossai-fleet__col">';
 		$this->render_state( $server, $is_enabled );
-		$this->render_hosts( $server_id, $hosts, $is_enabled );
-		echo '</div>';
 		$this->render_security_id( $server_id, $is_enabled );
+		$this->render_hosts( $server_id, $hosts, $is_enabled );
 		echo '</div>';
 
 		echo '</div>';
@@ -310,33 +308,7 @@ final class FleetTab extends AbstractServerTab {
 			$this->render_host_row( $server_id, $host );
 		}
 
-		echo '</div>';
-
-		// Disconnecting takes two halves and only one of them happens here.
-		// Remove above revokes the host's access to this site; the hub still
-		// lists it and keeps trying. This is the other half, and it is offered
-		// only once a host exists because there is nothing to tell a hub to
-		// forget before then.
-		printf(
-			'<div class="aa-pane aa-pane--sep">
-				<span class="aa-pane__head">
-					<span class="aa-pane__title">%1$s</span>
-					<span class="aa-pane__sub">%2$s</span>
-				</span>
-				<pre class="aa-prompt" id="acrossai-fleet-remove-prompt">%3$s</pre>
-				<div class="aa-promptbar">
-					<button type="button" class="aa-btn copy-to-clipboard" data-copy-target="#acrossai-fleet-remove-prompt">%4$s</button>
-					<span class="aa-promptbar__note">%5$s</span>
-				</div>
-			</div>',
-			esc_html__( 'Tell a host to stop managing this site', 'acrossai-mcp-manager' ),
-			esc_html__( 'Removing a host above revokes its access here. Paste this into the AI client connected to that host so it stops listing this site too.', 'acrossai-mcp-manager' ),
-			esc_html( Prompts::remove_site() ),
-			esc_html__( 'Copy prompt', 'acrossai-mcp-manager' ),
-			esc_html__( 'Carries no security ID.', 'acrossai-mcp-manager' )
-		);
-
-		echo '</div>';
+		echo '</div></div>';
 	}
 
 	/**
