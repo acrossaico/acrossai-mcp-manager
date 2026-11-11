@@ -42,6 +42,30 @@ A screen that says "no clients have connected" to an operator whose server is be
 day is worse than no screen. That is the strongest argument for this feature, and it is why the
 new screen must cover every route rather than one.
 
+### The whole AI Connectors tab is an OAuth control panel
+
+Walked all eight panels on the running site. They divide cleanly:
+
+| Panel | Answers | Scope |
+| --- | --- | --- |
+| Claude · ChatGPT · Gemini · Grok · Cursor | *how do I connect this?* | setup instructions only — 1-click, manual steps, and a collapsed "Use a manual OAuth client instead" |
+| **Connections** | *who is connected?* | **OAuth only — and currently answers "none" while 450+ requests land** |
+| Approved Users | *who may connect?* | OAuth only |
+| Settings | *which connectors are allowed, is approval required?* | OAuth only |
+
+Settings is explicit about its reach: the enabled-connector checkboxes gate `/authorize`, and
+"Require admin approval for new connections" gates "the OAuth consent flow". Neither touches an
+application password, an npm bridge or WP-CLI — which is **all** of the real traffic on this
+server.
+
+So the tab is correct within OAuth and silent outside it. **Clients supersedes exactly one panel
+of the eight** — Connections — and the other seven stay. The right treatment of that one is not
+deletion but honesty: rename it to what it actually lists (live OAuth grants), and change its
+empty state from "No AI clients have connected to this server yet" to something true, pointing at
+Clients for the full picture. It keeps a job Clients does not do — revoking a live grant.
+Replacing the whole tab would lose the setup instructions, the per-connector enable/disable and
+the approval gate, none of which a traffic list can provide.
+
 ### Three of the four connect routes are untracked
 
 The Connect tab's own sub-nav names the taxonomy:
