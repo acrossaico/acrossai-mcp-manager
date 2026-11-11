@@ -50,17 +50,65 @@ buttons already call.
 
 ## The split across two repos
 
-`toolset/fleet` already exists — in Pro, at `acrossai-pro/includes/Fleet/Ability.php:71`. Its
-actions are `sites`, `tools`, `call`, `ask`: all of them operate a fleet that already exists.
-There is no action that *creates* or *removes* a member, and that is the gap.
+`toolset/fleet` already existed — in Pro, at `acrossai-pro/includes/Fleet/Ability.php:71`. Its
+actions were `sites`, `tools`, `call`, `ask`: all of them operate a fleet that already exists.
+There was no action that *creates* or *removes* a member, and that was the gap this feature
+started from. (It has since been split up entirely — see above.)
 
 | Repo | Half | Work |
 | --- | --- | --- |
-| `acrossai-pro` | hub | Two Fleet abilities — `fleet/add-site` wrapping `Pairing::connect()`, `fleet/remove-site` wrapping `Roster::remove()` |
+| `acrossai-pro` | hub | Seven Fleet abilities — see "What shipped on the hub" below. `toolset/fleet` is gone |
 | `acrossai-mcp-manager` | child | Fleet tab redesign: prompt first, security ID as the fallback |
 
 The child cannot host the ability: it has no keypair, no roster, and is not the party doing the
 registering.
+
+## What shipped on the hub (acrossai-pro#132)
+
+The plan below survived contact in its essentials and grew twice. Recorded here because the
+sections after it were written against the smaller version and read oddly otherwise.
+
+`toolset/fleet` no longer exists. Fleet is seven abilities:
+
+| Ability | Role |
+| --- | --- |
+| `fleet/list-sites` | entry point; hands out the site keys everything else needs |
+| `fleet/site-tools` | what one managed site can do |
+| `fleet/tool-info` | one tool's full input schema |
+| `fleet/call-site` | run it on one site |
+| `fleet/ask-sites` | run it across several |
+| `fleet/add-site` | pair a site (this feature) |
+| `fleet/remove-site` | stop managing one (this feature) |
+
+Two things drove the growth beyond add/remove.
+
+**The `action` enum had to go.** Each extraction used the same argument — the dispatcher was
+transport, and an action that answers from a local table is not transport. That applied to `sites`
+as squarely as to pairing, and once `sites` left, the remaining three were worth lining up with
+the shape an assistant already meets on every managed site: discover, read the schema, execute.
+
+**`fleet/tool-info` closed a hole this plan had not noticed.** `site-tools` drops input schemas on
+purpose, and the comment justifying that said an assistant "gets the schema from the child when it
+calls one" — which is learning a schema by calling blind and reading the failure, against someone
+else's production site. The child publishes schemas in the same `tools/list` answer the hub was
+already fetching and discarding, so the fix cost nothing.
+
+`Ability_Support` holds what would otherwise be seven copies of the gate, the site lookup, the
+`tools/list` fetch and the declaration filters, and declares every slug from one list.
+
+### Two breaking changes, both deliberate
+
+`toolset/fleet` and its `action: "sites"` are both removed rather than aliased. A client's tool
+list is fixed at connect time, so anything already connected keeps calling the old tool until it
+reconnects. Taken as a clean break because Fleet shipped in 0.11.0 and an alias is a second code
+path nobody would delete.
+
+### Left for a decision
+
+`fleet/call-site` has no confirmation step while `fleet/ask-sites` does, so the same destructive
+tool is confirmed when aimed at one site through `ask` and not through `call`. Pre-existing;
+carried over exactly rather than changed mid-split, and written into the class docblock so it is
+settled on purpose rather than discovered.
 
 ## The ability contract (Pro)
 
@@ -68,15 +116,18 @@ registering.
 action on `toolset/fleet`.**
 
 The first draft of this doc proposed extending the action enum. That was wrong once the existing
-ability was read properly. `toolset/fleet` is **transport**: its four actions all forward a call
-to a site that is already in the roster, and its own docblock says so — *"Not a cargo ability:
-this is transport"*, which is why it carries `mcp.public => false`. Pairing forwards nothing. It
-is the one fleet operation that does its work locally, on the hub, and it is the only one that
-can run when the roster is empty. Folding it into the forwarder would mean an action that ignores
-every other field in the schema.
+ability was read properly. `toolset/fleet` was **transport**: its four actions all forwarded a
+call to a site already in the roster, and its own docblock said so — *"Not a cargo ability: this
+is transport"*, which is why it carried `mcp.public => false`. Pairing forwards nothing. It does
+its work locally, on the hub, and it is the only fleet operation that can run when the roster is
+empty. Folding it into the forwarder would have meant an action that ignores every other field in
+the schema.
 
-The Fleet tab on AcrossAI → Abilities currently holds exactly one row. With this feature and
-its sibling below it holds three.
+That same argument then applied to `sites`, and then to the rest — which is how the dispatcher
+ended up gone. See "What shipped on the hub" above.
+
+The Fleet tab on AcrossAI → Abilities held exactly one row when this was written. It now holds
+seven.
 
     fleet/add-site
       site_url     string, required  — the child site's address
@@ -85,13 +136,13 @@ its sibling below it holds three.
 
 Label: **Add a site to this fleet**. The slug follows the ecosystem's verb-noun convention
 (`mcp-manager/query-logs`, `file-manager/read-file`) and the hub's own vocabulary — `toolset/fleet`
-describes itself as *"Manage other WordPress sites from this one"*, so "add a site" is the phrase
+described itself as *"Manage other WordPress sites from this one"*, so "add a site" was the phrase
 already in use. `fleet/pair-site` was the alternative; rejected because a model matching a user's
 "add this site to my fleet" will reach for `add` first, and the internal term *pairing* appears
 nowhere a caller can see.
 
-Returns the roster entry — site key and label — so the model can go straight to `toolset/fleet`
-`tools` and `call` against the site it just added.
+Returns the roster entry — site key and label — so the model can go straight to
+`fleet/site-tools` and `fleet/call-site` against the site it just added.
 
 ## The second ability: `fleet/remove-site`
 
@@ -99,12 +150,12 @@ Pairing without unpairing leaves the fleet one-way, so the Fleet tab gets a thir
 second. Label: **Remove a site from this fleet**.
 
     fleet/remove-site
-      site         string, required  — the site key from `toolset/fleet` action "sites",
+      site         string, required  — the site key from `fleet/list-sites`,
                                        or the site's URL
       confirmed    bool              — required before anything is written
 
 One `site` field that takes either form, rather than a `site` / `site_url` pair with a
-"exactly one of" rule. A model that has just run `sites` holds a key; a person pasting a prompt
+"exactly one of" rule. A model that has just run `fleet/list-sites` holds a key; a person pasting a prompt
 holds a URL; both should work without the caller reasoning about which field they are in.
 Resolution is a `Roster::all()` scan, which is a stored array.
 
@@ -146,7 +197,8 @@ Keep `mcp.public => false` on both, matching the sibling: tool-level promotion i
 them, and setting `public` as well would advertise them a second time through discover-abilities.
 
 Annotations differ, and should. `fleet/add-site` and `fleet/remove-site` both know exactly what
-they do — unlike `toolset/fleet`, whose honest annotation is the cautious one because it depends
+they do — unlike the abilities that relay someone else's tool, whose honest annotation is the
+cautious one because it depends
 on the forwarded tool. So annotate them truthfully: neither is readonly, `remove-site` IS
 destructive, and both are idempotent (adding a site already in the roster, or removing one that
 is not, changes nothing).
@@ -277,20 +329,21 @@ Worth deciding explicitly (see open questions): whether to make the ID single-us
 
 ## Tasks
 
-**Pro (hub)**
+**Pro (hub)** — done in acrossai-pro#132, and overtaken: the dispatcher was split up entirely
+rather than merely gaining two siblings.
 
-- **TASK-1** — `includes/Fleet/Add_Site_Ability.php`: register `fleet/add-site` against
+- ~~**TASK-1**~~ ✅ — `includes/Fleet/Add_Site_Ability.php`: register `fleet/add-site` against
   `Ability::CATEGORY` and `Ability::TAB_GROUP`, wrapping `Pairing::connect()`. Honour `confirmed`
   and `can_dispatch()`; pass `WP_Error` codes through; `mcp.public => false`; annotations
   `readonly:false, destructive:false, idempotent:true`.
-- **TASK-2** — `includes/Fleet/Remove_Site_Ability.php`: register `fleet/remove-site` the same
+- ~~**TASK-2**~~ ✅ — `includes/Fleet/Remove_Site_Ability.php`: register `fleet/remove-site` the same
   way, wrapping `Roster::remove()`. `site` resolves a roster key OR a URL via `Roster::all()`.
   Annotations `readonly:false, destructive:true, idempotent:true`. The success payload states
   that the site still holds the hub's key.
-- **TASK-3** — Wire both slugs into BOTH `acrossai_mcp_manager_tool_abilities` and
+- ~~**TASK-3**~~ ✅ — Wire both slugs into BOTH `acrossai_mcp_manager_tool_abilities` and
   `acrossai_abilities_manager_groupable_protected_slugs` in `Main.php`. Missing the first makes an
   ability uncallable; missing the second drops it off the Fleet tab.
-- **TASK-4** — Tests: an unconfirmed call of each names the target and writes nothing; every
+- ~~**TASK-4**~~ ✅ — Tests: an unconfirmed call of each names the target and writes nothing; every
   `Pairing::connect()` failure mode surfaces distinctly; `remove-site` resolves by key and by URL
   and is a no-op for an unknown site; `can_dispatch() === false` refuses both; the Fleet tab holds
   three rows.
