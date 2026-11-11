@@ -26,6 +26,35 @@ one screen, mounted globally and per server.
 carries a last-seen or a request count anywhere — only Fleet peers (`Fleet/Hosts.php`) and
 WP-core application passwords do.
 
+### The existing panel does not merely omit this — it states the opposite
+
+Opened on this site, server 5 → Connect → Connectors → **Connections** reads:
+
+> **0 active connections**
+> No AI clients have connected to this server yet.
+
+Server 5 has taken **450+ MCP requests**. `claude-code` alone accounts for 256 of them, the most
+recent **today**. The panel is not empty because nothing connected; it is empty because it counts
+only live OAuth token families (`WHERE revoked = 0`) and `oauth_tokens` is `0`. Every real caller
+on this site authenticates with an application password, which that query cannot see.
+
+A screen that says "no clients have connected" to an operator whose server is being called every
+day is worse than no screen. That is the strongest argument for this feature, and it is why the
+new screen must cover every route rather than one.
+
+### Three of the four connect routes are untracked
+
+The Connect tab's own sub-nav names the taxonomy:
+
+> Connectors/Integrations/Plugins · MCP Client via config file · npm · WP-CLI
+
+Only the first has any connection record at all. The Approved Users panel beside it is OAuth-only
+too — it gates "the OAuth consent flow", so config-file, npm and WP-CLI clients bypass approval
+entirely and appear nowhere.
+
+Those four labels are the plugin's existing vocabulary for *how you set a client up*, so the
+Clients screen should reuse them verbatim rather than inventing its own words for the same thing.
+
 ## What the live site proved
 
 Every design decision below came from running the proposed queries against this dev site's 564
@@ -167,7 +196,7 @@ agent already carries both halves:
 | Column | Source |
 | --- | --- |
 | Client | `client_name`, else the UA product token |
-| How it connects | `connector_slug` when OAuth; else derived — *via npm bridge*, *WP-CLI*, *Fleet*, *direct* |
+| How it connects | the Connect tab's own four labels — **Connector** (+ slug) · **MCP client (config file)** · **npm** · **WP-CLI** — plus *Fleet* and *direct*. Derived from `connector_slug` when OAuth, else from the UA |
 | Credential | `credential_hint` — a short non-secret fragment, shown as `<code>` |
 | User | `user_id` → display name (`—` when 0) |
 | First connected | `first_seen_at` |
