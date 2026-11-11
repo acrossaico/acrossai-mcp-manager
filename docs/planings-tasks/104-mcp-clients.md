@@ -335,18 +335,22 @@ refusal, whether the denied user is told).
 Found while mapping, not this feature's job to fix, but it is live attack surface and someone
 should decide about it.
 
-**Eight JS handlers in `src/js/ai-connectors.js` are bound to selectors no PHP renders any more**
+**Seven JS handlers in `src/js/ai-connectors.js` are bound to selectors PHP renders zero times**
 — `__approve-btn`, `__deny-btn`, `__revoke-approval-btn`, `__revoke-btn`, `__delete-btn`,
-`__revoke-all-btn`, `__settings-form`, `__nuclear-btn`. The last one *is* rendered, on the same
-element as `__server-revoke-all-btn`, but `handleClick` matches that first and returns — so it is
-unreachable by construction.
+`__revoke-all-btn`, `__settings-form`. Counted both sides: each is bound in the JS and rendered
+by no PHP file under `admin/`, `includes/` or `public/`.
 
-**Six REST routes nothing calls, all still registered and permission-gated:**
+An eighth, `__nuclear-btn`, **is** rendered once — on the same element as
+`__server-revoke-all-btn` — but `handleClick` matches that one first and returns, so it is
+unreachable by construction rather than by absence.
+
+**Six REST routes reachable only from that dead JS**, all still registered and permission-gated:
 `/oauth/connector-settings`, `/oauth/revoke-connector-tokens`, `/oauth/approve-pending-consent`,
 `/oauth/deny-pending-consent`, `/oauth/revoke-user-approval`,
-`/oauth/revoke-client-tokens-all-servers`. Two more — `/oauth/revoke-client-tokens` and
-`/oauth/delete-client` — are reachable only from legacy pre-`token_family_id` rows, so on a clean
-install no button reaches them either.
+`/oauth/revoke-client-tokens-all-servers`. Worth stating precisely: the JS *does* reference all
+six, so they are not orphaned at the call site — they are live endpoints whose only caller can
+never run. Two more, `/oauth/revoke-client-tokens` and `/oauth/delete-client`, are reachable only
+from legacy pre-`token_family_id` rows, so on a clean install nothing reaches them either.
 
 Plus vestigial PHP (`AbstractConnectorProfile::render_url_row()`,
 `ClientRepository::find_admin_for_server_connector()`, the whole per-slug `ConnectorSettings`
@@ -357,11 +361,16 @@ facade) and orphan CSS in `src/scss/ai-connectors.scss`.
 Not caused by this feature and not to be fixed inside it, but anyone building on these tables
 will hit them.
 
-1. **The CLI auth log loses its `success` rows.** `CliAuthLog\Recorder::record_approved()` and
-   `record_success()` both INSERT with the same `auth_code_hash`, and the schema declares
-   `UNIQUE KEY auth_code_hash`. The second insert fails and `Recorder` swallows it to
-   `error_log()` — so on most installs a completed pairing records only `approved`. There is no
-   `update_item()` in that module.
+1. **The CLI auth log loses its `success` rows, silently.** `CliAuthLog\Recorder::record_approved()`
+   (`:38`) and `record_success()` (`:69`) both call `add_item()` with the same
+   `auth_code_hash` — `hash('sha256', $auth_code)` at `CliController:567` and
+   `hash('sha256', $code)` at `:503` — and `Schema.php:146` declares that column `unique`. The
+   second INSERT therefore violates the index.
+   **It is quieter than it looks:** `add_item()`'s return value is not checked, and BerlinDB
+   returns `false` rather than throwing, so the surrounding `catch ( \Throwable )` never fires
+   and **not even an `error_log()` line is written**. On most installs a completed pairing
+   records only `approved`, with no trace of the failure. There is no `update_item()` anywhere
+   in that module.
 2. **That table grows forever.** `Query::delete_expired_oauth_codes()` is documented as the
    retention bulk delete and has **zero callers**; no cron references it, no cap, no option, no
    purge button. Only uninstall removes rows.
