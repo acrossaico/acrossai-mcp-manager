@@ -418,7 +418,7 @@ final class FleetTab extends AbstractServerTab {
 			</div>',
 			esc_html__( 'Copy the security ID', 'acrossai-mcp-manager' ),
 			esc_html( SecurityId::get( $server_id ) ),
-			esc_url( $this->regenerate_url( $server_id ) ),
+			esc_url( $this->regenerate_url( $server_id, 'manual' ) ),
 			esc_attr__( 'Generate a new one', 'acrossai-mcp-manager' ),
 			esc_html__( 'New', 'acrossai-mcp-manager' ),
 			esc_html__( 'Copy', 'acrossai-mcp-manager' ),
@@ -494,10 +494,11 @@ final class FleetTab extends AbstractServerTab {
 	 * @since 0.4.8
 	 */
 	private function render_methods(): void {
+		$current = $this->current_method();
+
 		$options = array(
 			array(
 				'value'       => 'prompt',
-				'checked'     => true,
 				'title'       => __( 'Let your AI client do it', 'acrossai-mcp-manager' ),
 				'recommended' => true,
 				'desc'        => __( 'Copy one prompt and paste it into your AI client. It pairs the managing site with this one.', 'acrossai-mcp-manager' ),
@@ -505,7 +506,6 @@ final class FleetTab extends AbstractServerTab {
 			),
 			array(
 				'value'       => 'manual',
-				'checked'     => false,
 				'title'       => __( 'Set it up yourself', 'acrossai-mcp-manager' ),
 				'recommended' => false,
 				'desc'        => __( 'Copy the security ID and address, then paste them into the managing site.', 'acrossai-mcp-manager' ),
@@ -529,7 +529,7 @@ final class FleetTab extends AbstractServerTab {
 					</span>
 				</label>',
 				esc_attr( $option['value'] ),
-				$option['checked'] ? ' checked' : '',
+				$option['value'] === $current ? ' checked' : '',
 				esc_html( $option['title'] ),
 				$option['recommended']
 					? '<span class="aa-method__badge">' . esc_html__( 'Recommended', 'acrossai-mcp-manager' ) . '</span>'
@@ -575,7 +575,7 @@ final class FleetTab extends AbstractServerTab {
 			esc_html( Prompts::add_site( $server_id ) ),
 			esc_html__( 'Copy prompt', 'acrossai-mcp-manager' ),
 			esc_html__( 'The ID is single use.', 'acrossai-mcp-manager' ),
-			esc_url( $this->regenerate_url( $server_id ) ),
+			esc_url( $this->regenerate_url( $server_id, 'prompt' ) ),
 			esc_html__( 'Generate a new one', 'acrossai-mcp-manager' )
 		);
 	}
@@ -585,20 +585,44 @@ final class FleetTab extends AbstractServerTab {
 	 *
 	 * @since 0.4.6
 	 *
-	 * @param int $server_id Fleet server id.
+	 * @param int    $server_id Fleet server id.
+	 * @param string $method    Route to return to: `prompt` or `manual`.
 	 */
-	private function regenerate_url( int $server_id ): string {
+	private function regenerate_url( int $server_id, string $method ): string {
 		return wp_nonce_url(
 			add_query_arg(
 				array(
 					'page'   => AdminPageSlugs::PARENT,
 					'action' => 'fleet_new_security_id',
 					'server' => $server_id,
+					// Carried so the redirect afterwards can put the operator
+					// back on the route they were using. Regenerating is a
+					// page load, and the choice below is otherwise only a
+					// `checked` attribute that every load resets.
+					'method' => $method,
 				),
 				admin_url( 'admin.php' )
 			),
 			'acrossai_mcp_fleet_newid_' . $server_id
 		);
+	}
+
+	/**
+	 * Which pairing route to show.
+	 *
+	 * Read from the URL rather than remembered, because the only thing that
+	 * navigates away and back is regenerating the ID, and it is the one that
+	 * puts the answer there. A fresh visit gets the recommended route.
+	 *
+	 * @since  0.4.8
+	 * @return string `prompt` or `manual`.
+	 */
+	private function current_method(): string {
+		// Display-only: this picks which of two panes is open and grants
+		// nothing, so there is no state change for a nonce to protect.
+		$method = isset( $_GET['method'] ) ? sanitize_key( wp_unslash( $_GET['method'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification
+
+		return 'manual' === $method ? 'manual' : 'prompt';
 	}
 
 	/**

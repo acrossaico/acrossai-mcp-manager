@@ -177,7 +177,18 @@ class Settings {
 				\AcrossAI_MCP_Manager\Includes\Fleet\SecurityId::regenerate( $server_id );
 			}
 
-			$this->redirect_to_edit( $server_id, 'overview', 'fleet_new_id' );
+			// Both routes on the Fleet tab offer a regenerate control, and the
+			// redirect below rebuilds the URL from nothing — so without this
+			// an operator working through the by-hand steps is returned to the
+			// prompt, looking at a card they had already chosen not to use.
+			$method = isset( $_GET['method'] ) ? sanitize_key( wp_unslash( $_GET['method'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification
+
+			$this->redirect_to_edit(
+				$server_id,
+				'overview',
+				'fleet_new_id',
+				'' !== $method ? array( 'method' => $method ) : array()
+			);
 		}
 
 		// ── Fleet: leave a fleet ──────────────────────────────────────────────
@@ -571,20 +582,24 @@ class Settings {
 	 * Redirect back to a server's edit screen with a notice code, then exit.
 	 *
 	 * @since 0.1.0
-	 * @param int    $server_id Server row id.
-	 * @param string $tab       Edit-screen tab slug to land on.
-	 * @param string $notice    Notice code appended as a query arg.
+	 * @param int                   $server_id Server row id.
+	 * @param string                $tab       Edit-screen tab slug to land on.
+	 * @param string                $notice    Notice code appended as a query arg.
+	 * @param array<string, scalar> $extra     Further query args to carry through.
 	 */
-	private function redirect_to_edit( int $server_id, string $tab, string $notice ): void {
+	private function redirect_to_edit( int $server_id, string $tab, string $notice, array $extra = array() ): void {
 		wp_safe_redirect(
 			esc_url_raw(
 				add_query_arg(
-					array(
-						'page'   => AdminPageSlugs::PARENT,
-						'action' => 'edit',
-						'server' => $server_id,
-						'tab'    => $tab,
-						'notice' => $notice,
+					array_merge(
+						array(
+							'page'   => AdminPageSlugs::PARENT,
+							'action' => 'edit',
+							'server' => $server_id,
+							'tab'    => $tab,
+							'notice' => $notice,
+						),
+						$extra
 					),
 					admin_url( 'admin.php' )
 				)
