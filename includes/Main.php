@@ -1035,6 +1035,16 @@ final class Main {
 		$this->loader->add_action( 'admin_menu', $activity_page, 'register_menu', 20 );
 		$this->loader->add_action( 'admin_enqueue_scripts', $activity_page, 'enqueue_assets' );
 
+		// F104 — the Clients screen, at position 9 between Logs and
+		// Troubleshoot. No enqueue: it is a `WP_List_Table`, so there is no
+		// bundle, no REST controller and nothing to gate on the page hook.
+		$this->loader->add_action(
+			'admin_menu',
+			\AcrossAI_MCP_Manager\Admin\Partials\ClientsPage::instance(),
+			'register_menu',
+			20
+		);
+
 		// #181 — purge cached discovery documents when what they describe
 		// changes. BerlinDB fires `transition_mcp_server_{column}` from
 		// update_item(), so hooking the transition covers every writer — the

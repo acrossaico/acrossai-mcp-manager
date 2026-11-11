@@ -151,6 +151,10 @@ final class Registry {
 			// settings in. acrossai-pro registers its own tab against
 			// `AbstractReactMountServerTab`, so it reaches this screen
 			// without an entry here.
+			// F104 — who has connected to THIS server. Priority 75 puts it
+			// immediately before the Logs tab: "who was here" reads before
+			// "what they did".
+			new ClientsSeenTab(),
 			new McpTrackerTab(),
 			new UpdateServerTab(),
 			new DangerZoneTab(),

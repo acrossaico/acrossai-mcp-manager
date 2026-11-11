@@ -267,5 +267,11 @@ jobs:
       - name: Run PHPUnit — activity-log-db suite
         run: vendor/bin/phpunit --bootstrap tests/bootstrap-wp.php --testsuite activity-log-db
 
+      # F104 — the clients registry's upsert. See the suite comment in
+      # phpunit.xml.dist: the invariant under test is MySQL's, so there is no
+      # pure equivalent.
+      - name: Run PHPUnit — clients-db suite
+        run: vendor/bin/phpunit --bootstrap tests/bootstrap-wp.php --testsuite clients-db
+
       - name: Run PHPUnit — troubleshoot suite (WP bootstrap)
         run: vendor/bin/phpunit --bootstrap tests/bootstrap-wp.php --testsuite troubleshoot

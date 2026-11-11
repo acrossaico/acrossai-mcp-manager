@@ -15,6 +15,7 @@ namespace AcrossAI_MCP_Manager\Tests\PHPUnit\Database;
 
 use AcrossAI_MCP_Manager\Includes\Database\MCPServer\Table as MCPServerTable;
 use AcrossAI_MCP_Manager\Includes\Database\CliAuthLog\Table as CliAuthLogTable;
+use AcrossAI_MCP_Manager\Includes\Database\Clients\Table as ClientsTable;
 use AcrossAI_MCP_Manager\Includes\Database\OAuthTokens\Table as OAuthTokensTable;
 use AcrossAI_MCP_Manager\Includes\Database\OAuthAuthCodes\Table as OAuthAuthCodesTable;
 use AcrossAI_MCP_Manager\Includes\Database\OAuthClients\Table as OAuthClientsTable;
@@ -96,6 +97,8 @@ class PhantomVersionGuardTest extends WP_UnitTestCase {
 		return array(
 			'MCPServer'         => array( MCPServerTable::class, 'acrossai_mcp_servers', 'acrossai_mcp_servers_db_version', '1.0.0' ),
 			'CliAuthLog'        => array( CliAuthLogTable::class, 'acrossai_mcp_cli_auth_logs', 'acrossai_mcp_cli_auth_logs_db_version', '1.0.0' ),
+			// F104 — the clients registry.
+			'Clients'           => array( ClientsTable::class, 'acrossai_mcp_clients', 'acrossai_mcp_clients_db_version', '1.0.0' ),
 			// F095 — OAuth tables inherit the phantom-version guard coverage.
 			'OAuthTokens' => array( OAuthTokensTable::class, 'acrossai_mcp_oauth_tokens', 'acrossai_mcp_oauth_tokens_db_version', '1.0.1' ),
 			'OAuthAuthCodes' => array( OAuthAuthCodesTable::class, 'acrossai_mcp_oauth_auth_codes', 'acrossai_mcp_oauth_auth_codes_db_version', '1.0.1' ),

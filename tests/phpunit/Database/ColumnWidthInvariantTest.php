@@ -14,6 +14,7 @@ declare( strict_types = 1 );
 namespace AcrossAI_MCP_Manager\Tests\PHPUnit\Database;
 
 use AcrossAI_MCP_Manager\Includes\Database\CliAuthLog\Schema as CliAuthLogSchema;
+use AcrossAI_MCP_Manager\Includes\Database\Clients\Schema as ClientsSchema;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -66,6 +67,11 @@ class ColumnWidthInvariantTest extends TestCase {
 		return array(
 			'CliAuthLog auth_code_hash (SHA-256)'   => array( CliAuthLogSchema::class, 'auth_code_hash', 'char', '64' ),
 			'CliAuthLog code_challenge (PKCE S256)' => array( CliAuthLogSchema::class, 'code_challenge', 'char', '43' ),
+			// F104 — not cryptographic, but load-bearing for the same reason:
+			// `identity_hash` is a sha1 carrying the UNIQUE constraint that
+			// makes one client one row. Narrow it and distinct clients start
+			// colliding into a single row, permanently.
+			'Clients identity_hash (SHA-1)'         => array( ClientsSchema::class, 'identity_hash', 'char', '40' ),
 		);
 	}
 }

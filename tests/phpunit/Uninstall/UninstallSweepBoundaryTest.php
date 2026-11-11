@@ -132,6 +132,10 @@ final class UninstallSweepBoundaryTest extends WP_UnitTestCase {
 			'acrossai_mcp_oauth_clients_db_version',
 			'acrossai_mcp_oauth_auth_codes_db_version',
 			'acrossai_mcp_connector_approved_users_db_version',
+			// F104 — the clients registry. Two keys, not one: the backfill's
+			// done-flag is as much a leftover as the version stamp.
+			'acrossai_mcp_clients_db_version',
+			'acrossai_mcp_clients_backfill_done',
 		);
 
 		foreach ( $keys as $key ) {

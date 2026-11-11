@@ -54,6 +54,14 @@ class RowDefaultParityTest extends TestCase {
 			'AcrossAI_MCP_Manager\Includes\Database\CliAuthLog\Row',
 			'AcrossAI_MCP_Manager\Includes\Database\CliAuthLog\Schema',
 		),
+		// F104 — the clients registry. Worth covering because its Row
+		// deliberately declares `last_seen_at` and `revoked_at` as null while
+		// the Schema defaults them to null too: the parity this test asserts is
+		// what keeps "never used" from quietly becoming an empty string.
+		'Clients'          => array(
+			'AcrossAI_MCP_Manager\Includes\Database\Clients\Row',
+			'AcrossAI_MCP_Manager\Includes\Database\Clients\Schema',
+		),
 	);
 
 	/**
