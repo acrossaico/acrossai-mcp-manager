@@ -81,12 +81,71 @@ final class FleetPromptsTest extends WP_UnitTestCase {
 	// Followable by any model
 	// ─────────────────────────────────────────────────────────────────
 
-	/** It names the tool in both spellings. */
+	/** It names the TOOL in both spellings, and the ability it runs. */
 	public function test_it_names_the_tool_both_ways(): void {
 		$prompt = Prompts::add_site( self::SERVER_ID );
 
-		$this->assertStringContainsString( Prompts::ADD_TOOL, $prompt );
-		$this->assertStringContainsString( str_replace( '/', '-', Prompts::ADD_TOOL ), $prompt );
+		$this->assertStringContainsString( Prompts::DISPATCH_TOOL, $prompt );
+		$this->assertStringContainsString( str_replace( '/', '-', Prompts::DISPATCH_TOOL ), $prompt );
+		$this->assertStringContainsString( Prompts::ADD_ABILITY, $prompt );
+	}
+
+	/**
+	 * It never tells a model to call the ability as if it were a tool.
+	 *
+	 * This is the failure being fixed. The ability is not in any client's
+	 * tool list, so an instruction to "call your fleet/add-site tool" sends a
+	 * model looking for something that is not there — and the wrong-chat
+	 * fallback then reports a working hub as the wrong conversation.
+	 *
+	 * Asserted on the exact phrasing rather than the bare slug, because the
+	 * ability name legitimately appears in the prompt as the value to pass.
+	 *
+	 * @return void
+	 */
+	public function test_it_does_not_call_the_ability_a_tool(): void {
+		$prompt = Prompts::add_site( self::SERVER_ID );
+
+		$this->assertStringNotContainsString(
+			sprintf( '"%s" tool', Prompts::ADD_ABILITY ),
+			$prompt,
+			'The prompt calls the ability a tool; no client lists it as one.'
+		);
+		$this->assertStringNotContainsString(
+			sprintf( '"%s" tool', str_replace( '/', '-', Prompts::ADD_ABILITY ) ),
+			$prompt
+		);
+	}
+
+	/**
+	 * It says where `confirmed` goes.
+	 *
+	 * The dispatcher refuses unknown top-level keys, and `action` and
+	 * `ability` are top-level — so that is exactly where a model would put
+	 * `confirmed`, and the second call would fail as invalid input after the
+	 * operator had already said yes.
+	 *
+	 * @return void
+	 */
+	public function test_it_says_confirmed_goes_inside_parameters(): void {
+		$prompt = Prompts::add_site( self::SERVER_ID );
+
+		$this->assertStringContainsString( 'INSIDE parameters', $prompt );
+	}
+
+	/**
+	 * It says what the operator is handing over.
+	 *
+	 * Pasting a code into someone else's AI chat is a grant of access, and
+	 * the rest of the prompt reads like a connection step.
+	 *
+	 * @return void
+	 */
+	public function test_it_says_what_pairing_grants(): void {
+		$prompt = Prompts::add_site( self::SERVER_ID );
+
+		$this->assertStringContainsString( 'not a password', $prompt );
+		$this->assertStringContainsString( 'remove the hub at any time', $prompt );
 	}
 
 	/**
