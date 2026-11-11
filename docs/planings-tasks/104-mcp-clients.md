@@ -430,3 +430,91 @@ mostly boilerplate against existing precedents.
 **Biggest risk — evidenced, not theoretical.** The identity key broke three different ways
 against real data before any code was written. Build `Clients\Identity` and its tests first, and
 re-run the backfill query against production-shaped data before writing a line of UI.
+
+## What changed when it was built
+
+The plan held up. Five things in it were wrong, and they are recorded here rather than quietly
+corrected, because each one was wrong for a reason worth keeping.
+
+**Task 7 cannot be an `upgrade_to_1_0_0()`.** BerlinDB only runs `$upgrades` on the way from an
+older version to a newer one. On a fresh install the table is created *at* 1.0.0 and the version
+is stamped directly — so a callback named for that version never fires on the one install that
+most needs seeding. The backfill is a done-option-gated one-shot in
+`includes/Database/Clients/Backfill.php`, run last in `reconcile_database_schemas()`, which is
+the shape `OAuthDataMigration` already uses for exactly this reason.
+
+**`ping` diverges between the two handlers, deliberately.** The plan did not say which way. For
+the log, keepalives are most of the volume and none of the value, and
+`acrossai_mcp_activity_excluded_methods` drops them. For the registry they are the opposite: a
+client that has only pinged is still connected *right now*, and excluding it would show a stale
+last-seen for the client we are most certain about. So the exclusion stays where it is — named
+for the activity log — and the connection handler records every `mcp.request`.
+
+**Revoke needed a class, not a handler.** It means four different things by route, and one of
+them is nothing at all. `Includes\Clients\Revoker` routes it — token family, application
+password, host-list row, or no credential — and `can_revoke()` is asked before the action is
+rendered, so a browser or direct-HTTP row shows no Revoke rather than a disabled one. It also
+checks a fleet key is genuinely *in* the host list: backfilled fleet rows carry the peer label,
+because the activity log never stored a host key, so without that check every one of them would
+have offered a Revoke that could only fail.
+
+**Troubleshoot moved from menu position 9 to 10.** Position 9 was already taken.
+`add_submenu_page()` resolves a duplicate by splicing, so leaving both at 9 would have made the
+order depend on which screen registered first — stable today and silently reversible by any
+later change to hook ordering.
+
+**Two suites, not one.** `clients` is pure and holds `Identity` plus
+`RegistryIsNotGatedTest` — the resolver must never return the Null handler, and whatever it does
+return must record client sightings. `clients-db` needs a real database, because the invariants
+under test are MySQL's: the upsert collides on the UNIQUE index, increments in place, never
+blanks a name a later nameless request did not carry, never rewrites `first_seen_at`, and never
+rolls a real last-seen back to null when a "registered" write arrives after a sighting. Both are
+wired into the workflow, which gates on every declared suite being invoked.
+
+Also found in passing: the identity resolver's first version collapsed `WP CLI`, `WP Mail SMTP`
+and `WP Rocket` all to the token `wp`. It now accumulates words until a version ends the name.
+
+## What the live run showed
+
+Against this site's 469 request rows and 2 registered OAuth clients the backfill produced 21
+clients — Claude Code with 319 requests over the npm bridge, two fleet peers, `curl`,
+`Python-urllib`, a handful of test clients, and Claude and ChatGPT as **Never used**. Everything
+in the Verification list above passed, including the one that matters: with
+`acrossai_mcp_activity_request_logging` set to `0`, an MCP call moved the client row 319 → 320
+and its last-seen, and the only activity-log row written was an `ability` row from the separate
+ability toggle. No `request` row.
+
+Three defects only the live screen showed:
+
+- **The per-server summary line rendered nothing at all.** `Query::summary()` bound its two `%d`
+  placeholders in the order the values were decided rather than the order they appear in the
+  statement — the idle threshold's placeholder is in the SELECT list and the server filter's in
+  the WHERE clause, so the server id went to the `INTERVAL` and the day count to `server_id`. It
+  counted rows for server 90, found none, and printed nothing beside a table listing seventeen.
+  `prepare()` cannot catch this: both are `%d` and both are integers.
+- Every backfilled fleet row offered an impossible Revoke (above).
+- The ChatGPT connector rendered as "Chatgpt" — `ucfirst()` on a slug, where the profile has had
+  a display name all along.
+
+And one limitation that cannot be fixed, only stated: one fleet peer appears **twice** in the
+backfill, as `wordpress 7.0` and `wordpress-7-0.local`. Those are the two spellings thirty-three
+seconds apart that motivated keying fleet on the host key in the first place. Live traffic keys
+correctly; the historical pair cannot be merged without claiming to know they were the same host,
+which the log does not record.
+
+## Still open
+
+- The four lifecycle hooks (task 6) are **not** subscribed to. Traffic covers every route the
+  registry shows today, and `acrossai_mcp_manager_oauth_token_issued` would add only clients that
+  registered and never called — which the `oauth_clients` half of the backfill already supplies.
+  The hooks become worth wiring when a client needs to appear *between* releases rather than at
+  reconcile time.
+- The "not seen in N days" **filter** (task 8) is not built; the count is in the summary line, so
+  the number is visible but not clickable.
+- The four Schema entries added to `phpstan-baseline.neon` are the same four every other table
+  carries, about BerlinDB's own `@var` tags. The stub file that baseline nominates as the remedy
+  was tried: correcting `Kern\Schema`'s two tags to the union that is actually true at runtime
+  leaves every subclass's bare `@var array` non-covariant with the *union* instead, turns the
+  eight existing entries into unmatched-pattern failures, and reports 46 errors in place of 8.
+  The real fix is a declared type on every subclass at once, which is still not a change to make
+  from inside one feature.
