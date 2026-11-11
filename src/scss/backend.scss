@@ -1290,3 +1290,102 @@ $acmcp-surface: #f6f7f7;
 
 	&--off { background: #a7aaad; }
 }
+
+// The paste-able prompt. Primary action on the pairing card, so it sits above
+// the by-hand steps and carries the only filled button in the block.
+.aa-prompt {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	padding: 20px 24px 4px;
+
+	&__head {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 12px;
+	}
+
+	&__label {
+		font-size: 13px;
+		font-weight: 600;
+		color: $acmcp-ink;
+	}
+
+	// Sits with the label, above the block. Someone about to paste has stopped
+	// reading by the time they reach the text, and the wrong chat is the one
+	// mistake this screen can prevent.
+	&__caution {
+		margin: 0;
+		font-size: 12px;
+		line-height: 1.5;
+		color: $acmcp-muted;
+	}
+
+	&__body {
+		margin: 0;
+		padding: 14px 16px;
+		max-height: 260px;
+		overflow: auto;
+		border: 1px solid $acmcp-rule;
+		border-radius: 6px;
+		background: $acmcp-surface;
+		color: $acmcp-ink;
+		font-family: ui-monospace, sfmono-regular, menlo, consolas, monospace;
+		font-size: 12px;
+		line-height: 1.65;
+		// The prompt is prose with indented values, so it must wrap rather than
+		// scroll sideways — a reader checking the URL before pasting should not
+		// have to drag to see it.
+		white-space: pre-wrap;
+		overflow-wrap: anywhere;
+	}
+}
+
+// The demoted route. Complete, and no longer the first thing read.
+.aa-byhand {
+	border-top: 1px solid $acmcp-rule;
+	margin-top: 16px;
+
+	&__summary {
+		padding: 14px 24px;
+		cursor: pointer;
+		font-size: 13px;
+		font-weight: 600;
+		color: $acmcp-accent;
+		list-style: none;
+
+		&::-webkit-details-marker { display: none; }
+
+		&::before {
+			content: "";
+			display: inline-block;
+			width: 0;
+			height: 0;
+			margin-right: 8px;
+			border-top: 4px solid transparent;
+			border-bottom: 4px solid transparent;
+			border-left: 5px solid currentcolor;
+			vertical-align: middle;
+			transition: transform 0.15s ease;
+		}
+	}
+
+	&[open] > &__summary::before {
+		transform: rotate(90deg);
+	}
+
+	&__lede {
+		margin: 0;
+		padding: 0 24px;
+		font-size: 12.5px;
+		line-height: 1.6;
+		color: $acmcp-muted;
+	}
+
+	// On the hosts card there is no card footer beneath it, so it closes the
+	// card and needs the bottom padding the pairing card gets from its foot.
+	&--inline {
+		padding-bottom: 8px;
+	}
+}

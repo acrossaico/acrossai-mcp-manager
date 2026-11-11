@@ -31,6 +31,7 @@ namespace AcrossAI_MCP_Manager\Admin\Partials\ServerTabs;
 
 use AcrossAI_MCP_Manager\Includes\Database\MCPServer\ServerTypes;
 use AcrossAI_MCP_Manager\Includes\Fleet\Hosts;
+use AcrossAI_MCP_Manager\Includes\Fleet\Prompts;
 use AcrossAI_MCP_Manager\Includes\Fleet\SecurityId;
 use AcrossAI_MCP_Manager\Includes\Utilities\AdminPageSlugs;
 
@@ -309,7 +310,27 @@ final class FleetTab extends AbstractServerTab {
 			$this->render_host_row( $server_id, $host );
 		}
 
-		echo '</div></div>';
+		echo '</div>';
+
+		// Disconnecting takes two halves and only one of them happens here.
+		// Remove above revokes the host's access to this site; the hub still
+		// lists it and keeps trying. This is the other half, and it is offered
+		// only once a host exists because there is nothing to tell a hub to
+		// forget before then.
+		printf(
+			'<details class="aa-byhand aa-byhand--inline">
+				<summary class="aa-byhand__summary">%s</summary>',
+			esc_html__( 'Tell a hub to stop managing this site', 'acrossai-mcp-manager' )
+		);
+
+		$this->render_prompt(
+			'acrossai-fleet-remove-prompt',
+			__( 'Paste this into the chat connected to that hub', 'acrossai-mcp-manager' ),
+			__( 'Removing a host above revokes its access here. This is the separate half that makes the hub stop listing this site.', 'acrossai-mcp-manager' ),
+			Prompts::remove_site()
+		);
+
+		echo '</details></div>';
 	}
 
 	/**
@@ -388,10 +409,29 @@ final class FleetTab extends AbstractServerTab {
 				<div class="aa-card__head">
 					<h2 class="aa-card__title">%1$s</h2>
 					<p class="aa-card__sub">%2$s</p>
-				</div>
-				<div class="aa-steps">',
+				</div>',
 			esc_html__( 'Add this site to a fleet', 'acrossai-mcp-manager' ),
-			esc_html__( 'Give these two values to the site that will manage this one. It connects to this site; there is nothing to paste back here.', 'acrossai-mcp-manager' )
+			esc_html__( 'The managing site connects to this one. There is nothing to paste back here.', 'acrossai-mcp-manager' )
+		);
+
+		$this->render_prompt(
+			'acrossai-fleet-add-prompt',
+			__( 'Paste this into the chat connected to the managing site', 'acrossai-mcp-manager' ),
+			__( 'Not a chat connected to this site — this site has no fleet tools, so it would fail looking like a bug.', 'acrossai-mcp-manager' ),
+			Prompts::add_site( $server_id )
+		);
+
+		// The by-hand route stays complete and stops being the first thing
+		// read. It is not a fallback for a broken prompt — an operator whose
+		// hub has no AI connected to it has no other way through, and the
+		// values it shows are the same two the prompt carries.
+		printf(
+			'<details class="aa-byhand">
+				<summary class="aa-byhand__summary">%1$s</summary>
+				<p class="aa-byhand__lede">%2$s</p>
+				<div class="aa-steps">',
+			esc_html__( 'Or pair it by hand', 'acrossai-mcp-manager' ),
+			esc_html__( 'Give these two values to the site that will manage this one.', 'acrossai-mcp-manager' )
 		);
 
 		// Step 1 — the security ID, with regenerate beside copy.
@@ -451,12 +491,13 @@ final class FleetTab extends AbstractServerTab {
 			esc_html__( 'That site connects to this one and pairs itself. Nothing comes back here to paste, and this screen does not need to stay open. The host appears in the list above once it has connected.', 'acrossai-mcp-manager' )
 		);
 
-		// Footer states the one precondition. The steps stay readable while
-		// Fleet access is off — hiding them would mean an operator setting this
-		// up could not see what they are about to need, and the ID is inert
-		// until the route answers anyway.
+		// Footer states the one precondition. Everything above stays readable
+		// while Fleet access is off — hiding it would mean an operator setting
+		// this up could not see what they are about to need, and both the ID
+		// and the prompt are inert until the route answers anyway.
 		printf(
 			'</div>
+			</details>
 			<div class="aa-card__foot">
 				<span class="aa-dot %1$s"></span>
 				<span>%2$s</span>
@@ -468,6 +509,42 @@ final class FleetTab extends AbstractServerTab {
 					? __( 'Ready for a site to connect', 'acrossai-mcp-manager' )
 					: __( 'Turn on Fleet access to accept new hosts', 'acrossai-mcp-manager' )
 			)
+		);
+	}
+
+	/**
+	 * A paste-able prompt, with the chat it belongs in named above it.
+	 *
+	 * Rendered as a `<pre>` so the block an operator copies is the block they
+	 * can read, and so the copy handler picks it up without a change — it
+	 * falls back to `textContent` for anything that is not a field.
+	 *
+	 * The warning sits beside the label rather than under the block. Someone
+	 * about to paste has already stopped reading by then, and the wrong chat
+	 * is the one mistake this screen can actually prevent.
+	 *
+	 * @since 0.4.8
+	 *
+	 * @param string $id      Element id, for the copy button's target.
+	 * @param string $label   Which chat this belongs in.
+	 * @param string $caution The mistake worth naming.
+	 * @param string $prompt  The text itself.
+	 */
+	private function render_prompt( string $id, string $label, string $caution, string $prompt ): void {
+		printf(
+			'<div class="aa-prompt">
+				<div class="aa-prompt__head">
+					<span class="aa-prompt__label">%1$s</span>
+					<button type="button" class="aa-field__btn aa-field__btn--primary copy-to-clipboard" data-copy-target="#%2$s">%3$s</button>
+				</div>
+				<p class="aa-prompt__caution">%4$s</p>
+				<pre class="aa-prompt__body" id="%2$s">%5$s</pre>
+			</div>',
+			esc_html( $label ),
+			esc_attr( $id ),
+			esc_html__( 'Copy', 'acrossai-mcp-manager' ),
+			esc_html( $caution ),
+			esc_html( $prompt )
 		);
 	}
 
