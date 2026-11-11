@@ -76,7 +76,12 @@ final class Revoker {
 				return '' !== $row->client_id;
 
 			case ClientsConstants::ROUTE_FLEET:
-				return '' !== $row->identity;
+				// The key has to be IN the host list, not merely present on the
+				// row. Rows seeded by the backfill carry the peer LABEL rather
+				// than the host key, because the activity log never stored one
+				// — so without this check every backfilled fleet row would
+				// offer a Revoke that can only ever fail.
+				return '' !== $row->identity && self::is_fleet_host( $row->server_id, $row->identity );
 
 			default:
 				// Every remaining route reaches us by application password when
@@ -203,6 +208,25 @@ final class Revoker {
 		}
 
 		return __( 'Application password deleted.', 'acrossai-mcp-manager' );
+	}
+
+	/**
+	 * Is this key one of the server's registered fleet hosts?
+	 *
+	 * @since  0.4.9
+	 * @param  int    $server_id Fleet server row id.
+	 * @param  string $key       Host key.
+	 * @return bool
+	 */
+	private static function is_fleet_host( int $server_id, string $key ): bool {
+		// `Hosts::all()` normalises every row, so `key` is always present.
+		foreach ( Hosts::all( $server_id ) as $host ) {
+			if ( $host['key'] === $key ) {
+				return true;
+			}
+		}
+
+		return false;
 	}
 
 	/**

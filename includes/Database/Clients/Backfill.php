@@ -218,11 +218,18 @@ final class Backfill {
 		$written = 0;
 
 		foreach ( $rows as $row ) {
-			// The log has no `client_id` column — it never did, which is why
-			// the registry carries one. So a seeded OAuth caller identifies on
-			// its name or agent, and the first live request from that client
-			// supplies the id. The rows do not merge, and that is honest: we
-			// genuinely cannot prove the historical rows were the same grant.
+			// The log carries neither a `client_id` nor a fleet host key — it
+			// never did, which is why the registry carries both. So a seeded
+			// OAuth caller identifies on its name or agent, a seeded fleet
+			// caller on its peer LABEL, and the first live request from either
+			// supplies the real key under a row of its own.
+			//
+			// Those rows do not merge, and that is the honest outcome: we
+			// cannot prove the historical traffic was the same grant, or the
+			// same host. On this site it shows up as one peer appearing twice
+			// — `wordpress 7.0` and `wordpress-7-0.local`, the two spellings
+			// that motivated keying fleet on the host key in the first place.
+			// Both are real history; neither can be promoted to the other.
 			$seeded = Recorder::record(
 				array(
 					'server_id'       => (int) ( $row['server_id'] ?? 0 ),

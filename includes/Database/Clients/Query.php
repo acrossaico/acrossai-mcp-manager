@@ -243,15 +243,21 @@ class Query extends BerlinDB_Query {
 			);
 		}
 
-		$where  = 'WHERE 1=1';
-		$params = array();
+		$where = 'WHERE 1=1';
+
+		// Bound in STATEMENT order, not in the order the values are decided.
+		// The idle threshold's placeholder sits in the SELECT list and the
+		// server filter's in the WHERE clause, so appending the threshold last
+		// fed the server id to the INTERVAL and the day count to `server_id` —
+		// which counted rows for server 90 and rendered no summary line at all
+		// on every per-server tab. `prepare()` cannot catch this: both are %d
+		// and both are integers.
+		$params = array( max( 1, $idle_days ) );
 
 		if ( $server_id > 0 ) {
 			$where   .= ' AND server_id = %d';
 			$params[] = $server_id;
 		}
-
-		$params[] = max( 1, $idle_days );
 
 		$sql = "SELECT
 				COUNT(*) AS total,

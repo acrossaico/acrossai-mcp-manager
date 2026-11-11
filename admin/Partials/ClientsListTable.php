@@ -31,6 +31,7 @@ declare( strict_types = 1 );
 namespace AcrossAI_MCP_Manager\Admin\Partials;
 
 use AcrossAI_MCP_Manager\Includes\Clients\Revoker;
+use AcrossAI_MCP_Manager\Includes\Connectors\ConnectorProfileRegistry;
 use AcrossAI_MCP_Manager\Includes\Database\Clients\Query as ClientsQuery;
 use AcrossAI_MCP_Manager\Includes\Database\Clients\Row;
 use AcrossAI_MCP_Manager\Includes\Database\MCPServer\Query as MCPServerQuery;
@@ -239,11 +240,17 @@ class ClientsListTable extends \WP_List_Table {
 	 */
 	public function column_route( $item ) {
 		if ( ClientsConstants::ROUTE_CONNECTOR === $item->route && '' !== $item->connector_slug ) {
+			// The profile's own name, not `ucfirst()` on the slug — which
+			// rendered the `chatgpt` profile as "Chatgpt". A connector has a
+			// display name precisely so screens stop guessing at one.
+			$profile = ConnectorProfileRegistry::instance()->get_profile( $item->connector_slug );
+			$name    = null !== $profile ? $profile->get_name() : $item->connector_slug;
+
 			return esc_html(
 				sprintf(
-					/* translators: %s: connector slug, e.g. "claude". */
+					/* translators: %s: connector name, e.g. "ChatGPT". */
 					__( '%s connector', 'acrossai-mcp-manager' ),
-					ucfirst( $item->connector_slug )
+					$name
 				)
 			);
 		}

@@ -318,6 +318,26 @@ class RegistryTest extends \WP_UnitTestCase {
 		$this->assertSame( 1, $summary['revoked'] );
 	}
 
+	/**
+	 * The summary respects its server scope.
+	 *
+	 * Pinned because it did not: `summary()` bound its two `%d` placeholders in
+	 * the order the values were decided rather than the order they appear in
+	 * the statement, so the server id went to the idle INTERVAL and the day
+	 * count to `server_id`. Both are integers and both are %d, so `prepare()`
+	 * saw nothing wrong — the only symptom was a per-server tab rendering no
+	 * summary line while its table showed seventeen rows.
+	 */
+	public function test_the_summary_is_scoped_to_one_server(): void {
+		Recorder::record( $this->signals() );
+		Recorder::record( $this->signals( array( 'server_id' => self::SERVER + 1 ) ) );
+		Recorder::record( $this->signals( array( 'server_id' => self::SERVER + 1, 'client_name' => 'Cursor' ) ) );
+
+		$this->assertSame( 1, Query::instance()->summary( self::SERVER )['total'] );
+		$this->assertSame( 2, Query::instance()->summary( self::SERVER + 1 )['total'] );
+		$this->assertSame( 1, Query::instance()->summary( self::SERVER )['active'] );
+	}
+
 	/** A successful write clears the failure counter rather than leaving it. */
 	public function test_a_successful_write_clears_the_failure_counter(): void {
 		update_option( ClientsConstants::OPTION_WRITE_FAILURES, 5, false );
