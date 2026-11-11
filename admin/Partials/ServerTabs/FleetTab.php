@@ -31,6 +31,7 @@ namespace AcrossAI_MCP_Manager\Admin\Partials\ServerTabs;
 
 use AcrossAI_MCP_Manager\Includes\Database\MCPServer\ServerTypes;
 use AcrossAI_MCP_Manager\Includes\Fleet\Hosts;
+use AcrossAI_MCP_Manager\Includes\Fleet\Prompts;
 use AcrossAI_MCP_Manager\Includes\Fleet\SecurityId;
 use AcrossAI_MCP_Manager\Includes\Utilities\AdminPageSlugs;
 
@@ -135,16 +136,14 @@ final class FleetTab extends AbstractServerTab {
 			);
 		}
 
-		// Two columns on a wide screen, one on a narrow one. `auto-fit` with a
-		// `min()` floor rather than a media query: the breakpoint that matters
-		// is the column becoming too narrow for the endpoint field, which
-		// depends on the admin menu being collapsed, not on the viewport.
+		// One stack, in the order the work happens: what this server is, how to
+		// hand it to a managing site, then who has taken it up. Connected
+		// hosts last because it is the only one that is empty on a new
+		// install, and an empty list is a poor thing to open on.
 		echo '<div class="acrossai-fleet">';
-		echo '<div class="acrossai-fleet__col">';
 		$this->render_state( $server, $is_enabled );
-		$this->render_hosts( $server_id, $hosts, $is_enabled );
-		echo '</div>';
 		$this->render_security_id( $server_id, $is_enabled );
+		$this->render_hosts( $server_id, $hosts, $is_enabled );
 		echo '</div>';
 
 		echo '</div>';
@@ -388,11 +387,18 @@ final class FleetTab extends AbstractServerTab {
 				<div class="aa-card__head">
 					<h2 class="aa-card__title">%1$s</h2>
 					<p class="aa-card__sub">%2$s</p>
-				</div>
-				<div class="aa-steps">',
+				</div>',
 			esc_html__( 'Add this site to a fleet', 'acrossai-mcp-manager' ),
-			esc_html__( 'Give these two values to the site that will manage this one. It connects to this site; there is nothing to paste back here.', 'acrossai-mcp-manager' )
+			esc_html__( 'The site that will manage this one needs this site’s security ID and address. It connects to this site; there is nothing to paste back here.', 'acrossai-mcp-manager' )
 		);
+
+		$this->render_methods();
+		$this->render_prompt_pane( $server_id );
+
+		// The by-hand route, unchanged and complete. Not a fallback for a
+		// broken prompt: an operator whose managing site has no AI connected
+		// to it has no other way through, and it costs nothing to keep.
+		echo '<div class="aa-pane aa-pane--manual"><div class="aa-steps">';
 
 		// Step 1 — the security ID, with regenerate beside copy.
 		printf(
@@ -412,7 +418,7 @@ final class FleetTab extends AbstractServerTab {
 			</div>',
 			esc_html__( 'Copy the security ID', 'acrossai-mcp-manager' ),
 			esc_html( SecurityId::get( $server_id ) ),
-			esc_url( $this->regenerate_url( $server_id ) ),
+			esc_url( $this->regenerate_url( $server_id, 'manual' ) ),
 			esc_attr__( 'Generate a new one', 'acrossai-mcp-manager' ),
 			esc_html__( 'New', 'acrossai-mcp-manager' ),
 			esc_html__( 'Copy', 'acrossai-mcp-manager' ),
@@ -451,12 +457,13 @@ final class FleetTab extends AbstractServerTab {
 			esc_html__( 'That site connects to this one and pairs itself. Nothing comes back here to paste, and this screen does not need to stay open. The host appears in the list above once it has connected.', 'acrossai-mcp-manager' )
 		);
 
-		// Footer states the one precondition. The steps stay readable while
-		// Fleet access is off — hiding them would mean an operator setting this
-		// up could not see what they are about to need, and the ID is inert
-		// until the route answers anyway.
+		// Footer states the one precondition. Everything above stays readable
+		// while Fleet access is off — hiding it would mean an operator setting
+		// this up could not see what they are about to need, and both the ID
+		// and the prompt are inert until the route answers anyway.
 		printf(
 			'</div>
+			</div>
 			<div class="aa-card__foot">
 				<span class="aa-dot %1$s"></span>
 				<span>%2$s</span>
@@ -472,24 +479,150 @@ final class FleetTab extends AbstractServerTab {
 	}
 
 	/**
+	 * The two ways to pair, as a radio group.
+	 *
+	 * Real radios in labels rather than buttons and script: the switch then
+	 * works with JavaScript off, arrow keys move between the options, and a
+	 * screen reader announces which is chosen. The panes below are shown with
+	 * `:has()`; where that is unsupported both render, which is cluttered but
+	 * never hides anything an operator needs.
+	 *
+	 * Each option states its own cost. "1 step" against "no ID sent to a
+	 * chat" is the actual trade, and an operator who cares about the second
+	 * should not have to infer it from a warning further down.
+	 *
+	 * @since 0.4.8
+	 */
+	private function render_methods(): void {
+		$current = $this->current_method();
+
+		$options = array(
+			array(
+				'value'       => 'prompt',
+				'title'       => __( 'Let your AI client do it', 'acrossai-mcp-manager' ),
+				'recommended' => true,
+				'desc'        => __( 'Copy one prompt and paste it into your AI client. It pairs the managing site with this one.', 'acrossai-mcp-manager' ),
+				'meta'        => __( '1 step · about 30 seconds', 'acrossai-mcp-manager' ),
+			),
+			array(
+				'value'       => 'manual',
+				'title'       => __( 'Set it up yourself', 'acrossai-mcp-manager' ),
+				'recommended' => false,
+				'desc'        => __( 'Copy the security ID and address, then paste them into the managing site.', 'acrossai-mcp-manager' ),
+				'meta'        => __( '3 steps · no ID sent to a chat', 'acrossai-mcp-manager' ),
+			),
+		);
+
+		echo '<div class="aa-methods" role="radiogroup">';
+
+		foreach ( $options as $option ) {
+			printf(
+				'<label class="aa-method">
+					<input type="radio" class="aa-method__input" name="acrossai-fleet-method" value="%1$s"%2$s>
+					<span class="aa-method__radio"><span class="aa-method__dot"></span></span>
+					<span class="aa-method__body">
+						<span class="aa-method__titlerow">
+							<span class="aa-method__title">%3$s</span>%4$s
+						</span>
+						<span class="aa-method__desc">%5$s</span>
+						<span class="aa-method__meta">%6$s</span>
+					</span>
+				</label>',
+				esc_attr( $option['value'] ),
+				$option['value'] === $current ? ' checked' : '',
+				esc_html( $option['title'] ),
+				$option['recommended']
+					? '<span class="aa-method__badge">' . esc_html__( 'Recommended', 'acrossai-mcp-manager' ) . '</span>'
+					: '',
+				esc_html( $option['desc'] ),
+				esc_html( $option['meta'] )
+			);
+		}
+
+		echo '</div>';
+	}
+
+	/**
+	 * The prompt, with what it carries said before it is copied.
+	 *
+	 * The warning sits above the block rather than under it. Someone about to
+	 * copy has stopped reading by then, and what it says is not boilerplate:
+	 * the prompt carries a credential, and pasting it into a hosted assistant
+	 * sends that credential to whoever runs it.
+	 *
+	 * @since 0.4.8
+	 *
+	 * @param int $server_id Fleet server id.
+	 */
+	private function render_prompt_pane( int $server_id ): void {
+		printf(
+			'<div class="aa-pane aa-pane--prompt">
+				<span class="aa-pane__head">
+					<span class="aa-pane__title">%1$s</span>
+					<span class="aa-pane__sub">%2$s</span>
+				</span>
+				<p class="aa-warn"><span><strong>%3$s</strong> %4$s</span></p>
+				<pre class="aa-prompt" id="acrossai-fleet-add-prompt">%5$s</pre>
+				<div class="aa-promptbar">
+					<button type="button" class="aa-btn copy-to-clipboard" data-copy-target="#acrossai-fleet-add-prompt">%6$s</button>
+					<span class="aa-promptbar__note">%7$s <a href="%8$s">%9$s</a></span>
+				</div>
+			</div>',
+			esc_html__( 'Paste this prompt into your AI client', 'acrossai-mcp-manager' ),
+			esc_html__( 'It already includes this site’s security ID and address.', 'acrossai-mcp-manager' ),
+			esc_html__( 'This prompt contains this site’s security ID.', 'acrossai-mcp-manager' ),
+			esc_html__( 'Until a site connects with it, anyone who has it can pair with this site. Pasting it into a hosted assistant sends it to that provider.', 'acrossai-mcp-manager' ),
+			esc_html( Prompts::add_site( $server_id ) ),
+			esc_html__( 'Copy prompt', 'acrossai-mcp-manager' ),
+			esc_html__( 'The ID is single use.', 'acrossai-mcp-manager' ),
+			esc_url( $this->regenerate_url( $server_id, 'prompt' ) ),
+			esc_html__( 'Generate a new one', 'acrossai-mcp-manager' )
+		);
+	}
+
+	/**
 	 * Link that replaces the security ID.
 	 *
 	 * @since 0.4.6
 	 *
-	 * @param int $server_id Fleet server id.
+	 * @param int    $server_id Fleet server id.
+	 * @param string $method    Route to return to: `prompt` or `manual`.
 	 */
-	private function regenerate_url( int $server_id ): string {
+	private function regenerate_url( int $server_id, string $method ): string {
 		return wp_nonce_url(
 			add_query_arg(
 				array(
 					'page'   => AdminPageSlugs::PARENT,
 					'action' => 'fleet_new_security_id',
 					'server' => $server_id,
+					// Carried so the redirect afterwards can put the operator
+					// back on the route they were using. Regenerating is a
+					// page load, and the choice below is otherwise only a
+					// `checked` attribute that every load resets.
+					'method' => $method,
 				),
 				admin_url( 'admin.php' )
 			),
 			'acrossai_mcp_fleet_newid_' . $server_id
 		);
+	}
+
+	/**
+	 * Which pairing route to show.
+	 *
+	 * Read from the URL rather than remembered, because the only thing that
+	 * navigates away and back is regenerating the ID, and it is the one that
+	 * puts the answer there. A fresh visit gets the recommended route.
+	 *
+	 * @since  0.4.8
+	 * @return string `prompt` or `manual`.
+	 */
+	private function current_method(): string {
+		// Display-only: this picks which of two panes is open and grants
+		// nothing, so there is no state change for a nonce to protect.
+		$method = isset( $_GET['method'] ) ? sanitize_key( wp_unslash( $_GET['method'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification
+
+		return 'manual' === $method ? 'manual' : 'prompt';
 	}
 
 	/**
