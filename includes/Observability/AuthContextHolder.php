@@ -64,6 +64,18 @@ final class AuthContextHolder {
 	private string $client_name = '';
 
 	/**
+	 * OAuth client id from the resolved token row, or '' when none.
+	 *
+	 * The registry's identity for an OAuth caller (F104). Held here rather
+	 * than re-queried at record time because the validator resolves the token
+	 * row and then discards it — by the time the observability handler runs,
+	 * the bearer has been consumed and nothing can look it up again.
+	 *
+	 * @var string
+	 */
+	private string $client_id = '';
+
+	/**
 	 * Whether an OAuth bearer token authenticated this request at all.
 	 *
 	 * Tracked separately from `$connector_slug` because the two answer
@@ -107,11 +119,13 @@ final class AuthContextHolder {
 	 *
 	 * @param mixed $connector_slug Connector slug, or '' for a bare DCR client.
 	 * @param mixed $client_name    Client display name, or ''.
+	 * @param mixed $client_id      OAuth client id, or '' when unavailable.
 	 */
-	public function capture_oauth_context( $connector_slug = '', $client_name = '' ): void {
+	public function capture_oauth_context( $connector_slug = '', $client_name = '', $client_id = '' ): void {
 		$this->is_oauth       = true;
 		$this->connector_slug = is_string( $connector_slug ) ? $connector_slug : '';
 		$this->client_name    = is_string( $client_name ) ? $client_name : '';
+		$this->client_id      = is_string( $client_id ) ? $client_id : '';
 	}
 
 	/**
@@ -133,6 +147,15 @@ final class AuthContextHolder {
 	 */
 	public function get_client_name(): string {
 		return $this->client_name;
+	}
+
+	/**
+	 * OAuth client id for this request, or ''.
+	 *
+	 * @since 0.4.9
+	 */
+	public function get_client_id(): string {
+		return $this->client_id;
 	}
 
 	/**
@@ -174,5 +197,6 @@ final class AuthContextHolder {
 		$this->is_oauth       = false;
 		$this->connector_slug = '';
 		$this->client_name    = '';
+		$this->client_id      = '';
 	}
 }

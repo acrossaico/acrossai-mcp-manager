@@ -10,6 +10,7 @@ use AcrossAI_MCP_Manager\Includes\Database\OAuthDataMigration;
 use AcrossAI_MCP_Manager\Includes\Database\CliAuthLog\Table as CliAuthLogTable;
 use AcrossAI_MCP_Manager\Includes\Database\ActivityLog\Table as ActivityLogTable;
 use AcrossAI_MCP_Manager\Includes\Database\ActivityLog\Cleanup as ActivityLogCleanup;
+use AcrossAI_MCP_Manager\Includes\Database\Clients\Table as ClientsTable;
 use AcrossAI_MCP_Manager\Includes\Database\MCPServerAbility\Table as MCPServerAbilityTable;
 use AcrossAI_MCP_Manager\Includes\Database\MCPServerTool\Table as MCPServerToolTable;
 use AcrossAI_MCP_Manager\Includes\Database\MCPServerMeta\Table as MCPServerMetaTable;
@@ -83,6 +84,10 @@ class Activator {
 		// state: both enable toggles ship off, so nothing writes until an
 		// operator opts in.
 		ActivityLogTable::instance()->maybe_upgrade();
+		// F104 — the clients registry. Unlike the activity log it has no enable
+		// toggle: it records unconditionally, so the table has to exist from
+		// activation onward rather than from the first opt-in.
+		ClientsTable::instance()->maybe_upgrade();
 		// Feature 017 — per-server ability exposure overrides. No seeder call —
 		// the empty-table state IS the correct backwards-compatible initial state.
 		MCPServerAbilityTable::instance()->maybe_upgrade();

@@ -273,6 +273,14 @@ final class Main {
 		\AcrossAI_MCP_Manager\Includes\Database\OAuthAuthCodes\Table::instance();
 		\AcrossAI_MCP_Manager\Includes\Database\OAuthClients\Table::instance();
 		\AcrossAI_MCP_Manager\Includes\Database\ConnectorApprovedUsers\Table::instance();
+
+		// F104 — the clients registry. Request-time boot is what makes the
+		// recorder able to write at all: every MCP call is a REST request, and
+		// `admin_init` (where reconciliation runs) does not fire on one. Without
+		// this the table name resolves to the empty string and the upsert fails
+		// silently, exactly as it did for the activity log before
+		// `register_activity_log_table()` existed.
+		\AcrossAI_MCP_Manager\Includes\Database\Clients\Table::instance();
 	}
 
 	/**
@@ -325,6 +333,11 @@ final class Main {
 			// shipped would otherwise have the toggles but no table, and every
 			// write would fail silently.
 			\AcrossAI_MCP_Manager\Includes\Database\ActivityLog\Table::instance(),
+			// F104 — the clients registry. Here for the same B68 reason as the
+			// activity log above: WordPress skips activation hooks on a plugin
+			// UPDATE, so a site that was already running this plugin would get
+			// the Clients screen with no table behind it.
+			\AcrossAI_MCP_Manager\Includes\Database\Clients\Table::instance(),
 		);
 
 		$pending = 0;
@@ -370,6 +383,18 @@ final class Main {
 		// before anything is copied into them. Gated on a done-option, so this is
 		// a single option read on every site after the first successful run.
 		\AcrossAI_MCP_Manager\Includes\Database\OAuthDataMigration::maybe_migrate();
+
+		// F104 — seed the clients registry from the activity log and the OAuth
+		// client list. After the reconciler and the OAuth migration, because it
+		// reads one of those tables and writes to another that the reconciler
+		// may have just created. Gated on a done-option, so this is a single
+		// option read on every site after the first run.
+		//
+		// NOT an `upgrade_to_1_0_0()`, which is what the plan called for:
+		// BerlinDB only runs `$upgrades` when moving from an older version, so
+		// on a fresh install — where the table is created AT 1.0.0 — such a
+		// callback never fires at all. See the Backfill class docblock.
+		\AcrossAI_MCP_Manager\Includes\Database\Clients\Backfill::maybe_run();
 
 		// F095 — flush rewrites once per version. Activation flushes, but a
 		// plugin UPDATE does not fire activation hooks, so without this the
@@ -974,7 +999,7 @@ final class Main {
 			$auth_context_holder,
 			'capture_oauth_context',
 			10,
-			2
+			3
 		);
 		$this->loader->add_filter( 'rest_pre_dispatch', $auth_context_holder, 'reset_for_request', 5, 3 );
 		$this->loader->add_filter( 'rest_post_dispatch', $auth_context_holder, 'clear', 999, 1 );

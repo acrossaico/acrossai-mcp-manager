@@ -96,6 +96,14 @@ jobs:
       - name: Run PHPUnit — toolset suite (pure, no WP)
         run: vendor/bin/phpunit --testsuite toolset
 
+      # F104 — the clients registry's identity table. Pure: `Clients\Identity`
+      # is deliberately free of WordPress so the one decision most likely to go
+      # quietly wrong (what makes two requests the same client) can be tested
+      # without a database. The DB-backed half is clients-db, in the WordPress
+      # job below.
+      - name: Run PHPUnit — clients suite (pure, no WP)
+        run: vendor/bin/phpunit --testsuite clients
+
       # Every *Test.php must live under a directory some testsuite references.
       # Four directories holding 7 test files had silently fallen outside all
       # suites, so they never ran. Cheap structural check; no WP needed.

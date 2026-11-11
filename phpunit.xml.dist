@@ -35,6 +35,18 @@
             Separate from the WP-free "activity-log" suite below because each
             overrides the bootstrap.
         -->
+        <!--
+            Clients (Feature 104): the identity resolver is pure — it reads
+            only ConnectionContext's constants and does no I/O — so it runs
+            against tests/bootstrap.php with no WordPress. The key it
+            produces is written to a DURABLE table, so a merge or a split is
+            permanent; that is why it is tested on its own before anything
+            depends on it.
+        -->
+        <testsuite name="clients">
+            <directory>tests/phpunit/Clients</directory>
+        </testsuite>
+
         <testsuite name="activity-log-db">
             <directory>tests/phpunit/ActivityLogDb</directory>
         </testsuite>
