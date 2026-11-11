@@ -50,6 +50,17 @@ Walked all eight panels on the running site. They divide cleanly:
 | --- | --- | --- |
 | Claude · ChatGPT · Gemini · Grok · Cursor | *how do I connect this?* | setup instructions only — 1-click, manual steps, and a collapsed "Use a manual OAuth client instead" |
 | **Connections** | *who is connected?* | **OAuth only — and currently answers "none" while 450+ requests land** |
+
+Three further ways that panel misleads, beyond being empty:
+
+- **"Active connections" counts unrevoked rows, not active ones.** The query filters
+  `revoked = 0` only, so an **expired** token still counts until the daily cleanup removes it.
+  The headline number overstates reality.
+- **"last activity" is token issuance, not use.** It is `MAX(created_at)` across the family — the
+  last refresh rotation. A client that refreshes but never calls a tool looks busy; one doing
+  heavy traffic on a long-lived access token looks idle.
+- **n8n rows are silently filtered out**, so it is not even a complete list of who holds tokens
+  on the server.
 | Approved Users | *who may connect?* | OAuth only |
 | Settings | *which connectors are allowed, is approval required?* | OAuth only |
 
@@ -243,10 +254,27 @@ idea `ActivityLogPage` already uses.
 
 | Route | Revoke does | Available? |
 | --- | --- | --- |
-| OAuth / connector | revoke the token family | ✅ `ConnectorAdminController` already does it |
+| OAuth / connector | revoke the token family | ⚠️ the endpoint exists; **the join key does not** — see below |
 | Fleet | `Hosts::remove()` | ✅ exists |
 | **Application password** | revoke that application password | ❌ **the UUID is never stored** |
 | Browser / unknown | nothing to revoke | — |
+
+**The OAuth row needs a key the activity log does not have.** `ActivityLog\Schema` carries
+`client_name`, `client_version`, `connector_slug`, `user_id` and `server_id` — but **no
+`client_id` and no `token_family_id`**. `ConnectorAdminController`'s revoke endpoints take one or
+the other, so a purely traffic-derived row cannot drive Revoke at all. This plan previously
+listed OAuth revoke as "already works"; it does not.
+
+It is recoverable, because the id exists at request time and is thrown away:
+`OAuth/TokenValidator.php:138` holds the resolved client row and fires
+`acrossai_mcp_oauth_token_validated` with only `connector_slug` and `client_name`. Widening that
+hook to pass `client_id` as a third argument is backwards-compatible — its single listener
+(`AuthContextHolder::capture_oauth_context`, registered with 2 args) is unaffected — and lets
+`Clients\Recorder` store `client_id` on the row. The `oauth_token_issued` hook already carries
+it for the issuance path.
+
+So: add `client_id varchar(64)` to the schema, widen that one hook, and Revoke becomes real for
+OAuth clients. Without both, the OAuth rows are read-only.
 
 `$GLOBALS['wp_rest_application_password_uuid']` **is** available on the request —
 `ConnectionContext::resolve_type()` reads it today purely to decide the type, then discards it.
@@ -301,6 +329,28 @@ Two questions hide behind "who connects to us", and only one is cheap:
 Ship the first; treat the second as its own feature. Together they would be one table holding two
 unrelated lifecycles, and the second needs decisions this one does not (how long to keep a
 refusal, whether the denied user is told).
+
+## Dead surface area on the Connectors tab — report separately
+
+Found while mapping, not this feature's job to fix, but it is live attack surface and someone
+should decide about it.
+
+**Eight JS handlers in `src/js/ai-connectors.js` are bound to selectors no PHP renders any more**
+— `__approve-btn`, `__deny-btn`, `__revoke-approval-btn`, `__revoke-btn`, `__delete-btn`,
+`__revoke-all-btn`, `__settings-form`, `__nuclear-btn`. The last one *is* rendered, on the same
+element as `__server-revoke-all-btn`, but `handleClick` matches that first and returns — so it is
+unreachable by construction.
+
+**Six REST routes nothing calls, all still registered and permission-gated:**
+`/oauth/connector-settings`, `/oauth/revoke-connector-tokens`, `/oauth/approve-pending-consent`,
+`/oauth/deny-pending-consent`, `/oauth/revoke-user-approval`,
+`/oauth/revoke-client-tokens-all-servers`. Two more — `/oauth/revoke-client-tokens` and
+`/oauth/delete-client` — are reachable only from legacy pre-`token_family_id` rows, so on a clean
+install no button reaches them either.
+
+Plus vestigial PHP (`AbstractConnectorProfile::render_url_row()`,
+`ClientRepository::find_admin_for_server_connector()`, the whole per-slug `ConnectorSettings`
+facade) and orphan CSS in `src/scss/ai-connectors.scss`.
 
 ## Three bugs found while mapping this — report separately
 
