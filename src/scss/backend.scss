@@ -883,13 +883,13 @@ $acmcp-surface: #f6f7f7;
 	// this block already uses between and inside its columns.
 	margin-top: 24px;
 	display: grid;
-	// min() floor rather than a media query: what matters is the column getting
-	// too narrow for the endpoint field, and that depends on whether the admin
-	// menu is collapsed as much as on the viewport.
-	grid-template-columns: repeat(auto-fit, minmax(min(100%, 440px), 1fr));
+	// One column. The pairing card now holds a prompt block, and a block of
+	// prose wrapped into a 440px column is unreadable — which is why the
+	// design moved off two columns rather than widening them.
+	grid-template-columns: minmax(0, 1fr);
 	gap: 24px;
 	align-items: start;
-	max-width: 1280px;
+	max-width: 860px;
 
 	&__col {
 		display: flex;
@@ -1291,101 +1291,218 @@ $acmcp-surface: #f6f7f7;
 	&--off { background: #a7aaad; }
 }
 
-// The paste-able prompt. Primary action on the pairing card, so it sits above
-// the by-hand steps and carries the only filled button in the block.
-.aa-prompt {
-	display: flex;
-	flex-direction: column;
-	gap: 8px;
+// How to pair: two methods, chosen with real radios so the switch works with
+// no JavaScript and reads correctly to a screen reader. Panels are shown with
+// `:has()`; where that is unsupported both panels render, which is cluttered
+// but never hides anything an operator needs.
+.aa-methods {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+	gap: 10px;
 	padding: 20px 24px 4px;
+}
 
-	&__head {
+.aa-method {
+	display: flex;
+	align-items: flex-start;
+	gap: 12px;
+	padding: 14px 16px;
+	border: 1px solid $acmcp-rule-strong;
+	border-radius: 2px;
+	background: #fff;
+	cursor: pointer;
+
+	&:has(.aa-method__input:checked) {
+		border-color: $acmcp-accent;
+		// A ring rather than a thicker border, so selecting a card cannot
+		// shift the one beside it by a pixel.
+		box-shadow: 0 0 0 1px $acmcp-accent;
+	}
+
+	// The native control is replaced by the drawn dot beside it, but stays in
+	// the DOM and focusable — it is what makes arrow keys and the label click
+	// work without a line of script.
+	&__input {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		margin: 0;
+		opacity: 0;
+		pointer-events: none;
+	}
+
+	&__radio {
+		flex: none;
 		display: flex;
 		align-items: center;
-		justify-content: space-between;
-		gap: 12px;
+		justify-content: center;
+		width: 18px;
+		height: 18px;
+		margin-top: 1px;
+		border: 1.5px solid #949494;
+		border-radius: 50%;
 	}
 
-	&__label {
-		font-size: 13px;
+	&__dot {
+		width: 8px;
+		height: 8px;
+		border-radius: 50%;
+		background: transparent;
+	}
+
+	&:has(.aa-method__input:checked) &__radio { border-color: $acmcp-accent; }
+
+	&:has(.aa-method__input:checked) &__dot { background: $acmcp-accent; }
+
+	&:has(.aa-method__input:focus-visible) {
+		outline: 2px solid $acmcp-accent;
+		outline-offset: 2px;
+	}
+
+	&__body {
+		display: flex;
+		flex-direction: column;
+		gap: 5px;
+		min-width: 0;
+	}
+
+	&__titlerow {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		flex-wrap: wrap;
+	}
+
+	&__title {
+		font-size: 14px;
 		font-weight: 600;
-		color: $acmcp-ink;
 	}
 
-	// Sits with the label, above the block. Someone about to paste has stopped
-	// reading by the time they reach the text, and the wrong chat is the one
-	// mistake this screen can prevent.
-	&__caution {
-		margin: 0;
+	&__badge {
+		padding: 2px 8px;
+		border: 1px solid #a7e3b4;
+		border-radius: 10px;
+		background: #edfaef;
+		color: #00450c;
+		font-size: 11px;
+		font-weight: 600;
+	}
+
+	&__desc {
+		font-size: 13px;
+		line-height: 1.55;
+		color: $acmcp-muted;
+		text-wrap: pretty;
+	}
+
+	// The honest cost of each route, so the choice is made on something other
+	// than which one is listed first.
+	&__meta {
 		font-size: 12px;
+		font-weight: 500;
+		color: #3c434a;
+	}
+}
+
+.aa-pane {
+	display: flex;
+	flex-direction: column;
+	gap: 14px;
+	padding: 20px 24px 24px;
+
+	&__title {
+		font-size: 14px;
+		font-weight: 600;
+	}
+
+	&__sub {
+		font-size: 12.5px;
 		line-height: 1.5;
 		color: $acmcp-muted;
 	}
 
-	&__body {
-		margin: 0;
-		padding: 14px 16px;
-		max-height: 260px;
-		overflow: auto;
-		border: 1px solid $acmcp-rule;
-		border-radius: 6px;
-		background: $acmcp-surface;
-		color: $acmcp-ink;
-		font-family: ui-monospace, sfmono-regular, menlo, consolas, monospace;
-		font-size: 12px;
-		line-height: 1.65;
-		// The prompt is prose with indented values, so it must wrap rather than
-		// scroll sideways — a reader checking the URL before pasting should not
-		// have to drag to see it.
-		white-space: pre-wrap;
-		overflow-wrap: anywhere;
+	&__head {
+		display: flex;
+		flex-direction: column;
+		gap: 4px;
+	}
+
+	&--manual {
+		padding: 0;
+	}
+
+	// Divider matching the card's own internal rules, for a pane that follows
+	// a list rather than a chooser.
+	&--sep {
+		border-top: 1px solid #f0f0f1;
 	}
 }
 
-// The demoted route. Complete, and no longer the first thing read.
-.aa-byhand {
-	border-top: 1px solid $acmcp-rule;
-	margin-top: 16px;
+.aa-card--pair:has(.aa-method__input[value="prompt"]:checked) .aa-pane--manual,
+.aa-card--pair:has(.aa-method__input[value="manual"]:checked) .aa-pane--prompt {
+	display: none;
+}
 
-	&__summary {
-		padding: 14px 24px;
-		cursor: pointer;
-		font-size: 13px;
-		font-weight: 600;
-		color: $acmcp-accent;
-		list-style: none;
+// The security ID travels in this block, so the warning sits above it rather
+// than under it — someone about to copy has stopped reading by then.
+.aa-warn {
+	display: flex;
+	padding: 11px 14px;
+	border-left: 4px solid #f0b849;
+	border-radius: 2px;
+	background: #fcf9e8;
+	font-size: 13px;
+	line-height: 1.6;
+	text-wrap: pretty;
 
-		&::-webkit-details-marker { display: none; }
+	strong { font-weight: 700; }
+}
 
-		&::before {
-			content: "";
-			display: inline-block;
-			width: 0;
-			height: 0;
-			margin-right: 8px;
-			border-top: 4px solid transparent;
-			border-bottom: 4px solid transparent;
-			border-left: 5px solid currentcolor;
-			vertical-align: middle;
-			transition: transform 0.15s ease;
-		}
-	}
+.aa-prompt {
+	margin: 0;
+	max-height: 260px;
+	overflow: auto;
+	padding: 14px 16px;
+	border: 1px solid $acmcp-rule-strong;
+	border-radius: 2px;
+	background: $acmcp-surface;
+	font-family: "JetBrains Mono", Menlo, Consolas, monospace;
+	font-size: 12.5px;
+	line-height: 1.65;
+	// Prose with indented values: it must wrap rather than scroll sideways, or
+	// a reader checking the address before pasting has to drag to see it.
+	white-space: pre-wrap;
+	overflow-wrap: anywhere;
+}
 
-	&[open] > &__summary::before {
-		transform: rotate(90deg);
-	}
+.aa-promptbar {
+	display: flex;
+	align-items: center;
+	gap: 14px;
+	flex-wrap: wrap;
 
-	&__lede {
-		margin: 0;
-		padding: 0 24px;
+	&__note {
 		font-size: 12.5px;
-		line-height: 1.6;
 		color: $acmcp-muted;
 	}
+}
 
-	// On the hosts card there is no card footer beneath it, so it closes the
-	// card and needs the bottom padding the pairing card gets from its foot.
-	&--inline {
-		padding-bottom: 8px;
+.aa-btn {
+	display: inline-flex;
+	align-items: center;
+	height: 36px;
+	padding: 0 16px;
+	border: 1px solid transparent;
+	border-radius: 2px;
+	background: $acmcp-accent;
+	color: #fff;
+	font-size: 13px;
+	font-weight: 600;
+	cursor: pointer;
+
+	&:hover,
+	&:focus {
+		background: #1d35b4;
+		color: #fff;
 	}
 }

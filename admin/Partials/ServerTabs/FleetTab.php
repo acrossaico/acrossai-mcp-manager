@@ -318,19 +318,25 @@ final class FleetTab extends AbstractServerTab {
 		// only once a host exists because there is nothing to tell a hub to
 		// forget before then.
 		printf(
-			'<details class="aa-byhand aa-byhand--inline">
-				<summary class="aa-byhand__summary">%s</summary>',
-			esc_html__( 'Tell a hub to stop managing this site', 'acrossai-mcp-manager' )
+			'<div class="aa-pane aa-pane--sep">
+				<span class="aa-pane__head">
+					<span class="aa-pane__title">%1$s</span>
+					<span class="aa-pane__sub">%2$s</span>
+				</span>
+				<pre class="aa-prompt" id="acrossai-fleet-remove-prompt">%3$s</pre>
+				<div class="aa-promptbar">
+					<button type="button" class="aa-btn copy-to-clipboard" data-copy-target="#acrossai-fleet-remove-prompt">%4$s</button>
+					<span class="aa-promptbar__note">%5$s</span>
+				</div>
+			</div>',
+			esc_html__( 'Tell a host to stop managing this site', 'acrossai-mcp-manager' ),
+			esc_html__( 'Removing a host above revokes its access here. Paste this into the AI client connected to that host so it stops listing this site too.', 'acrossai-mcp-manager' ),
+			esc_html( Prompts::remove_site() ),
+			esc_html__( 'Copy prompt', 'acrossai-mcp-manager' ),
+			esc_html__( 'Carries no security ID.', 'acrossai-mcp-manager' )
 		);
 
-		$this->render_prompt(
-			'acrossai-fleet-remove-prompt',
-			__( 'Paste this into the chat connected to that hub', 'acrossai-mcp-manager' ),
-			__( 'Removing a host above revokes its access here. This is the separate half that makes the hub stop listing this site.', 'acrossai-mcp-manager' ),
-			Prompts::remove_site()
-		);
-
-		echo '</details></div>';
+		echo '</div>';
 	}
 
 	/**
@@ -411,28 +417,16 @@ final class FleetTab extends AbstractServerTab {
 					<p class="aa-card__sub">%2$s</p>
 				</div>',
 			esc_html__( 'Add this site to a fleet', 'acrossai-mcp-manager' ),
-			esc_html__( 'The managing site connects to this one. There is nothing to paste back here.', 'acrossai-mcp-manager' )
+			esc_html__( 'The site that will manage this one needs this site’s security ID and address. It connects to this site; there is nothing to paste back here.', 'acrossai-mcp-manager' )
 		);
 
-		$this->render_prompt(
-			'acrossai-fleet-add-prompt',
-			__( 'Paste this into the chat connected to the managing site', 'acrossai-mcp-manager' ),
-			__( 'Not a chat connected to this site — this site has no fleet tools, so it would fail looking like a bug.', 'acrossai-mcp-manager' ),
-			Prompts::add_site( $server_id )
-		);
+		$this->render_methods();
+		$this->render_prompt_pane( $server_id );
 
-		// The by-hand route stays complete and stops being the first thing
-		// read. It is not a fallback for a broken prompt — an operator whose
-		// hub has no AI connected to it has no other way through, and the
-		// values it shows are the same two the prompt carries.
-		printf(
-			'<details class="aa-byhand">
-				<summary class="aa-byhand__summary">%1$s</summary>
-				<p class="aa-byhand__lede">%2$s</p>
-				<div class="aa-steps">',
-			esc_html__( 'Or pair it by hand', 'acrossai-mcp-manager' ),
-			esc_html__( 'Give these two values to the site that will manage this one.', 'acrossai-mcp-manager' )
-		);
+		// The by-hand route, unchanged and complete. Not a fallback for a
+		// broken prompt: an operator whose managing site has no AI connected
+		// to it has no other way through, and it costs nothing to keep.
+		echo '<div class="aa-pane aa-pane--manual"><div class="aa-steps">';
 
 		// Step 1 — the security ID, with regenerate beside copy.
 		printf(
@@ -497,7 +491,7 @@ final class FleetTab extends AbstractServerTab {
 		// and the prompt are inert until the route answers anyway.
 		printf(
 			'</div>
-			</details>
+			</div>
 			<div class="aa-card__foot">
 				<span class="aa-dot %1$s"></span>
 				<span>%2$s</span>
@@ -513,38 +507,104 @@ final class FleetTab extends AbstractServerTab {
 	}
 
 	/**
-	 * A paste-able prompt, with the chat it belongs in named above it.
+	 * The two ways to pair, as a radio group.
 	 *
-	 * Rendered as a `<pre>` so the block an operator copies is the block they
-	 * can read, and so the copy handler picks it up without a change — it
-	 * falls back to `textContent` for anything that is not a field.
+	 * Real radios in labels rather than buttons and script: the switch then
+	 * works with JavaScript off, arrow keys move between the options, and a
+	 * screen reader announces which is chosen. The panes below are shown with
+	 * `:has()`; where that is unsupported both render, which is cluttered but
+	 * never hides anything an operator needs.
 	 *
-	 * The warning sits beside the label rather than under the block. Someone
-	 * about to paste has already stopped reading by then, and the wrong chat
-	 * is the one mistake this screen can actually prevent.
+	 * Each option states its own cost. "1 step" against "no ID sent to a
+	 * chat" is the actual trade, and an operator who cares about the second
+	 * should not have to infer it from a warning further down.
+	 *
+	 * @since 0.4.8
+	 */
+	private function render_methods(): void {
+		$options = array(
+			array(
+				'value'       => 'prompt',
+				'checked'     => true,
+				'title'       => __( 'Let your AI client do it', 'acrossai-mcp-manager' ),
+				'recommended' => true,
+				'desc'        => __( 'Copy one prompt and paste it into your AI client. It pairs the managing site with this one.', 'acrossai-mcp-manager' ),
+				'meta'        => __( '1 step · about 30 seconds', 'acrossai-mcp-manager' ),
+			),
+			array(
+				'value'       => 'manual',
+				'checked'     => false,
+				'title'       => __( 'Set it up yourself', 'acrossai-mcp-manager' ),
+				'recommended' => false,
+				'desc'        => __( 'Copy the security ID and address, then paste them into the managing site.', 'acrossai-mcp-manager' ),
+				'meta'        => __( '3 steps · no ID sent to a chat', 'acrossai-mcp-manager' ),
+			),
+		);
+
+		echo '<div class="aa-methods" role="radiogroup">';
+
+		foreach ( $options as $option ) {
+			printf(
+				'<label class="aa-method">
+					<input type="radio" class="aa-method__input" name="acrossai-fleet-method" value="%1$s"%2$s>
+					<span class="aa-method__radio"><span class="aa-method__dot"></span></span>
+					<span class="aa-method__body">
+						<span class="aa-method__titlerow">
+							<span class="aa-method__title">%3$s</span>%4$s
+						</span>
+						<span class="aa-method__desc">%5$s</span>
+						<span class="aa-method__meta">%6$s</span>
+					</span>
+				</label>',
+				esc_attr( $option['value'] ),
+				$option['checked'] ? ' checked' : '',
+				esc_html( $option['title'] ),
+				$option['recommended']
+					? '<span class="aa-method__badge">' . esc_html__( 'Recommended', 'acrossai-mcp-manager' ) . '</span>'
+					: '',
+				esc_html( $option['desc'] ),
+				esc_html( $option['meta'] )
+			);
+		}
+
+		echo '</div>';
+	}
+
+	/**
+	 * The prompt, with what it carries said before it is copied.
+	 *
+	 * The warning sits above the block rather than under it. Someone about to
+	 * copy has stopped reading by then, and what it says is not boilerplate:
+	 * the prompt carries a credential, and pasting it into a hosted assistant
+	 * sends that credential to whoever runs it.
 	 *
 	 * @since 0.4.8
 	 *
-	 * @param string $id      Element id, for the copy button's target.
-	 * @param string $label   Which chat this belongs in.
-	 * @param string $caution The mistake worth naming.
-	 * @param string $prompt  The text itself.
+	 * @param int $server_id Fleet server id.
 	 */
-	private function render_prompt( string $id, string $label, string $caution, string $prompt ): void {
+	private function render_prompt_pane( int $server_id ): void {
 		printf(
-			'<div class="aa-prompt">
-				<div class="aa-prompt__head">
-					<span class="aa-prompt__label">%1$s</span>
-					<button type="button" class="aa-field__btn aa-field__btn--primary copy-to-clipboard" data-copy-target="#%2$s">%3$s</button>
+			'<div class="aa-pane aa-pane--prompt">
+				<span class="aa-pane__head">
+					<span class="aa-pane__title">%1$s</span>
+					<span class="aa-pane__sub">%2$s</span>
+				</span>
+				<p class="aa-warn"><span><strong>%3$s</strong> %4$s</span></p>
+				<pre class="aa-prompt" id="acrossai-fleet-add-prompt">%5$s</pre>
+				<div class="aa-promptbar">
+					<button type="button" class="aa-btn copy-to-clipboard" data-copy-target="#acrossai-fleet-add-prompt">%6$s</button>
+					<span class="aa-promptbar__note">%7$s <a href="%8$s">%9$s</a></span>
 				</div>
-				<p class="aa-prompt__caution">%4$s</p>
-				<pre class="aa-prompt__body" id="%2$s">%5$s</pre>
 			</div>',
-			esc_html( $label ),
-			esc_attr( $id ),
-			esc_html__( 'Copy', 'acrossai-mcp-manager' ),
-			esc_html( $caution ),
-			esc_html( $prompt )
+			esc_html__( 'Paste this prompt into your AI client', 'acrossai-mcp-manager' ),
+			esc_html__( 'It already includes this site’s security ID and address.', 'acrossai-mcp-manager' ),
+			esc_html__( 'This prompt contains this site’s security ID.', 'acrossai-mcp-manager' ),
+			esc_html__( 'Until a site connects with it, anyone who has it can pair with this site. Pasting it into a hosted assistant sends it to that provider.', 'acrossai-mcp-manager' ),
+			esc_html( Prompts::add_site( $server_id ) ),
+			esc_html__( 'Copy prompt', 'acrossai-mcp-manager' ),
+			esc_html__( 'The ID is single use.', 'acrossai-mcp-manager' ),
+			esc_url( $this->regenerate_url( $server_id ) ),
+			esc_html__( 'Generate a new one', 'acrossai-mcp-manager' )
 		);
 	}
 
