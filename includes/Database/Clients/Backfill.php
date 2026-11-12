@@ -33,7 +33,7 @@
  *
  * @package    AcrossAI_MCP_Manager
  * @subpackage Includes\Database\Clients
- * @since      0.4.9
+ * @since      0.4.8
  */
 
 declare( strict_types = 1 );
@@ -48,14 +48,14 @@ defined( 'ABSPATH' ) || exit;
 /**
  * One-shot seed of the registry.
  *
- * @since 0.4.9
+ * @since 0.4.8
  */
 final class Backfill {
 
 	/**
 	 * Set once the seed has run, successfully or with nothing to do.
 	 *
-	 * @since 0.4.9
+	 * @since 0.4.8
 	 * @var   string
 	 */
 	public const DONE_OPTION = 'acrossai_mcp_clients_backfill_done';
@@ -69,7 +69,7 @@ final class Backfill {
 	 * page load into a timeout, and the registry simply fills from live traffic
 	 * for whatever it did not reach.
 	 *
-	 * @since 0.4.9
+	 * @since 0.4.8
 	 * @var   int
 	 */
 	public const MAX_GROUPS = 500;
@@ -82,7 +82,7 @@ final class Backfill {
 	 * could not read its sources will not read them any better next time, and
 	 * live traffic covers the gap from here on.
 	 *
-	 * @since  0.4.9
+	 * @since  0.4.8
 	 * @return int How many rows were written.
 	 */
 	public static function maybe_run(): int {
@@ -114,7 +114,7 @@ final class Backfill {
 	/**
 	 * Seed every registered OAuth client, used or not.
 	 *
-	 * @since  0.4.9
+	 * @since  0.4.8
 	 * @return int Rows written.
 	 */
 	private static function seed_registered_clients(): int {
@@ -180,7 +180,7 @@ final class Backfill {
 	 * callers whose `client_name` is empty — on this site, 94 such requests
 	 * turned out to be five distinct clients.
 	 *
-	 * @since  0.4.9
+	 * @since  0.4.8
 	 * @return int Rows written.
 	 */
 	private static function seed_from_activity_log(): int {
@@ -262,7 +262,7 @@ final class Backfill {
 	 * on a site that upgraded straight past it, and a fresh install has no
 	 * OAuth clients. Neither absence is an error.
 	 *
-	 * @since  0.4.9
+	 * @since  0.4.8
 	 * @param  string $table Fully-prefixed table name.
 	 * @return bool
 	 */

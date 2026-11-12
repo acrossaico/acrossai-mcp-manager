@@ -25,7 +25,7 @@
  *
  * @package    AcrossAI_MCP_Manager
  * @subpackage Admin\Partials
- * @since      0.4.9
+ * @since      0.4.8
  */
 
 declare( strict_types = 1 );
@@ -42,14 +42,14 @@ defined( 'ABSPATH' ) || exit;
 /**
  * Admin page for the clients registry. Hook wiring lives in Main.php per A1.
  *
- * @since 0.4.9
+ * @since 0.4.8
  */
 final class ClientsPage {
 
 	/**
 	 * `?page=` slug for this screen.
 	 *
-	 * @since 0.4.9
+	 * @since 0.4.8
 	 * @var   string
 	 */
 	public const PAGE_SLUG = 'acrossai_mcp_clients';
@@ -62,7 +62,7 @@ final class ClientsPage {
 	 * theirs and it independently validates treating a null last-seen as
 	 * "idle since it was registered".
 	 *
-	 * @since 0.4.9
+	 * @since 0.4.8
 	 * @var   int
 	 */
 	public const IDLE_DAYS = 90;
@@ -70,7 +70,7 @@ final class ClientsPage {
 	/**
 	 * Singleton instance.
 	 *
-	 * @since 0.4.9
+	 * @since 0.4.8
 	 * @var   self|null
 	 */
 	private static ?self $instance = null;
@@ -78,7 +78,7 @@ final class ClientsPage {
 	/**
 	 * Shared instance.
 	 *
-	 * @since  0.4.9
+	 * @since  0.4.8
 	 * @return self
 	 */
 	public static function instance(): self {
@@ -92,7 +92,7 @@ final class ClientsPage {
 	/**
 	 * Private — wiring lives in Main::define_admin_hooks() per A1.
 	 *
-	 * @since 0.4.9
+	 * @since 0.4.8
 	 */
 	private function __construct() {}
 
@@ -103,7 +103,7 @@ final class ClientsPage {
 	 * what happened, and who has been here — and an operator who opens one
 	 * usually wants the other next.
 	 *
-	 * @since  0.4.9
+	 * @since  0.4.8
 	 * @return void
 	 */
 	public function register_menu(): void {
@@ -124,7 +124,7 @@ final class ClientsPage {
 	 * Scoped to the action AND the row, so a Revoke link cannot be replayed
 	 * against a different client.
 	 *
-	 * @since  0.4.9
+	 * @since  0.4.8
 	 * @param  string $action Action name.
 	 * @param  int    $id     Registry row id.
 	 * @return string
@@ -140,7 +140,7 @@ final class ClientsPage {
 	 * post back to whichever screen rendered them, and the handler has to work
 	 * on both.
 	 *
-	 * @since  0.4.9
+	 * @since  0.4.8
 	 * @return void
 	 */
 	public static function maybe_handle_action(): void {
@@ -178,7 +178,7 @@ final class ClientsPage {
 	/**
 	 * Render the global screen.
 	 *
-	 * @since  0.4.9
+	 * @since  0.4.8
 	 * @return void
 	 */
 	public function render(): void {
@@ -205,7 +205,7 @@ final class ClientsPage {
 	 * Shared between this screen and the per-server tab so the two cannot
 	 * drift — the only difference is the scope.
 	 *
-	 * @since  0.4.9
+	 * @since  0.4.8
 	 * @param  int $server_id Scope to one server, or 0 for every server.
 	 * @return void
 	 */
@@ -222,7 +222,7 @@ final class ClientsPage {
 	/**
 	 * The counts above the table.
 	 *
-	 * @since  0.4.9
+	 * @since  0.4.8
 	 * @param  int $server_id Scope, or 0 for all.
 	 * @return void
 	 */
@@ -276,7 +276,7 @@ final class ClientsPage {
 	 * identical — an empty list. They are opposite facts, and only one of them
 	 * needs an operator's attention.
 	 *
-	 * @since  0.4.9
+	 * @since  0.4.8
 	 * @return void
 	 */
 	private static function render_failure_warning(): void {
@@ -311,7 +311,7 @@ final class ClientsPage {
 	 * is no redirect to carry a query argument across. Keyed per user so two
 	 * administrators acting at once cannot read each other's result.
 	 *
-	 * @since  0.4.9
+	 * @since  0.4.8
 	 * @param  string $type    `success` or `error`.
 	 * @param  string $message Human-readable text.
 	 * @return void
@@ -323,7 +323,7 @@ final class ClientsPage {
 	/**
 	 * Draw and clear any pending notice.
 	 *
-	 * @since  0.4.9
+	 * @since  0.4.8
 	 * @return void
 	 */
 	private static function render_notice(): void {
@@ -345,7 +345,7 @@ final class ClientsPage {
 	/**
 	 * Transient key for the current user's pending notice.
 	 *
-	 * @since  0.4.9
+	 * @since  0.4.8
 	 * @return string
 	 */
 	private static function notice_key(): string {

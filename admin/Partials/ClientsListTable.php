@@ -23,7 +23,7 @@
  *
  * @package    AcrossAI_MCP_Manager
  * @subpackage Admin\Partials
- * @since      0.4.9
+ * @since      0.4.8
  */
 
 declare( strict_types = 1 );
@@ -49,7 +49,7 @@ if ( ! class_exists( '\WP_List_Table' ) ) {
  * Per A10: `WP_List_Table` subclasses take a public constructor and are
  * instantiated per render, never Loader-wired.
  *
- * @since 0.4.9
+ * @since 0.4.8
  */
 class ClientsListTable extends \WP_List_Table {
 
@@ -57,7 +57,7 @@ class ClientsListTable extends \WP_List_Table {
 	 * Rows per page. Matches CliAuthLogListTable rather than the log's 50: this
 	 * list is short, and a taller page would be mostly whitespace.
 	 *
-	 * @since 0.4.9
+	 * @since 0.4.8
 	 * @var   int
 	 */
 	private const PER_PAGE = 20;
@@ -65,7 +65,7 @@ class ClientsListTable extends \WP_List_Table {
 	/**
 	 * Scope to one server, or 0 for every server.
 	 *
-	 * @since 0.4.9
+	 * @since 0.4.8
 	 * @var   int
 	 */
 	private $server_id;
@@ -73,13 +73,13 @@ class ClientsListTable extends \WP_List_Table {
 	/**
 	 * Server id → name memo, for the Server column on the global screen.
 	 *
-	 * @since 0.4.9
+	 * @since 0.4.8
 	 * @var   array<int, string>
 	 */
 	private $server_names = array();
 
 	/**
-	 * @since 0.4.9
+	 * @since 0.4.8
 	 * @param int $server_id Scope to one server, or 0 for all of them.
 	 */
 	public function __construct( int $server_id = 0 ) {
@@ -101,7 +101,7 @@ class ClientsListTable extends \WP_List_Table {
 	 * would repeat the page heading on every row. Same idea `ActivityLogPage`
 	 * carries as `showServer`.
 	 *
-	 * @since  0.4.9
+	 * @since  0.4.8
 	 * @return array<string, string>
 	 */
 	public function get_columns() {
@@ -126,7 +126,7 @@ class ClientsListTable extends \WP_List_Table {
 	/**
 	 * Sortable columns.
 	 *
-	 * @since  0.4.9
+	 * @since  0.4.8
 	 * @return array<string, array<int, mixed>>
 	 */
 	public function get_sortable_columns() {
@@ -145,7 +145,7 @@ class ClientsListTable extends \WP_List_Table {
 	 * site that has answered hundreds of requests is the message the existing
 	 * Connections panel shows, and it reads as a bug rather than a state.
 	 *
-	 * @since  0.4.9
+	 * @since  0.4.8
 	 * @return void
 	 */
 	public function no_items() {
@@ -155,7 +155,7 @@ class ClientsListTable extends \WP_List_Table {
 	/**
 	 * Fetch rows and set up pagination.
 	 *
-	 * @since  0.4.9
+	 * @since  0.4.8
 	 * @return void
 	 */
 	public function prepare_items() {
@@ -207,7 +207,7 @@ class ClientsListTable extends \WP_List_Table {
 	 * identity is a user-agent product token in that case, so the cell reads
 	 * `claude-code` rather than being blank.
 	 *
-	 * @since  0.4.9
+	 * @since  0.4.8
 	 * @param  Row $item Registry row.
 	 * @return string
 	 */
@@ -234,7 +234,7 @@ class ClientsListTable extends \WP_List_Table {
 	 * vocabulary, so a route reads the same way on this screen as on the screen
 	 * that set it up.
 	 *
-	 * @since  0.4.9
+	 * @since  0.4.8
 	 * @param  Row $item Registry row.
 	 * @return string
 	 */
@@ -261,7 +261,7 @@ class ClientsListTable extends \WP_List_Table {
 	/**
 	 * Which WordPress user the client acts as.
 	 *
-	 * @since  0.4.9
+	 * @since  0.4.8
 	 * @param  Row $item Registry row.
 	 * @return string
 	 */
@@ -282,7 +282,7 @@ class ClientsListTable extends \WP_List_Table {
 	 * list, which computes a status rather than leaving the reader to infer one
 	 * from an empty column.
 	 *
-	 * @since  0.4.9
+	 * @since  0.4.8
 	 * @param  Row $item Registry row.
 	 * @return string
 	 */
@@ -305,7 +305,7 @@ class ClientsListTable extends \WP_List_Table {
 	/**
 	 * Which server the client connected to.
 	 *
-	 * @since  0.4.9
+	 * @since  0.4.8
 	 * @param  Row $item Registry row.
 	 * @return string
 	 */
@@ -322,7 +322,7 @@ class ClientsListTable extends \WP_List_Table {
 	/**
 	 * First time we saw this client.
 	 *
-	 * @since  0.4.9
+	 * @since  0.4.8
 	 * @param  Row $item Registry row.
 	 * @return string
 	 */
@@ -336,7 +336,7 @@ class ClientsListTable extends \WP_List_Table {
 	 * The word matters: a NULL here means registered and never used, which is
 	 * a state an operator wants to see, not an absence to render as a dash.
 	 *
-	 * @since  0.4.9
+	 * @since  0.4.8
 	 * @param  Row $item Registry row.
 	 * @return string
 	 */
@@ -351,7 +351,7 @@ class ClientsListTable extends \WP_List_Table {
 	/**
 	 * How many calls this client has made.
 	 *
-	 * @since  0.4.9
+	 * @since  0.4.8
 	 * @param  Row $item Registry row.
 	 * @return string
 	 */
@@ -362,7 +362,7 @@ class ClientsListTable extends \WP_List_Table {
 	/**
 	 * Unknown columns render empty rather than warning.
 	 *
-	 * @since  0.4.9
+	 * @since  0.4.8
 	 * @param  Row    $item        Registry row.
 	 * @param  string $column_name Column name.
 	 * @return string
@@ -380,7 +380,7 @@ class ClientsListTable extends \WP_List_Table {
 	 * because there is no standing credential to withdraw and a control that
 	 * reports success without changing anything is worse than no control.
 	 *
-	 * @since  0.4.9
+	 * @since  0.4.8
 	 * @param  Row $item Registry row.
 	 * @return array<string, string>
 	 */
@@ -411,7 +411,7 @@ class ClientsListTable extends \WP_List_Table {
 	 * with a guessed page, so the same table works on the global screen and
 	 * inside a server tab without knowing which it is on.
 	 *
-	 * @since  0.4.9
+	 * @since  0.4.8
 	 * @param  string $action Action name.
 	 * @param  int    $id     Registry row id.
 	 * @return string
@@ -434,7 +434,7 @@ class ClientsListTable extends \WP_List_Table {
 	/**
 	 * Requested sort column, restricted to the sortable set.
 	 *
-	 * @since  0.4.9
+	 * @since  0.4.8
 	 * @return string
 	 */
 	private function orderby(): string {
@@ -449,7 +449,7 @@ class ClientsListTable extends \WP_List_Table {
 	/**
 	 * Requested sort direction.
 	 *
-	 * @since  0.4.9
+	 * @since  0.4.8
 	 * @return string
 	 */
 	private function order(): string {
@@ -462,7 +462,7 @@ class ClientsListTable extends \WP_List_Table {
 	/**
 	 * A server's display name, memoised.
 	 *
-	 * @since  0.4.9
+	 * @since  0.4.8
 	 * @param  int $server_id Server row id.
 	 * @return string Empty when the server no longer exists.
 	 */
@@ -482,7 +482,7 @@ class ClientsListTable extends \WP_List_Table {
 	/**
 	 * A route rendered the way the Connect tab names it.
 	 *
-	 * @since  0.4.9
+	 * @since  0.4.8
 	 * @param  string $route A ClientsConstants ROUTE_* value.
 	 * @return string
 	 */
@@ -503,7 +503,7 @@ class ClientsListTable extends \WP_List_Table {
 	/**
 	 * A stored UTC datetime in the site's own format.
 	 *
-	 * @since  0.4.9
+	 * @since  0.4.8
 	 * @param  string $value `Y-m-d H:i:s` in UTC.
 	 * @return string
 	 */

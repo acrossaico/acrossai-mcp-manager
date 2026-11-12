@@ -31,7 +31,7 @@
  *
  * @package    AcrossAI_MCP_Manager
  * @subpackage Includes\Database\Clients
- * @since      0.4.9
+ * @since      0.4.8
  */
 
 declare( strict_types = 1 );
@@ -45,7 +45,7 @@ defined( 'ABSPATH' ) || exit;
 /**
  * Resolves a request to a stable client identity.
  *
- * @since 0.4.9
+ * @since 0.4.8
  */
 final class Identity {
 
@@ -58,7 +58,7 @@ final class Identity {
 	 * class exists to avoid. One row called "unknown" is honest; one row
 	 * called "" pretending to be a client is not.
 	 *
-	 * @since 0.4.9
+	 * @since 0.4.8
 	 * @var   string
 	 */
 	public const UNKNOWN = 'unknown';
@@ -66,7 +66,7 @@ final class Identity {
 	/**
 	 * Longest identity we store, matching the column width.
 	 *
-	 * @since 0.4.9
+	 * @since 0.4.8
 	 * @var   int
 	 */
 	public const MAX_LENGTH = 191;
@@ -79,7 +79,7 @@ final class Identity {
 	 * would collapse Claude Code, Cursor and everything else into one row.
 	 * It is read separately by {@see self::route()} and skipped here.
 	 *
-	 * @since 0.4.9
+	 * @since 0.4.8
 	 * @var   array<int, string>
 	 */
 	private const TRANSPORT_TOKENS = array( 'mcp-wordpress-remote' );
@@ -92,7 +92,7 @@ final class Identity {
 	 * its client id would split one registered client across every machine
 	 * that used it.
 	 *
-	 * @since  0.4.9
+	 * @since  0.4.8
 	 * @param  array<string, mixed> $signals Request facts. Recognised keys:
 	 *                                       `connection_type`, `client_id`,
 	 *                                       `fleet_host_key`, `client_name`,
@@ -153,7 +153,7 @@ final class Identity {
 	 * Dropping the version is the whole point: keeping it meant one client
 	 * became two rows the day it updated.
 	 *
-	 * @since  0.4.9
+	 * @since  0.4.8
 	 * @param  string $user_agent Raw agent header.
 	 * @return string Lower-cased product token, or '' when there is none.
 	 */
@@ -213,7 +213,7 @@ final class Identity {
 	/**
 	 * One agent word, reduced to what may appear in an identity.
 	 *
-	 * @since  0.4.9
+	 * @since  0.4.8
 	 * @param  string $raw Agent fragment.
 	 * @return string
 	 */
@@ -228,7 +228,7 @@ final class Identity {
 	 * the same four routes an operator already chose between when setting the
 	 * client up.
 	 *
-	 * @since  0.4.9
+	 * @since  0.4.8
 	 * @param  array<string, mixed> $signals Same shape as {@see self::resolve()}.
 	 * @return string One of: connector, npm, wp-cli, config-file, fleet, browser, direct.
 	 */
@@ -278,7 +278,7 @@ final class Identity {
 	 * two rows. Those are genuinely different grants and merging them would
 	 * make one Revoke appear to cover both.
 	 *
-	 * @since  0.4.9
+	 * @since  0.4.8
 	 * @param  int    $server_id       Server row id.
 	 * @param  string $connection_type A {@see ConnectionContext} TYPE_* value.
 	 * @param  string $identity        Output of {@see self::resolve()}.
@@ -291,7 +291,7 @@ final class Identity {
 	/**
 	 * Coerce a signal to a trimmed string without tripping on arrays.
 	 *
-	 * @since  0.4.9
+	 * @since  0.4.8
 	 * @param  mixed $value Raw signal.
 	 * @return string
 	 */
@@ -302,7 +302,7 @@ final class Identity {
 	/**
 	 * Keep an identity inside the column it has to fit.
 	 *
-	 * @since  0.4.9
+	 * @since  0.4.8
 	 * @param  string $value Identity candidate.
 	 * @return string
 	 */

@@ -8,7 +8,7 @@
  *
  * @package    AcrossAI_MCP_Manager
  * @subpackage Includes\Database\Clients
- * @since      0.4.9
+ * @since      0.4.8
  */
 
 declare( strict_types = 1 );
@@ -22,7 +22,7 @@ defined( 'ABSPATH' ) || exit;
 /**
  * Owns the DDL and the version stamp for acrossai_mcp_clients.
  *
- * @since 0.4.9
+ * @since 0.4.8
  */
 class Table extends \BerlinDB\Database\Kern\Table {
 
@@ -63,7 +63,7 @@ class Table extends \BerlinDB\Database\Kern\Table {
 	/**
 	 * Shared instance.
 	 *
-	 * @since  0.4.9
+	 * @since  0.4.8
 	 * @return self
 	 */
 	public static function instance(): self {
@@ -84,7 +84,7 @@ class Table extends \BerlinDB\Database\Kern\Table {
 	 *
 	 * Silent by design — this is a repair, not an incident.
 	 *
-	 * @since  0.4.9
+	 * @since  0.4.8
 	 * @return void
 	 */
 	public function maybe_upgrade(): void {

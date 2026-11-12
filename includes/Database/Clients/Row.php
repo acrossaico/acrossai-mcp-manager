@@ -4,7 +4,7 @@
  *
  * @package    AcrossAI_MCP_Manager
  * @subpackage Includes\Database\Clients
- * @since      0.4.9
+ * @since      0.4.8
  */
 
 declare( strict_types = 1 );
@@ -16,7 +16,7 @@ defined( 'ABSPATH' ) || exit;
 /**
  * Typed accessor for a client row.
  *
- * @since 0.4.9
+ * @since 0.4.8
  */
 class Row extends \BerlinDB\Database\Kern\Row {
 
@@ -83,7 +83,7 @@ class Row extends \BerlinDB\Database\Kern\Row {
 	public $revoked_at = null;
 
 	/**
-	 * @since 0.4.9
+	 * @since 0.4.8
 	 * @param mixed $item Row data from BerlinDB.
 	 */
 	public function __construct( $item ) {
@@ -103,7 +103,7 @@ class Row extends \BerlinDB\Database\Kern\Row {
 	/**
 	 * Whether this client has ever actually called.
 	 *
-	 * @since  0.4.9
+	 * @since  0.4.8
 	 * @return bool
 	 */
 	public function has_been_used(): bool {
@@ -113,7 +113,7 @@ class Row extends \BerlinDB\Database\Kern\Row {
 	/**
 	 * Whether access was withdrawn.
 	 *
-	 * @since  0.4.9
+	 * @since  0.4.8
 	 * @return bool
 	 */
 	public function is_revoked(): bool {
@@ -127,7 +127,7 @@ class Row extends \BerlinDB\Database\Kern\Row {
 	 * is not the same as one that is active, and saying so is what tells an
 	 * operator "set up wrong" from "not set up yet".
 	 *
-	 * @since  0.4.9
+	 * @since  0.4.8
 	 * @return string One of: revoked, never-used, active.
 	 */
 	public function status(): string {
@@ -139,7 +139,7 @@ class Row extends \BerlinDB\Database\Kern\Row {
 	}
 
 	/**
-	 * @since  0.4.9
+	 * @since  0.4.8
 	 * @return array<string, mixed>
 	 */
 	public function to_array(): array {

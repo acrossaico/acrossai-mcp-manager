@@ -120,7 +120,7 @@ final class ConnectionContext {
 	 * show an OAuth client without being able to revoke it would be a list of
 	 * problems with no remedy.
 	 *
-	 * @since 0.4.9
+	 * @since 0.4.8
 	 * @return string
 	 */
 	public static function client_id(): string {
@@ -135,7 +135,7 @@ final class ConnectionContext {
 	 * real for an application-password client, which on most installs is the
 	 * majority of them.
 	 *
-	 * @since 0.4.9
+	 * @since 0.4.8
 	 * @return string
 	 */
 	public static function credential_id(): string {
@@ -158,7 +158,7 @@ final class ConnectionContext {
 	 * nothing. Non-secret either way — the password itself is hashed and
 	 * unreadable even here.
 	 *
-	 * @since 0.4.9
+	 * @since 0.4.8
 	 * @param  int $user_id Authenticated user.
 	 * @return string
 	 */
@@ -188,7 +188,7 @@ final class ConnectionContext {
 	 * it has been observed changing between two calls thirty-three seconds
 	 * apart — its site name, then its hostname. The host key does not move.
 	 *
-	 * @since 0.4.9
+	 * @since 0.4.8
 	 * @return string
 	 */
 	public static function fleet_host_key(): string {

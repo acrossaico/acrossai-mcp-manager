@@ -18,7 +18,7 @@
  * Hence a separate recorder behind a separate, always-installed handler.
  *
  * @package AcrossAI_MCP_Manager\Includes\Database\Clients
- * @since   0.4.9
+ * @since   0.4.8
  */
 
 declare( strict_types = 1 );
@@ -32,7 +32,7 @@ defined( 'ABSPATH' ) || exit;
 /**
  * Records sightings and lifecycle events for MCP clients.
  *
- * @since 0.4.9
+ * @since 0.4.8
  */
 final class Recorder {
 
@@ -43,7 +43,7 @@ final class Recorder {
 	 * would otherwise record itself reading it. Same reason the activity log's
 	 * recorder carries one.
 	 *
-	 * @since 0.4.9
+	 * @since 0.4.8
 	 * @var   bool
 	 */
 	private static $recording = false;
@@ -55,7 +55,7 @@ final class Recorder {
 	 * layer. Returns a bool rather than an id because the caller has nothing to
 	 * do with either — it is on the request path and may not react.
 	 *
-	 * @since  0.4.9
+	 * @since  0.4.8
 	 * @param  array<string, mixed> $signals Request facts. See {@see Identity::resolve()}
 	 *                                       for the recognised keys; `server_id`
 	 *                                       is required and must be > 0.
@@ -84,7 +84,7 @@ final class Recorder {
 	 * registered OAuth clients with no traffic, and available to any lifecycle
 	 * listener that learns of a client before it connects.
 	 *
-	 * @since  0.4.9
+	 * @since  0.4.8
 	 * @param  array<string, mixed> $signals Same shape as {@see self::record()}.
 	 * @return bool True when a row was written.
 	 */
@@ -108,7 +108,7 @@ final class Recorder {
 	 * connected" with silence. Revoking the underlying credential is the
 	 * caller's job — this records that it happened.
 	 *
-	 * @since  0.4.9
+	 * @since  0.4.8
 	 * @param  int $id Row id.
 	 * @return bool
 	 */
@@ -130,7 +130,7 @@ final class Recorder {
 	/**
 	 * The single guarded write.
 	 *
-	 * @since  0.4.9
+	 * @since  0.4.8
 	 * @param  int                  $server_id Server row id, already validated.
 	 * @param  array<string, mixed> $signals   Request facts.
 	 * @return bool
@@ -218,7 +218,7 @@ final class Recorder {
 	 * over-long value is an ERROR, not a warning, so an unusually chatty user
 	 * agent would fail the whole upsert and lose the sighting.
 	 *
-	 * @since  0.4.9
+	 * @since  0.4.8
 	 * @param  array<string, mixed> $signals Request facts.
 	 * @param  string               $key     Signal name.
 	 * @param  int                  $length  Column width.
@@ -240,7 +240,7 @@ final class Recorder {
 	 * "nobody has connected", which is the opposite of "we stopped looking".
 	 * Site Health reads this counter to tell the two apart.
 	 *
-	 * @since  0.4.9
+	 * @since  0.4.8
 	 * @return void
 	 */
 	private static function note_failure(): void {
@@ -261,7 +261,7 @@ final class Recorder {
 	/**
 	 * Reset the counter after a successful write.
 	 *
-	 * @since  0.4.9
+	 * @since  0.4.8
 	 * @return void
 	 */
 	private static function clear_failures(): void {
@@ -277,7 +277,7 @@ final class Recorder {
 	/**
 	 * Consecutive write failures since the last success.
 	 *
-	 * @since  0.4.9
+	 * @since  0.4.8
 	 * @return int
 	 */
 	public static function failure_count(): int {

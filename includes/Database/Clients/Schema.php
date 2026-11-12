@@ -29,7 +29,7 @@
  *
  * @package    AcrossAI_MCP_Manager
  * @subpackage Includes\Database\Clients
- * @since      0.4.9
+ * @since      0.4.8
  */
 
 declare( strict_types = 1 );
@@ -43,7 +43,7 @@ defined( 'ABSPATH' ) || exit;
 /**
  * Columns and indexes of the acrossai_mcp_clients table.
  *
- * @since 0.4.9
+ * @since 0.4.8
  */
 class Schema extends \BerlinDB\Database\Kern\Schema {
 

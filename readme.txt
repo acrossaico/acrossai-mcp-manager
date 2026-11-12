@@ -4,7 +4,7 @@ Tags: mcp, ai, mcp-adapter, claude, chatgpt
 Requires at least: 6.9
 Requires PHP: 8.1
 Tested up to: 7.1
-Stable tag: 0.4.7
+Stable tag: 0.4.8
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -240,6 +240,9 @@ Documentation: [acrossai.co/docs](https://acrossai.co/docs/). Every ability, sea
 
 == Upgrade Notice ==
 
+= 0.4.8 =
+Adds a Clients screen listing every assistant that has connected to your site, kept after the activity log has been pruned. This release does change the database: a new table is created to hold those records and is seeded from your existing log and connector list, applied automatically on update. Everything else is safe — servers, connections and abilities are untouched and no reconnecting is needed. Also adds fleet pairing by pasting a prompt, rebuilds the Fleet tab, lets an assistant read your activity log, and fixes the Claude 1-click button being disabled on sites where it works.
+
 = 0.4.7 =
 Adds Fleet, which lets an agency's WordPress site manage yours. It is switched off by default and does nothing until you pair it yourself, and your existing AI access is untouched — no reconnecting is needed. This release does change the database: the activity log gains a column recording which managing site made a request, applied automatically on update.
 
@@ -264,6 +267,17 @@ The AcrossAI server is recommended again and preselected in Quick Connect. Exist
 == Changelog ==
 
 The complete release history lives at [acrossai.co/changelog](https://acrossai.co/changelog/).
+
+= 0.4.8 =
+* **New: a Clients screen that shows who has been connecting.** Until now the plugin could tell you in detail what happened on any single request, and nothing at all about who had been using your site. **AcrossAI → Clients** lists every assistant, bridge and paired site that has connected, with when it first connected, when it was last used and how many requests it has made. Each server has the same list on its own **Clients** tab.
+* **The record outlives the log.** Activity is kept for 30 days, so an assistant that stopped calling last month had already vanished from every screen. Client records are never pruned — a connection you set up a year ago is still listed, with its history intact.
+* **You can withdraw a client's access from that screen.** Revoke does the right thing for how the client got in: it withdraws the access tokens for an AI connector, deletes the application password for a client configured from a file, or removes a paired site from your host list. Where there is no standing credential to take away — a browser session, say — no Revoke is offered, rather than one that would appear to work and change nothing. **Forget** removes a record you no longer want to see without touching the credential.
+* **Clients appear the first time they call.** Creating an application password or registering a connector does not add a row on its own; the client is listed once it actually connects. Assistants registered but never used are shown as **Never used**, which is the difference between one that is set up wrong and one that is not set up yet.
+* **New: add this site to a fleet by pasting a prompt.** Joining an agency's dashboard meant reading a twelve-character security ID off this screen, switching to their admin, and typing it in along with your address. The Fleet tab now gives you a block of text instead: paste it into whatever AI the managing site already uses and the pairing happens in one step. Doing it by hand still works and is unchanged — it is the only route if the hub has no AI connected to it. A prompt works with any assistant, not only Claude, and there is a matching one for removing a site again.
+* **Changed: the Fleet tab is rebuilt around what you actually do there.** It was two settings tables and a list. It is now three cards: access on or off, how to add a site, and the hosts currently connected. The screen is not really a form — one control turns access on and everything else is a value to read or a procedure to follow — and it now reads that way.
+* **New: an assistant can read your activity log.** A new **mcp-manager** toolset lets a connected AI answer questions about your own traffic — period totals, which clients called, what failed — over exactly the same filters the Logs screen uses, so what you see on screen and what it reports cannot disagree.
+* **Fixed: "Connect to Claude (1-click)" was disabled on sites where it works.** The button was greyed out with "Unavailable on this site" on public HTTPS sites, because the check ran before a server had been chosen and judged a placeholder address instead of your own. The warning beside it also read as a sentence with its subject missing.
+* **For developers: a plugin can now add toolsets to a server type it does not own.** The new `acrossai_mcp_server_type_tools` filter receives the resolved tool list and hands it back, so contributions compose. Previously the only route was re-declaring the whole type entry, which clobbered its label and description and meant whichever plugin registered last silently erased the other's contribution.
 
 = 0.4.7 =
 * **New: another WordPress site can now look after this one — Fleet, the free half.** An agency running AcrossAI Pro can manage your site from their own dashboard, and you stay on the free plugin. A new server called **Fleet** is seeded for you and is **switched off by default** — nothing can reach your site until you turn it on and pair it yourself.

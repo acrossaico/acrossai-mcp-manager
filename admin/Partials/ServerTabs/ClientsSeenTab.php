@@ -12,7 +12,7 @@
  *
  * @package    AcrossAI_MCP_Manager
  * @subpackage Admin/Partials/ServerTabs
- * @since      0.4.9
+ * @since      0.4.8
  */
 
 declare( strict_types = 1 );
@@ -26,14 +26,14 @@ defined( 'ABSPATH' ) || exit;
 /**
  * The Clients tab for one server.
  *
- * @since 0.4.9
+ * @since 0.4.8
  */
 final class ClientsSeenTab extends AbstractServerTab {
 
 	/**
 	 * Tab slug.
 	 *
-	 * @since  0.4.9
+	 * @since  0.4.8
 	 * @return string
 	 */
 	public function slug(): string {
@@ -43,7 +43,7 @@ final class ClientsSeenTab extends AbstractServerTab {
 	/**
 	 * Tab label.
 	 *
-	 * @since  0.4.9
+	 * @since  0.4.8
 	 * @return string
 	 */
 	public function label(): string {
@@ -56,7 +56,7 @@ final class ClientsSeenTab extends AbstractServerTab {
 	 * 75 — immediately before Logs at 80. An operator reaches for both after
 	 * configuring something, and "who connected" reads before "what happened".
 	 *
-	 * @since  0.4.9
+	 * @since  0.4.8
 	 * @return int
 	 */
 	public function priority(): int {
@@ -69,7 +69,7 @@ final class ClientsSeenTab extends AbstractServerTab {
 	 * No heading and no lead paragraph: the tab the operator just clicked is
 	 * already labelled Clients, and the summary line opens the panel.
 	 *
-	 * @since  0.4.9
+	 * @since  0.4.8
 	 * @param  array<string, mixed> $server Server row data.
 	 * @return void
 	 */

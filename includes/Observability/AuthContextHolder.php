@@ -152,7 +152,7 @@ final class AuthContextHolder {
 	/**
 	 * OAuth client id for this request, or ''.
 	 *
-	 * @since 0.4.9
+	 * @since 0.4.8
 	 */
 	public function get_client_id(): string {
 		return $this->client_id;
