@@ -132,7 +132,7 @@ final class TokenValidator {
 			 *
 			 * @since 0.4.4
 			 *
-			 * The third parameter was added in 0.4.9 for the clients registry
+			 * The third parameter was added in 0.4.8 for the clients registry
 			 * (F104), which needs an identity that survives both a renamed
 			 * client and a changed user agent. The slug and name cannot
 			 * supply one: a bare DCR client has no slug, and two clients may

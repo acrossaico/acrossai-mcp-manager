@@ -32,7 +32,7 @@
  *
  * @package    AcrossAI_MCP_Manager
  * @subpackage Includes\Observability
- * @since      0.4.9
+ * @since      0.4.8
  */
 
 declare( strict_types = 1 );
@@ -47,7 +47,7 @@ defined( 'ABSPATH' ) || exit;
 /**
  * Handles `mcp.request` by recording a client sighting.
  *
- * @since 0.4.9
+ * @since 0.4.8
  */
 class ConnectionObservabilityHandler implements McpObservabilityHandlerInterface {
 
@@ -59,7 +59,7 @@ class ConnectionObservabilityHandler implements McpObservabilityHandlerInterface
 	 * would surface to an AI client as a broken tool call. A registry that
 	 * cannot record must fail quietly rather than take the request with it.
 	 *
-	 * @since  0.4.9
+	 * @since  0.4.8
 	 * @param  string               $event       Event name.
 	 * @param  array<string, mixed> $tags        Event tags.
 	 * @param  float|null           $duration_ms Duration in milliseconds.
@@ -87,7 +87,7 @@ class ConnectionObservabilityHandler implements McpObservabilityHandlerInterface
 	 * carry what the adapter measured and none of what identifies the caller.
 	 * `server_id` and the session id are the only two that come from tags.
 	 *
-	 * @since  0.4.9
+	 * @since  0.4.8
 	 * @param  array<string, mixed> $tags Raw event tags.
 	 * @return array<string, mixed>
 	 */
@@ -130,7 +130,7 @@ class ConnectionObservabilityHandler implements McpObservabilityHandlerInterface
 	 * a renamed tag must degrade one field to empty rather than fatal inside a
 	 * recording path. The 0.6.1 → 0.7.0 meta-ability episode is the precedent.
 	 *
-	 * @since  0.4.9
+	 * @since  0.4.8
 	 * @param  array<string, mixed> $tags Event tags.
 	 * @param  string               $key  Tag name.
 	 * @return string

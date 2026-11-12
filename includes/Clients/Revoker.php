@@ -29,7 +29,7 @@
  *
  * @package    AcrossAI_MCP_Manager
  * @subpackage Includes\Clients
- * @since      0.4.9
+ * @since      0.4.8
  */
 
 declare( strict_types = 1 );
@@ -48,21 +48,21 @@ defined( 'ABSPATH' ) || exit;
 /**
  * Routes a revoke to the credential that actually backs the row.
  *
- * @since 0.4.9
+ * @since 0.4.8
  */
 final class Revoker {
 
 	/**
 	 * Not instantiable — stateless, never Loader-wired.
 	 *
-	 * @since 0.4.9
+	 * @since 0.4.8
 	 */
 	private function __construct() {}
 
 	/**
 	 * Is there a credential behind this row that we can take away?
 	 *
-	 * @since  0.4.9
+	 * @since  0.4.8
 	 * @param  Row $row Registry row.
 	 * @return bool
 	 */
@@ -94,7 +94,7 @@ final class Revoker {
 	/**
 	 * Revoke one client's access and record that it happened.
 	 *
-	 * @since  0.4.9
+	 * @since  0.4.8
 	 * @param  int $id Registry row id.
 	 * @return \WP_Error|string A human-readable summary, or the reason it failed.
 	 */
@@ -134,7 +134,7 @@ final class Revoker {
 	 * Always available, because a row we cannot revoke is exactly the row most
 	 * likely to be junk.
 	 *
-	 * @since  0.4.9
+	 * @since  0.4.8
 	 * @param  int $id Registry row id.
 	 * @return \WP_Error|true
 	 */
@@ -162,7 +162,7 @@ final class Revoker {
 	/**
 	 * Take the credential away, per route.
 	 *
-	 * @since  0.4.9
+	 * @since  0.4.8
 	 * @param  Row $row Registry row.
 	 * @return \WP_Error|string
 	 */
@@ -213,7 +213,7 @@ final class Revoker {
 	/**
 	 * Is this key one of the server's registered fleet hosts?
 	 *
-	 * @since  0.4.9
+	 * @since  0.4.8
 	 * @param  int    $server_id Fleet server row id.
 	 * @param  string $key       Host key.
 	 * @return bool
@@ -232,7 +232,7 @@ final class Revoker {
 	/**
 	 * Load a row, or say why not.
 	 *
-	 * @since  0.4.9
+	 * @since  0.4.8
 	 * @param  int $id Registry row id.
 	 * @return \WP_Error|Row
 	 */

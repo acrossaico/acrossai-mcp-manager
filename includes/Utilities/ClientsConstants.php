@@ -8,7 +8,7 @@
  *
  * @package    AcrossAI_MCP_Manager
  * @subpackage Includes\Utilities
- * @since      0.4.9
+ * @since      0.4.8
  */
 
 declare( strict_types = 1 );
@@ -20,14 +20,14 @@ defined( 'ABSPATH' ) || exit;
 /**
  * Names and defaults for the Clients feature.
  *
- * @since 0.4.9
+ * @since 0.4.8
  */
 final class ClientsConstants {
 
 	/**
 	 * Table stem, unprefixed.
 	 *
-	 * @since 0.4.9
+	 * @since 0.4.8
 	 * @var   string
 	 */
 	public const TABLE = 'acrossai_mcp_clients';
@@ -37,7 +37,7 @@ final class ClientsConstants {
 	 * silently stamps the new version and changes nothing — BerlinDB never
 	 * auto-diffs.
 	 *
-	 * @since 0.4.9
+	 * @since 0.4.8
 	 * @var   string
 	 */
 	public const TABLE_VERSION = '1.0.0';
@@ -45,7 +45,7 @@ final class ClientsConstants {
 	/**
 	 * Option holding the installed schema version.
 	 *
-	 * @since 0.4.9
+	 * @since 0.4.8
 	 * @var   string
 	 */
 	public const OPTION_DB_VERSION = 'acrossai_mcp_clients_db_version';
@@ -53,7 +53,7 @@ final class ClientsConstants {
 	/**
 	 * Option recording failed registry writes, for Site Health.
 	 *
-	 * @since 0.4.9
+	 * @since 0.4.8
 	 * @var   string
 	 */
 	public const OPTION_WRITE_FAILURES = 'acrossai_mcp_clients_write_failures';
@@ -63,7 +63,7 @@ final class ClientsConstants {
 	 * routes plus the three that tab does not cover, so the Clients screen
 	 * names a route the same way the screen that set it up did.
 	 *
-	 * @since 0.4.9
+	 * @since 0.4.8
 	 * @var   string
 	 */
 	public const ROUTE_CONNECTOR   = 'connector';
@@ -77,7 +77,7 @@ final class ClientsConstants {
 	/**
 	 * Every route, for validation and for the filter dropdown.
 	 *
-	 * @since 0.4.9
+	 * @since 0.4.8
 	 * @var   array<int, string>
 	 */
 	public const ROUTES = array(
@@ -101,7 +101,7 @@ final class ClientsConstants {
 	 * not one. Kept as a constant so the decision is visible rather than
 	 * implied by its absence.
 	 *
-	 * @since 0.4.9
+	 * @since 0.4.8
 	 * @var   int
 	 */
 	public const TOUCH_THROTTLE_SECONDS = 0;
@@ -109,7 +109,7 @@ final class ClientsConstants {
 	/**
 	 * Not instantiable.
 	 *
-	 * @since 0.4.9
+	 * @since 0.4.8
 	 */
 	private function __construct() {}
 }

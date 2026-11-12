@@ -9,7 +9,7 @@
  *
  * @package    AcrossAI_MCP_Manager
  * @subpackage Includes\Database\Clients
- * @since      0.4.9
+ * @since      0.4.8
  */
 
 declare( strict_types = 1 );
@@ -24,7 +24,7 @@ defined( 'ABSPATH' ) || exit;
 /**
  * Query service for acrossai_mcp_clients.
  *
- * @since 0.4.9
+ * @since 0.4.8
  */
 class Query extends BerlinDB_Query {
 
@@ -66,7 +66,7 @@ class Query extends BerlinDB_Query {
 	/**
 	 * Private so the singleton is the only way in (A2/S6).
 	 *
-	 * @since 0.4.9
+	 * @since 0.4.8
 	 */
 	private function __construct() { // phpcs:ignore Generic.CodeAnalysis.UselessOverridingMethod.Found -- Visibility override (public → private) enforces the singleton pattern per A2/S6; PHPCS misses the visibility semantics.
 		parent::__construct();
@@ -75,7 +75,7 @@ class Query extends BerlinDB_Query {
 	/**
 	 * Shared instance.
 	 *
-	 * @since  0.4.9
+	 * @since  0.4.8
 	 * @return self
 	 */
 	public static function instance(): self {
@@ -89,7 +89,7 @@ class Query extends BerlinDB_Query {
 	/**
 	 * One client by its identity hash on one server.
 	 *
-	 * @since  0.4.9
+	 * @since  0.4.8
 	 * @param  int    $server_id     Server row id.
 	 * @param  string $identity_hash From {@see Identity::hash()}.
 	 * @return Row|null
@@ -119,7 +119,7 @@ class Query extends BerlinDB_Query {
 	 * `first_seen_at` is deliberately absent from the update list — it is
 	 * written once, on insert, and must survive every later sighting.
 	 *
-	 * @since  0.4.9
+	 * @since  0.4.8
 	 * @param  array<string, mixed> $row Column values; `server_id` and
 	 *                                   `identity_hash` are required.
 	 * @return bool True when the row was written.
@@ -208,7 +208,7 @@ class Query extends BerlinDB_Query {
 	/**
 	 * Mark a client's access as withdrawn, keeping its history.
 	 *
-	 * @since  0.4.9
+	 * @since  0.4.8
 	 * @param  int $id Row id.
 	 * @return bool
 	 */
@@ -223,7 +223,7 @@ class Query extends BerlinDB_Query {
 	 * a client that registered and never called is idle from the moment it
 	 * registered, not excluded for having no last-seen.
 	 *
-	 * @since  0.4.9
+	 * @since  0.4.8
 	 * @param  int $server_id Scope to one server, or 0 for every server.
 	 * @param  int $idle_days Age beyond which a client counts as idle.
 	 * @return array{total: int, active: int, never_used: int, revoked: int, idle: int}
@@ -286,7 +286,7 @@ class Query extends BerlinDB_Query {
 	/**
 	 * Drop every row for a server, when the server itself is deleted.
 	 *
-	 * @since  0.4.9
+	 * @since  0.4.8
 	 * @param  int $server_id Server row id.
 	 * @return int Rows removed.
 	 */
@@ -324,7 +324,7 @@ class Query extends BerlinDB_Query {
 	 * {@see self::touch()} goes straight to `$wpdb` for the atomic upsert and
 	 * therefore has to say so itself.
 	 *
-	 * @since  0.4.9
+	 * @since  0.4.8
 	 * @return void
 	 */
 	public function flush_cache(): void {
