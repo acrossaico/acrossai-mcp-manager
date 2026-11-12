@@ -325,7 +325,12 @@ Two mitigations, both already available:
 - The `confirmed` gate above means a leaked ID alone does not silently add a host through this
   path; a person still approves the named site.
 
-Worth deciding explicitly (see open questions): whether to make the ID single-use.
+**Decided in the shipped code: the ID IS single-use.** `Register::connect()` calls
+`SecurityId::regenerate()` on a successful registration — `includes/Fleet/Register.php:258`,
+commented *"It authenticated one registration and has no further purpose; leaving it live would
+let anyone who saw it attach a second hub."* So a pasted prompt is worthless after first use, and
+the owner reads the new value off the Fleet tab. Re-pairing after a hub is removed means pasting
+the current ID, not the spent one.
 
 ## Tasks
 
@@ -372,9 +377,9 @@ rebuilt and committed or the stale-bundle gate fails.
 
 ## Open questions
 
-1. **Single-use security ID?** Auto-rotating on successful registration would make a leaked
-   prompt worthless after first use. It also breaks re-pairing after a hub is removed, which
-   today is just "paste it again". Not decided.
+1. ~~**Single-use security ID?**~~ **Answered — it already is.** `Register::connect()` spends
+   the ID via `SecurityId::regenerate()` on success. The cost anticipated here is real: re-pairing
+   after a hub is removed needs the *current* ID off the Fleet tab, not the one in the old prompt.
 2. **Does the hub need the child's name up front?** `Pairing::connect()` learns it from the
    register response. Including it in the prompt would let the model say "pairing *Mumbai
    Community*…" before the call rather than after. Cosmetic, cheap, unconfirmed.
