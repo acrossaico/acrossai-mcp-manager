@@ -328,8 +328,19 @@ class Query extends BerlinDB_Query {
 	 * @return void
 	 */
 	public function flush_cache(): void {
-		if ( function_exists( 'wp_cache_flush_group' ) ) {
-			wp_cache_flush_group( 'acrossai_mcp_client' );
-		}
+		// BerlinDB does not key its query cache by table — it stamps every
+		// cached result with a `last_changed` value and discards the result
+		// when that value moves. `add_item()`/`update_item()`/`delete_item()`
+		// bump it themselves; `touch()` goes straight to `$wpdb` for the atomic
+		// upsert, so it has to do the bump by hand.
+		//
+		// `update_last_changed_cache()` is PRIVATE upstream, so a subclass
+		// cannot call it. This is the same write it performs, against the same
+		// group (`$cache_group`, which resolves to '' — the default group — for
+		// every Query in this plugin).
+		//
+		// Not a flush of the group: `$cache_group` is '', so flushing it would
+		// clear WordPress's entire default cache group, not just this table.
+		wp_cache_set( 'last_changed', microtime(), $this->cache_group );
 	}
 }

@@ -338,6 +338,35 @@ class RegistryTest extends \WP_UnitTestCase {
 		$this->assertSame( 1, Query::instance()->summary( self::SERVER )['active'] );
 	}
 
+	/**
+	 * A new client is visible to a count issued in the same request.
+	 *
+	 * Pinned because it was not. BerlinDB does not key its query cache by
+	 * table — it stamps each cached result with a `last_changed` value and
+	 * discards the result only when that value moves. `add_item()` and friends
+	 * bump it; `touch()` goes straight to `$wpdb` for the atomic upsert and so
+	 * bumped nothing, and `flush_cache()` was flushing an invented group name
+	 * that BerlinDB never reads.
+	 *
+	 * The symptom was invisible on this install — no persistent object cache,
+	 * so every request starts cold and no request both counts and touches. On a
+	 * site running Redis it is the opposite: `last_changed` survives between
+	 * requests, so a newly connected client could stay missing from the screen
+	 * until some unrelated BerlinDB write happened to bump the shared key.
+	 */
+	public function test_a_new_client_is_visible_to_a_count_in_the_same_request(): void {
+		$before = $this->count_rows();
+
+		Recorder::record( $this->signals() );
+
+		$this->assertSame( $before + 1, $this->count_rows(), 'The upsert must invalidate BerlinDB\'s query cache.' );
+
+		// And a repeat sighting must not appear as another row.
+		Recorder::record( $this->signals() );
+
+		$this->assertSame( $before + 1, $this->count_rows() );
+	}
+
 	/** A successful write clears the failure counter rather than leaving it. */
 	public function test_a_successful_write_clears_the_failure_counter(): void {
 		update_option( ClientsConstants::OPTION_WRITE_FAILURES, 5, false );
