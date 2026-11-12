@@ -769,6 +769,40 @@ parameters:
 			count: 1
 			path: includes/Database/ActivityLog/Schema.php
 
+		# F104 — the clients registry's Schema, same four entries as ActivityLog
+		# and CliAuthLog above and for the identical reason. Added rather than
+		# fixed because there IS no fix inside this file, and the stub file the
+		# note above nominates was tried here: correcting Kern\Schema's two
+		# @var tags to the union that is actually true at runtime leaves every
+		# subclass's `@var array` non-covariant with the UNION instead, turns
+		# the eight existing entries into unmatched-pattern failures, and
+		# reports 46 errors in place of 8. The remedy is a declared type on
+		# every subclass at once, which is still not a change to make from
+		# inside one feature.
+		-
+			message: '#^PHPDoc type array of property AcrossAI_MCP_Manager\\Includes\\Database\\Clients\\Schema\:\:\$columns is not covariant with PHPDoc type array\<BerlinDB\\Database\\Kern\\Column\> of overridden property BerlinDB\\Database\\Kern\\Schema\:\:\$columns\.$#'
+			identifier: property.phpDocType
+			count: 1
+			path: includes/Database/Clients/Schema.php
+
+		-
+			message: '#^PHPDoc type array of property AcrossAI_MCP_Manager\\Includes\\Database\\Clients\\Schema\:\:\$indexes is not covariant with PHPDoc type array\<BerlinDB\\Database\\Kern\\Index\> of overridden property BerlinDB\\Database\\Kern\\Schema\:\:\$indexes\.$#'
+			identifier: property.phpDocType
+			count: 1
+			path: includes/Database/Clients/Schema.php
+
+		-
+			message: '#^Property AcrossAI_MCP_Manager\\Includes\\Database\\Clients\\Schema\:\:\$columns type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: includes/Database/Clients/Schema.php
+
+		-
+			message: '#^Property AcrossAI_MCP_Manager\\Includes\\Database\\Clients\\Schema\:\:\$indexes type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: includes/Database/Clients/Schema.php
+
 		-
 			message: '#^PHPDoc type array of property AcrossAI_MCP_Manager\\Includes\\Database\\CliAuthLog\\Schema\:\:\$columns is not covariant with PHPDoc type array\<BerlinDB\\Database\\Kern\\Column\> of overridden property BerlinDB\\Database\\Kern\\Schema\:\:\$columns\.$#'
 			identifier: property.phpDocType

@@ -21,7 +21,6 @@ namespace AcrossAI_MCP_Manager\Includes\Observability;
 use AcrossAI_MCP_Manager\Includes\Database\ActivityLog\Query;
 use AcrossAI_MCP_Manager\Includes\Database\ActivityLog\Recorder;
 use AcrossAI_MCP_Manager\Includes\Utilities\ActivityLogConstants;
-use WP\MCP\Infrastructure\Observability\Contracts\McpObservabilityHandlerInterface;
 use WP\MCP\Infrastructure\Observability\McpObservabilityHelperTrait;
 
 defined( 'ABSPATH' ) || exit;
@@ -33,8 +32,14 @@ defined( 'ABSPATH' ) || exit;
  * dropped. The former fires once per enabled server per HTTP request —
  * verified on live traffic as TWICE per request on this install — so recording
  * it would more than double every request's row count for no diagnostic gain.
+ *
+ * Extends {@see ConnectionObservabilityHandler} rather than standing alone
+ * (F104). The adapter accepts one handler per server, and the clients registry
+ * must record whether or not this log is enabled — so the two stack, and
+ * {@see HandlerResolver} picks which end of the chain the adapter receives.
+ * Each half guards itself: a failure in one does not cost the other its row.
  */
-class ActivityObservabilityHandler implements McpObservabilityHandlerInterface {
+class ActivityObservabilityHandler extends ConnectionObservabilityHandler {
 
 	use McpObservabilityHelperTrait {
 		is_sensitive_key as wp_is_sensitive_key;
@@ -56,6 +61,13 @@ class ActivityObservabilityHandler implements McpObservabilityHandlerInterface {
 	 * @param float|null           $duration_ms Duration in milliseconds.
 	 */
 	public function record_event( string $event, array $tags = array(), ?float $duration_ms = null ): void {
+		// First, and in its own try/catch: the client sighting is the half that
+		// must survive. Were it below this method's own body it would be lost
+		// to every `return` the log takes — the excluded-method check alone
+		// would drop every keepalive from the registry, which is the one signal
+		// that proves a quiet client is still connected.
+		parent::record_event( $event, $tags, $duration_ms );
+
 		try {
 			if ( 'mcp.request' !== $event ) {
 				return;
@@ -369,19 +381,5 @@ class ActivityObservabilityHandler implements McpObservabilityHandlerInterface {
 		$encoded = wp_json_encode( $tags['params'] );
 
 		return is_string( $encoded ) ? strlen( $encoded ) : null;
-	}
-
-	/**
-	 * Read one tag as a trimmed string.
-	 *
-	 * Every tag is read defensively: we depend on names inside vendor
-	 * RequestRouter, so a renamed tag must degrade one column to empty rather
-	 * than fatal. The 0.6.1 → 0.7.0 meta-ability episode is the precedent.
-	 *
-	 * @param array<string, mixed> $tags Sanitized tags.
-	 * @param string               $key  Tag name.
-	 */
-	private function tag( array $tags, string $key ): string {
-		return isset( $tags[ $key ] ) && is_scalar( $tags[ $key ] ) ? trim( (string) $tags[ $key ] ) : '';
 	}
 }

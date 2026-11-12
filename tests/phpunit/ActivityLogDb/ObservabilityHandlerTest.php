@@ -435,8 +435,22 @@ class ObservabilityHandlerTest extends \WP_UnitTestCase {
 	// --- FR-029: off means not reached ---
 
 	/**
-	 * While request logging is off the adapter keeps the Null handler, so the
-	 * recording path is never entered — not entered and returning early.
+	 * While request logging is off, the log's recording path is never entered —
+	 * not entered and returning early, but never reached at all.
+	 *
+	 * REWRITTEN for F104. This used to assert that the resolver returned
+	 * `NullMcpObservabilityHandler`, which is the MECHANISM rather than the
+	 * guarantee. F104 changed the mechanism: with logging off the adapter now
+	 * gets `ConnectionObservabilityHandler`, which records a client sighting
+	 * and nothing else, so that a durable access record is not sitting behind
+	 * a diagnostic toggle.
+	 *
+	 * FR-029 is untouched, because `ActivityObservabilityHandler` is the only
+	 * class that writes a log row and it is not what the resolver returns. So
+	 * the assertion is now the guarantee itself: drive the handler the resolver
+	 * actually hands back with a real `mcp.request`, and no log row may appear.
+	 * That survives any future change of mechanism, which the old assertion
+	 * did not.
 	 *
 	 * "Off" means the operator SET it off. It no longer means "unset": since the
 	 * 2026-10-23 clarification both halves record by default, so an absent
@@ -455,9 +469,32 @@ class ObservabilityHandlerTest extends \WP_UnitTestCase {
 		$this->register_activity_settings();
 		update_option( ActivityLogConstants::OPTION_REQUEST_LOGGING, false );
 
+		$class = HandlerResolver::class_string();
+
+		$this->assertNotSame(
+			ActivityObservabilityHandler::class,
+			$class,
+			'With logging off the adapter must not receive the handler that writes log rows.'
+		);
+
+		$this->assertFalse(
+			is_subclass_of( $class, ActivityObservabilityHandler::class ),
+			'Nor a subclass of it — inheriting the log writer would reinstate the write.'
+		);
+
+		// The guarantee, not the class name: drive whatever the resolver gave
+		// us with a real request event and require that nothing was logged.
+		$before = $this->newest();
+
+		$handler = new $class();
+		$handler->record_event( 'mcp.request', $this->tags(), 5.0 );
+
+		$after = $this->newest();
+
 		$this->assertSame(
-			\WP\MCP\Infrastructure\Observability\NullMcpObservabilityHandler::class,
-			HandlerResolver::class_string()
+			null === $before ? null : (int) $before->id,
+			null === $after ? null : (int) $after->id,
+			'FR-029: with request logging off, dispatching a request must write no log row.'
 		);
 
 		update_option( ActivityLogConstants::OPTION_REQUEST_LOGGING, true );
@@ -526,9 +563,19 @@ class ObservabilityHandlerTest extends \WP_UnitTestCase {
 			rest_sanitize_boolean( $submitted )
 		);
 
-		$this->assertSame(
-			\WP\MCP\Infrastructure\Observability\NullMcpObservabilityHandler::class,
-			HandlerResolver::class_string(),
+		// Asserts the guarantee rather than the class, for the reason given on
+		// the FR-029 test above: F104 changed which non-logging handler the
+		// resolver returns, and this claim is about recording stopping.
+		$class = HandlerResolver::class_string();
+
+		$this->assertNotSame(
+			ActivityObservabilityHandler::class,
+			$class,
+			'Unticking the box must stop recording, not silently leave it on.'
+		);
+
+		$this->assertFalse(
+			is_subclass_of( $class, ActivityObservabilityHandler::class ),
 			'Unticking the box must stop recording, not silently leave it on.'
 		);
 

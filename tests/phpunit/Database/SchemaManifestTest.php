@@ -94,6 +94,32 @@ class SchemaManifestTest extends TestCase {
 			'meta_key'   => array( 'VARCHAR', 255, true ),
 			'meta_value' => array( 'LONGTEXT', 0, true ),
 		),
+		// F104 — the clients registry. Frozen on arrival, unlike the activity
+		// log: this table has no retention, so a narrowed or retyped column is
+		// permanent data loss rather than a gap that ages out. `identity_hash`
+		// is the one that matters most — it is a sha1 carrying a UNIQUE
+		// constraint, and narrowing it would start merging distinct clients.
+		'acrossai_mcp_clients'          => array(
+			'id'              => array( 'BIGINT', 20, false ),
+			'server_id'       => array( 'BIGINT', 20, false ),
+			'identity_hash'   => array( 'CHAR', 40, false ),
+			'identity'        => array( 'VARCHAR', 191, false ),
+			'connection_type' => array( 'VARCHAR', 32, false ),
+			'route'           => array( 'VARCHAR', 32, false ),
+			'client_name'     => array( 'VARCHAR', 191, false ),
+			'client_version'  => array( 'VARCHAR', 64, false ),
+			'connector_slug'  => array( 'VARCHAR', 64, false ),
+			'client_id'       => array( 'VARCHAR', 64, false ),
+			'credential_id'   => array( 'VARCHAR', 36, false ),
+			'credential_hint' => array( 'VARCHAR', 32, false ),
+			'user_id'         => array( 'BIGINT', 20, false ),
+			'last_ip'         => array( 'VARCHAR', 45, false ),
+			'last_user_agent' => array( 'VARCHAR', 255, false ),
+			'request_count'   => array( 'BIGINT', 20, false ),
+			'first_seen_at'   => array( 'DATETIME', 0, false ),
+			'last_seen_at'    => array( 'DATETIME', 0, true ),
+			'revoked_at'      => array( 'DATETIME', 0, true ),
+		),
 		'acrossai_mcp_cli_auth_logs'    => array(
 			'id'                    => array( 'BIGINT', 20, false ),
 			'server_id'             => array( 'BIGINT', 20, false ),
@@ -124,6 +150,7 @@ class SchemaManifestTest extends TestCase {
 		'acrossai_mcp_server_abilities' => 'AcrossAI_MCP_Manager\Includes\Database\MCPServerAbility\Schema',
 		'acrossai_mcp_servers_meta'     => 'AcrossAI_MCP_Manager\Includes\Database\MCPServerMeta\Schema',
 		'acrossai_mcp_cli_auth_logs'    => 'AcrossAI_MCP_Manager\Includes\Database\CliAuthLog\Schema',
+		'acrossai_mcp_clients'          => 'AcrossAI_MCP_Manager\Includes\Database\Clients\Schema',
 	);
 
 	private const REMEDY = "\n\nThe reconciler does NOT perform this change. Ship the D28 three-part contract — bump \$version and add a paired \$upgrades callback on the Table — and update SchemaManifestTest::MANIFEST in the same commit.";

@@ -84,6 +84,7 @@ $tables = array(
 	$wpdb->prefix . 'acrossai_mcp_server_tools',     // F020 per-server tool selection.
 	$wpdb->prefix . 'acrossai_mcp_servers_meta',     // F037 MCPServerMeta — per-server key/value settings (Embeds tab, etc).
 	$wpdb->prefix . 'acrossai_mcp_activity_log',     // F096 activity log — MCP requests + ability runs.
+	$wpdb->prefix . 'acrossai_mcp_clients',          // F104 clients registry — one row per client per server.
 	// F095 — this plugin's own OAuth tables. See the DO NOT REMOVE note above.
 	$wpdb->prefix . 'acrossai_mcp_oauth_clients',
 	$wpdb->prefix . 'acrossai_mcp_oauth_tokens',

@@ -111,6 +111,91 @@ final class ConnectionContext {
 	}
 
 	/**
+	 * OAuth client id for this request, or '' when not an OAuth caller.
+	 *
+	 * The clients registry keys an OAuth caller on this rather than on its
+	 * name or its agent: the id is already unique per server, and it is the
+	 * only value that survives both a renamed client and a client used from
+	 * two machines. Also the join key a Revoke needs — a registry that could
+	 * show an OAuth client without being able to revoke it would be a list of
+	 * problems with no remedy.
+	 *
+	 * @since 0.4.9
+	 * @return string
+	 */
+	public static function client_id(): string {
+		return AuthContextHolder::instance()->get_client_id();
+	}
+
+	/**
+	 * The application-password UUID that authenticated this request, or ''.
+	 *
+	 * {@see self::resolve_type()} already reads this global to decide the
+	 * connection type and then discards it. Keeping it is what makes Revoke
+	 * real for an application-password client, which on most installs is the
+	 * majority of them.
+	 *
+	 * @since 0.4.9
+	 * @return string
+	 */
+	public static function credential_id(): string {
+		if ( empty( $GLOBALS['wp_rest_application_password_uuid'] ) ) {
+			return '';
+		}
+
+		$uuid = $GLOBALS['wp_rest_application_password_uuid'];
+
+		return is_scalar( $uuid ) ? substr( (string) $uuid, 0, 36 ) : '';
+	}
+
+	/**
+	 * A human label for the credential in use, or ''.
+	 *
+	 * The NAME an operator gave the application password — the thing shown on
+	 * their own profile screen, so a row can be matched to a credential in
+	 * hand. Deliberately not a fragment of the UUID: the UUID is never shown
+	 * to the person who created the password, so a piece of it would identify
+	 * nothing. Non-secret either way — the password itself is hashed and
+	 * unreadable even here.
+	 *
+	 * @since 0.4.9
+	 * @param  int $user_id Authenticated user.
+	 * @return string
+	 */
+	public static function credential_hint( int $user_id ): string {
+		$uuid = self::credential_id();
+
+		if ( '' === $uuid || $user_id <= 0 || ! class_exists( '\WP_Application_Passwords' ) ) {
+			return '';
+		}
+
+		// Returns null for an unknown uuid, which `empty()` covers alongside an
+		// unnamed password — a password with no name has no hint to give.
+		$password = \WP_Application_Passwords::get_user_application_password( $user_id, $uuid );
+
+		if ( empty( $password['name'] ) ) {
+			return '';
+		}
+
+		return mb_substr( (string) $password['name'], 0, 32 );
+	}
+
+	/**
+	 * Key of the host-list row that authorised this fleet call, or ''.
+	 *
+	 * The registry keys a fleet caller on this, not on {@see self::fleet_peer()}.
+	 * The peer string is whatever the other site called itself at the time, and
+	 * it has been observed changing between two calls thirty-three seconds
+	 * apart — its site name, then its hostname. The host key does not move.
+	 *
+	 * @since 0.4.9
+	 * @return string
+	 */
+	public static function fleet_host_key(): string {
+		return FleetContext::host_key();
+	}
+
+	/**
 	 * Hostname of the fleet host driving this request, or '' when none is.
 	 *
 	 * Reads through to {@see FleetContext} rather than duplicating its state,

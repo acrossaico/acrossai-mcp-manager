@@ -23,6 +23,7 @@ declare( strict_types = 1 );
 namespace AcrossAI_MCP_Manager\Tests\PHPUnit\Database;
 
 use AcrossAI_MCP_Manager\Includes\Database\CliAuthLog\Table as CliAuthLogTable;
+use AcrossAI_MCP_Manager\Includes\Database\Clients\Table as ClientsTable;
 use AcrossAI_MCP_Manager\Includes\Database\OAuthTokens\Table as OAuthTokensTable;
 use AcrossAI_MCP_Manager\Includes\Database\OAuthAuthCodes\Table as OAuthAuthCodesTable;
 use AcrossAI_MCP_Manager\Includes\Database\OAuthClients\Table as OAuthClientsTable;
@@ -101,6 +102,8 @@ class SchemaParityTest extends WP_UnitTestCase {
 			'MCPServerAbility' => array( MCPServerAbilityTable::class ),
 			'MCPServerMeta'    => array( MCPServerMetaTable::class ),
 			'CliAuthLog'       => array( CliAuthLogTable::class ),
+			// F104 — the clients registry.
+			'Clients'          => array( ClientsTable::class ),
 			// F095 — OAuth tables inherit the same coverage as the original five.
 			'OAuthTokens' => array( OAuthTokensTable::class ),
 			'OAuthAuthCodes' => array( OAuthAuthCodesTable::class ),

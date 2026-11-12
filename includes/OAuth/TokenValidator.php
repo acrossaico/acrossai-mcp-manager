@@ -132,13 +132,22 @@ final class TokenValidator {
 			 *
 			 * @since 0.4.4
 			 *
+			 * The third parameter was added in 0.4.9 for the clients registry
+			 * (F104), which needs an identity that survives both a renamed
+			 * client and a changed user agent. The slug and name cannot
+			 * supply one: a bare DCR client has no slug, and two clients may
+			 * share a name. Appended rather than inserted, so a listener
+			 * registered for two arguments keeps working untouched.
+			 *
 			 * @param string $connector_slug Connector slug, or '' for a bare client.
 			 * @param string $client_name    Client display name, or ''.
+			 * @param string $client_id      OAuth client id from the token row.
 			 */
 			do_action(
 				ActivityLogConstants::ACTION_OAUTH_TOKEN_VALIDATED,
 				isset( $row->connector_slug ) ? (string) $row->connector_slug : '',
-				isset( $row->client_name ) ? (string) $row->client_name : ''
+				isset( $row->client_name ) ? (string) $row->client_name : '',
+				(string) $row->client_id
 			);
 
 			return $resolved > 0 ? $resolved : $user_id;

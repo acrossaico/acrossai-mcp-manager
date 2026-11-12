@@ -57,9 +57,15 @@ final class TroubleshootPage {
 	/**
 	 * Register the submenu.
 	 *
-	 * Position 9, directly after Logs: an operator reaches for diagnostics
-	 * next to the record of what happened, and both are things you open when
-	 * something is already wrong.
+	 * Position 10, after Logs (8) and Clients (9): an operator reaches for
+	 * diagnostics next to the record of what happened, and both are things you
+	 * open when something is already wrong.
+	 *
+	 * Was 9 until F104 took that slot. Moved rather than left to collide:
+	 * `add_submenu_page()` resolves a duplicate position by splicing, so the
+	 * resulting order would have depended on which screen happened to register
+	 * first — stable today and silently reversible by any later change to hook
+	 * ordering.
 	 *
 	 * @return void
 	 */
@@ -71,7 +77,7 @@ final class TroubleshootPage {
 			'manage_options',
 			self::PAGE_SLUG,
 			array( $this, 'render' ),
-			9
+			10
 		);
 	}
 

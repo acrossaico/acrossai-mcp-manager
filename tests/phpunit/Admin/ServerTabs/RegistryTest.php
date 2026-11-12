@@ -273,6 +273,7 @@ final class RegistryTest extends WP_UnitTestCase {
 				'tools',          // 50
 				'abilities',      // 60
 				'access-control', // 70
+				'clients-seen',   // 75 — F104, the per-server clients registry
 				'mcp-log',        // 80
 				'update-server',  // 90 (the Embeds tab held this slot until it moved to acrossai-pro)
 				'danger-zone',    // 100
