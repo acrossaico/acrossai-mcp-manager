@@ -273,5 +273,10 @@ jobs:
       - name: Run PHPUnit — clients-db suite
         run: vendor/bin/phpunit --bootstrap tests/bootstrap-wp.php --testsuite clients-db
 
+      # F105 — the export contract, including the merge-blocker that a fully
+      # configured server exports no credential and no site-bound value.
+      - name: Run PHPUnit — export-db suite
+        run: vendor/bin/phpunit --bootstrap tests/bootstrap-wp.php --testsuite export-db
+
       - name: Run PHPUnit — troubleshoot suite (WP bootstrap)
         run: vendor/bin/phpunit --bootstrap tests/bootstrap-wp.php --testsuite troubleshoot

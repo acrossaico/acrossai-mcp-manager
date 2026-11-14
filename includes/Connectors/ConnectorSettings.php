@@ -103,6 +103,35 @@ final class ConnectorSettings {
 	}
 
 	/**
+	 * Read the stored server settings WITHOUT seeding them.
+	 *
+	 * `get_server_settings()` persists a computed seed on first read — which is
+	 * correct for the admin screens, and wrong for anything that must not
+	 * mutate the site. The export path is the first such caller: clicking
+	 * "Show JSON" would otherwise write a settings row to every server that
+	 * had never been configured, converting "not set" into "explicitly set to
+	 * today's defaults" on a site the operator was only looking at.
+	 *
+	 * Returns null when nothing is stored, so a caller can tell an unset
+	 * server from one deliberately configured to the same values.
+	 *
+	 * @since  0.4.9
+	 * @param  int $server_id Server row id.
+	 * @return array<string, mixed>|null Normalized settings, or null when unset.
+	 */
+	public static function peek_server_settings( int $server_id ): ?array {
+		$raw = MCPServerMetaQuery::get_meta( $server_id, self::META_SERVER_SETTINGS );
+
+		if ( null === $raw || '' === $raw ) {
+			return null;
+		}
+
+		$decoded = json_decode( $raw, true );
+
+		return is_array( $decoded ) ? self::normalize_server_settings( $decoded ) : null;
+	}
+
+	/**
 	 * Persist the server-wide settings record.
 	 *
 	 * @param int                                                                                          $server_id MCP server row id.
