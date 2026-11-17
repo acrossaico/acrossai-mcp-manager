@@ -33,6 +33,9 @@ use AcrossAI_MCP_Manager\Includes\Database\MCPServer\Query as ServerQuery;
 use AcrossAI_MCP_Manager\Includes\Database\MCPServer\Row as ServerRow;
 use AcrossAI_MCP_Manager\Includes\Database\MCPServerTool\Query as ToolQuery;
 use AcrossAI_MCP_Manager\Includes\Export\Envelope;
+use AcrossAI_MCP_Manager\Includes\Export\ImportValidator;
+use AcrossAI_MCP_Manager\Includes\Export\ServerImporter;
+use AcrossAI_MCP_Manager\Includes\Export\Snapshots;
 use AcrossAI_MCP_Manager\Includes\Utilities\ExportConstants;
 
 defined( 'ABSPATH' ) || exit;
@@ -59,6 +62,33 @@ final class ImportExportTab {
 	 * @var   string
 	 */
 	public const ACTION_EXPORT = 'acrossai_mcp_export_servers';
+
+	/**
+	 * `admin-post.php` action for applying an uploaded file.
+	 *
+	 * @since 0.4.9
+	 * @var   string
+	 */
+	public const ACTION_IMPORT = 'acrossai_mcp_import_servers';
+
+	/**
+	 * `admin-post.php` action for restoring a snapshot.
+	 *
+	 * @since 0.4.9
+	 * @var   string
+	 */
+	public const ACTION_RESTORE = 'acrossai_mcp_restore_snapshot';
+
+	/**
+	 * Largest upload accepted, matching the validator's own ceiling.
+	 *
+	 * Checked here too so an oversized file is rejected before it is read into
+	 * memory, rather than after.
+	 *
+	 * @since 0.4.9
+	 * @var   int
+	 */
+	private const MAX_UPLOAD = ImportValidator::MAX_BYTES;
 
 	/**
 	 * Singleton instance.
@@ -132,6 +162,20 @@ final class ImportExportTab {
 			array( $this, 'render_export' ),
 			$page_slug
 		);
+
+		add_settings_section(
+			'acrossai_mcp_import',
+			'',
+			array( $this, 'render_import' ),
+			$page_slug
+		);
+
+		add_settings_section(
+			'acrossai_mcp_snapshots',
+			'',
+			array( $this, 'render_snapshots' ),
+			$page_slug
+		);
 	}
 
 	/**
@@ -161,6 +205,7 @@ final class ImportExportTab {
 		);
 
 		$this->hide_vendor_save();
+		$this->render_notice();
 
 		echo '<h2>' . esc_html__( 'Export servers', 'acrossai-mcp-manager' ) . '</h2>';
 		echo '<p class="description">'
@@ -295,6 +340,390 @@ final class ImportExportTab {
 	}
 
 	/**
+	 * Draw the import card.
+	 *
+	 * @since  0.4.9
+	 * @return void
+	 */
+	public function render_import(): void {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			return;
+		}
+
+		echo '<hr style="margin:28px 0;">';
+		echo '<h2>' . esc_html__( 'Import servers', 'acrossai-mcp-manager' ) . '</h2>';
+		echo '<p class="description">'
+			. esc_html__( 'A server whose slug already exists here is replaced by the one in the file. New slugs are created.', 'acrossai-mcp-manager' )
+			. '</p>';
+
+		printf(
+			'<div class="notice notice-success inline" style="margin:12px 0;"><p><strong>%1$s</strong> %2$s</p></div>',
+			esc_html__( 'Your current setup is saved first.', 'acrossai-mcp-manager' ),
+			esc_html__( 'A snapshot is taken automatically before anything is written, and you can restore it below. You do not need to export a backup yourself.', 'acrossai-mcp-manager' )
+		);
+
+		wp_nonce_field( self::ACTION_IMPORT, '_acrossai_mcp_import_nonce' );
+
+		echo '<p><input type="file" name="import_file" accept=".json,application/json"></p>';
+
+		printf(
+			'<p><label><input type="checkbox" name="enable_servers" value="1"> %s</label></p>',
+			esc_html__( 'Let this file switch servers on. Leave unticked and imported servers stay disabled until you enable them yourself.', 'acrossai-mcp-manager' )
+		);
+
+		printf(
+			'<p class="submit"><button type="submit" name="action" value="%1$s" class="button" formaction="%2$s" formmethod="post" formenctype="multipart/form-data">%3$s</button></p>',
+			esc_attr( self::ACTION_IMPORT ),
+			esc_url( admin_url( 'admin-post.php' ) ),
+			esc_html__( 'Import servers', 'acrossai-mcp-manager' )
+		);
+	}
+
+	/**
+	 * Draw the snapshots list.
+	 *
+	 * @since  0.4.9
+	 * @return void
+	 */
+	public function render_snapshots(): void {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			return;
+		}
+
+		$snapshots = Snapshots::all();
+
+		echo '<hr style="margin:28px 0;">';
+		echo '<h2>' . esc_html__( 'Snapshots', 'acrossai-mcp-manager' ) . '</h2>';
+
+		printf(
+			'<p class="description">%s</p>',
+			esc_html(
+				sprintf(
+					/* translators: %d: how many snapshots are kept. */
+					__( 'Taken automatically before each import. The %d most recent are kept; older ones are discarded.', 'acrossai-mcp-manager' ),
+					Snapshots::KEEP
+				)
+			)
+		);
+
+		if ( array() === $snapshots ) {
+			echo '<p>' . esc_html__( 'No snapshots yet — one is taken the first time you import.', 'acrossai-mcp-manager' ) . '</p>';
+
+			return;
+		}
+
+		$format = get_option( 'date_format' ) . ' ' . get_option( 'time_format' );
+
+		echo '<table class="widefat striped" style="margin-top:12px; max-width:720px;"><tbody>';
+
+		foreach ( $snapshots as $key => $snapshot ) {
+			$servers = isset( $snapshot['servers'] ) ? (int) $snapshot['servers'] : 0;
+
+			echo '<tr><td>';
+
+			// `wp_date()` returns false on a bad timezone; the raw timestamp is
+			// still more use to an operator than an empty cell.
+			$when = wp_date( $format, $key );
+
+			printf(
+				'<strong>%1$s</strong><br><span class="description">%2$s</span>',
+				esc_html( is_string( $when ) ? $when : (string) $key ),
+				esc_html(
+					sprintf(
+						/* translators: %d: number of servers in the snapshot. */
+						_n( '%d server', '%d servers', $servers, 'acrossai-mcp-manager' ),
+						$servers
+					)
+				)
+			);
+
+			echo '</td><td style="text-align:right; vertical-align:middle;">';
+
+			printf(
+				'<a href="%1$s" class="button">%2$s</a>',
+				esc_url(
+					wp_nonce_url(
+						add_query_arg(
+							array(
+								'action'   => self::ACTION_RESTORE,
+								'snapshot' => $key,
+							),
+							admin_url( 'admin-post.php' )
+						),
+						self::ACTION_RESTORE . '_' . $key
+					)
+				),
+				esc_html__( 'Restore', 'acrossai-mcp-manager' )
+			);
+
+			echo '</td></tr>';
+		}
+
+		echo '</tbody></table>';
+	}
+
+	/**
+	 * Apply an uploaded file.
+	 *
+	 * @since  0.4.9
+	 * @return void
+	 */
+	public function handle_import(): void {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_die( esc_html__( 'You do not have permission to import MCP servers.', 'acrossai-mcp-manager' ) );
+		}
+
+		check_admin_referer( self::ACTION_IMPORT, '_acrossai_mcp_import_nonce' );
+
+		$raw = $this->uploaded_contents();
+
+		if ( is_wp_error( $raw ) ) {
+			$this->notice( 'error', $raw->get_error_message() );
+			$this->back();
+		}
+
+		$payload = ImportValidator::parse( $raw );
+
+		if ( is_wp_error( $payload ) ) {
+			$this->notice( 'error', $payload->get_error_message() );
+			$this->back();
+		}
+
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- check_admin_referer() ran above.
+		$enable = ! empty( $_POST['enable_servers'] );
+
+		$this->report( ServerImporter::import( $payload, $enable ) );
+		$this->back();
+	}
+
+	/**
+	 * Restore a snapshot.
+	 *
+	 * Restoring IS importing — the snapshot is an export, so it goes through
+	 * the same validator and the same writer. That also means restoring takes
+	 * its own snapshot first, so an accidental restore is itself undoable.
+	 *
+	 * @since  0.4.9
+	 * @return void
+	 */
+	public function handle_restore(): void {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_die( esc_html__( 'You do not have permission to restore MCP servers.', 'acrossai-mcp-manager' ) );
+		}
+
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Verified immediately below, scoped to this key.
+		$key = isset( $_GET['snapshot'] ) ? (int) $_GET['snapshot'] : 0;
+
+		check_admin_referer( self::ACTION_RESTORE . '_' . $key );
+
+		$payload = Snapshots::payload( $key );
+
+		if ( null === $payload ) {
+			$this->notice( 'error', __( 'That snapshot no longer exists.', 'acrossai-mcp-manager' ) );
+			$this->back();
+		}
+
+		$checked = ImportValidator::check( $payload );
+
+		if ( is_wp_error( $checked ) ) {
+			$this->notice( 'error', $checked->get_error_message() );
+			$this->back();
+		}
+
+		// `true`: a snapshot records this site's own enabled states, so
+		// restoring one may legitimately switch a server back on. That is
+		// putting back what was there, not a file publishing an endpoint.
+		$this->report( ServerImporter::import( $checked, true ) );
+		$this->back();
+	}
+
+	/**
+	 * Read the uploaded file.
+	 *
+	 * Read straight from the temporary file, NOT through `wp_handle_upload()`.
+	 * That helper moves the upload into `wp-content/uploads`, which is served
+	 * over HTTP — and an export lists every server, its routes and its
+	 * connector configuration. Harmless to its owner, not something to leave
+	 * at a guessable public URL. The file never lands on disk anywhere a
+	 * request can reach it.
+	 *
+	 * @since  0.4.9
+	 * @return string|\WP_Error
+	 */
+	private function uploaded_contents() {
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- check_admin_referer() ran in the caller.
+		$file = isset( $_FILES['import_file'] ) && is_array( $_FILES['import_file'] ) ? $_FILES['import_file'] : array();
+
+		$error = isset( $file['error'] ) ? (int) $file['error'] : UPLOAD_ERR_NO_FILE;
+
+		if ( UPLOAD_ERR_NO_FILE === $error || empty( $file['tmp_name'] ) ) {
+			return new \WP_Error(
+				'acrossai_mcp_import_no_file',
+				__( 'Choose a file to import.', 'acrossai-mcp-manager' )
+			);
+		}
+
+		if ( UPLOAD_ERR_OK !== $error ) {
+			return new \WP_Error(
+				'acrossai_mcp_import_upload_failed',
+				__( 'That file did not upload completely. Try again.', 'acrossai-mcp-manager' )
+			);
+		}
+
+		$tmp = (string) $file['tmp_name'];
+
+		// Proves the path came from PHP's own upload handling rather than
+		// being posted as a string, which is what stops a crafted `tmp_name`
+		// turning this into an arbitrary file read.
+		if ( ! is_uploaded_file( $tmp ) ) {
+			return new \WP_Error(
+				'acrossai_mcp_import_not_an_upload',
+				__( 'That file could not be read.', 'acrossai-mcp-manager' )
+			);
+		}
+
+		if ( isset( $file['size'] ) && (int) $file['size'] > self::MAX_UPLOAD ) {
+			return new \WP_Error(
+				'acrossai_mcp_import_too_large',
+				sprintf(
+					/* translators: %s: maximum size, already formatted. */
+					__( 'That file is larger than %s, which is far bigger than any export this plugin produces.', 'acrossai-mcp-manager' ),
+					size_format( self::MAX_UPLOAD )
+				)
+			);
+		}
+
+		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents -- A verified upload temp path, never a URL.
+		$raw = file_get_contents( $tmp );
+
+		return is_string( $raw )
+			? $raw
+			: new \WP_Error(
+				'acrossai_mcp_import_unreadable_file',
+				__( 'That file could not be read.', 'acrossai-mcp-manager' )
+			);
+	}
+
+	/**
+	 * Turn an importer report into a notice.
+	 *
+	 * Every server is named with what happened to it. A run that skipped two
+	 * servers and updated one is not a success, and a single "Imported." would
+	 * say it was.
+	 *
+	 * @since  0.4.9
+	 * @param  array{snapshot:int, servers:array<int, array<string, mixed>>} $result Importer report.
+	 * @return void
+	 */
+	private function report( array $result ): void {
+		$labels = array(
+			ServerImporter::RESULT_UPDATED       => __( 'updated', 'acrossai-mcp-manager' ),
+			ServerImporter::RESULT_CREATED       => __( 'created', 'acrossai-mcp-manager' ),
+			ServerImporter::RESULT_SKIPPED       => __( 'skipped — registered by a plugin that is not installed here', 'acrossai-mcp-manager' ),
+			ServerImporter::RESULT_ROUTE_TAKEN   => __( 'skipped — its address is already used by another server', 'acrossai-mcp-manager' ),
+			ServerImporter::RESULT_CREATE_FAILED => __( 'could not be created', 'acrossai-mcp-manager' ),
+		);
+
+		$lines   = array();
+		$problem = false;
+
+		foreach ( $result['servers'] as $server ) {
+			$code  = (string) $server['result'];
+			$label = isset( $labels[ $code ] ) ? $labels[ $code ] : $code;
+
+			if ( ServerImporter::RESULT_UPDATED !== $code && ServerImporter::RESULT_CREATED !== $code ) {
+				$problem = true;
+			}
+
+			$detail = '' !== (string) $server['detail'] ? ' (' . (string) $server['detail'] . ')' : '';
+
+			$lines[] = sprintf( '%s — %s%s', (string) $server['slug'], $label, $detail );
+		}
+
+		$message = implode( '; ', $lines );
+
+		if ( $result['snapshot'] > 0 ) {
+			$message .= '. ' . __( 'A snapshot of your previous setup was saved first.', 'acrossai-mcp-manager' );
+		}
+
+		$this->notice( $problem ? 'warning' : 'success', $message );
+	}
+
+	/**
+	 * Stash a notice for the next render.
+	 *
+	 * A transient keyed to the user, because these handlers redirect and a
+	 * query argument cannot carry a per-server report. Keyed per user so two
+	 * administrators importing at once cannot read each other's result.
+	 *
+	 * @since  0.4.9
+	 * @param  string $type    `success`, `warning` or `error`.
+	 * @param  string $message Human-readable text.
+	 * @return void
+	 */
+	private function notice( string $type, string $message ): void {
+		set_transient( $this->notice_key(), array( $type, $message ), 60 );
+	}
+
+	/**
+	 * Draw and clear any pending notice.
+	 *
+	 * @since  0.4.9
+	 * @return void
+	 */
+	private function render_notice(): void {
+		$notice = get_transient( $this->notice_key() );
+
+		if ( ! is_array( $notice ) || 2 !== count( $notice ) ) {
+			return;
+		}
+
+		delete_transient( $this->notice_key() );
+
+		$type = in_array( $notice[0], array( 'success', 'warning', 'error' ), true ) ? $notice[0] : 'info';
+
+		printf(
+			'<div class="notice notice-%1$s is-dismissible"><p>%2$s</p></div>',
+			esc_attr( $type ),
+			esc_html( (string) $notice[1] )
+		);
+	}
+
+	/**
+	 * Transient key for this user's pending notice.
+	 *
+	 * @since  0.4.9
+	 * @return string
+	 */
+	private function notice_key(): string {
+		return 'acrossai_mcp_ie_notice_' . get_current_user_id();
+	}
+
+	/**
+	 * Redirect back to this tab and stop.
+	 *
+	 * `never`, not `void`: every caller is an early exit from a handler, and
+	 * typing it as void made static analysis believe execution continued past
+	 * a refusal — so a WP_Error looked as though it reached the importer.
+	 *
+	 * @since  0.4.9
+	 * @return never
+	 */
+	private function back(): never {
+		wp_safe_redirect(
+			add_query_arg(
+				array(
+					'page' => \AcrossAI_Main_Menu\SettingsPage::SETTINGS_SLUG,
+					'tab'  => self::TAB_SLUG,
+				),
+				admin_url( 'admin.php' )
+			)
+		);
+
+		exit;
+	}
+
+	/**
 	 * Hide the vendor page's Save button on this tab.
 	 *
 	 * `TabbedPageRenderer::render()` calls `submit_button()` unconditionally
@@ -328,17 +757,15 @@ final class ImportExportTab {
 		$selection = $this->selection_from_request();
 
 		if ( array() === $selection ) {
-			wp_safe_redirect( $this->tab_url( 'nothing-selected' ) );
-
-			exit;
+			$this->notice( 'error', __( 'Tick at least one server to export.', 'acrossai-mcp-manager' ) );
+			$this->back();
 		}
 
 		$json = Envelope::to_json( Envelope::build( $selection ) );
 
 		if ( '' === $json ) {
-			wp_safe_redirect( $this->tab_url( 'encode-failed' ) );
-
-			exit;
+			$this->notice( 'error', __( 'That export could not be written. Please report this.', 'acrossai-mcp-manager' ) );
+			$this->back();
 		}
 
 		// `nocache_headers()` first: without it a proxy can cache one site's
@@ -395,23 +822,5 @@ final class ImportExportTab {
 		}
 
 		return $selection;
-	}
-
-	/**
-	 * Back to this tab, carrying a message code.
-	 *
-	 * @since  0.4.9
-	 * @param  string $notice Message code.
-	 * @return string
-	 */
-	private function tab_url( string $notice ): string {
-		return add_query_arg(
-			array(
-				'page'                => \AcrossAI_Main_Menu\SettingsPage::SETTINGS_SLUG,
-				'tab'                 => self::TAB_SLUG,
-				'acrossai_mcp_export' => $notice,
-			),
-			admin_url( 'admin.php' )
-		);
 	}
 }

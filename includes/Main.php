@@ -607,6 +607,16 @@ final class Main {
 			$import_export,
 			'handle_export'
 		);
+		$this->loader->add_action(
+			'admin_post_' . \AcrossAI_MCP_Manager\Admin\Partials\ImportExportTab::ACTION_IMPORT,
+			$import_export,
+			'handle_import'
+		);
+		$this->loader->add_action(
+			'admin_post_' . \AcrossAI_MCP_Manager\Admin\Partials\ImportExportTab::ACTION_RESTORE,
+			$import_export,
+			'handle_restore'
+		);
 
 		/**
 		 * `acrossai_addons` filter — drop our own slug from the list rendered
