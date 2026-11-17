@@ -589,6 +589,26 @@ final class Main {
 		$this->loader->add_action( 'admin_init', $settings_menu, 'register_settings' );
 
 		/**
+		 * F105 — the Import / Export tab, at priority 30 after MCP's 20.
+		 *
+		 * The download posts to `admin-post.php` rather than `options.php`,
+		 * because an export is a file transfer and not an option write. The
+		 * button carries `formaction` to say so, since the vendor renderer
+		 * owns the surrounding form.
+		 *
+		 * No `_nopriv` twin: an export reads every server's configuration, so
+		 * there is no anonymous version of this action to register.
+		 */
+		$import_export = \AcrossAI_MCP_Manager\Admin\Partials\ImportExportTab::instance();
+		$this->loader->add_filter( 'acrossai_settings_tabs', $import_export, 'register_tab' );
+		$this->loader->add_action( 'admin_init', $import_export, 'register_settings' );
+		$this->loader->add_action(
+			'admin_post_' . \AcrossAI_MCP_Manager\Admin\Partials\ImportExportTab::ACTION_EXPORT,
+			$import_export,
+			'handle_export'
+		);
+
+		/**
 		 * `acrossai_addons` filter — drop our own slug from the list rendered
 		 * on the shared Add-ons page (bundled in acrossai-co/main-menu 0.0.22+).
 		 * An already-active plugin should not appear as an installable add-on.
