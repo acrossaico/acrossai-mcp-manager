@@ -406,6 +406,11 @@ final class ServerImporter {
 	 * relying on it would leave this site's stale overrides inside a server
 	 * imported with a matching policy.
 	 *
+	 * The overrides are then written whatever the policy is. They are not a
+	 * `per-ability` detail: an explicit row wins over the policy, so Enable
+	 * All plus three hidden abilities is three rows that must survive a round
+	 * trip.
+	 *
 	 * @since  0.4.9
 	 * @param  int                  $id        Server row id.
 	 * @param  array<string, mixed> $abilities Abilities block.
@@ -424,10 +429,11 @@ final class ServerImporter {
 
 		AbilityQuery::instance()->delete_items_for_server( $id );
 
-		if ( 'per-ability' !== $policy ) {
-			return;
-		}
-
+		// No early return for `expose` / `hide`. An override row beats the
+		// policy — `ExposureResolver::resolve_effective()` checks rows first
+		// and only falls through to the policy when none exists — so a server
+		// set to Enable All with three abilities toggled off needs those three
+		// rows written back, or the import silently turns them all on.
 		$overrides = isset( $abilities['overrides'] ) && is_array( $abilities['overrides'] )
 			? $abilities['overrides']
 			: array();

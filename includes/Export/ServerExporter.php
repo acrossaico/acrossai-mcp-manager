@@ -277,13 +277,23 @@ final class ServerExporter {
 	}
 
 	/**
-	 * The abilities policy, and overrides only where they mean anything.
+	 * The abilities policy and its override rows.
 	 *
-	 * The Abilities tab's three buttons ARE the three stored values — Enable
-	 * All is `expose`, Disable All is `hide`, Reset to Ability Defaults is
-	 * `per-ability`. Under the first two the override table is not consulted
-	 * at read time, so exporting a list there would carry rows that cannot
-	 * affect anything.
+	 * BOTH, always. An earlier version exported overrides only under
+	 * `per-ability`, on the belief that Enable All and Disable All make the
+	 * table irrelevant. They do not:
+	 * {@see \AcrossAI_MCP_Manager\Includes\Database\MCPServerAbility\ExposureResolver::resolve_effective()}
+	 * is explicit that an explicit row is "Priority 1: explicit row wins over
+	 * everything", and only falls through to the server policy when no row
+	 * exists.
+	 *
+	 * So a server set to Enable All with three abilities toggled off holds
+	 * three rows that decide those three — and dropping them exported a server
+	 * as "everything on", which is what the destination then became. That was
+	 * reported from a real round trip, not caught here.
+	 *
+	 * The policy still matters and still travels: it decides every ability
+	 * WITHOUT a row, including abilities that do not exist yet.
 	 *
 	 * @since  0.4.9
 	 * @param  ServerRow $row       Server row.
@@ -293,12 +303,6 @@ final class ServerExporter {
 	private static function abilities( ServerRow $row, int $server_id ): array {
 		$policy = (string) $row->abilities_default_policy;
 		$policy = '' !== $policy ? $policy : 'per-ability';
-
-		$block = array( 'policy' => $policy );
-
-		if ( 'per-ability' !== $policy ) {
-			return $block;
-		}
 
 		$overrides = array();
 
@@ -325,9 +329,10 @@ final class ServerExporter {
 			}
 		);
 
-		$block['overrides'] = $overrides;
-
-		return $block;
+		return array(
+			'policy'    => $policy,
+			'overrides' => $overrides,
+		);
 	}
 
 	/**

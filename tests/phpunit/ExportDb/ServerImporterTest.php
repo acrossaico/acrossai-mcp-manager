@@ -177,6 +177,52 @@ class ServerImporterTest extends \WP_UnitTestCase {
 		$this->assertSame( array( 'toolset/content' ), $slugs );
 	}
 
+	/**
+	 * The bug a real round trip found: Enable All plus hidden abilities.
+	 *
+	 * A server on `expose` with three abilities toggled off holds three rows,
+	 * and those rows beat the policy. The first version of this feature
+	 * exported the policy alone, so importing the file turned every ability
+	 * back on — reported from the screen, not caught here.
+	 */
+	public function test_hidden_abilities_survive_a_round_trip_under_expose(): void {
+		$row = $this->server( array( 'abilities_default_policy' => 'expose' ) );
+		$id  = (int) $row->id;
+
+		AbilityQuery::instance()->upsert( $id, 'toolset/content', false );
+		AbilityQuery::instance()->upsert( $id, 'toolset/database', false );
+
+		$payload = $this->payload_for( $id );
+
+		// Somebody turns them back on in the meantime.
+		AbilityQuery::instance()->delete_items_for_server( $id );
+
+		ServerImporter::import( $payload );
+
+		$rows = (array) AbilityQuery::instance()->query(
+			array(
+				'server_id' => $id,
+				'number'    => 0,
+			)
+		);
+
+		$hidden = array();
+
+		foreach ( $rows as $override ) {
+			if ( empty( $override->is_exposed ) ) {
+				$hidden[] = (string) $override->ability_slug;
+			}
+		}
+
+		sort( $hidden );
+
+		$this->assertSame(
+			array( 'toolset/content', 'toolset/database' ),
+			$hidden,
+			'Hidden abilities must come back; the policy alone does not describe them.'
+		);
+	}
+
 	// ---------------------------------------------------------------- //
 	// Blocks absent vs empty                                            //
 	// ---------------------------------------------------------------- //

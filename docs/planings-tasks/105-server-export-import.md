@@ -22,15 +22,15 @@ Three things it deliberately does not do:
   nobody has looked at yet.
 - It never creates a server another plugin owns.
 
-## The sketch, and the one correction that inverted it
+## The sketch, and the two places it was wrong
 
 The original ask was:
 
 > if enable all is selected then do not export the abilities; if that is Customise then export
 > the abilities into json
 
-That is **correct for Abilities and wrong for Tools**, because they are two separate controls and
-the sketch treated them as one.
+It is wrong twice over. Tools and Abilities are **two separate controls** and the sketch treated
+them as one; and even for Abilities, "Enable All" does not mean there is nothing to export.
 
 | | storage | what it controls | what "all" is |
 | --- | --- | --- | --- |
@@ -43,10 +43,19 @@ columns plus the curated rows, and whose docblock rules abilities out:
 > **NOT included** (F026 scope revert, 2026-07-15): abilities where `meta.mcp.public = true` (or
 > `is_exposed = 1` per-server override) are NOT included.
 
-So for **abilities** the sketch is exactly right — the three buttons *are* the three stored values
-(`expose` / `hide` / `per-ability`), and under the first two the override table is not consulted
-at read time, so there is genuinely no list to export. For **tools** there is no stored mode at
-all, only rows.
+So for **abilities** the sketch is half right — the three buttons *are* the three stored values
+(`expose` / `hide` / `per-ability`). For **tools** there is no stored mode at all, only rows.
+
+**But the other half of the sketch is wrong, and shipping it was a bug.** "Enable All, so there is
+no list to export" assumes the override table stops mattering under `expose`. It does not:
+`ExposureResolver::resolve_effective()` opens with *"Priority 1: explicit row wins over
+everything"*, and only falls through to the server policy when no row exists. A server on Enable
+All with three abilities toggled off holds three rows, and those rows decide those three.
+
+The first implementation exported the policy alone in that case. A real round trip caught it — a
+server exported as "everything on", and importing the file turned all 389 abilities back on. The
+block now always carries both: the policy decides every ability **without** a row, including ones
+that do not exist yet; the rows decide the rest.
 
 ## What the live site showed
 
@@ -61,8 +70,10 @@ Four servers, measured before anything was written:
 
 Two findings came out of this, and both changed the design.
 
-**`server_abilities` is empty on every server.** The per-ability override path — the thing the
-sketch called "Customise" — is unused in practice.
+**`server_abilities` was empty on every server** at the time of measuring. That made the override
+path look unused — and is part of why the Enable All bug above survived the first implementation.
+It is not unused; it is just empty on a site nobody has curated yet. Toggling one ability off on
+the Abilities tab creates a row, whatever the policy says.
 
 **Every curated set is byte-for-byte what `apply_type_defaults()` writes.** Zero hand-made tool
 decisions across four servers. The thing originally identified as "the valuable payload" is
@@ -98,7 +109,8 @@ here: on a site that *does* curate, the delta is where the value is.
       "message":    { "mode": "default" },
       "tools":      { "state": "type-defaults", "added": [], "removed": [],
                       "protocol": { "discover": false, "get_info": false, "execute": false } },
-      "abilities":  { "policy": "expose" },
+      "abilities":  { "policy": "expose",
+                      "overrides": [ { "slug": "toolset/database", "exposed": false } ] },
       "access":     { "rule": "everyone", "values": [] },
       "connectors": { "stored": true, "enabled_slugs": ["chatgpt", "claude"],
                       "allow_other": false, "require_admin_approval": false }
@@ -328,7 +340,7 @@ Not built: the extensibility filters (`acrossai_mcp_export_blocks` / `…_export
 one half in place — `acrossai_mcp_export_server` lets a companion add a block — and the registry
 half waits for a second consumer.
 
-## Four bugs found by measuring rather than reading
+## Five bugs — four found by measuring, one reported from the screen
 
 **The export was writing to the database.** `ConnectorSettings::get_server_settings()` persists a
 computed seed on first read — correct for the admin screens, wrong for anything that must not
@@ -344,6 +356,13 @@ it exported a row nobody asked for.
 
 **`is_enabled` was being written directly.** The F021 `F090 single is_enabled writer` gate failed
 the build and named the line. See *Status is gated* above. That gate earned its keep.
+
+**Overrides were dropped under Enable All.** The one a test could not catch, because the test
+asserted the wrong behaviour: it *required* overrides to be absent under `expose`. That belief
+came from reading the Tools docblock rather than `ExposureResolver::resolve_effective()`. Reported
+from a real export → change → import cycle on the Abilities tab. Both the exporter and the
+importer now carry overrides whatever the policy is, and the test is inverted to reproduce the
+report.
 
 **The upload must not go through `wp_handle_upload()`.** An earlier draft of this document
 recommended it as the canonical, safer path. It moves the upload into `wp-content/uploads`, which

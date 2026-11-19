@@ -317,8 +317,19 @@ class ServerExporterTest extends \WP_UnitTestCase {
 	// Abilities                                                         //
 	// ---------------------------------------------------------------- //
 
-	/** Under Enable All the override list cannot affect anything, so it is absent. */
-	public function test_abilities_omit_overrides_under_expose(): void {
+	/**
+	 * Overrides travel under Enable All, because a row beats the policy.
+	 *
+	 * Inverted from the assertion that shipped first, which required them to
+	 * be ABSENT here. That belief came from reading the Tools docblock rather
+	 * than `ExposureResolver::resolve_effective()`, whose first branch is
+	 * "Priority 1: explicit row wins over everything".
+	 *
+	 * The bug it allowed was reported from a real round trip: a server on
+	 * Enable All with abilities toggled off exported as "everything on", and
+	 * importing it turned all 389 back on.
+	 */
+	public function test_abilities_carry_overrides_under_expose(): void {
 		$row = $this->server( array( 'abilities_default_policy' => 'expose' ) );
 
 		AbilityQuery::instance()->upsert( (int) $row->id, 'toolset/content', false );
@@ -329,7 +340,16 @@ class ServerExporterTest extends \WP_UnitTestCase {
 		$abilities = ServerExporter::export( $fresh )[ ExportConstants::BLOCK_ABILITIES ];
 
 		$this->assertSame( 'expose', $abilities['policy'] );
-		$this->assertArrayNotHasKey( 'overrides', $abilities );
+		$this->assertSame(
+			array(
+				array(
+					'slug'    => 'toolset/content',
+					'exposed' => false,
+				),
+			),
+			$abilities['overrides'],
+			'An ability hidden on an Enable All server is a row, and the row decides. Dropping it exports a lie.'
+		);
 	}
 
 	/** Under per-ability they are the configuration, so they travel. */
