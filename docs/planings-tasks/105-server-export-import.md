@@ -374,6 +374,35 @@ Also aligned while here: `phpcs.xml.dist` declared `testVersion 7.4-` while `com
 `">=8.1"` and the plugin header says `Requires PHP: 8.1`. Three declarations, three answers. Now
 `8.1-`; the full 278-file sweep is clean, so nothing was hiding behind it.
 
+## The check that would have caught the abilities bug
+
+The mistake was not a forgotten field. It was exporting from a **two-tier model when the resolver
+has three**. So the check to run against every block is: *enumerate every input to the code that
+reads it, and confirm each one is either exported or genuinely runtime.*
+
+| block | what reads it | inputs | all carried? |
+| --- | --- | --- | --- |
+| **tools** | `ToolPolicy::compose_for_row()` | 3 `COLUMN_MAP` columns, `get_added_slugs()` | yes — both travel |
+| **abilities** | `ExposureResolver::resolve_effective()` | **1.** override row **2.** server policy **3.** the ability's own `meta.mcp.public` | 1 and 2 travel; 3 is the ability's own default and belongs to the ability, not the server |
+| **status** | `MCP\Controller`, adapter filter | `is_enabled` | yes |
+| **message** | `Controller::default_instructions_for()` vs the meta | computed default, `_server_instructions` | the meta travels; the default is recomputed per release on purpose |
+| **access** | `user_has_access()` | rule key, options | yes, minus user ids by design |
+| **connectors** | `ConnectorSettings::get_server_settings()` | three fields | yes, minus approvals by design |
+
+Tools was then round-tripped through every shape it can hold — `type-defaults`, `none`, `all`,
+`custom +1`, `custom −1`, `custom +1/−1`, and a single-tool server — with the protocol columns set
+three ways. All seven restore exactly, and a `@dataProvider` test pins five of them.
+
+Two cases where the source and destination legitimately differ were also measured, because the
+delta is relative and that is the point:
+
+- **The destination's type declares one more tool than the source's.** The operator's own addition
+  survives, their removal is still honoured, and the new tool IS picked up. That is the
+  version-proofing the state+delta design exists for, now demonstrated rather than asserted.
+- **The destination does not have the type at all.** The server is created, its rows are written,
+  and `compose_effective_tools_for_row()` returns `["toolset/setup-required"]` — the documented
+  behaviour, arrived at without new code, and the server stays disabled.
+
 ## Verification
 
 Done, on `wordpress-7-0.local`:

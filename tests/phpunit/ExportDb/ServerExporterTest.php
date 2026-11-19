@@ -313,6 +313,94 @@ class ServerExporterTest extends \WP_UnitTestCase {
 		$this->assertFalse( $protocol['execute'] );
 	}
 
+	/**
+	 * Every tool-state shape survives a round trip unchanged.
+	 *
+	 * Added after the abilities bug, to ask the same question of this block:
+	 * is there anything that decides what a server serves which the export
+	 * does not carry? For tools the answer is no, and it is structural —
+	 * `ToolPolicy::compose_for_row()` reads exactly two things, the three
+	 * `COLUMN_MAP` columns and `get_added_slugs()`, and both travel. The
+	 * abilities resolver reads THREE tiers, and the first implementation
+	 * exported two.
+	 *
+	 * @dataProvider provideToolShapes
+	 */
+	public function test_every_tool_shape_round_trips( string $shape ): void {
+		$row  = $this->server( array( 'server_type' => 'mcp-adapter' ) );
+		$id   = (int) $row->id;
+
+		$split    = \AcrossAI_MCP_Manager\Includes\Database\MCPServer\ToolPolicy::split_payload(
+			\AcrossAI_MCP_Manager\Includes\Database\MCPServer\ServerTypes::declared_tools( 'mcp-adapter' )
+		);
+		$defaults = array_values( $split['curated'] );
+
+		switch ( $shape ) {
+			case 'none':
+				$curated = array();
+				break;
+
+			case 'all':
+				$curated = array_values( \AcrossAI_MCP_Manager\Includes\Database\MCPServer\ServerTypes::pool( 'mcp-adapter' ) );
+				break;
+
+			case 'custom-added':
+				$curated = array_merge( $defaults, array( 'toolset/operator-choice' ) );
+				break;
+
+			case 'custom-removed':
+				$curated = array_slice( $defaults, 1 );
+				break;
+
+			default:
+				$curated = $defaults;
+				break;
+		}
+
+		ToolQuery::instance()->replace_set( $id, $curated );
+
+		$before = ToolQuery::instance()->get_added_slugs( $id );
+		sort( $before );
+
+		$fresh = ServerQuery::instance()->get_item( $id );
+		$this->assertInstanceOf( ServerRow::class, $fresh );
+
+		$block = ServerExporter::export( $fresh )[ ExportConstants::BLOCK_TOOLS ];
+
+		// Rebuild the set the importer would produce, from the block alone.
+		switch ( $block['state'] ) {
+			case ExportConstants::TOOLS_ALL:
+				$base = array_values( \AcrossAI_MCP_Manager\Includes\Database\MCPServer\ServerTypes::pool( 'mcp-adapter' ) );
+				break;
+
+			case ExportConstants::TOOLS_NONE:
+				$base = array();
+				break;
+
+			default:
+				$base = $defaults;
+				break;
+		}
+
+		$rebuilt = array_values( array_diff( array_unique( array_merge( $base, $block['added'] ) ), $block['removed'] ) );
+		sort( $rebuilt );
+
+		$this->assertSame( $before, $rebuilt, "The {$shape} shape must rebuild exactly from its state plus delta." );
+	}
+
+	/**
+	 * @return array<string, array<int, string>>
+	 */
+	public function provideToolShapes(): array {
+		return array(
+			'type defaults'  => array( 'type-defaults' ),
+			'none'           => array( 'none' ),
+			'all'            => array( 'all' ),
+			'custom added'   => array( 'custom-added' ),
+			'custom removed' => array( 'custom-removed' ),
+		);
+	}
+
 	// ---------------------------------------------------------------- //
 	// Abilities                                                         //
 	// ---------------------------------------------------------------- //
