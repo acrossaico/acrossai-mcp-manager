@@ -54,6 +54,17 @@
             carry. None of that is observable from the declarations, so this
             needs a real database and runs under tests/bootstrap-wp.php.
         -->
+        <!--
+            Export, DB-backed (Feature 105): an export reads six storage
+            layers — a row, three columns, two tables and two meta keys — and
+            each test asks what came OUT, not what a pure function returned.
+            Carries the merge-blocker: a fully configured server must export
+            no credential and no site-bound value.
+        -->
+        <testsuite name="export-db">
+            <directory>tests/phpunit/ExportDb</directory>
+        </testsuite>
+
         <testsuite name="clients-db">
             <directory>tests/phpunit/ClientsDb</directory>
         </testsuite>
