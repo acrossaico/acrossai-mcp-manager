@@ -204,37 +204,52 @@ final class ImportExportTab {
 			)
 		);
 
-		$this->hide_vendor_save();
+		$this->styles();
+
+		echo '<div class="acrossai-ie">';
+
 		$this->render_notice();
 
+		echo '<div class="acrossai-ie-card"><div class="acrossai-ie-card__head">';
 		echo '<h2>' . esc_html__( 'Export servers', 'acrossai-mcp-manager' ) . '</h2>';
-		echo '<p class="description">'
+		echo '<p>'
 			. esc_html__( 'Pick the servers, then choose which of each one\'s settings travel. Credentials are never included — connected clients re-authorise on the destination site.', 'acrossai-mcp-manager' )
 			. '</p>';
+		echo '</div>';
 
 		if ( array() === $servers ) {
-			echo '<p>' . esc_html__( 'There are no servers to export yet.', 'acrossai-mcp-manager' ) . '</p>';
+			echo '<p class="acrossai-ie-empty">' . esc_html__( 'There are no servers to export yet.', 'acrossai-mcp-manager' ) . '</p></div></div>';
 
 			return;
 		}
 
 		wp_nonce_field( self::ACTION_EXPORT, '_acrossai_mcp_export_nonce' );
 
-		echo '<table class="widefat striped" style="margin-top:12px;">';
-		echo '<tbody>';
-
 		foreach ( $servers as $row ) {
 			$this->render_server_row( $row );
 		}
 
-		echo '</tbody></table>';
+		echo '<div class="acrossai-ie-card__foot">';
 
 		printf(
-			'<p class="submit"><button type="submit" name="action" value="%1$s" class="button button-primary" formaction="%2$s" formmethod="post">%3$s</button></p>',
+			'<button type="submit" name="action" value="%1$s" class="button button-primary" formaction="%2$s" formmethod="post">%3$s</button>',
 			esc_attr( self::ACTION_EXPORT ),
 			esc_url( admin_url( 'admin-post.php' ) ),
 			esc_html__( 'Download .json', 'acrossai-mcp-manager' )
 		);
+
+		printf(
+			'<span class="description">%s</span>',
+			esc_html(
+				sprintf(
+					/* translators: %d: number of servers on this site. */
+					_n( '%d server on this site', '%d servers on this site', count( $servers ), 'acrossai-mcp-manager' ),
+					count( $servers )
+				)
+			)
+		);
+
+		echo '</div></div>';
 	}
 
 	/**
@@ -254,37 +269,49 @@ final class ImportExportTab {
 		$slug   = (string) $row->server_slug;
 		$policy = (string) $row->abilities_default_policy;
 		$tools  = count( ToolQuery::instance()->get_added_slugs( $id ) );
+		$expose = 'expose' === $policy;
 
-		echo '<tr><td style="padding:14px 12px;">';
+		echo '<div class="acrossai-ie-server">';
 
 		printf(
-			'<label style="display:block; margin-bottom:6px;"><input type="checkbox" name="servers[]" value="%1$d" checked> <strong>%2$s</strong> <code>%3$s</code></label>',
+			'<label class="acrossai-ie-server__name"><input type="checkbox" name="servers[]" value="%1$d" checked> <strong>%2$s</strong> <span class="acrossai-ie-slug">%3$s</span> <span class="acrossai-ie-pill acrossai-ie-pill--%4$s">%5$s</span>%6$s</label>',
 			esc_attr( (string) $id ),
 			esc_html( (string) $row->server_name ),
-			esc_html( $slug )
+			esc_html( $slug ),
+			$expose ? 'all' : 'per',
+			esc_html( $this->policy_label( $policy ) ),
+			ExportConstants::ORIGIN_DATABASE !== (string) $row->registered_from
+				? ' <span class="acrossai-ie-pill acrossai-ie-pill--plugin">' . esc_html__( 'plugin-registered', 'acrossai-mcp-manager' ) . '</span>'
+				: ''
 		);
 
 		printf(
-			'<p class="description" style="margin:0 0 8px 24px;">%s</p>',
+			'<p class="acrossai-ie-meta">%s</p>',
 			esc_html(
 				sprintf(
-					/* translators: 1: tool count, 2: server type, 3: abilities policy. */
-					__( '%1$d curated tools · type %2$s · abilities: %3$s', 'acrossai-mcp-manager' ),
+					/* translators: 1: tool count, 2: server type. */
+					__( '%1$d curated tools · type %2$s', 'acrossai-mcp-manager' ),
 					$tools,
-					(string) $row->server_type,
-					$this->policy_label( $policy )
+					(string) $row->server_type
 				)
 			)
 		);
 
 		if ( ExportConstants::ORIGIN_DATABASE !== (string) $row->registered_from ) {
 			printf(
-				'<p class="description" style="margin:0 0 8px 24px;"><em>%s</em></p>',
-				esc_html__( 'Registered by a plugin — its settings travel, but an import can only update it where it already exists.', 'acrossai-mcp-manager' )
+				'<p class="acrossai-ie-note">%s</p>',
+				esc_html__( 'Its settings travel, but an import can only update this server where it already exists — it cannot create one.', 'acrossai-mcp-manager' )
 			);
 		}
 
-		echo '<div style="margin-left:24px; display:flex; flex-wrap:wrap; gap:6px 18px;">';
+		echo '<div class="acrossai-ie-blocks">';
+
+		printf(
+			'<span class="acrossai-ie-blocks__label">%s</span>',
+			esc_html__( 'Settings to export from this server', 'acrossai-mcp-manager' )
+		);
+
+		echo '<div class="acrossai-ie-blocks__grid">';
 
 		foreach ( $this->block_labels() as $block => $label ) {
 			printf(
@@ -295,7 +322,7 @@ final class ImportExportTab {
 			);
 		}
 
-		echo '</div></td></tr>';
+		echo '</div></div></div>';
 	}
 
 	/**
@@ -350,33 +377,37 @@ final class ImportExportTab {
 			return;
 		}
 
-		echo '<hr style="margin:28px 0;">';
+		$this->styles();
+
+		echo '<div class="acrossai-ie"><div class="acrossai-ie-card">';
+		echo '<div class="acrossai-ie-card__head">';
 		echo '<h2>' . esc_html__( 'Import servers', 'acrossai-mcp-manager' ) . '</h2>';
-		echo '<p class="description">'
-			. esc_html__( 'A server whose slug already exists here is replaced by the one in the file. New slugs are created.', 'acrossai-mcp-manager' )
-			. '</p>';
+		echo '<p>' . esc_html__( 'A server whose slug already exists here is replaced by the one in the file. New slugs are created.', 'acrossai-mcp-manager' ) . '</p>';
+		echo '</div><div class="acrossai-ie-card__body">';
 
 		printf(
-			'<div class="notice notice-success inline" style="margin:12px 0;"><p><strong>%1$s</strong> %2$s</p></div>',
+			'<p class="acrossai-ie-callout"><span><strong>%1$s</strong> %2$s</span></p>',
 			esc_html__( 'Your current setup is saved first.', 'acrossai-mcp-manager' ),
 			esc_html__( 'A snapshot is taken automatically before anything is written, and you can restore it below. You do not need to export a backup yourself.', 'acrossai-mcp-manager' )
 		);
 
 		wp_nonce_field( self::ACTION_IMPORT, '_acrossai_mcp_import_nonce' );
 
-		echo '<p><input type="file" name="import_file" accept=".json,application/json"></p>';
+		echo '<p class="acrossai-ie-field"><input type="file" name="import_file" accept=".json,application/json"></p>';
 
 		printf(
-			'<p><label><input type="checkbox" name="enable_servers" value="1"> %s</label></p>',
+			'<p class="acrossai-ie-field"><label><input type="checkbox" name="enable_servers" value="1"> %s</label></p>',
 			esc_html__( 'Let this file switch servers on. Leave unticked and imported servers stay disabled until you enable them yourself.', 'acrossai-mcp-manager' )
 		);
 
 		printf(
-			'<p class="submit"><button type="submit" name="action" value="%1$s" class="button" formaction="%2$s" formmethod="post" formenctype="multipart/form-data">%3$s</button></p>',
+			'<button type="submit" name="action" value="%1$s" class="button" formaction="%2$s" formmethod="post" formenctype="multipart/form-data">%3$s</button>',
 			esc_attr( self::ACTION_IMPORT ),
 			esc_url( admin_url( 'admin-post.php' ) ),
 			esc_html__( 'Import servers', 'acrossai-mcp-manager' )
 		);
+
+		echo '</div></div></div>';
 	}
 
 	/**
@@ -390,13 +421,16 @@ final class ImportExportTab {
 			return;
 		}
 
+		$this->styles();
+
 		$snapshots = Snapshots::all();
 
-		echo '<hr style="margin:28px 0;">';
+		echo '<div class="acrossai-ie"><div class="acrossai-ie-card">';
+		echo '<div class="acrossai-ie-card__head">';
 		echo '<h2>' . esc_html__( 'Snapshots', 'acrossai-mcp-manager' ) . '</h2>';
 
 		printf(
-			'<p class="description">%s</p>',
+			'<p>%s</p>',
 			esc_html(
 				sprintf(
 					/* translators: %d: how many snapshots are kept. */
@@ -406,27 +440,29 @@ final class ImportExportTab {
 			)
 		);
 
+		echo '</div>';
+
 		if ( array() === $snapshots ) {
-			echo '<p>' . esc_html__( 'No snapshots yet — one is taken the first time you import.', 'acrossai-mcp-manager' ) . '</p>';
+			echo '<p class="acrossai-ie-empty">'
+				. esc_html__( 'No snapshots yet — one is taken the first time you import.', 'acrossai-mcp-manager' )
+				. '</p></div></div>';
 
 			return;
 		}
 
 		$format = get_option( 'date_format' ) . ' ' . get_option( 'time_format' );
 
-		echo '<table class="widefat striped" style="margin-top:12px; max-width:720px;"><tbody>';
-
 		foreach ( $snapshots as $key => $snapshot ) {
 			$servers = isset( $snapshot['servers'] ) ? (int) $snapshot['servers'] : 0;
-
-			echo '<tr><td>';
 
 			// `wp_date()` returns false on a bad timezone; the raw timestamp is
 			// still more use to an operator than an empty cell.
 			$when = wp_date( $format, $key );
 
+			echo '<div class="acrossai-ie-snap"><span class="acrossai-ie-snap__when">';
+
 			printf(
-				'<strong>%1$s</strong><br><span class="description">%2$s</span>',
+				'<strong>%1$s</strong><span>%2$s</span>',
 				esc_html( is_string( $when ) ? $when : (string) $key ),
 				esc_html(
 					sprintf(
@@ -437,7 +473,7 @@ final class ImportExportTab {
 				)
 			);
 
-			echo '</td><td style="text-align:right; vertical-align:middle;">';
+			echo '</span>';
 
 			printf(
 				'<a href="%1$s" class="button">%2$s</a>',
@@ -456,10 +492,10 @@ final class ImportExportTab {
 				esc_html__( 'Restore', 'acrossai-mcp-manager' )
 			);
 
-			echo '</td></tr>';
+			echo '</div>';
 		}
 
-		echo '</tbody></table>';
+		echo '</div></div>';
 	}
 
 	/**
@@ -724,21 +760,69 @@ final class ImportExportTab {
 	}
 
 	/**
-	 * Hide the vendor page's Save button on this tab.
+	 * Print this tab's stylesheet, once.
 	 *
+	 * A `<style>` block rather than an enqueued file because this plugin's
+	 * admin CSS ships through `build/css/backend.css`, and adding to it would
+	 * pull a webpack build and the committed-bundle staleness gate into a
+	 * feature that otherwise has no JavaScript and no bundle. The trade is a
+	 * few hundred bytes inline on one screen; revisit if this grows.
+	 *
+	 * It also carries the one rule that is a workaround rather than styling:
 	 * `TabbedPageRenderer::render()` calls `submit_button()` unconditionally
 	 * and offers no filter, so a tab with nothing to save still gets one. It
 	 * would post to `options.php` with an empty whitelist, report "Settings
-	 * saved" and change nothing — which reads as a bug.
-	 *
-	 * Scoped to this tab by only being printed when this tab renders. Delete
-	 * this method the day the vendor grows an extension point.
+	 * saved" and change nothing — which reads as a bug. Delete that rule the
+	 * day the vendor grows an extension point.
 	 *
 	 * @since  0.4.9
 	 * @return void
 	 */
-	private function hide_vendor_save(): void {
-		echo '<style>.wrap form > p.submit:last-of-type{display:none;}</style>';
+	private function styles(): void {
+		static $printed = false;
+
+		if ( $printed ) {
+			return;
+		}
+
+		$printed = true;
+
+		echo '<style>
+.acrossai-ie{max-width:900px}
+.acrossai-ie .wrap-form-save,.wrap form > p.submit:last-of-type{display:none}
+.acrossai-ie-card{background:#fff;border:1px solid #dcdcde;margin:0 0 24px}
+.acrossai-ie-card__head{padding:20px 24px 16px;border-bottom:1px solid #f0f0f1}
+.acrossai-ie-card__head h2{margin:0 0 6px;font-size:15px;font-weight:600;line-height:1.3}
+.acrossai-ie-card__head p{margin:0;font-size:13px;line-height:1.55;color:#646970;text-wrap:pretty}
+.acrossai-ie-card__foot{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:16px 24px}
+.acrossai-ie-card__body{padding:20px 24px 22px}
+.acrossai-ie-server{padding:16px 24px;border-bottom:1px solid #f0f0f1}
+.acrossai-ie-server:last-child{border-bottom:0}
+.acrossai-ie-server:hover{background:#f6f7f7}
+.acrossai-ie-server__name{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin:0}
+.acrossai-ie-server__name strong{font-size:14px;font-weight:600}
+.acrossai-ie-slug{font-family:Menlo,Consolas,monospace;font-size:11.5px;color:#646970;background:#f0f0f1;border-radius:2px;padding:2px 6px}
+.acrossai-ie-meta{margin:6px 0 0 24px;font-size:12.5px;color:#646970;font-variant-numeric:tabular-nums}
+.acrossai-ie-pill{padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;border:1px solid}
+.acrossai-ie-pill--all{background:#edfaef;border-color:#a7e3b4;color:#00450c}
+.acrossai-ie-pill--per{background:#f0f4ff;border-color:#bcc8f5;color:#1d35b4}
+.acrossai-ie-pill--plugin{background:#f6f7f7;border-color:#dcdcde;color:#646970}
+.acrossai-ie-blocks{margin:12px 0 0 24px;padding:12px 14px;background:#f6f7f7;border-radius:2px}
+.acrossai-ie-blocks__label{display:block;margin:0 0 8px;font-size:11px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:#646970}
+.acrossai-ie-blocks__grid{display:flex;flex-wrap:wrap;gap:8px 20px}
+.acrossai-ie-blocks__grid label{font-size:13px;display:inline-flex;align-items:center;gap:6px;margin:0}
+.acrossai-ie-note{margin:8px 0 0 24px;padding:9px 12px;background:#fcf9e8;border-left:3px solid #f0b849;border-radius:2px;font-size:12.5px;line-height:1.55;color:#3c434a}
+.acrossai-ie-callout{display:flex;padding:11px 14px;background:#edfaef;border-left:4px solid #008a20;border-radius:2px;font-size:13px;line-height:1.6;margin:0 0 16px}
+.acrossai-ie-field{margin:0 0 14px}
+.acrossai-ie-field input[type=file]{display:block}
+.acrossai-ie-snap{display:flex;align-items:center;gap:16px;padding:13px 24px;border-bottom:1px solid #f0f0f1}
+.acrossai-ie-snap:last-child{border-bottom:0}
+.acrossai-ie-snap:hover{background:#f6f7f7}
+.acrossai-ie-snap__when{flex:1;min-width:0}
+.acrossai-ie-snap__when strong{display:block;font-size:13.5px}
+.acrossai-ie-snap__when span{font-size:12.5px;color:#646970}
+.acrossai-ie-empty{padding:20px 24px;font-size:13px;color:#646970}
+</style>';
 	}
 
 	/**
