@@ -4,7 +4,7 @@ Tags: mcp, ai, mcp-adapter, claude, chatgpt
 Requires at least: 6.9
 Requires PHP: 8.1
 Tested up to: 7.1
-Stable tag: 0.4.8
+Stable tag: 0.4.9
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -240,6 +240,9 @@ Documentation: [acrossai.co/docs](https://acrossai.co/docs/). Every ability, sea
 
 == Upgrade Notice ==
 
+= 0.4.9 =
+Adds an Import / Export tab under Settings that copies a server's configuration to another site as a file. This release does not change the database, and nothing changes on your site until you import a file yourself — servers, connections and abilities are untouched and no reconnecting is needed. Exported files carry settings only and never a credential, so clients re-authorise against an imported server; imported servers also stay switched off unless you ask the file to enable them, and your previous setup is saved as a restorable snapshot before every import.
+
 = 0.4.8 =
 Adds a Clients screen listing every assistant that has connected to your site, kept after the activity log has been pruned. This release does change the database: a new table is created to hold those records and is seeded from your existing log and connector list, applied automatically on update. Everything else is safe — servers, connections and abilities are untouched and no reconnecting is needed. Also adds fleet pairing by pasting a prompt, rebuilds the Fleet tab, lets an assistant read your activity log, and fixes the Claude 1-click button being disabled on sites where it works.
 
@@ -267,6 +270,15 @@ The AcrossAI server is recommended again and preselected in Quick Connect. Exist
 == Changelog ==
 
 The complete release history lives at [acrossai.co/changelog](https://acrossai.co/changelog/).
+
+= 0.4.9 =
+* **New: copy a server's setup to another site.** Setting a server up is a dozen small decisions — which tools it serves, which connectors may reach it, whether abilities are all exposed or picked one at a time. Making those decisions twice, once on a staging site and again on the live one, was work done by hand. **AcrossAI → Settings → Import / Export** now writes the servers you pick to a `.json` file and reads one back.
+* **Each server chooses what travels.** Every server in the file has its own tick list — Status, Default server message, Tools, Abilities, Access control and Connectors — so you can carry a server's tool selection to another site without touching the access rules already set there. The choice is per server rather than one list for the whole file, which is what keeps "this setting was not exported" different from "this setting was exported as empty". Without that distinction an import would quietly empty the groups you left behind.
+* **No credential ever leaves the site.** An exported file carries settings and nothing else — no application passwords, no connector tokens, no signing keys. An imported server therefore arrives fully configured with **no live connections**, and every client re-authorises as it would against a new server.
+* **An import never switches a server on behind your back.** Imported servers stay disabled until you enable them yourself, unless you tick the box that lets the file do it. A file arriving on a site nobody has looked at yet must not publish a working MCP endpoint.
+* **Your previous setup is saved before every import.** A snapshot is taken automatically before anything is written and can be restored from the same screen, so you do not need to remember to export a backup first. The most recent snapshots are kept and older ones discarded.
+* **Servers another plugin registers export their settings, but an import will not invent them.** Their settings are worth carrying — the MCP Adapter's default server, for instance, has real switches on it — so they export like any other. On the way in, such a server is updated only where it already exists and is reported and skipped where it does not. Creating a row for it would shadow the real server the moment that plugin was installed.
+* **Tools travel as a named state plus your own changes, not as a frozen list.** A file records "this server uses its type's defaults, with these two added and this one removed" rather than naming every tool outright. A literal list would pin the imported server to whatever the defaults happened to be on the day the file was written, so a later release improving a server type's tools would be silently reverted by an old file. Recording the state instead means the import picks up the improvement and still honours the changes you made.
 
 = 0.4.8 =
 * **New: a Clients screen that shows who has been connecting.** Until now the plugin could tell you in detail what happened on any single request, and nothing at all about who had been using your site. **AcrossAI → Clients** lists every assistant, bridge and paired site that has connected, with when it first connected, when it was last used and how many requests it has made. Each server has the same list on its own **Clients** tab.
