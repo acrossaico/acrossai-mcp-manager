@@ -55,8 +55,14 @@
     <!-- Check for PHP cross-version compatibility. -->
     <rule ref="PHPCompatibility"/>
 
-    <!-- Set minimum supported PHP version -->
-    <config name="testVersion" value="7.4-"/>
+    <!--
+        Minimum supported PHP version. 8.1, matching composer.json's
+        `"php": ">=8.1"` and the plugin header's `Requires PHP: 8.1`. It read
+        7.4 until 0.4.9 — three majors below the real floor — so
+        PHPCompatibility rejected language features the plugin is entitled to
+        use, and the three declarations disagreed about what the floor was.
+    -->
+    <config name="testVersion" value="8.1-"/>
 
     <!-- Whitelist the WP Core admin actions to prevent false positives -->
     <rule ref="WordPress.WP.GlobalVariablesOverride">
