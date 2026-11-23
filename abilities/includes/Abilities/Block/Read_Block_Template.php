@@ -1,0 +1,262 @@
+<?php
+/**
+ * Absorbed ability class scaffolded from acrossai-core-abilities (Feature 046).
+ *
+ * @license    GPL-2.0-or-later
+ * @package    AcrossAI_Abilities_Manager
+ * @subpackage Includes\Abilities\Block
+ * @since      0.1.0
+ */
+
+namespace AcrossAI_Abilities_Manager\Includes\Abilities\Block;
+
+use AcrossAI_Abilities_Manager\Includes\Modules\Library\Ability_Definition;
+use AcrossAI_Abilities_Manager\Includes\Abilities\Utilities\Template\Template_Db;
+use AcrossAI_Abilities_Manager\Includes\Abilities\Utilities\Template\Template_Detector;
+use AcrossAI_Abilities_Manager\Includes\Abilities\Utilities\Template\Template_File;
+
+defined( 'ABSPATH' ) || exit;
+
+/**
+ * Reads a single block template from whichever storage layer holds it.
+ * Auto-resolves the source when there's one obvious location; surfaces a
+ * "multiple_locations" error with the candidate list when there are several.
+ *
+ * Always reports all known locations in "locations" so the caller can see
+ * which copy WordPress will actually serve (DB → child → parent → plugin).
+ */
+class Read_Block_Template extends Ability_Definition {
+
+	/**
+	 * Full ability spec for wp_register_ability().
+	 *
+	 * @return array
+	 */
+	protected function ability(): array {
+		return array(
+			'name' => 'blocks/read-block-template',
+			'args' => array(
+				'label'               => __( 'Read Block Template', 'acrossai-abilities-manager' ),
+				'description'         => __( 'Reads a single block template by slug from the database, theme, or plugin. When the slug exists in multiple locations, returns "multiple_locations" with the candidate list — pick one with source / theme_type / plugin_slug.', 'acrossai-abilities-manager' ),
+				'category'            => 'acrossai-block',
+				'execute_callback'    => array( $this, 'execute' ),
+				'permission_callback' => static function (): bool {
+					return current_user_can( 'manage_options' );
+				},
+				'input_schema'        => array(
+					'type'                 => 'object',
+					'properties'           => array(
+						'slug'        => array(
+							'type'        => 'string',
+							'description' => __( 'Template slug (bare, e.g. "single", "index", "404").', 'acrossai-abilities-manager' ),
+						),
+						'source'      => array(
+							'type'    => 'string',
+							'enum'    => array( '', 'db', 'theme', 'child_theme', 'plugin' ),
+							'default' => '',
+						),
+						'theme_type'  => array(
+							'type'    => 'string',
+							'enum'    => array( '', 'child', 'parent', 'theme' ),
+							'default' => '',
+						),
+						'plugin_slug' => array(
+							'type'    => 'string',
+							'default' => '',
+						),
+						'theme'       => array(
+							'type'        => 'string',
+							'default'     => '',
+							'description' => __( 'Theme hint used when looking up DB rows. Defaults to the active stylesheet.', 'acrossai-abilities-manager' ),
+						),
+					),
+					'required'             => array( 'slug' ),
+					'additionalProperties' => false,
+				),
+				'output_schema'       => array(
+					'type'                 => 'object',
+					'properties'           => array(
+						'success'    => array( 'type' => 'boolean' ),
+						'template'   => array( 'type' => 'object' ),
+						'locations'  => array( 'type' => 'array' ),
+						'candidates' => array( 'type' => 'array' ),
+						'warnings'   => array( 'type' => 'array' ),
+						'message'    => array( 'type' => 'string' ),
+					),
+					'required'             => array( 'success' ),
+					'additionalProperties' => false,
+				),
+				'meta'                => array(
+					'acrossai'     => array(
+						'tab_group'       => 'appearance',
+						'sub_group'       => 'templates',
+						'sub_group_label' => __( 'Templates', 'acrossai-abilities-manager' ),
+					),
+					'show_in_rest' => true,
+					'mcp'          => array(
+						'public' => false,
+						'type'   => 'tool',
+					),
+					'annotations'  => array(
+						'readonly'    => true,
+						'destructive' => false,
+						'idempotent'  => true,
+					),
+				),
+			),
+		);
+	}
+
+	/**
+	 * Execute the ability.
+	 *
+	 * @param array $input Ability input payload.
+	 * @return array
+	 */
+	public function execute( array $input = array() ): array {
+		$slug        = sanitize_title( (string) ( $input['slug'] ?? '' ) );
+		$source      = sanitize_text_field( $input['source'] ?? '' );
+		$theme_type  = sanitize_text_field( $input['theme_type'] ?? '' );
+		$plugin_slug = sanitize_key( $input['plugin_slug'] ?? '' );
+		$theme_hint  = sanitize_key( $input['theme'] ?? '' );
+
+		if ( '' === $slug ) {
+			return array(
+				'success' => false,
+				'message' => __( 'Slug is required.', 'acrossai-abilities-manager' ),
+			);
+		}
+
+		$locations = Template_Detector::locate( $slug, $theme_hint );
+
+		if ( empty( $locations ) ) {
+			return array(
+				'success'   => false,
+				/* translators: %s: slug */
+				'message'   => sprintf( __( 'No template with slug "%s" was found. Use template-create to add one.', 'acrossai-abilities-manager' ), $slug ),
+				'locations' => array(),
+			);
+		}
+
+		$selected = Template_Detector::select( $locations, $source, $theme_type, $plugin_slug );
+
+		if ( is_wp_error( $selected ) ) {
+			$data = $selected->get_error_data();
+			return array(
+				'success'    => false,
+				'message'    => $selected->get_error_message(),
+				'locations'  => $locations,
+				'candidates' => is_array( $data ) ? ( $data['locations'] ?? array() ) : array(),
+			);
+		}
+
+		$warnings = $this->collect_warnings( $locations, $selected );
+		$template = $this->materialise( $selected );
+
+		if ( is_wp_error( $template ) ) {
+			return array(
+				'success'   => false,
+				'message'   => $template->get_error_message(),
+				'locations' => $locations,
+			);
+		}
+
+		return array(
+			'success'   => true,
+			'template'  => $template,
+			'locations' => $locations,
+			'warnings'  => $warnings,
+		);
+	}
+
+	/**
+	 * Collect warnings.
+	 *
+	 * @param array $locations
+	 * @param array $selected
+	 * @return array
+	 */
+	private function collect_warnings( array $locations, array $selected ): array {
+		$warnings  = array();
+		$effective = Template_Detector::effective( $locations );
+
+		if ( count( $locations ) > 1 ) {
+			$warnings[] = __( 'This slug exists in multiple locations. WordPress always serves the highest-priority copy: DB → child theme → parent theme → plugin.', 'acrossai-abilities-manager' );
+		}
+
+		if ( $effective && ( $selected['source'] ?? '' ) !== ( $effective['source'] ?? '' ) ) {
+			/* translators: 1: chosen source, 2: effective source */
+			$warnings[] = sprintf(
+				__( 'You are reading the %1$s copy, but WordPress is currently serving the %2$s copy.', 'acrossai-abilities-manager' ),
+				$this->describe( $selected ),
+				$this->describe( $effective )
+			);
+		}
+
+		foreach ( $locations as $loc ) {
+			if ( ( $loc['source'] ?? '' ) === 'plugin' && false === ( $loc['plugin_active'] ?? true ) ) {
+				/* translators: %s: plugin slug */
+				$warnings[] = sprintf( __( 'Plugin "%s" is inactive — its template will not register until the plugin is activated.', 'acrossai-abilities-manager' ), $loc['plugin'] ?? '' );
+			}
+		}
+
+		return $warnings;
+	}
+
+	/**
+	 * Describe.
+	 *
+	 * @param array $loc
+	 * @return string
+	 */
+	private function describe( array $loc ): string {
+		$src = (string) ( $loc['source'] ?? '' );
+		if ( 'theme' === $src ) {
+			return 'theme:' . ( $loc['theme_type'] ?? 'theme' );
+		}
+		if ( 'plugin' === $src ) {
+			return 'plugin:' . ( $loc['plugin'] ?? '' );
+		}
+		return $src;
+	}
+
+	/**
+	 * @return array|\WP_Error
+	 */
+	private function materialise( array $loc ) {
+		$src = (string) ( $loc['source'] ?? '' );
+
+		if ( 'db' === $src ) {
+			$post = get_post( (int) ( $loc['post_id'] ?? 0 ) );
+			if ( ! $post ) {
+				return new \WP_Error( 'db_post_missing', __( 'Template post not found in the database.', 'acrossai-abilities-manager' ) );
+			}
+			return Template_Db::to_row( $post );
+		}
+
+		$path     = (string) ( $loc['path'] ?? '' );
+		$contents = Template_File::read_file( $path );
+		if ( is_wp_error( $contents ) ) {
+			return $contents;
+		}
+
+		$row = array(
+			'source'   => $src,
+			'slug'     => (string) ( $loc['slug'] ?? '' ),
+			'path'     => $path,
+			'content'  => $contents,
+			'writable' => (bool) ( $loc['writable'] ?? false ),
+		);
+
+		if ( 'theme' === $src ) {
+			$row['theme']      = (string) ( $loc['theme'] ?? '' );
+			$row['theme_type'] = (string) ( $loc['theme_type'] ?? '' );
+			$row['full_slug']  = $row['theme'] . '//' . $row['slug'];
+		} else {
+			$row['plugin']        = (string) ( $loc['plugin'] ?? '' );
+			$row['plugin_active'] = (bool) ( $loc['plugin_active'] ?? false );
+		}
+
+		return $row;
+	}
+}

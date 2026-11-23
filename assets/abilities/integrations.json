@@ -1,0 +1,286 @@
+{
+  "version": 1,
+  "note": "Bundled copy of https://acrossai.co/wp-json/acrossai/v1/integrations, used when that endpoint cannot be reached. Keys are toolset group slugs, which is what the local site keys integration state on. Refreshed at release time; the live feed supersedes it.",
+  "integrations": [
+    {
+      "slug": "updraftplus",
+      "name": "UpdraftPlus",
+      "description": "Start, track, restore and remove backups; check public exposure.",
+      "category": "Backup and Migration",
+      "product": "free",
+      "wporg_slug": "updraftplus",
+      "url": "https://acrossai.co/integrations/updraftplus/",
+      "abilities": 8
+    },
+    {
+      "slug": "all-in-one-wp-migration",
+      "name": "All-in-One WP Migration",
+      "description": "List, export, restore and remove migration archives.",
+      "category": "Backup and Migration",
+      "product": "free",
+      "wporg_slug": "all-in-one-wp-migration",
+      "url": "https://acrossai.co/integrations/all-in-one-wp-migration/",
+      "abilities": 9
+    },
+    {
+      "slug": "buddyboss",
+      "name": "BuddyBoss",
+      "description": "Members, groups, activity, forums, messages and moderation.",
+      "category": "Community",
+      "product": "pro",
+      "wporg_slug": "",
+      "url": "https://acrossai.co/integrations/buddyboss/",
+      "abilities": 60
+    },
+    {
+      "slug": "acf",
+      "name": "Advanced Custom Fields",
+      "description": "Field values, repeater and flexible content rows, ACF blocks.",
+      "category": "Custom Fields",
+      "product": "free",
+      "wporg_slug": "advanced-custom-fields",
+      "url": "https://acrossai.co/integrations/advanced-custom-fields/",
+      "abilities": 16
+    },
+    {
+      "slug": "jetengine",
+      "name": "JetEngine",
+      "description": "Read and update options page fields.",
+      "category": "Custom Fields",
+      "product": "pro",
+      "wporg_slug": "",
+      "url": "https://acrossai.co/integrations/jetengine/",
+      "abilities": 3
+    },
+    {
+      "slug": "wpcode",
+      "name": "WPCode",
+      "description": "Snippets, header and footer scripts, library installs.",
+      "category": "Developer Tools",
+      "product": "free",
+      "wporg_slug": "insert-headers-and-footers",
+      "url": "https://acrossai.co/integrations/wpcode/",
+      "abilities": 24
+    },
+    {
+      "slug": "geodirectory",
+      "name": "GeoDirectory",
+      "description": "Listings, locations, fields, pricing and layout.",
+      "category": "Directory",
+      "product": "pro",
+      "wporg_slug": "geodirectory",
+      "url": "https://acrossai.co/integrations/geodirectory/",
+      "abilities": 25
+    },
+    {
+      "slug": "woocommerce",
+      "name": "WooCommerce",
+      "description": "Products, prices, stock, orders, customers and coupons.",
+      "category": "eCommerce",
+      "product": "free",
+      "wporg_slug": "woocommerce",
+      "url": "https://acrossai.co/integrations/woocommerce/",
+      "abilities": 34
+    },
+    {
+      "slug": "classic-editor",
+      "name": "Classic Editor",
+      "description": "Which editor each post type uses.",
+      "category": "Editor",
+      "product": "free",
+      "wporg_slug": "classic-editor",
+      "url": "https://acrossai.co/integrations/classic-editor/",
+      "abilities": 4
+    },
+    {
+      "slug": "wp-mail-smtp",
+      "name": "WP Mail SMTP",
+      "description": "Check email sending and send a test message.",
+      "category": "Email Delivery",
+      "product": "free",
+      "wporg_slug": "wp-mail-smtp",
+      "url": "https://acrossai.co/integrations/wp-mail-smtp/",
+      "abilities": 4
+    },
+    {
+      "slug": "mailerpress",
+      "name": "MailerPress",
+      "description": "Campaigns, contacts, lists, tags, templates and workflows.",
+      "category": "Email Marketing",
+      "product": "pro",
+      "wporg_slug": "mailerpress",
+      "url": "https://acrossai.co/integrations/mailerpress/",
+      "abilities": 89
+    },
+    {
+      "slug": "mailerpress-pro",
+      "name": "MailerPress Pro",
+      "description": "Segments, custom fields, webhooks and email templates.",
+      "category": "Email Marketing",
+      "product": "pro",
+      "wporg_slug": "",
+      "url": "https://acrossai.co/integrations/mailerpress-pro/",
+      "abilities": 28
+    },
+    {
+      "slug": "events-calendar",
+      "name": "The Events Calendar",
+      "description": "Events, venues and organizers.",
+      "category": "Events",
+      "product": "free",
+      "wporg_slug": "the-events-calendar",
+      "url": "https://acrossai.co/integrations/the-events-calendar/",
+      "abilities": 18
+    },
+    {
+      "slug": "event-tickets",
+      "name": "Event Tickets",
+      "description": "Tickets, capacity, attendees, check-ins and orders.",
+      "category": "Events",
+      "product": "free",
+      "wporg_slug": "event-tickets",
+      "url": "https://acrossai.co/integrations/event-tickets/",
+      "abilities": 16
+    },
+    {
+      "slug": "contact-form-7",
+      "name": "Contact Form 7",
+      "description": "Forms, fields, mail and messages.",
+      "category": "Forms",
+      "product": "free",
+      "wporg_slug": "contact-form-7",
+      "url": "https://acrossai.co/integrations/contact-form-7/",
+      "abilities": 25
+    },
+    {
+      "slug": "wpforms",
+      "name": "WPForms",
+      "description": "Forms, entries and notifications.",
+      "category": "Forms",
+      "product": "free",
+      "wporg_slug": "wpforms-lite",
+      "url": "https://acrossai.co/integrations/wpforms/",
+      "abilities": 0
+    },
+    {
+      "slug": "learndash",
+      "name": "LearnDash",
+      "description": "Courses, lessons, quizzes, enrollment, groups and reporting.",
+      "category": "LMS",
+      "product": "pro",
+      "wporg_slug": "",
+      "url": "https://acrossai.co/integrations/learndash/",
+      "abilities": 74
+    },
+    {
+      "slug": "loco-translate",
+      "name": "Loco Translate",
+      "description": "Translation files and strings.",
+      "category": "Multilingual",
+      "product": "free",
+      "wporg_slug": "loco-translate",
+      "url": "https://acrossai.co/integrations/loco-translate/",
+      "abilities": 14
+    },
+    {
+      "slug": "polylang",
+      "name": "Polylang",
+      "description": "Post languages and translation links.",
+      "category": "Multilingual",
+      "product": "pro",
+      "wporg_slug": "polylang",
+      "url": "https://acrossai.co/integrations/polylang/",
+      "abilities": 3
+    },
+    {
+      "slug": "wpml",
+      "name": "WPML",
+      "description": "Post languages and translation links.",
+      "category": "Multilingual",
+      "product": "pro",
+      "wporg_slug": "",
+      "url": "https://acrossai.co/integrations/wpml/",
+      "abilities": 3
+    },
+    {
+      "slug": "elementor",
+      "name": "Elementor",
+      "description": "Pages, templates, kits, theme builder conditions and design audits.",
+      "category": "Page Builders",
+      "product": "free",
+      "wporg_slug": "elementor",
+      "url": "https://acrossai.co/integrations/elementor/",
+      "abilities": 89
+    },
+    {
+      "slug": "litespeed-cache",
+      "name": "LiteSpeed Cache",
+      "description": "Cache purges, page optimisation, media, crawler and database.",
+      "category": "Performance",
+      "product": "free",
+      "wporg_slug": "litespeed-cache",
+      "url": "https://acrossai.co/integrations/litespeed-cache/",
+      "abilities": 61
+    },
+    {
+      "slug": "cookieyes",
+      "name": "CookieYes",
+      "description": "Banner, cookies, consent categories and Consent Mode.",
+      "category": "Privacy and Compliance",
+      "product": "free",
+      "wporg_slug": "cookie-law-info",
+      "url": "https://acrossai.co/integrations/cookieyes/",
+      "abilities": 22
+    },
+    {
+      "slug": "akismet",
+      "name": "Akismet",
+      "description": "Spam checks, queue review and key status.",
+      "category": "Privacy and Compliance",
+      "product": "free",
+      "wporg_slug": "akismet",
+      "url": "https://acrossai.co/integrations/akismet/",
+      "abilities": 0
+    },
+    {
+      "slug": "rank-math",
+      "name": "Rank Math SEO",
+      "description": "SEO meta, redirections, sitemaps, schema and indexing.",
+      "category": "SEO",
+      "product": "free",
+      "wporg_slug": "seo-by-rank-math",
+      "url": "https://acrossai.co/integrations/rank-math/",
+      "abilities": 61
+    },
+    {
+      "slug": "yoast-seo",
+      "name": "Yoast SEO",
+      "description": "Site-wide settings, term SEO, sitemaps and content reports.",
+      "category": "SEO",
+      "product": "free",
+      "wporg_slug": "wordpress-seo",
+      "url": "https://acrossai.co/integrations/yoast-seo/",
+      "abilities": 64
+    },
+    {
+      "slug": "site-kit",
+      "name": "Site Kit by Google",
+      "description": "Connected services and module status.",
+      "category": "Analytics",
+      "product": "free",
+      "wporg_slug": "google-site-kit",
+      "url": "https://acrossai.co/integrations/site-kit/",
+      "abilities": 14
+    },
+    {
+      "slug": "jetpack",
+      "name": "Jetpack",
+      "description": "Stats, forms, backups and connection status.",
+      "category": "Analytics",
+      "product": "free",
+      "wporg_slug": "jetpack",
+      "url": "https://acrossai.co/integrations/jetpack/",
+      "abilities": 0
+    }
+  ]
+}

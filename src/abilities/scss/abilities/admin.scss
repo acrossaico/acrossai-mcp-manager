@@ -1,0 +1,1593 @@
+/**
+ * Custom Abilities Manager — Admin Styles
+ *
+ * Matches both:
+ *   - "Abilities Manager — Final Design.html" (list view, badges, color tokens)
+ *   - "Abilities Manager — Edit Form Wireframe.html" (unified panel/sect form layout)
+ *
+ * Primary/accent colors use var(--wp-admin-theme-color) so the UI adapts
+ * to all 9 built-in WP admin colour schemes (Ocean, Sunrise, etc.).
+ *
+ * @since 0.2.0
+ */
+
+@use 'tokens' as *;
+
+// Feature 102 — toolset strip, Toolset column, page header.
+@use 'toolset-tabs';
+
+// ---------------------------------------------------------------------------
+// Source badges (semantic role-fixed colors — NOT theme-adaptive)
+// ---------------------------------------------------------------------------
+.src {
+	display:       inline-block;
+	font-size:     11px;
+	font-weight:   600;
+	padding:       2px 8px;
+	border-radius: 3px;
+	white-space:   nowrap;
+}
+
+.src-c { background: #e0f0ff; color: var(--wp-admin-theme-color); }
+.src-p { background: #f0e8ff; color: #5a00aa; }
+.src-k { background: #e8f0e8; color: #1a5c1a; }
+.src-t { background: #fff4e0; color: #7a4000; }
+
+// ---------------------------------------------------------------------------
+// WP list table (.wptable)
+// ---------------------------------------------------------------------------
+.wptable {
+	width:           100%;
+	border-collapse: collapse;
+	border:          1px solid $border-dk;
+	background:      #fff;
+	clear:           both;
+	font-size:       13px;
+	color:           $txt;
+
+	th {
+		background:    $row;
+		border-bottom: 1px solid $border-dk;
+		padding:       8px 10px;
+		text-align:    left;
+		font-size:     13px;
+		font-weight:   600;
+		white-space:   nowrap;
+
+		&.sorted { color: var(--wp-admin-theme-color); }
+		&.chk-col { width: 32px; padding: 8px 0 8px 10px; }
+	}
+
+	td {
+		padding:        9px 10px;
+		border-bottom:  1px solid #f0f0f1;
+		vertical-align: middle;
+
+		&.chk-col { width: 32px; padding: 8px 0 8px 10px; }
+	}
+
+	tr:hover td            { background: #f9f9f9; }
+	tr.inh-row td          { background: #fafafa; }
+	tr.inh-row:hover td    { background: #f3f5f7; }
+	tbody tr:last-child td { border-bottom: none; }
+}
+
+// Column widths
+.col-slug { width: 24%; }
+.col-lbl  { width: 17%; }
+.col-cat  { width: 9%; }
+.col-src  { width: 8%; }
+.col-sta  { width: 10%; }
+.col-typ  { width: 12%; }
+.col-mcp  { width: 7%; }
+.col-act  { width: auto; }
+
+// Slug cell
+.slug-cell {
+	font-family: "SFMono-Regular", Consolas, monospace;
+	font-size:   11px;
+	line-height: 1.5;
+}
+
+.slug-dim  { color: #bbb; }
+.slug-name { color: $txt; font-weight: 600; }
+
+// Label "by provider" subtext
+.lbl-by {
+	display:    block;
+	font-size:  11px;
+	color:      $muted;
+	margin-top: 1px;
+}
+
+// Category pill
+.cpill {
+	display:       inline-block;
+	background:    #f0f0f0;
+	border:        1px solid #e0e0e0;
+	border-radius: 10px;
+	font-size:     11px;
+	padding:       1px 7px;
+	color:         $muted;
+	white-space:   nowrap;
+}
+
+// Status indicators — custom rows (dot + text layout)
+.sta {
+	display:     inline-flex;
+	align-items: center;
+	gap:         5px;
+	font-size:   12px;
+	font-weight: 600;
+}
+
+.sta-dot {
+	width:         8px;
+	height:        8px;
+	border-radius: 50%;
+	flex-shrink:   0;
+}
+
+.sta-on  { color: #007017; }
+.sta-on  .sta-dot { background: $green; }
+.sta-off { color: $muted; }
+.sta-off .sta-dot { background: transparent; border: 1.5px solid $muted; }
+
+// Inherited status badges
+.ibadge {
+	display:       inline-block;
+	font-size:     11px;
+	font-weight:   600;
+	padding:       2px 8px;
+	border-radius: 3px;
+}
+
+.ib-a { background: #edfaef; color: #007017; border: 1px solid #b5e6bc; }
+.ib-d { background: $row;    color: $muted;  border: 1px solid $border-dk; }
+.ib-b { background: #fceaea; color: #8a0000; border: 1px solid #f0b0b0; }
+
+// Type badges
+.tbadge {
+	display:       inline-block;
+	font-family:   "SFMono-Regular", Consolas, monospace;
+	font-size:     10.5px;
+	font-weight:   600;
+	padding:       3px 9px;
+	border-radius: 4px;
+	white-space:   nowrap;
+}
+
+.tb-n { background: #f0f0f0;  color: $muted;   border: 1px solid $border-dk; }
+.tb-f { background: #e8eeff;  color: #2038a0;  border: 1px solid #b0c0f0; }
+.tb-r { background: #fff3e0;  color: #7a3500;  border: 1px solid #f0c080; }
+.tb-p { background: #fff0e0;  color: #803000;  border: 1px solid #f0b080; }
+
+// MCP visibility
+.mcp-y { color: #007017; font-weight: 600; }
+.mcp-n { color: $border-dk; }
+
+// Row actions
+.racts {
+	display:     flex;
+	align-items: center;
+	gap:         2px;
+	white-space: nowrap;
+}
+
+.ra {
+	font-size:       13px;
+	color:           var(--wp-admin-theme-color);
+	cursor:          pointer;
+	padding:         0 3px;
+	background:      none;
+	border:          none;
+	font-family:     inherit;
+	text-decoration: none;
+
+	&:hover { text-decoration: underline; }
+	&.del   { color: $red; }
+}
+
+.ra-sep { color: #ddd; font-size: 11px; }
+
+// Inline status dropdown
+.sdd {
+	font-family:       inherit;
+	font-size:         12px;
+	border:            1px solid $border-dk;
+	border-radius:     3px;
+	padding:           1px 18px 1px 6px;
+	cursor:            pointer;
+	appearance:        none;
+	background-image:  url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5'%3E%3Cpath d='M0 0l4 5 4-5z' fill='%23666'/%3E%3C/svg%3E");
+	background-repeat: no-repeat;
+	background-position: right 5px center;
+	background-size:   6px;
+}
+
+.sdd.e { background-color: #edfaef; border-color: #7ec898; color: #007017; }
+.sdd.d { background-color: $row;    border-color: $border-dk; color: $muted; }
+
+// ---------------------------------------------------------------------------
+// Tablenav
+// ---------------------------------------------------------------------------
+.tablenav {
+	clear:       both;
+	display:     flex;
+	align-items: center;
+	gap:         7px;
+	height:      30px;
+	margin:      4px 0 8px;
+
+	select,
+	input[type="text"] {
+		font-family:   inherit;
+		font-size:     13px;
+		height:        28px;
+		padding:       0 8px;
+		border:        1px solid $border-dk;
+		border-radius: 3px;
+		background:    #fff;
+		color:         $txt;
+	}
+
+	.tn-pages {
+		margin-left: auto;
+		color:       $muted;
+		font-size:   13px;
+	}
+
+	.button {
+		height:        28px;
+		padding:       0 10px;
+		border:        1px solid $border-dk;
+		border-radius: 3px;
+		font-family:   inherit;
+		font-size:     13px;
+		background:    $row;
+		color:         $txt;
+		cursor:        pointer;
+		display:       inline-flex;
+		align-items:   center;
+	}
+
+	// Override WP list-tables.css: .tablenav .tablenav-pages { float:right; margin:0 0 9px }
+	// That rule has specificity 20 and sets margin-left:0, defeating our margin-left:auto below.
+	// This nested rule has the same specificity (20) but loads later, so it wins.
+	.tablenav-pages {
+		float:       none;
+		margin:      0;
+		margin-left: auto;
+	}
+}
+
+// Pagination nav (above and below table)
+.tablenav-pages {
+	display:         flex;
+	align-items:     center;
+	justify-content: flex-end;
+	gap:             8px;
+	margin-left:     auto;
+	font-size:       13px;
+	color:           $muted;
+
+	.displaying-num { margin-right: 4px; }
+
+	.pagination-links {
+		display:     flex;
+		align-items: center;
+		gap:         4px;
+	}
+
+	.paging-input {
+		padding: 0 6px;
+		color:   $txt;
+	}
+
+	.button {
+		height:        28px;
+		min-width:     28px;
+		padding:       0 8px;
+		border:        1px solid $border-dk;
+		border-radius: 3px;
+		font-family:   inherit;
+		font-size:     13px;
+		background:    $row;
+		color:         $txt;
+		cursor:        pointer;
+		display:       inline-flex;
+		align-items:   center;
+		justify-content: center;
+
+		&:disabled {
+			opacity: 0.4;
+			cursor:  default;
+		}
+	}
+}
+
+.tablenav-pages-below {
+	margin-top:  8px;
+	text-align:  right;
+}
+
+// Column visibility toggle panel
+.columns-toggle {
+	position: relative;
+}
+
+.columns-panel {
+	position:         absolute;
+	top:              calc(100% + 4px);
+	left:             0;
+	z-index:          100;
+	background:       #fff;
+	border:           1px solid $border-dk;
+	border-radius:    3px;
+	box-shadow:       0 2px 6px rgba(0, 0, 0, .12);
+	padding:          8px 12px;
+	min-width:        160px;
+	display:          flex;
+	flex-direction:   column;
+	gap:              6px;
+}
+
+.columns-panel-item {
+	display:       flex;
+	align-items:   center;
+	gap:           6px;
+	font-size:     13px;
+	cursor:        pointer;
+	white-space:   nowrap;
+}
+
+// Search input wrapper
+.tablenav-search {
+	display:       flex;
+	align-items:   center;
+	border:        1px solid $border-dk;
+	border-radius: 3px;
+	background:    #fff;
+	height:        28px;
+	padding:       0 8px;
+	gap:           5px;
+	flex:          0 0 240px;
+
+	.search-icon { color: $muted; font-size: 13px; }
+
+	input {
+		border:      none;
+		font-family: inherit;
+		font-size:   13px;
+		color:       $txt;
+		outline:     none;
+		flex:        1;
+		background:  transparent;
+
+		&::placeholder { color: $muted; }
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Subsubsub quick-links
+// ---------------------------------------------------------------------------
+.subsubsub {
+	list-style:  none;
+	display:     none; // hidden Feature 025 — JSX preserved for future re-enable
+	align-items: center;
+	gap:         0;
+	margin:      6px 0 10px;
+	padding:     0;
+	font-size:   13px;
+
+	li { display: inline; }
+
+	.ssp { color: #ccc; margin: 0 7px; }
+
+	.ssl {
+		color:           var(--wp-admin-theme-color);
+		text-decoration: none;
+		cursor:          pointer;
+
+		&:hover { text-decoration: underline; }
+		&.on    { color: $txt; font-weight: 600; }
+
+		.ct { color: $muted; font-weight: 400; }
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Bulk actions row
+// ---------------------------------------------------------------------------
+.bulk-row {
+	display:     flex;
+	align-items: center;
+	gap:         6px;
+}
+
+// Feature 056: Full-screen busy overlay while a bulk dispatch is in flight.
+// Blurs the underlying admin page and blocks click-through.
+.acrossai-abilities-bulk-busy-overlay {
+	position:         fixed;
+	inset:            0;
+	background:       rgba(255, 255, 255, 0.35);
+	backdrop-filter:  blur(4px);
+	-webkit-backdrop-filter: blur(4px);
+	display:          flex;
+	flex-direction:   column;
+	align-items:      center;
+	justify-content:  center;
+	gap:              14px;
+	z-index:          100001;
+	cursor:           progress;
+
+	// Scale the native WP .spinner (default 20×20) up for the overlay,
+	// and override its float:right / margins so it centers cleanly.
+	&__spinner.spinner {
+		width:            48px;
+		height:           48px;
+		background-size:  48px 48px;
+		float:            none;
+		margin:           0;
+		opacity:          1;
+	}
+
+	&__label {
+		font-size:   14px;
+		font-weight: 500;
+		color:       #1e1e1e;
+		background:  rgba(255, 255, 255, 0.85);
+		padding:     6px 12px;
+		border-radius: 4px;
+		box-shadow:  0 1px 3px rgba(0, 0, 0, 0.08);
+	}
+}
+
+// Feature 056: Bulk-actions dropdown uses <optgroup> to separate
+// Site Access / MCP Exposure / User Access categories. Native browser
+// rendering of <optgroup> is inconsistent — normalise it.
+.acrossai-abilities-list__bulk-select {
+	optgroup {
+		font-style:  italic;
+		font-weight: 600;
+		color:       var(--wp-admin-theme-color, #2271b1);
+		background:  #f6f7f7;
+	}
+	optgroup option {
+		font-style:   normal;
+		font-weight:  normal;
+		color:        #1e1e1e;
+		padding-left: 12px;
+	}
+}
+
+// Feature 056: Bulk User Access modal chrome (plain HTML — spec §Out-of-Scope
+// forbids new npm deps so @wordpress/components Modal is not used).
+.acrossai-abilities-user-access-bulk-modal__backdrop {
+	position:         fixed;
+	inset:            0;
+	background:       rgba(0, 0, 0, 0.5);
+	display:          flex;
+	align-items:      center;
+	justify-content:  center;
+	z-index:          100000;
+}
+
+.acrossai-abilities-user-access-bulk-modal {
+	background:      #fff;
+	border-radius:   4px;
+	box-shadow:      0 4px 24px rgba(0, 0, 0, 0.2);
+	width:           640px;
+	max-width:       90vw;
+	max-height:      90vh;
+	display:         flex;
+	flex-direction:  column;
+
+	&__header {
+		display:         flex;
+		align-items:     center;
+		justify-content: space-between;
+		padding:         16px 20px;
+		border-bottom:   1px solid #ddd;
+
+		h2 {
+			margin:      0;
+			font-size:   16px;
+			line-height: 1.4;
+		}
+	}
+
+	&__close {
+		background:  transparent;
+		border:      0;
+		font-size:   24px;
+		line-height: 1;
+		cursor:      pointer;
+		padding:     4px 8px;
+		color:       #50575e;
+
+		&:hover  { color: #000; }
+		&:disabled { opacity: 0.5; cursor: not-allowed; }
+	}
+
+	&__body {
+		padding:      20px;
+		overflow-y:   auto;
+		flex-grow:    1;
+
+		.inline-notice {
+			margin: 0 0 12px;
+			padding: 8px 12px;
+			border-left-width: 4px;
+
+			p { margin: 0; }
+		}
+	}
+
+	&__ac {
+		margin-top: 12px;
+	}
+
+	&__footer {
+		display:         flex;
+		justify-content: flex-end;
+		gap:             8px;
+		padding:         12px 20px;
+		border-top:      1px solid #ddd;
+		background:      #f6f7f7;
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Form layout (2-column grid: main + sticky sidebar)
+// Wireframe: 1fr 260px
+// ---------------------------------------------------------------------------
+.form-layout {
+	display:               grid;
+	grid-template-columns: 1fr 260px;
+	gap:                   20px;
+	align-items:           start;
+	padding-top:           14px;
+}
+
+.form-main { min-width: 0; }
+
+.form-side {
+	position: sticky;
+	top:      14px;
+}
+
+// ---------------------------------------------------------------------------
+// Unified panel (replaces individual postboxes)
+// Wireframe: .panel > .sect > .sect-hdr + form rows
+// ---------------------------------------------------------------------------
+.panel {
+	background:    #fff;
+	border:        1px solid $border;
+	border-radius: 6px;
+	overflow:      hidden;
+	box-shadow:    0 1px 2px rgba(0, 0, 0, 0.04);
+	margin-bottom: 20px;
+}
+
+// Each section in the unified panel
+.sect {
+	border-bottom: 1px solid #f0f0f1;
+	padding:       24px 28px;
+
+	&:last-child { border-bottom: none; }
+}
+
+
+.sect-hdr { margin-bottom: 18px; }
+
+.sect-title {
+	font-size:       16px;
+	font-weight:     600;
+	color:           $txt;
+	letter-spacing:  -.01em;
+	display:         flex;
+	align-items:     center;
+	gap:             8px;
+	line-height:     1.3;
+}
+
+.sect-num {
+	display:         inline-flex;
+	align-items:     center;
+	justify-content: center;
+	width:           24px;
+	height:          24px;
+	border-radius:   50%;
+	background:      #e8f4fb;
+	color:           var(--wp-admin-theme-color);
+	font-size:       11px;
+	font-weight:     700;
+	flex-shrink:     0;
+}
+
+.sect-opt {
+	font-size:   12px;
+	font-weight: 400;
+	color:       $soft;
+	margin-left: 6px;
+}
+
+.sect-desc {
+	font-size:    13px;
+	color:        $muted;
+	margin-top:   4px;
+	line-height:  1.55;
+	padding-left: 32px;
+}
+
+// Red-tinted warning callout inside a section header (Feature 044).
+// Used to flag site-wide side-effects of a per-ability toggle.
+.sect-note-warn {
+	margin:        10px 0 0 32px;
+	padding:       8px 12px;
+	background:    #fceaea;
+	border-left:   3px solid $red;
+	border-radius: 2px;
+	color:         $red;
+	font-size:     12px;
+	line-height:   1.5;
+
+	strong { font-weight: 600; }
+}
+
+// Blue-tinted informational promo inside a section header.
+// Used to advertise the sibling acrossai-mcp-manager plugin when inactive.
+.sect-note-promo {
+	margin:        12px 0 0 32px;
+	padding:       12px 14px 12px 16px;
+	background:    linear-gradient(135deg, #eef4ff 0%, #e0ecff 100%);
+	border-left:   4px solid #2271b1;
+	border-radius: 4px;
+	color:         #0f2c56;
+	font-size:     12.5px;
+	line-height:   1.55;
+	box-shadow:    0 1px 2px rgba(34, 113, 177, 0.08);
+
+	strong { font-weight: 600; color: #0f2c56; }
+
+	.sect-note-promo__title {
+		display:       block;
+		font-size:     13px;
+		font-weight:   600;
+		color:         #0a2540;
+		margin-bottom: 4px;
+	}
+
+	.sect-note-promo__body { display: block; }
+
+	.sect-note-promo__actions {
+		display:   flex;
+		gap:       10px;
+		margin-top: 10px;
+		flex-wrap:  wrap;
+	}
+
+	.sect-note-promo__btn {
+		display:         inline-flex;
+		align-items:     center;
+		padding:         6px 12px;
+		border-radius:   4px;
+		font-size:       12px;
+		font-weight:     600;
+		text-decoration: none;
+		line-height:     1.2;
+		transition:      background 0.15s, color 0.15s, box-shadow 0.15s;
+	}
+
+	.sect-note-promo__btn--primary {
+		background: #2271b1;
+		color:      #fff;
+		border:     1px solid #2271b1;
+
+		&:hover, &:focus {
+			background: #135e96;
+			color:      #fff;
+			box-shadow: 0 2px 4px rgba(19, 94, 150, 0.25);
+		}
+	}
+
+	.sect-note-promo__btn--link {
+		background: transparent;
+		color:      #2271b1;
+		border:     1px solid #b6cbe6;
+
+		&:hover, &:focus {
+			background: #dbe8f7;
+			color:      #135e96;
+		}
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Form rows (Wireframe: 200px label / 1fr field, padded left 32px)
+// ---------------------------------------------------------------------------
+.fr {
+	display:               grid;
+	grid-template-columns: 200px 1fr;
+	gap:                   10px 24px;
+	padding:               14px 0 14px 32px;
+	align-items:           start;
+	border-bottom:         1px dashed #f4f4f4;
+
+	&:last-child   { border-bottom: none; }
+	&:first-of-type { padding-top: 6px; }
+}
+
+// .fl = field label (div or label element in form rows)
+.fl {
+	font-size:   13px;
+	font-weight: 500;
+	color:       $txt;
+	padding-top: 8px;
+	line-height: 1.4;
+
+	.req, .required { color: $red; font-weight: 400; margin-left: 2px; }
+
+	.lopt {
+		font-size:   12px;
+		color:       $soft;
+		font-weight: 400;
+		margin-top:  2px;
+		display:     block;
+	}
+}
+
+// .ff = field value wrapper
+.ff {
+	display:        flex;
+	flex-direction: column;
+	gap:            6px;
+	min-width:      0;
+}
+
+// ---------------------------------------------------------------------------
+// Input classes
+// .ri  = regular input (36px height) — matches wireframe
+// .rs  = select with chevron arrow
+// .rt  = textarea (resizable, min-height 78px)
+// ---------------------------------------------------------------------------
+.ri,
+.rs,
+.rt {
+	width:         100%;
+	border:        1px solid $border-dk;
+	border-radius: 4px;
+	padding:       7px 10px;
+	font-family:   inherit;
+	font-size:     13px;
+	color:         $txt;
+	background:    #fff;
+	transition:    border-color 0.15s, box-shadow 0.15s;
+	box-sizing:    border-box;
+
+	&:focus {
+		outline:      none;
+		border-color: var(--wp-admin-theme-color);
+		box-shadow:   0 0 0 1px var(--wp-admin-theme-color);
+	}
+}
+
+.ri {
+	height: 36px;
+	padding-top:    0;
+	padding-bottom: 0;
+}
+
+.rs {
+	height:            36px;
+	padding-top:       0;
+	padding-bottom:    0;
+	padding-right:     32px;
+	appearance:        none;
+	background-image:  url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23555'/%3E%3C/svg%3E");
+	background-repeat: no-repeat;
+	background-position: right 10px center;
+	background-size:   8px;
+}
+
+.rt {
+	min-height:  78px;
+	resize:      vertical;
+	line-height: 1.5;
+
+	// Code textarea (schema fields)
+	&.code {
+		font-family: "SFMono-Regular", Consolas, monospace;
+		font-size:   11.5px;
+		min-height:  64px;
+		background:  #fafbfc;
+		border-color: #e0e3e7;
+	}
+
+	// Read-only schema display for non-DB abilities
+	&.readonly-schema {
+		margin:      0;
+		padding:     8px 10px;
+		background:  #f5f5f5;
+		border:      1px solid #e0e3e7;
+		border-radius: 3px;
+		color:       #3c434a;
+		white-space: pre-wrap;
+		word-break:  break-word;
+		min-height:  unset;
+		resize:      none;
+		pointer-events: none;
+	}
+
+	// Dark code textarea (php_code)
+	&.dark {
+		background:  #1e1e1e;
+		color:       #a8ff60;
+		border-color: #333;
+		font-family: "SFMono-Regular", Consolas, monospace;
+		font-size:   12px;
+		line-height: 1.5;
+		min-height:  72px;
+
+		&:focus { outline: 1px solid #a8ff60; box-shadow: none; }
+	}
+}
+
+// Also support WP's own .regular-text class
+.regular-text {
+	border:        1px solid $border-dk;
+	border-radius: 4px;
+	padding:       7px 10px;
+	font-family:   inherit;
+	font-size:     13px;
+	color:         $txt;
+	background:    #fff;
+	max-width:     25em;
+	box-sizing:    border-box;
+}
+
+// ---------------------------------------------------------------------------
+// Prefix input (.pxwrap)
+// ---------------------------------------------------------------------------
+.pxwrap {
+	display:       flex;
+	border:        1px solid $border-dk;
+	border-radius: 4px;
+	overflow:      hidden;
+	height:        36px;
+	transition:    border-color 0.15s, box-shadow 0.15s;
+
+	&:focus-within {
+		border-color: var(--wp-admin-theme-color);
+		box-shadow:   0 0 0 1px var(--wp-admin-theme-color);
+	}
+}
+
+.pxtxt {
+	background:   $row;
+	padding:      0 12px;
+	font-size:    11.5px;
+	font-family:  monospace;
+	color:        $muted;
+	border-right: 1px solid $border-dk;
+	white-space:  nowrap;
+	display:      flex;
+	align-items:  center;
+	letter-spacing: .01em;
+}
+
+.pxinp {
+	flex:        1;
+	border:      none;
+	padding:     0 12px;
+	font-family: monospace;
+	font-size:   13px;
+	font-weight: 600;
+	color:       $txt;
+	background:  transparent;
+	outline:     none;
+}
+
+// ---------------------------------------------------------------------------
+// Toggle (.wptog) — WP-style toggle button
+// ---------------------------------------------------------------------------
+.togrow {
+	display:     flex;
+	align-items: center;
+	gap:         12px;
+}
+
+.wptog {
+	width:         40px;
+	height:        22px;
+	border-radius: 11px;
+	background:    #ccc;
+	position:      relative;
+	flex-shrink:   0;
+	cursor:        pointer;
+	transition:    background 0.2s;
+	border:        none;
+	padding:       0;
+
+	&.on { background: $green; }
+
+	&::after {
+		content:       '';
+		position:      absolute;
+		width:         16px;
+		height:        16px;
+		border-radius: 50%;
+		background:    #fff;
+		top:           3px;
+		left:          3px;
+		transition:    left 0.2s;
+		box-shadow:    0 1px 2px rgba(0, 0, 0, 0.2);
+	}
+
+	&.on::after { left: 21px; }
+}
+
+.toglbl {
+	font-size: 13px;
+	color:     $txt;
+}
+
+// Soft hint (for "plugin default: yes" style text)
+.soft-hint {
+	color:     $soft;
+	font-size: 12px;
+}
+
+// ---------------------------------------------------------------------------
+// Callback type chips (.chips / .chip)
+// Wireframe: monospace with ✓ before active chip
+// ---------------------------------------------------------------------------
+.chips {
+	display:   flex;
+	gap:       8px;
+	flex-wrap: wrap;
+}
+
+.chip {
+	font-family:    "SFMono-Regular", Consolas, monospace;
+	font-size:      12px;
+	padding:        8px 14px;
+	border-radius:  6px;
+	cursor:         pointer;
+	border:         1.5px solid $border-dk;
+	background:     #fff;
+	color:          $muted;
+	transition:     all 0.15s;
+	display:        inline-flex;
+	align-items:    center;
+	gap:            5px;
+
+	&:hover {
+		border-color: #aaa;
+		color:        $txt;
+	}
+
+	&.on {
+		border-color: var(--wp-admin-theme-color);
+		background:   #e8f4fb;
+		color:        var(--wp-admin-theme-color);
+		font-weight:  600;
+
+		&::before {
+			content:     '✓';
+			font-family: inherit;
+			font-size:   11px;
+		}
+	}
+
+	// Locked chip — non-DB "Keep as default" state
+	&--locked {
+		cursor:       default;
+		opacity:      0.85;
+		pointer-events: none;
+		border-style: dashed;
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Exec config block (.ecfg)
+// Wireframe: gradient bg + .ecfg-hdr with dot + uppercase title
+// ---------------------------------------------------------------------------
+.ecfg {
+	background:    linear-gradient(to bottom, #fafbfc, #f6f7f9);
+	border:        1px solid #e8eaec;
+	border-radius: 6px;
+	padding:       18px 20px;
+	margin-top:    14px;
+
+	// .fr rows inside ecfg — override padding and border for tighter layout
+	.fr {
+		padding:    8px 0;
+		border-bottom: none;
+	}
+
+	.fl { padding-top: 8px; }
+}
+
+.ecfg-hdr {
+	display:         flex;
+	align-items:     center;
+	gap:             8px;
+	margin-bottom:   14px;
+	padding-bottom:  10px;
+	border-bottom:   1px dashed #e0e3e7;
+}
+
+.ecfg-dot {
+	width:         8px;
+	height:        8px;
+	border-radius: 50%;
+	background:    var(--wp-admin-theme-color);
+	flex-shrink:   0;
+}
+
+.ecfg-title {
+	font-size:      12px;
+	font-weight:    700;
+	text-transform: uppercase;
+	letter-spacing: 0.06em;
+	color:          var(--wp-admin-theme-color);
+}
+
+// ---------------------------------------------------------------------------
+// Cluster layout (for URL + Method + Timeout inline fields)
+// ---------------------------------------------------------------------------
+.cluster {
+	display:     flex;
+	gap:         14px;
+	align-items: flex-start;
+}
+
+.cluster-f {
+	display:        flex;
+	flex-direction: column;
+	gap:            5px;
+}
+
+.cluster-l {
+	font-size:      11.5px;
+	font-weight:    600;
+	color:          $muted;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+}
+
+// ---------------------------------------------------------------------------
+// Segmented control / TGC (.tgc / .tgc-opt)
+// Wireframe: "ToggleGroupControl" Gutenberg-style
+// ---------------------------------------------------------------------------
+.tgc {
+	display:       inline-flex;
+	background:    #f0f0f1;
+	border-radius: 4px;
+	padding:       3px;
+	gap:           0;
+}
+
+.tgc-opt {
+	font-family:  inherit;
+	font-size:    12.5px;
+	padding:      6px 14px;
+	border-radius: 3px;
+	cursor:       pointer;
+	color:        $muted;
+	font-weight:  500;
+	white-space:  nowrap;
+	transition:   all 0.15s;
+	background:   none;
+	border:       none;
+
+	&.on {
+		background:  #fff;
+		color:       $txt;
+		box-shadow:  0 1px 2px rgba(0, 0, 0, 0.08);
+		font-weight: 600;
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Notices inside ecfg / forms
+// ---------------------------------------------------------------------------
+.notice {
+	border-left:   4px solid;
+	padding:       12px 14px;
+	font-size:     13px;
+	margin:        10px 0;
+	line-height:   1.5;
+	border-radius: 0 4px 4px 0;
+	display:       flex;
+	gap:           8px;
+	align-items:   flex-start;
+}
+
+.n-warn { background: #fef8ee; border-color: $warn; color: #5c3c00; }
+.n-info { background: #e5f5fa; border-color: var(--wp-admin-theme-color); color: #003f5e; }
+
+// ---------------------------------------------------------------------------
+// Description / helper text
+// ---------------------------------------------------------------------------
+.desc {
+	font-size:   12px;
+	color:       $muted;
+	line-height: 1.5;
+
+	code {
+		font-family:   monospace;
+		font-size:     10.5px;
+		background:    $row;
+		padding:       1px 5px;
+		border-radius: 3px;
+		color:         #0055b3;
+	}
+}
+
+.desc-warn {
+	font-size:   12px;
+	color:       #996600;
+	line-height: 1.5;
+	display:     flex;
+	gap:         5px;
+	align-items: flex-start;
+}
+
+// ---------------------------------------------------------------------------
+// Checkboxes (.wchk / .chkb) — Access Control section
+// ---------------------------------------------------------------------------
+.wchk {
+	display:       flex;
+	align-items:   center;
+	gap:           10px;
+	margin-bottom: 10px;
+	font-size:     13.5px;
+	cursor:        pointer;
+	transition:    color 0.15s;
+
+	&:hover { color: var(--wp-admin-theme-color); }
+}
+
+.chkb {
+	width:            20px;
+	height:           20px;
+	border:           2px solid $border-dk;
+	border-radius:    4px;
+	background:       #fff;
+	flex-shrink:      0;
+	display:          flex;
+	align-items:      center;
+	justify-content:  center;
+	font-size:        13px;
+	font-weight:      700;
+	transition:       all 0.15s;
+
+	&.on {
+		background:   var(--wp-admin-theme-color);
+		border-color: var(--wp-admin-theme-color);
+		color:        #fff;
+	}
+}
+
+.wchk-desc {
+	font-size:  11px;
+	color:      $soft;
+	margin-left: auto;
+	font-style: italic;
+}
+
+// ---------------------------------------------------------------------------
+// Unsaved changes indicator
+// ---------------------------------------------------------------------------
+.unsaved {
+	display:     inline-flex;
+	align-items: center;
+	gap:         5px;
+	font-size:   12px;
+	color:       #996600;
+	font-style:  italic;
+	margin-left: 12px;
+}
+
+.udot {
+	width:         7px;
+	height:        7px;
+	border-radius: 50%;
+	background:    #cc8800;
+	flex-shrink:   0;
+	animation:     pulse 1.8s ease-in-out infinite;
+}
+
+@keyframes pulse {
+	0%, 100% { opacity: 1; }
+	50%       { opacity: 0.35; }
+}
+
+// h1-meta inline badges/indicator
+.h1-meta {
+	display:      inline-flex;
+	align-items:  center;
+	gap:          10px;
+	margin-left:  12px;
+	vertical-align: middle;
+}
+
+// ---------------------------------------------------------------------------
+// Locked banner (Variant B — override inherited)
+// Wireframe: .locked-banner grid auto/1fr/1fr
+// ---------------------------------------------------------------------------
+.locked-banner {
+	background:    linear-gradient(to right, #fafafa, #f6f7f7);
+	border:        1px solid $border;
+	border-left:   4px solid #999;
+	border-radius: 6px;
+	margin-bottom: 20px;
+	padding:       18px 24px;
+	display:       grid;
+	grid-template-columns: auto 1fr 1fr;
+	gap:           18px;
+}
+
+.lbi {
+	font-size:   24px;
+	line-height: 1;
+	color:       #888;
+}
+
+.lkmeta {
+	display:       flex;
+	align-items:   center;
+	gap:           8px;
+	margin-bottom: 10px;
+	font-size:     12px;
+	color:         $muted;
+
+	strong { color: $txt; }
+}
+
+.lblock {
+	display:               grid;
+	grid-template-columns: 1fr 1fr;
+	gap:                   14px;
+}
+
+.lf {
+	display:        flex;
+	flex-direction: column;
+	gap:            3px;
+}
+
+.lk {
+	font-size:      10px;
+	color:          $soft;
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+	font-weight:    600;
+}
+
+.lv {
+	font-size: 13px;
+	color:     $txt;
+
+	&.mono { font-family: monospace; font-size: 11px; }
+}
+
+// ---------------------------------------------------------------------------
+// Sidebar boxes (.sbox)
+// Wireframe: border-radius 6px, box-shadow
+// ---------------------------------------------------------------------------
+.sbox {
+	background:    #fff;
+	border:        1px solid $border;
+	border-radius: 6px;
+	margin-bottom: 14px;
+	overflow:      hidden;
+	box-shadow:    0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.sbhdr {
+	padding:        12px 16px;
+	font-size:      11px;
+	font-weight:    700;
+	text-transform: uppercase;
+	letter-spacing: 0.08em;
+	color:          $muted;
+	border-bottom:  1px solid $border;
+	background:     $row;
+	display:        flex;
+	align-items:    center;
+	gap:            6px;
+}
+
+.sbhdr-ic {
+	width:            14px;
+	height:           14px;
+	border-radius:    50%;
+	background:       #e8f4fb;
+	color:            var(--wp-admin-theme-color);
+	display:          flex;
+	align-items:      center;
+	justify-content:  center;
+	font-size:        10px;
+	font-weight:      700;
+}
+
+.sbbody { padding: 14px 16px; }
+
+// Preview grid inside sidebar
+.prev-grid {
+	display:        flex;
+	flex-direction: column;
+	gap:            10px;
+}
+
+.prev-row {
+	display:        flex;
+	flex-direction: column;
+	gap:            3px;
+}
+
+.prk {
+	font-size:      10px;
+	text-transform: uppercase;
+	letter-spacing: 0.07em;
+	color:          $soft;
+	font-weight:    600;
+	margin-bottom:  3px;
+}
+
+.prv {
+	font-size:   13px;
+	color:       $txt;
+	word-break:  break-all;
+
+	&.mono { font-family: monospace; font-size: 11px; }
+}
+
+// What Happens on Save list
+.hlist {
+	list-style:     none;
+	display:        flex;
+	flex-direction: column;
+	gap:            8px;
+	padding:        0;
+
+	li {
+		font-size:   12px;
+		color:       $txt;
+		display:     flex;
+		gap:         8px;
+		align-items: flex-start;
+		line-height: 1.55;
+
+		&::before {
+			content:    '';
+			width:      5px;
+			height:     5px;
+			border-radius: 50%;
+			background: var(--wp-admin-theme-color);
+			flex-shrink: 0;
+			margin-top: 6px;
+		}
+	}
+
+	code {
+		font-family:   monospace;
+		font-size:     10.5px;
+		background:    $row;
+		padding:       1px 5px;
+		border-radius: 3px;
+		color:         #0055b3;
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Activity timeline (.aitem / .adot)
+// Wireframe: .aitem > .adot.on/.off + (.at + .adt)
+// ---------------------------------------------------------------------------
+.aitem {
+	display:       flex;
+	gap:           10px;
+	align-items:   flex-start;
+	margin-bottom: 10px;
+
+	&:last-child { margin-bottom: 0; }
+}
+
+.adot {
+	width:         9px;
+	height:        9px;
+	border-radius: 50%;
+	flex-shrink:   0;
+	margin-top:    4px;
+
+	&.on  { background: $green; box-shadow: 0 0 0 3px rgba(0, 163, 42, 0.15); }
+	&.off { background: transparent; border: 1.5px solid $border-dk; }
+
+	// Also support updated/created class names from JSX
+	&.updated { background: $green; box-shadow: 0 0 0 3px rgba(0, 163, 42, 0.15); }
+	&.created { background: transparent; border: 1.5px solid $border-dk; }
+}
+
+.at {
+	font-size:   13px;
+	font-weight: 600;
+	color:       $txt;
+
+	&.muted { font-weight: 400; color: $muted; }
+}
+
+.adt {
+	font-size:  11px;
+	color:      $soft;
+	margin-top: 1px;
+}
+
+// ---------------------------------------------------------------------------
+// Delete link in sidebar
+// ---------------------------------------------------------------------------
+.button-link-delete,
+.link-delete {
+	color:           $red;
+	font-size:       13px;
+	text-decoration: none;
+	background:      none;
+	border:          none;
+	cursor:          pointer;
+	padding:         0;
+	font-family:     inherit;
+	display:         inline-block;
+
+	&:hover { text-decoration: underline; }
+}
+
+// ---------------------------------------------------------------------------
+// Sticky bottom save bar (.sbar)
+// ---------------------------------------------------------------------------
+.sbar {
+	position:        sticky;
+	bottom:          0;
+	z-index:         10;
+	background:      #fff;
+	border-top:      1px solid $border;
+	padding:         12px 28px;
+	display:         flex;
+	align-items:     center;
+	justify-content: space-between;
+	flex-shrink:     0;
+	box-shadow:      0 -2px 12px rgba(0, 0, 0, 0.06);
+}
+
+// Wireframe: .snote and .brow
+.snote {
+	font-size:   12px;
+	color:       $muted;
+	display:     flex;
+	align-items: center;
+	gap:         6px;
+}
+
+.brow {
+	display:     flex;
+	gap:         10px;
+	align-items: center;
+}
+
+// ---------------------------------------------------------------------------
+// Breadcrumb
+// ---------------------------------------------------------------------------
+.abilities-breadcrumb,
+.bc {
+	font-size:     13px;
+	color:         $muted;
+	margin-bottom: 6px;
+	display:       flex;
+	align-items:   center;
+	gap:           5px;
+
+	a,
+	button.button-link {
+		color:           var(--wp-admin-theme-color);
+		text-decoration: none;
+		background:      none;
+		border:          none;
+		cursor:          pointer;
+		padding:         0;
+		font-family:     inherit;
+		font-size:       inherit;
+	}
+
+	.bc-sep { color: $border-dk; }
+
+	.bc-slug {
+		font-family: monospace;
+		font-size:   11.5px;
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Page title row with inline header actions
+// ---------------------------------------------------------------------------
+.abilities-page-title,
+.pgtitle {
+	display:         flex;
+	align-items:     center;
+	justify-content: space-between;
+	gap:             16px;
+	padding:         6px 0 4px;
+	flex-wrap:       wrap;
+
+	h1,
+	.h1 {
+		font-size:       24px;
+		font-weight:     600;
+		color:           $txt;
+		letter-spacing:  -.01em;
+		margin:          0;
+	}
+}
+
+// Header actions (Cancel + Save in title row)
+.hactions {
+	display:     flex;
+	gap:         8px;
+	align-items: center;
+	flex-shrink: 0;
+}
+
+// List page "Add New Ability" button in title
+.title-action {
+	display:         inline-flex;
+	align-items:     center;
+	height:          28px;
+	padding:         0 10px;
+	font-size:       13px;
+	border:          1px solid var(--wp-admin-theme-color);
+	border-radius:   3px;
+	color:           var(--wp-admin-theme-color);
+	background:      #fff;
+	margin-left:     10px;
+	cursor:          pointer;
+	text-decoration: none;
+
+	&:hover { background: var(--wp-admin-theme-color); color: #fff; }
+}
+
+// Subtitle
+.abilities-subtitle,
+.pgsub {
+	font-size:   13px;
+	color:       $muted;
+	margin:      6px 0 10px;
+	max-width:   680px;
+	line-height: 1.5;
+}
+
+// No results message
+.abilities-no-results {
+	text-align: center;
+	padding:    40px 20px;
+	color:      $muted;
+	font-size:  14px;
+}
+
+// Inline JSON validation error
+.field-error {
+	color:      $red;
+	font-size:  11px;
+	margin-top: 4px;
+}
+
+// List page header
+.abilities-list-header {
+	display:         flex;
+	align-items:     center;
+	justify-content: space-between;
+	margin-bottom:   8px;
+
+	h1 { margin: 0; }
+}
+// wpb-access-control CSS is enqueued separately via PHP (v1.2.0 ships compiled assets only, no SCSS source).

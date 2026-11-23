@@ -40,7 +40,10 @@
         "psr-4": {
             "AcrossAI_MCP_Manager\\Includes\\": "includes/",
             "AcrossAI_MCP_Manager\\Admin\\": "admin/",
-            "AcrossAI_MCP_Manager\\Public\\": "public/"
+            "AcrossAI_MCP_Manager\\Public\\": "public/",
+            "AcrossAI_Abilities_Manager\\Includes\\": "abilities/includes/",
+            "AcrossAI_Abilities_Manager\\Admin\\": "abilities/admin/",
+            "AcrossAI_Abilities_Manager\\Front\\": "abilities/public/"
         },
         "exclude-from-classmap": [
             "/tests/"

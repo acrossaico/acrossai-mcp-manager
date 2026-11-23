@@ -136,6 +136,81 @@ module.exports = {
 			'src/scss',
 			'backend.scss',
 		),
+
+		// --- Absorbed from acrossai-abilities-manager (F106) ---
+		//
+		// Every name is prefixed `abilities/` and every source path lives under
+		// `src/abilities/`. Without that, twelve built files collide: both
+		// plugins emitted `frontend`, `backend`, `abilities` and `quick-connect`
+		// in js, css and their -rtl variants, so whichever built last silently
+		// won. The PHP tree is namespaced the same way, under `abilities/`.
+
+		...getWebpackEntryPoints(), // Default WP entry points (e.g., index.js)
+		...blockStylesheets(), // Core block styles (scss)
+		...blockEntries, // Custom blocks (index.js/view.js)
+		'js/abilities/frontend': path.resolve( process.cwd(), 'src/abilities/js', 'frontend.js' ),
+		'js/abilities/backend': path.resolve( process.cwd(), 'src/abilities/js', 'backend.js' ),
+		'css/abilities/frontend': path.resolve(
+			process.cwd(),
+			'src/abilities/scss',
+			'frontend.scss',
+		),
+		'css/abilities/backend': path.resolve( process.cwd(), 'src/abilities/scss', 'backend.scss' ),
+		'js/abilities/abilities': path.resolve(
+			process.cwd(),
+			'src/abilities/js/abilities',
+			'index.js',
+		),
+		'css/abilities/abilities': path.resolve(
+			process.cwd(),
+			'src/abilities/scss/abilities',
+			'admin.scss',
+		),
+		'js/abilities/mcp-abilities-extension': path.resolve(
+			process.cwd(),
+			'src/abilities/js/mcp-abilities-extension',
+			'index.js',
+		),
+		'js/abilities/file-manager-settings': path.resolve(
+			process.cwd(),
+			'src/abilities/js/file-manager-settings',
+			'index.js',
+		),
+		'css/abilities/file-manager-settings': path.resolve(
+			process.cwd(),
+			'src/abilities/scss/file-manager-settings',
+			'admin.scss',
+		),
+		'js/abilities/database-settings': path.resolve(
+			process.cwd(),
+			'src/abilities/js/database-settings',
+			'index.js',
+		),
+		'css/abilities/database-settings': path.resolve(
+			process.cwd(),
+			'src/abilities/scss/database-settings',
+			'admin.scss',
+		),
+		'js/abilities/integrations': path.resolve(
+			process.cwd(),
+			'src/abilities/js/integrations',
+			'index.js',
+		),
+		'css/abilities/integrations': path.resolve(
+			process.cwd(),
+			'src/abilities/scss/integrations',
+			'admin.scss',
+		),
+		'js/abilities/quick-connect': path.resolve(
+			process.cwd(),
+			'src/abilities/js/quick-connect',
+			'index.js',
+		),
+		'css/abilities/quick-connect': path.resolve(
+			process.cwd(),
+			'src/abilities/scss/quick-connect',
+			'admin.scss',
+		),
 	},
 	output: {
 		...defaultConfig.output,

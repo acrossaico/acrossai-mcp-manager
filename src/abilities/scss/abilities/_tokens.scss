@@ -1,0 +1,27 @@
+/**
+ * Shared Sass tokens for the abilities admin styles.
+ *
+ * Extracted from admin.scss in Feature 102 so a partial can reach them. Sass `@use` gives each
+ * module its own scope, so a partial cannot see variables declared in the file that loads it —
+ * duplicating them would be a DRY violation against Constitution VI, and these values are WP admin
+ * design-system constants that must not drift between files.
+ *
+ * Theme-adaptive accents stay as `var(--wp-admin-theme-color)` at the point of use, so the UI
+ * follows all nine built-in WP admin colour schemes.
+ *
+ * @since 0.2.0
+ */
+
+// ---------------------------------------------------------------------------
+// Fixed WP admin neutrals (safe to hardcode — WP design system constants)
+// ---------------------------------------------------------------------------
+$bg:      #f6f7f7;
+$row:     #f8f9fa;
+$border:  #e0e0e0;
+$border-dk: #c3c4c7;
+$txt:     #1e1e1e;
+$muted:   #646970;
+$soft:    #8c8f94;
+$green:   #00a32a;
+$red:     #d63638;
+$warn:    #dba617;

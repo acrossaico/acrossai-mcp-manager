@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <defs>
+    <linearGradient id="coreGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1E3A8A"></stop>
+      <stop offset="100%" stop-color="#2563EB"></stop>
+    </linearGradient>
+  </defs>
+  <g transform="translate(5,5)">
+    <circle cx="45" cy="45" r="44" fill="#EFF6FF" stroke="#1E40AF" stroke-width="1.5"></circle>
+    <g transform="translate(45,45)">
+      <g stroke="#1E40AF" stroke-width="1.4" fill="none" opacity="0.6">
+        <line x1="0" y1="0" x2="-26" y2="-16"></line>
+        <line x1="0" y1="0" x2="24" y2="-20"></line>
+        <line x1="0" y1="0" x2="-28" y2="14"></line>
+        <line x1="0" y1="0" x2="26" y2="18"></line>
+        <line x1="0" y1="0" x2="-8" y2="-30"></line>
+        <line x1="0" y1="0" x2="10" y2="28"></line>
+        <line x1="-26" y1="-16" x2="-8" y2="-30" stroke-width="1"></line>
+        <line x1="24" y1="-20" x2="-8" y2="-30" stroke-width="1"></line>
+        <line x1="-28" y1="14" x2="10" y2="28" stroke-width="1"></line>
+        <line x1="26" y1="18" x2="10" y2="28" stroke-width="1"></line>
+        <line x1="-26" y1="-16" x2="-28" y2="14" stroke-width="1"></line>
+        <line x1="24" y1="-20" x2="26" y2="18" stroke-width="1"></line>
+      </g>
+      <g fill="#3B82F6">
+        <circle cx="-26" cy="-16" r="4.5"></circle>
+        <circle cx="24" cy="-20" r="4"></circle>
+        <circle cx="-28" cy="14" r="4"></circle>
+        <circle cx="26" cy="18" r="4.5"></circle>
+        <circle cx="-8" cy="-30" r="3.5"></circle>
+        <circle cx="10" cy="28" r="3.5"></circle>
+      </g>
+      <circle cx="0" cy="0" r="10" fill="url(#coreGrad)"></circle>
+      <circle cx="0" cy="0" r="4" fill="#FFFFFF"></circle>
+    </g>
+  </g>
+</svg>

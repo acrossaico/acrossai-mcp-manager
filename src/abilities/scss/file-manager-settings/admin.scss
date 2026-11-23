@@ -1,0 +1,164 @@
+/**
+ * File Manager settings tab styles (Feature 092).
+ */
+
+.acrossai-file-manager-settings {
+	.acrossai-fm-intro {
+		background: #f0f6fc;
+		border-left: 4px solid #2271b1;
+		padding: 10px 16px;
+		margin: 0 0 20px 0;
+	}
+
+	.acrossai-fm-panel {
+		background: #fff;
+		border: 1px solid #dcdcde;
+		padding: 20px;
+		margin-bottom: 20px;
+
+		> h2 {
+			margin-top: 0;
+			padding-bottom: 10px;
+			border-bottom: 1px solid #dcdcde;
+		}
+
+		> h3 {
+			margin-top: 24px;
+			font-size: 14px;
+		}
+	}
+
+	.acrossai-fm-legend {
+		font-weight: 600;
+		display: block;
+		margin: 16px 0 8px;
+		padding: 0;
+	}
+
+	.acrossai-fm-tree,
+	.acrossai-fm-picker,
+	.acrossai-fm-patterns {
+		list-style: none;
+		padding: 0;
+		margin: 0 0 12px 0;
+
+		li {
+			margin: 4px 0;
+		}
+
+		code {
+			background: #f6f7f7;
+			padding: 1px 5px;
+			border-radius: 2px;
+			font-size: 12px;
+		}
+	}
+
+	.acrossai-fm-tree-children {
+		list-style: none;
+		padding-left: 24px;
+		margin: 4px 0 0 0;
+	}
+
+	.acrossai-fm-expander {
+		margin-left: 6px;
+		font-size: 14px;
+		text-decoration: none;
+	}
+
+	.acrossai-fm-patterns {
+		li {
+			margin-bottom: 10px;
+		}
+		.description {
+			margin: 2px 0 0 22px;
+			color: #646970;
+		}
+	}
+
+	.acrossai-fm-affects {
+		background: #f6f7f7;
+		border-left: 3px solid #646970;
+		padding: 10px 14px;
+		margin: 0 0 20px 0;
+		font-size: 13px;
+
+		strong {
+			display: block;
+			margin-bottom: 6px;
+		}
+
+		.acrossai-fm-affects-list {
+			list-style: none;
+			padding: 0;
+			margin: 0 0 8px 0;
+			display: flex;
+			flex-wrap: wrap;
+			gap: 6px;
+
+			li {
+				margin: 0;
+			}
+
+			code {
+				background: #fff;
+				border: 1px solid #dcdcde;
+				padding: 2px 8px;
+				border-radius: 3px;
+				font-size: 12px;
+			}
+		}
+
+		.description {
+			margin: 0;
+			color: #646970;
+			font-style: italic;
+		}
+	}
+
+	.acrossai-fm-connectors {
+		list-style: none;
+		padding: 0;
+		margin: 0 0 16px 0;
+
+		li {
+			margin: 6px 0;
+		}
+	}
+
+	.acrossai-fm-badge {
+		display: inline-block;
+		padding: 1px 8px;
+		border-radius: 10px;
+		font-size: 11px;
+		font-weight: 600;
+		text-transform: uppercase;
+		letter-spacing: 0.02em;
+
+		&.is-active {
+			background: #d1e7dd;
+			color: #0a3622;
+		}
+
+		&.is-inactive {
+			background: #f0f0f1;
+			color: #646970;
+		}
+	}
+
+	.acrossai-fm-status {
+		margin-left: 12px;
+		color: #00a32a;
+		font-style: italic;
+	}
+
+	.is-disabled {
+		opacity: 0.55;
+		pointer-events: none;
+	}
+
+	textarea.widefat.code {
+		font-family: Consolas, Monaco, monospace;
+		font-size: 12px;
+	}
+}

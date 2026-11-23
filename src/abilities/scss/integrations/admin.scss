@@ -1,0 +1,478 @@
+/**
+ * Integrations tab.
+ *
+ * Ported from the design's `styles-int-wp.css`, which deliberately mirrors the
+ * @wordpress/components default tokens — gray scale, theme colour, 4px grid, system font — so the
+ * screen matches core admin rather than inventing a second look.
+ *
+ * Three differences from that file, all because this renders inside wp-admin rather than on a blank
+ * canvas: the outer page background and padding are dropped (the admin page supplies them), the
+ * `.wpc--annotate` component-label styles are dropped (they existed to label the mock), and there
+ * are responsive rules, which a fixed-width artboard had no need for.
+ */
+
+.acrossai-integrations-root {
+	margin-top: 8px;
+}
+
+.wpc {
+	--wp-theme: #3858e9;
+	--wp-theme-d: #2145e6;
+	--g900: #1e1e1e;
+	--g700: #757575;
+	--g300: #ddd;
+	--g100: #f0f0f0;
+	--ok: #008a20;
+	--warn: #996800;
+
+	font-size: 13px;
+	color: var(--g900);
+	position: relative;
+
+	a {
+		color: var(--wp-theme);
+
+		&:hover {
+			color: var(--wp-theme-d);
+		}
+	}
+
+	&--loading {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		padding: 24px 0;
+	}
+}
+
+/* Header ------------------------------------------------------------------ */
+
+.wpc-head {
+	display: flex;
+	align-items: flex-end;
+	gap: 16px;
+	margin-bottom: 16px;
+
+	&__text {
+		display: flex;
+		flex-direction: column;
+		gap: 4px;
+		max-width: 720px;
+	}
+}
+
+.wpc-h1 {
+	margin: 0;
+	padding: 0;
+	font-size: 23px;
+	font-weight: 400;
+	line-height: 1.3;
+}
+
+.wpc-h2 {
+	margin: 12px 0 4px;
+	font-size: 15px;
+	font-weight: 600;
+	line-height: 1.4;
+}
+
+.wpc-h3 {
+	margin: 0 0 4px;
+	font-size: 13px;
+	font-weight: 600;
+}
+
+.wpc-muted {
+	margin: 0;
+	color: var(--g700);
+	font-size: 13px;
+	line-height: 1.5;
+}
+
+.wpc-summary {
+	margin-left: auto;
+	color: var(--g700);
+	white-space: nowrap;
+}
+
+.wpc-spacer {
+	flex: 1;
+}
+
+/*
+ * The offline line. Quiet on purpose: serving the bundled catalogue is a supported way to run this
+ * screen, not a failure, so it reads as a footnote rather than a warning.
+ */
+.wpc-stale {
+	margin: 0 0 16px;
+	color: var(--g700);
+	font-size: 12px;
+	font-style: italic;
+}
+
+.wpc-notice.components-notice {
+	margin: 0 0 16px;
+
+	.components-notice__content {
+		display: flex;
+		align-items: center;
+		gap: 12px;
+		margin: 0;
+	}
+
+	p {
+		margin: 0;
+		flex: 1;
+	}
+}
+
+/* Layout ------------------------------------------------------------------ */
+
+.wpc-layout {
+	display: grid;
+	grid-template-columns: 240px minmax(0, 1fr);
+	gap: 24px;
+	align-items: start;
+}
+
+.wpc-rail {
+	position: sticky;
+	top: 44px; /* Clears the admin bar when it is sticky. */
+	display: flex;
+	flex-direction: column;
+	gap: 16px;
+}
+
+.wpc-menu {
+	display: flex;
+	flex-direction: column;
+
+	&__label {
+		font-size: 11px;
+		font-weight: 500;
+		text-transform: uppercase;
+		color: var(--g700);
+		padding: 0 12px 8px;
+	}
+}
+
+.wpc-menuitem {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+	min-height: 36px;
+	padding: 0 12px;
+	border: none;
+	background: none;
+	font: inherit;
+	font-size: 13px;
+	color: var(--g900);
+	text-align: left;
+	border-radius: 2px;
+	cursor: pointer;
+
+	&:hover {
+		color: var(--wp-theme);
+	}
+
+	&.is-pressed {
+		background: var(--g900);
+		color: #fff;
+
+		.wpc-menuitem__suffix {
+			color: #fff;
+		}
+	}
+
+	&:focus-visible {
+		outline: 2px solid var(--wp-theme);
+		outline-offset: -2px;
+	}
+
+	&__suffix {
+		color: var(--g700);
+		font-variant-numeric: tabular-nums;
+	}
+}
+
+/* Cards ------------------------------------------------------------------- */
+
+.wpc-card.components-card {
+	border-radius: 8px;
+	box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.1);
+	border: 0;
+	display: flex;
+	flex-direction: column;
+}
+
+/*
+ * `Card` wraps its children in an internal content div, so `CardBody`'s `flex: 1` has nothing to
+ * stretch against and the footer floats above the bottom of a card shorter than its row. Matched by
+ * what it contains rather than by its generated class name, which is an emotion hash and not ours
+ * to depend on.
+ */
+.wpc-card.components-card > :has(> .wpc-card__body) {
+	display: flex;
+	flex-direction: column;
+	flex: 1;
+	min-height: 0;
+}
+
+.wpc-card__body.components-card__body {
+	padding: 16px 24px;
+	display: flex;
+	flex-direction: column;
+	flex: 1;
+}
+
+.wpc-card--ask .wpc-card__body.components-card__body {
+	padding: 12px 16px;
+	gap: 4px;
+	align-items: flex-start;
+}
+
+.wpc-card__footer.components-card__footer {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 12px 24px;
+	border-top: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+/* Toolbar ----------------------------------------------------------------- */
+
+.wpc-toolbar {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	margin-bottom: 16px;
+}
+
+.wpc-search.components-search-control {
+	width: 320px;
+	max-width: 100%;
+}
+
+/* Grid -------------------------------------------------------------------- */
+
+.wpc-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+	gap: 16px;
+}
+
+.wpc-int {
+	&__top {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		min-height: 24px;
+	}
+
+	&__toggle {
+		display: inline-flex;
+		align-items: center;
+	}
+
+	&__status {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 8px;
+		margin-top: 16px;
+		min-height: 20px;
+		flex-wrap: wrap;
+	}
+
+	&.is-off .wpc-h2,
+	&.is-blocked .wpc-h2 {
+		color: var(--g700);
+	}
+}
+
+.wpc-desc {
+	margin: 0;
+	color: var(--g700);
+	line-height: 1.5;
+	flex: 1;
+	text-wrap: pretty;
+}
+
+.wpc-status {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	color: var(--g700);
+
+	svg {
+		flex: none;
+		fill: currentColor;
+	}
+
+	&.is-ok {
+		color: var(--ok);
+	}
+
+	&.is-warn {
+		color: var(--warn);
+	}
+
+	&.is-pro {
+		color: var(--wp-theme);
+	}
+}
+
+.wpc-n {
+	color: var(--g700);
+	font-variant-numeric: tabular-nums;
+}
+
+.wpc-link {
+	text-decoration: underline;
+	text-underline-offset: 2px;
+	white-space: nowrap;
+}
+
+.wpc-badge {
+	display: inline-flex;
+	align-items: center;
+	height: 24px;
+	padding: 0 8px;
+	border-radius: 2px;
+	font-size: 12px;
+	font-weight: 500;
+	background: var(--g100);
+	color: var(--g900);
+
+	&.is-success {
+		background: #eff9f1;
+		color: #005c12;
+	}
+
+	&.is-info {
+		background: #f0f2fd;
+		color: #1d35b4;
+	}
+}
+
+/* Empty state ------------------------------------------------------------- */
+
+.wpc-empty .wpc-card__body.components-card__body {
+	padding: 32px;
+	align-items: flex-start;
+	gap: 4px;
+}
+
+.wpc-empty__actions {
+	display: flex;
+	align-items: center;
+	gap: 16px;
+	margin-top: 12px;
+	flex-wrap: wrap;
+}
+
+/* Snackbar ---------------------------------------------------------------- */
+
+.wpc-snackbars {
+	position: fixed;
+	left: 180px; /* Clears the collapsed-at-wide admin menu. */
+	bottom: 24px;
+	z-index: 100000;
+}
+
+/* Responsive -------------------------------------------------------------- */
+
+/* WordPress folds the admin menu at 960px; the two-column split goes first. */
+@media screen and (max-width: 960px) {
+	/*
+	 * Stacked, and reordered: categories, then the integrations, then the "request one" card. Left
+	 * in source order the request card sits between the filters and the list, pushing the thing the
+	 * page is actually for below the fold. `display: contents` on the rail lets its two children be
+	 * ordered independently without a second copy of either in the markup.
+	 */
+	.wpc-layout {
+		display: flex;
+		flex-direction: column;
+		gap: 16px;
+		// The grid rule above sets `align-items: start`, which in a flex column means "do not
+		// stretch", leaving the list the width of its widest card instead of the screen.
+		align-items: stretch;
+	}
+
+	.wpc-rail {
+		display: contents;
+	}
+
+	.wpc-menu {
+		order: 1;
+	}
+
+	.wpc-main {
+		order: 2;
+	}
+
+	.wpc-card--ask {
+		order: 3;
+	}
+
+	/*
+	 * The category rail becomes a horizontal scroller rather than a tall stack: on a narrow screen
+	 * a vertical list of twelve categories would push the integrations themselves below the fold.
+	 */
+	.wpc-menu {
+		flex-direction: row;
+		gap: 4px;
+		overflow-x: auto;
+		padding-bottom: 4px;
+
+		&__label {
+			display: none;
+		}
+	}
+
+	.wpc-menuitem {
+		flex: none;
+		box-shadow: inset 0 0 0 1px var(--g300);
+	}
+}
+
+@media screen and (max-width: 782px) {
+	.wpc-head {
+		flex-direction: column;
+		align-items: flex-start;
+	}
+
+	.wpc-summary {
+		margin-left: 0;
+		white-space: normal;
+	}
+
+	.wpc-toolbar {
+		flex-wrap: wrap;
+	}
+
+	.wpc-search.components-search-control {
+		width: 100%;
+	}
+
+	.wpc-grid {
+		grid-template-columns: minmax(0, 1fr);
+	}
+
+	.wpc-card__body.components-card__body,
+	.wpc-card__footer.components-card__footer {
+		padding-left: 16px;
+		padding-right: 16px;
+	}
+
+	.wpc-notice.components-notice .components-notice__content {
+		flex-direction: column;
+		align-items: flex-start;
+	}
+
+	.wpc-snackbars {
+		left: 12px;
+		right: 12px;
+	}
+}
