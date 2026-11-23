@@ -2,10 +2,17 @@
 /**
  * What the Fleet server type declares it needs.
  *
- * The type carried no `requires` for a while, on two beliefs that were both
- * wrong — see the constant's docblock. The cost was silent: the type reported
- * itself available on a site where its tools could not exist, so a hub calling
- * in got an empty answer instead of one naming what was missing.
+ * The lasting invariant is that Fleet and AcrossAI answer this identically:
+ * Fleet serves the AcrossAI toolsets, so it can never require more or less.
+ *
+ * The shared answer has moved twice. It was `null` on two beliefs that were
+ * both wrong, and the cost was silent — the type reported itself available on a
+ * site where its tools could not exist, so a hub calling in got an empty answer
+ * instead of one naming what was missing. It then became
+ * `acrossai-abilities-manager`, which was true for as long as that add-on was a
+ * separate plugin. F106 absorbed it, so it is `null` again — this time because
+ * the toolsets ship here and the requirement is structurally met, not because
+ * anyone decided it did not matter.
  *
  * @package AcrossAI_MCP_Manager\Tests
  */
@@ -22,25 +29,42 @@ use WP_UnitTestCase;
 final class FleetTypeRequirementTest extends WP_UnitTestCase {
 
 	/**
-	 * Fleet needs the same add-on as the AcrossAI type.
+	 * Fleet declares the same requirement as the AcrossAI type.
 	 *
-	 * It serves the same toolsets, so it cannot need less.
+	 * It serves the same toolsets, so it can never need more or less. That
+	 * equality is the durable invariant and is what this test is really for.
+	 *
+	 * Since F106 the shared answer is `null` on both. The toolsets ship inside
+	 * this plugin, so there is no add-on left to be missing — where this test
+	 * used to assert a requirement was DECLARED, it now asserts neither type
+	 * invents one, which would make both report themselves unavailable on every
+	 * site and serve `SetupRequired` instead of their tools.
 	 */
-	public function test_fleet_requires_the_same_add_on_as_the_acrossai_type(): void {
+	public function test_fleet_declares_the_same_requirement_as_the_acrossai_type(): void {
 		$fleet    = ServerTypes::get( ServerTypes::FLEET );
 		$acrossai = ServerTypes::get( ServerTypes::ACROSSAI );
 
 		$this->assertNotNull( $fleet );
 		$this->assertNotNull( $acrossai );
 
-		$this->assertNotEmpty(
-			$fleet['requires'],
-			'A type whose tools come from an add-on must say so, or it claims to be available where its tools cannot exist.'
-		);
 		$this->assertSame(
 			$acrossai['requires'],
 			$fleet['requires'],
-			'Fleet serves the AcrossAI toolsets, so it cannot require less than the AcrossAI type.'
+			'Fleet serves the AcrossAI toolsets, so it cannot require anything different from the AcrossAI type.'
+		);
+
+		$this->assertNull(
+			$acrossai['requires'],
+			'The AcrossAI toolsets ship in this plugin since F106. A requirement here would make the type unavailable on every site.'
+		);
+
+		$this->assertTrue(
+			ServerTypes::is_available( ServerTypes::ACROSSAI ),
+			'A built-in type must be available without any other plugin installed.'
+		);
+		$this->assertTrue(
+			ServerTypes::is_available( ServerTypes::FLEET ),
+			'A built-in type must be available without any other plugin installed.'
 		);
 	}
 
@@ -53,30 +77,66 @@ final class FleetTypeRequirementTest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * The message a hub gets when the add-on is missing names the right plugin.
+	 * The setup message names no plugin, because it cannot know one.
 	 *
-	 * `SetupRequired` is one global ability with no server-type context, so its
-	 * message is hardcoded. That is only correct while every type that can
-	 * trigger it needs the SAME add-on — which is exactly what the first test
-	 * above keeps true. If a future type requires something else, this is the
-	 * test that should fail and send someone to parameterise the message.
+	 * This test used to assert the opposite: that the message names the single
+	 * add-on every requiring type needed, and it carried a warning that once
+	 * two types needed DIFFERENT add-ons the message would have to take the
+	 * name from the type.
+	 *
+	 * F106 reached that condition from the other side. No built-in type
+	 * requires anything any more, so the only way `SetupRequired` can be served
+	 * is a THIRD-PARTY type whose `requires` plugin is inactive — and the one
+	 * name the message used to carry, AcrossAI Abilities Manager, is now part of
+	 * this plugin and cannot be the answer to anybody's requirement. A hardcoded
+	 * name would send the operator to install something that no longer exists.
+	 *
+	 * So the invariant inverts: while the ability stays global and context-free,
+	 * the message must stay generic. If `SetupRequired` ever learns which server
+	 * it is answering for, this is the test to revisit.
 	 */
-	public function test_the_setup_message_names_what_every_requiring_type_needs(): void {
+	public function test_no_built_in_type_requires_another_plugin(): void {
 		$needed = array();
 
 		foreach ( ServerTypes::all() as $slug => $type ) {
 			if ( ! empty( $type['requires'] ) ) {
-				$needed[] = (string) $type['requires'];
+				$needed[ $slug ] = (string) $type['requires'];
 			}
 		}
 
-		$this->assertNotEmpty( $needed, 'At least one type should declare a requirement.' );
-		$this->assertCount(
-			1,
-			array_unique( $needed ),
-			'SetupRequired hardcodes one add-on name. Once two types need DIFFERENT add-ons, that message must take the name from the type.'
+		$this->assertSame(
+			array(),
+			$needed,
+			'Every built-in type ships its own tools since F106. A declared requirement here makes the type unavailable until an unrelated plugin is installed.'
 		);
-		$this->assertStringContainsString( 'Abilities Manager', SetupRequired::message() );
+	}
+
+	/**
+	 * The generic message still explains itself, and still names no plugin.
+	 *
+	 * Kept separate from the registry assertion above so a failure says which
+	 * of the two broke: the types declaring a requirement again, or the message
+	 * regaining a hardcoded name.
+	 */
+	public function test_the_setup_message_explains_itself_without_naming_a_plugin(): void {
+		$message = SetupRequired::message();
+
+		$this->assertStringNotContainsString(
+			'Abilities Manager',
+			$message,
+			'That plugin is part of this one since F106, so it can never be the plugin a server type is waiting for.'
+		);
+
+		$this->assertStringContainsString(
+			'no tools are available',
+			$message,
+			'The message exists to tell an AI client why it got nothing.'
+		);
+		$this->assertStringContainsString(
+			'change this server',
+			$message,
+			'The operator needs the way out, not just the diagnosis.'
+		);
 	}
 
 	/**

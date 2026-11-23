@@ -82,20 +82,22 @@ final class ServerTypes {
 	 * access at `/acrossai/mcp`.
 	 *
 	 * Declares the SAME `requires` as the AcrossAI type, because it serves the
-	 * same toolsets and they come from the same add-on.
+	 * same toolsets. That equality is the invariant; the value has moved twice.
 	 *
-	 * This was deliberately `null` for a while, on two beliefs that both turned
-	 * out to be wrong. That `SetupRequired` would name an irrelevant plugin: it
-	 * names acrossai-abilities-manager, which is precisely what this type
-	 * requires. And that declaring it would stop a hub pairing before the add-on
-	 * arrived: `is_available()` only decides which TOOLS
+	 * It was deliberately `null` for a while, on two beliefs that both turned
+	 * out to be wrong — that `SetupRequired` would name an irrelevant plugin,
+	 * and that declaring a requirement would stop a hub pairing before the
+	 * add-on arrived. The second is worth keeping in mind because it is still
+	 * true of the mechanism: `is_available()` only decides which TOOLS
 	 * `compose_effective_tools_for_row()` serves, and pairing goes through
-	 * `/fleet/register`, a route that never consults it.
+	 * `/fleet/register`, a route that never consults it. So that `null` bought
+	 * nothing and cost the check, and it became the add-on's folder slug.
 	 *
-	 * So the `null` bought nothing and cost the check — the type claimed to be
-	 * available on a site where its tools could not exist, and a hub calling in
-	 * got an empty answer instead of one saying what was missing. The toolsets
-	 * still appear by themselves when the add-on arrives.
+	 * Since F106 it is `null` again, for the opposite reason: the Toolsets ship
+	 * in `abilities/` inside this plugin, so the requirement is met by the same
+	 * code that reads it. Declaring one now would be the original bug inverted
+	 * — a type reporting itself UNavailable on every site, serving
+	 * `SetupRequired` in place of tools that are right there.
 	 *
 	 * @var string
 	 */
@@ -125,11 +127,22 @@ final class ServerTypes {
 	public const TOOLS_FILTER = 'acrossai_mcp_server_type_tools';
 
 	/**
-	 * Plugin folder slug of the sibling that supplies the AcrossAI type's tools.
+	 * What the AcrossAI and Fleet types require from outside this plugin.
 	 *
-	 * @var string
+	 * `null` since F106 absorbed acrossai-abilities-manager. It was that
+	 * plugin's folder slug, because the Toolsets those two types serve arrived
+	 * from it and a site without it had a type whose tools could not exist.
+	 * There is no outside to require any more — the Toolsets ship in
+	 * `abilities/`, so the requirement is met by the same code that reads it.
+	 *
+	 * Kept as a named constant rather than writing `null` twice because the
+	 * point is that both types answer this question identically, which is what
+	 * `FleetTypeRequirementTest` exists to hold: Fleet serves the AcrossAI
+	 * toolsets, so it can never require more or less than the AcrossAI type.
+	 *
+	 * @var null
 	 */
-	private const ACROSSAI_REQUIRES = 'acrossai-abilities-manager';
+	private const ACROSSAI_REQUIRES = null;
 
 	/**
 	 * Resolve the full type registry.
@@ -690,10 +703,11 @@ final class ServerTypes {
 			return '';
 		}
 
-		if ( self::ACROSSAI_REQUIRES === $plugin_slug ) {
-			return __( 'AcrossAI Abilities Manager', 'acrossai-mcp-manager' );
-		}
-
+		// F106 removed the special case that mapped the folder slug
+		// `acrossai-abilities-manager` to its display name. That plugin is now
+		// part of this one, so no built-in type names it, and the branch could
+		// only ever have matched a `requires` an extending plugin wrote by hand
+		// — for a plugin that no longer exists to install.
 		if ( ! function_exists( 'get_plugins' ) ) {
 			return $plugin_slug;
 		}
@@ -808,15 +822,14 @@ final class ServerTypes {
 				// mean maintaining two answers to the same question.
 				'tools'       => ToolsetRegistrar::tool_slugs(),
 				// The SAME requirement as the AcrossAI type, because it serves
-				// the same toolsets — they come from acrossai-abilities-manager,
-				// so without it this route has nothing to offer either.
+				// the same toolsets. Since F106 that requirement is `null` for
+				// both: the Toolsets ship in `abilities/` inside this plugin,
+				// so there is no longer an add-on whose absence could leave
+				// this route with nothing to offer.
 				//
-				// This was `null` for a while on the belief that declaring it
-				// would make `SetupRequired` name the wrong plugin. It does
-				// not: that message names acrossai-abilities-manager, which is
-				// exactly what this type requires. The `null` bought nothing
-				// and cost the availability check — the type claimed to be
-				// available on a site where its tools could not exist.
+				// The constant is still shared rather than inlined, because
+				// what matters is that the two types answer identically — see
+				// its docblock, and `FleetTypeRequirementTest`.
 				'requires'    => self::ACROSSAI_REQUIRES,
 				// Never the default for a new server. An operator reaching for
 				// "Add Server" wants something to connect an AI client to, and
