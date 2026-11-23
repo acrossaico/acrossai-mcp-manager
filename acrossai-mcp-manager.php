@@ -49,6 +49,39 @@ if ( ! defined( 'WPINC' ) ) {
 define( 'ACROSSAI_MCP_MANAGER_PLUGIN_FILE', __FILE__ );
 
 /**
+ * Root file of the absorbed Abilities Manager tree (Feature 106).
+ *
+ * `abilities/` arrived from acrossai-abilities-manager, where its own entry
+ * file defined this. That file did not move, so this define is what makes the
+ * absorbed tree resolve against THIS plugin: `abilities/includes/Main.php`
+ * derives PLUGIN_PATH, PLUGIN_URL and PLUGIN_BASENAME from it, and every
+ * `build/js/abilities/…` and `assets/abilities/…` path in that tree is written
+ * relative to the result.
+ *
+ * It is deliberately the same `__FILE__` rather than a path inside
+ * `abilities/`: there is one plugin now, with one basename WordPress knows it
+ * by, and the absorbed admin notices and action links have to name that one.
+ *
+ * Guarded, and the guard is not theoretical. WordPress loads active plugins in
+ * alphabetical order, and `acrossai-abilities-manager` sorts BEFORE
+ * `acrossai-mcp-manager` — so on a site where the old plugin is still active it
+ * has already defined this constant by the time we get here, and an unguarded
+ * `define()` would emit "Constant already defined" on every request.
+ *
+ * Whether we won that race is also the only reliable thing to branch the boot
+ * on, so it is recorded rather than recomputed: `is_plugin_active()` is not
+ * loaded this early, and the class-level check cannot work because both trees
+ * declare the same namespace at the same version, leaving jetpack-autoloader to
+ * break the tie by load order.
+ */
+if ( defined( 'ACROSSAI_ABILITIES_MANAGER_PLUGIN_FILE' ) ) {
+	define( 'ACROSSAI_MCP_MANAGER_OWNS_ABILITIES', false );
+} else {
+	define( 'ACROSSAI_ABILITIES_MANAGER_PLUGIN_FILE', __FILE__ );
+	define( 'ACROSSAI_MCP_MANAGER_OWNS_ABILITIES', true );
+}
+
+/**
  * The code that runs during plugin activation.
  * This action is documented in includes/activator.php
  */
@@ -62,6 +95,19 @@ function acrossai_mcp_manager_activate() {
 	require_once __DIR__ . '/vendor/autoload_packages.php';
 	require_once plugin_dir_path( __FILE__ ) . 'includes/Activator.php';
 	Includes\Activator::activate();
+
+	// F106 — the absorbed Abilities Manager half activates itself too: two
+	// tables plus seven option migrations. Every step is individually guarded
+	// by its own claim option, so this is safe to call on a site that already
+	// ran it under the old plugin — which is the normal case, not the edge
+	// one. It creates nothing that exists and loses nothing that does.
+	//
+	// Only when we own the namespace. With the old plugin still active, its
+	// own activation hook covers this and the classes resolved here might be
+	// its copy rather than ours.
+	if ( ACROSSAI_MCP_MANAGER_OWNS_ABILITIES ) {
+		\AcrossAI_Abilities_Manager\Includes\AcrossAI_Activator::activate();
+	}
 
 	// F069 T014 — Set the one-shot redirect signal so the very next admin
 	// page load lands the activating admin on the Quick Connect via AcrossAI wizard step 1.
@@ -139,6 +185,59 @@ function acrossai_mcp_manager_run() {
 	 * Run this plugin on the plugins_loaded functions
 	 */
 	add_action( 'plugins_loaded', array( $plugin, 'run' ), 0 );
+
+	acrossai_mcp_manager_run_abilities();
+}
+
+/**
+ * Boot the absorbed Abilities Manager half (Feature 106).
+ *
+ * Its `Includes\Main` is a singleton with the same shape as ours — it builds
+ * its own Loader, registers its own hooks, and `run()` fires them — so the two
+ * halves boot side by side rather than one wrapping the other. Nothing is
+ * shared but the constants above and the shared `acrossai-co/main-menu` parent,
+ * which is already idempotent via `did_action( 'acrossai_main_menu_bootstrapped' )`.
+ *
+ * Checked before writing this: the two halves do not collide on the settings
+ * screen. Tab slugs are `abilities`, `mcp`, `file-manager`, `import-export` and
+ * `database`, all distinct, and no admin page slug appears on both sides.
+ * (`import-export` and `file-manager` both ask for priority 30, so their order
+ * is decided by registration order rather than by intent — cosmetic, and noted
+ * rather than silently relied on.)
+ *
+ * `load_composer_dependencies()` in the absorbed Main `require_once`s
+ * `vendor/autoload_packages.php`, which now resolves to this plugin's own
+ * autoloader that our Main has already loaded — a no-op, not a second
+ * autoloader.
+ *
+ * @since 0.5.0
+ */
+function acrossai_mcp_manager_run_abilities(): void {
+
+	// The old plugin is still active and got here first, so its copy of the
+	// tree owns the namespace. Booting ours too would register every hook
+	// twice. Defer to it and say so, rather than racing it.
+	if ( ! ACROSSAI_MCP_MANAGER_OWNS_ABILITIES ) {
+		add_action(
+			'admin_notices',
+			static function () {
+				if ( ! current_user_can( 'activate_plugins' ) ) {
+					return;
+				}
+				printf(
+					'<div class="notice notice-warning"><p><strong>%s</strong> %s</p></div>',
+					esc_html__( 'AcrossAI MCP Manager:', 'acrossai-mcp-manager' ),
+					esc_html__( 'The separate AcrossAI Abilities Manager plugin is still active. Its abilities are now built into MCP Manager, so the old plugin is running the same code twice. Deactivate it to finish the move — nothing is lost, and your abilities and access rules stay exactly as they are.', 'acrossai-mcp-manager' )
+				);
+			}
+		);
+
+		return;
+	}
+
+	$abilities = \AcrossAI_Abilities_Manager\Includes\Main::instance();
+
+	add_action( 'plugins_loaded', array( $abilities, 'run' ), 0 );
 }
 
 /**
