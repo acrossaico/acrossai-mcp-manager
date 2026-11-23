@@ -1,70 +1,72 @@
 {
-	"name": "acrossai-mcp-manager",
-	"title": "AcrossAI MCP Manager",
-	"description": "AcrossAI MCP Manager by WPBoilerplate.",
-	"homepage": "https://github.com/woocommerce/woocommerce/wiki",
-	"private": true,
-	"repository": {
-		"type": "git",
-		"url": "git+https://github.com/wpboilerplate/acrossai-mcp-manager.git"
-	},
-	"author": "WPBoilerplate",
-	"license": "GPL-3.0-or-later",
-	"bugs": {
-		"url": "https://github.com/wpboilerplate/acrossai-mcp-manager/issues"
-	},
-	"scripts": {
-		"build": "wp-scripts build",
-		"format": "wp-scripts format",
-		"lint:css": "wp-scripts lint-style",
-		"lint:js": "wp-scripts lint-js src tests/jest webpack.config.js",
-		"packages-update": "wp-scripts packages-update",
-		"plugin-zip": "wp-scripts plugin-zip",
-		"start": "wp-scripts start",
-		"env": "wp-env",
-		"env:start": "wp-env start",
-		"env:stop": "wp-env stop",
-		"env:restart": "wp-env stop && wp-env start",
-		"env:clean": "wp-env clean all",
-		"env:reset": "wp-env destroy && wp-env start",
-		"skillpack": "node scripts/skills-manager.mjs",
-		"skillpack:push": "node scripts/skillpack-push.mjs",
-		"validate-packages": "node .agents/skills/wp-packages-strategy/scripts/validate-packages.mjs --dir=.",
-		"sync:ai-policy": "node scripts/sync-ai-policy.mjs",
-		"mcp:sync": "agents sync",
-		"mcp:status": "agents status"
-	},
-	"devDependencies": {
-		"@agents-dev/cli": "^0.8.7",
-		"@wordpress/env": "latest",
-		"@wordpress/eslint-plugin": "latest",
-		"@wordpress/prettier-config": "latest",
-		"@wordpress/scripts": "latest",
-		"@wordpress/stylelint-config": "latest",
-		"@wordpress/url": "^4.54.0",
-		"copy-webpack-plugin": "latest",
-		"eslint": "^10.10.0",
-		"glob": "^13.0.6",
-		"mini-css-extract-plugin": "latest",
-		"path": "latest",
-		"webpack-remove-empty-scripts": "latest"
-	},
-	"dependencies": {
-		"@wordpress/abilities": "latest",
-		"@wordpress/api-fetch": "latest",
-		"@wordpress/components": "latest",
-		"@wordpress/data": "latest",
-		"@wordpress/dataviews": "latest",
-		"@wordpress/element": "latest",
-		"@wordpress/hooks": "latest",
-		"@wordpress/i18n": "latest",
-		"@wordpress/icons": "latest"
-	},
-	"prettier": "@wordpress/prettier-config",
-	"stylelint": {
-		"extends": "@wordpress/stylelint-config/scss"
-	},
-	"keywords": [
-		"acrossai-mcp-manager"
-	]
+  "name": "acrossai-mcp-manager",
+  "title": "AcrossAI MCP Manager",
+  "description": "AcrossAI MCP Manager by WPBoilerplate.",
+  "homepage": "https://github.com/woocommerce/woocommerce/wiki",
+  "private": true,
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/wpboilerplate/acrossai-mcp-manager.git"
+  },
+  "author": "WPBoilerplate",
+  "license": "GPL-3.0-or-later",
+  "bugs": {
+    "url": "https://github.com/wpboilerplate/acrossai-mcp-manager/issues"
+  },
+  "scripts": {
+    "build": "wp-scripts build",
+    "format": "wp-scripts format",
+    "lint:css": "wp-scripts lint-style",
+    "lint:js": "wp-scripts lint-js src tests/jest webpack.config.js",
+    "packages-update": "wp-scripts packages-update",
+    "plugin-zip": "wp-scripts plugin-zip",
+    "start": "wp-scripts start",
+    "env": "wp-env",
+    "env:start": "wp-env start",
+    "env:stop": "wp-env stop",
+    "env:restart": "wp-env stop && wp-env start",
+    "env:clean": "wp-env clean all",
+    "env:reset": "wp-env destroy && wp-env start",
+    "skillpack": "node scripts/skills-manager.mjs",
+    "skillpack:push": "node scripts/skillpack-push.mjs",
+    "validate-packages": "node .agents/skills/wp-packages-strategy/scripts/validate-packages.mjs --dir=.",
+    "sync:ai-policy": "node scripts/sync-ai-policy.mjs",
+    "mcp:sync": "agents sync",
+    "mcp:status": "agents status"
+  },
+  "devDependencies": {
+    "@agents-dev/cli": "^0.8.8",
+    "@wordpress/api-fetch": "^7.54.0",
+    "@wordpress/env": "latest",
+    "@wordpress/eslint-plugin": "latest",
+    "@wordpress/prettier-config": "latest",
+    "@wordpress/scripts": "latest",
+    "@wordpress/stylelint-config": "latest",
+    "@wordpress/url": "^4.54.0",
+    "copy-webpack-plugin": "latest",
+    "eslint": "^10.10.0",
+    "glob": "^13.0.6",
+    "mini-css-extract-plugin": "latest",
+    "path": "latest",
+    "webpack-remove-empty-scripts": "latest",
+    "zod": "^3.25.76"
+  },
+  "dependencies": {
+    "@wordpress/abilities": "latest",
+    "@wordpress/api-fetch": "latest",
+    "@wordpress/components": "latest",
+    "@wordpress/data": "latest",
+    "@wordpress/dataviews": "^14.2.0",
+    "@wordpress/element": "latest",
+    "@wordpress/hooks": "latest",
+    "@wordpress/i18n": "latest",
+    "@wordpress/icons": "latest"
+  },
+  "prettier": "@wordpress/prettier-config",
+  "stylelint": {
+    "extends": "@wordpress/stylelint-config/scss"
+  },
+  "keywords": [
+    "acrossai-mcp-manager"
+  ]
 }

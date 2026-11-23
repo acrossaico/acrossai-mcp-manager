@@ -1,0 +1,89 @@
+<?php
+/**
+ * Feature 110 — Undo Check In.
+ *
+ * @license    GPL-2.0-or-later
+ * @package    AcrossAI_Abilities_Manager
+ * @subpackage Includes\Abilities\EventTickets
+ * @since      0.0.34
+ */
+
+namespace AcrossAI_Abilities_Manager\Includes\Abilities\EventTickets;
+
+use AcrossAI_Abilities_Manager\Includes\Abilities\Utilities\EventTickets\Attendee_Repository;
+use WP_Error;
+
+defined( 'ABSPATH' ) || exit;
+
+/**
+ * tickets/undo-check-in — Undo Check In.
+ */
+final class Undo_Check_In extends Base_Event_Tickets_Ability {
+
+	protected function slug(): string {
+		return 'tickets/undo-check-in';
+	}
+
+	protected function ability_label(): string {
+		return __( 'Undo Check In', 'acrossai-abilities-manager' );
+	}
+
+	protected function ability_description(): string {
+		return __(
+			'Reverse a check-in. The state is read back afterwards for the same reason as checking in.',
+			'acrossai-abilities-manager'
+		);
+	}
+
+	protected function sub_group(): string {
+		return 'attendees';
+	}
+
+	protected function input_properties(): array {
+		return array(
+			'attendee_id' => array(
+				'type'        => 'integer',
+				'minimum'     => 1,
+				'description' => __( 'The attendee ID.', 'acrossai-abilities-manager' ),
+			),
+		);
+	}
+
+	protected function required_input(): array {
+		return array( 'attendee_id' );
+	}
+
+	protected function output_properties(): array {
+		return array(
+			'attendee_id' => array( 'type' => 'integer' ),
+			'checked_in' => array( 'type' => 'boolean' ),
+		);
+	}
+
+	protected function annotations(): array {
+		return array(
+			'readonly'    => false,
+			'destructive' => false,
+			'idempotent'  => true,
+		);
+	}
+
+	protected function run( array $input ) {
+		$attendee_id = (int) $input['attendee_id'];
+		$result      = Attendee_Repository::set_check_in( $attendee_id, false );
+
+		if ( is_wp_error( $result ) ) {
+			return $result;
+		}
+
+		return array(
+			'attendee_id' => $result['attendee_id'],
+			'checked_in'  => $result['checked_in'],
+			'message'     => sprintf(
+				/* translators: %d: attendee ID */
+				__( 'Attendee %d is now not checked in.', 'acrossai-abilities-manager' ),
+				$attendee_id
+			),
+		);
+	}
+}

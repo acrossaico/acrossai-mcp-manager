@@ -1,0 +1,118 @@
+/**
+ * Feature 102 — toolset strip, Toolset column, and the page header row.
+ *
+ * The strip is a row of navigation links, not an ARIA tabs widget (spec FR-012a), so it is styled
+ * to read as WP-admin subnav rather than as a tab control. Accent colour comes from
+ * `var(--wp-admin-theme-color)` so it follows all nine built-in admin colour schemes.
+ *
+ * `.pg-title` had no rule at all before this feature — the heading was inheriting whatever WP gave
+ * it. The header row below is the first styling it has had.
+ *
+ * @since 0.2.0
+ */
+@use 'tokens' as *;
+
+// ---------------------------------------------------------------------------
+// Page header
+// ---------------------------------------------------------------------------
+.pg-title {
+	display:     flex;
+	align-items: flex-end;
+	gap:         16px;
+
+	h1 {
+		margin:         0;
+		padding:        0;
+		font-size:      23px;
+		font-weight:    400;
+		letter-spacing: -0.01em;
+	}
+}
+
+.abilities-subtitle {
+	margin:    4px 0 12px;
+	color:     $muted;
+	font-size: 13px;
+	max-width: 70ch;
+}
+
+// ---------------------------------------------------------------------------
+// Toolset strip
+// ---------------------------------------------------------------------------
+.toolset-strip {
+	display:        flex;
+	align-items:    center;
+	gap:            2px;
+	margin:         0 0 12px;
+	border-bottom:  1px solid $border;
+	overflow-x:     auto;
+
+	// The strip scrolls rather than wrapping: thirteen toolsets plus "All" will not fit on a
+	// narrow screen, and a wrapped strip pushes the table down unpredictably.
+	scrollbar-width: none;
+
+	&::-webkit-scrollbar {
+		display: none;
+	}
+}
+
+.toolset-strip__item {
+	display:         inline-flex;
+	align-items:     center;
+	gap:             6px;
+	padding:         9px 12px;
+	margin-bottom:   -1px;
+	border-bottom:   2px solid transparent;
+	color:           $muted;
+	text-decoration: none;
+	font-size:       13px;
+	white-space:     nowrap;
+
+	&:hover,
+	&:focus {
+		color:      $txt;
+		background: $row;
+	}
+
+	// Keep the focus ring — these are links and keyboard users rely on it (FR-012a).
+	&:focus-visible {
+		outline:        2px solid var(--wp-admin-theme-color);
+		outline-offset: -2px;
+	}
+
+	&.is-active {
+		color:              $txt;
+		font-weight:        600;
+		border-bottom-color: var(--wp-admin-theme-color);
+		box-shadow:         none;
+	}
+}
+
+.toolset-strip__count {
+	font-size:              11px;
+	color:                  $soft;
+	font-variant-numeric:   tabular-nums;
+}
+
+.toolset-strip__item.is-active .toolset-strip__count {
+	color: $muted;
+}
+
+// ---------------------------------------------------------------------------
+// Toolset column
+// ---------------------------------------------------------------------------
+.col-tls {
+	width: 150px;
+}
+
+.tspill {
+	display:       inline-block;
+	font-family:   Menlo, Consolas, monaco, monospace;
+	font-size:     11px;
+	background:    #f0f0f0;
+	border:        1px solid $border;
+	border-radius: 3px;
+	padding:       1px 6px;
+	color:         $muted;
+	white-space:   nowrap;
+}

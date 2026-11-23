@@ -15,6 +15,39 @@
     <exclude-pattern>*/build/*</exclude-pattern>
     <exclude-pattern>*/tests/*</exclude-pattern>
 
+    <!--
+        F106 — the tree absorbed from acrossai-abilities-manager, moved
+        verbatim so the move itself is reviewable as a move. It carried its
+        own phpcs config and passed it; it does not pass THIS one, and a
+        scoped run OOMs partway through 1,214 files.
+
+        Excluded deliberately and temporarily. Bringing it up to this repo's
+        standard is its own slice — folding it into the move would bury a
+        212,000-line relocation under a sea of whitespace fixes and produce
+        the one commit nobody can review. PHPStan already skips it: its
+        `paths` list names includes/, admin/ and public/, not abilities/.
+
+        Two traps, both hit while writing this:
+
+        1. It must be a GLOBAL exclude. Nested inside a <rule> it silences
+           one sniff and scans the tree anyway — PHPCS then ran out of
+           memory at 780 of 1,485 files.
+        2. The pattern must not be just `*/abilities/*`. PHPCS matches these
+           case-insensitively against the absolute path, so that also caught
+           this plugin's own `includes/Abilities/` and quietly dropped 35 of
+           our files from the gate — 278 scanned silently became 236. A
+           leading `./` does not anchor it either; patterns are matched
+           against absolute paths.
+
+           Naming the three subdirectories is what makes it safe: the
+           absorbed tree is `abilities/includes`, ours is `includes/Abilities`,
+           and the segments are in the opposite order, so no amount of case
+           folding can confuse them.
+    -->
+    <exclude-pattern>*/abilities/includes/*</exclude-pattern>
+    <exclude-pattern>*/abilities/admin/*</exclude-pattern>
+    <exclude-pattern>*/abilities/public/*</exclude-pattern>
+
     <!-- Include the WordPress-Extra standard. -->
     <rule ref="WordPress-Extra">
         <!-- We are ok with version in file headers -->
