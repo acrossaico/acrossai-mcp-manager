@@ -19,6 +19,14 @@
 namespace AcrossAI_Abilities_Manager\Includes\Abilities;
 
 use AcrossAI_Abilities_Manager\Includes\AcrossAI_Loader;
+// F106 — the Toolset layer existed twice, once in each plugin, and this
+// plugin's copy was deliberately the one that stood down: it registered at
+// `plugins_loaded` 21 so the add-on's copies at 20 always won the slug. With
+// the add-on absorbed there is one copy left, and it lives in the MCP
+// Manager namespace. Importing the namespace rather than each class keeps the
+// 21 `Toolset\X` references below reading exactly as they did.
+use AcrossAI_MCP_Manager\Includes\Abilities\Toolset;
+
 use AcrossAI_Abilities_Manager\Includes\Abilities\Utilities\Cron_Helpers;
 use AcrossAI_Abilities_Manager\Includes\Modules\Library\AcrossAI_Integration_Settings;
 

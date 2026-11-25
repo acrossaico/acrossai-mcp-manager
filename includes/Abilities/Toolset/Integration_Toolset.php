@@ -15,14 +15,14 @@
  * The base constructor only registers hooks — it calls none of the four abstract methods — so setting
  * the descriptor before `parent::__construct()` is safe.
  *
- * @package    AcrossAI_Abilities_Manager
- * @subpackage AcrossAI_Abilities_Manager/includes/Abilities/Toolset
+ * @package    AcrossAI_MCP_Manager
+ * @subpackage AcrossAI_MCP_Manager/includes/Abilities/Toolset
  * @since      0.0.34
  */
 
 declare( strict_types = 1 );
 
-namespace AcrossAI_Abilities_Manager\Includes\Abilities\Toolset;
+namespace AcrossAI_MCP_Manager\Includes\Abilities\Toolset;
 
 use AcrossAI_Abilities_Manager\Includes\Abilities\Integrations\AcrossAI_Toolset_Integration;
 use AcrossAI_Abilities_Manager\Includes\Abilities\Integrations\AcrossAI_Toolset_Integrations;

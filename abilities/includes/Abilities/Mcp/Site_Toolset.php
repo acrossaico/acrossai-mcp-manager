@@ -34,7 +34,7 @@ declare( strict_types = 1 );
 
 namespace AcrossAI_Abilities_Manager\Includes\Abilities\Mcp;
 
-use AcrossAI_Abilities_Manager\Includes\Abilities\Toolset\Base_Toolset_Ability;
+use AcrossAI_MCP_Manager\Includes\Abilities\Toolset\Base_Toolset_Ability;
 use AcrossAI_Abilities_Manager\Includes\Utilities\AcrossAI_Ability_Group;
 use WP_Ability;
 

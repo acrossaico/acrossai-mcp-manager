@@ -20,7 +20,7 @@
  * tokens against ~6,752 for the same catalogue listed flat.
  *
  * **Nothing here registers an ability.** The Toolsets register themselves the ordinary way, via
- * {@see \AcrossAI_Abilities_Manager\Includes\Abilities\Toolset\Base_Toolset_Ability}. This class
+ * {@see \AcrossAI_MCP_Manager\Includes\Abilities\Toolset\Base_Toolset_Ability}. This class
  * only tells a host server that those slugs exist and alters what the host says on connect.
  *
  * @package    AcrossAI_Abilities_Manager
