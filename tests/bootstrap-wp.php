@@ -101,6 +101,19 @@ if ( 0 === strpos( $GLOBALS['wpdb']->prefix, 'wptests_' ) ) {
 
 \AcrossAI_MCP_Manager\Includes\Activator::activate();
 
+// F106 — the absorbed Abilities Manager half's tables, which its own activator
+// creates. The plugin boots that half now, so code under test queries
+// `acrossai_abilities`; without this the queries succeed as far as PHP is
+// concerned but `wpdb` prints "Table doesn't exist" to stdout, and PHPUnit
+// fails the run by marking the test risky for unexpected output. That is how
+// this surfaced: one risky test, no failed assertion.
+//
+// Guarded rather than assumed, so the suites that run without the absorbed
+// classes loaded do not fatal here.
+if ( class_exists( \AcrossAI_Abilities_Manager\Includes\AcrossAI_Activator::class ) ) {
+	\AcrossAI_Abilities_Manager\Includes\AcrossAI_Activator::activate();
+}
+
 /**
  * Register an ability from a test, bypassing the hook-context requirement.
  *

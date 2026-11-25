@@ -24,6 +24,20 @@ parameters:
         - public/
         - acrossai-mcp-manager.php
 
+    # F106 — the absorbed acrossai-abilities-manager tree. SCANNED, not
+    # analysed: it is deliberately absent from `paths` above because it does not
+    # meet this repo's standard yet and bringing 1,194 files to level 8 is its
+    # own slice of work. But it has to be visible, because `includes/` now
+    # references it — `Toolset\Base_Toolset_Ability` reads the integration
+    # registry, and `Main::adopt_abilities_schemas()` calls its activator.
+    #
+    # Without this, PHPStan knows nothing of those classes, so it resolves
+    # `class_exists()` on them to false, folds the guard that follows to
+    # always-true and reports the rest of the method as unreachable dead code —
+    # three errors describing a situation that exists only inside the analyser.
+    scanDirectories:
+        - abilities/
+
     excludePaths:
         - vendor/ (?)
         - node_modules/ (?)
