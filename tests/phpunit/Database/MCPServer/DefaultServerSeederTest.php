@@ -24,6 +24,14 @@ use WP_UnitTestCase;
 class DefaultServerSeederTest extends WP_UnitTestCase {
 
 	/**
+	 * A real ability made to vanish for one test, as [slug, captured args] —
+	 * or null. Restored unconditionally in tear_down(), see vanish_ability().
+	 *
+	 * @var array{0: string, 1: array<string, mixed>}|null
+	 */
+	private $vanished = null;
+
+	/**
 	 * Seed the managed rows for this test rather than inheriting them.
 	 *
 	 * Other classes in this suite TRUNCATE acrossai_mcp_servers. Their teardowns
@@ -35,6 +43,69 @@ class DefaultServerSeederTest extends WP_UnitTestCase {
 	public function set_up(): void {
 		parent::set_up();
 		DefaultServerSeeder::seed();
+	}
+
+	/**
+	 * Restore whatever vanish_ability() removed, regardless of how the test
+	 * ended. The abilities registry is a process-wide static singleton (see
+	 * tests/bootstrap-wp.php) — leaving a real ability unregistered here would
+	 * break every later test in this process that assumes it exists, not just
+	 * this file's own.
+	 */
+	public function tear_down(): void {
+		if ( null !== $this->vanished ) {
+			list( $slug, $args ) = $this->vanished;
+			if ( ! wp_has_ability( $slug ) ) {
+				\WP_Abilities_Registry::get_instance()->register( $slug, $args );
+			}
+			$this->vanished = null;
+		}
+		parent::tear_down();
+	}
+
+	/**
+	 * Make a real, currently-registered ability disappear for one test.
+	 *
+	 * F106's absorbed abilities half boots unconditionally now, so every
+	 * `toolset/*` slug this type declares as a tool is, in this plugin's own
+	 * test environment, actually registered — there is no longer a REAL
+	 * declared-but-dormant slug to point at, which is what several tests in
+	 * this file need to prove "stored even though nothing registered it."
+	 * Captures the ability's current args via its public getters plus
+	 * reflection for the two it does not expose (`execute_callback`,
+	 * `permission_callback` — the same technique IntegrationTest already uses
+	 * to read the latter), unregisters it, and queues it to come back in
+	 * tear_down() so no other test in this process ever sees it missing.
+	 *
+	 * @param string $slug Ability slug to vanish, e.g. `toolset/content`.
+	 * @return void
+	 */
+	private function vanish_ability( string $slug ): void {
+		$ability = wp_get_ability( $slug );
+		$this->assertNotNull( $ability, "Precondition: {$slug} must actually be registered before it can be made to vanish." );
+
+		$reflection = new \ReflectionObject( $ability );
+		$read       = static function ( string $property ) use ( $reflection, $ability ) {
+			$prop = $reflection->getProperty( $property );
+			$prop->setAccessible( true );
+			return $prop->getValue( $ability );
+		};
+
+		$this->vanished = array(
+			$slug,
+			array(
+				'label'               => $ability->get_label(),
+				'description'         => $ability->get_description(),
+				'category'            => $ability->get_category(),
+				'input_schema'        => $ability->get_input_schema(),
+				'output_schema'       => $ability->get_output_schema(),
+				'meta'                => $ability->get_meta(),
+				'execute_callback'    => $read( 'execute_callback' ),
+				'permission_callback' => $read( 'permission_callback' ),
+			),
+		);
+
+		wp_unregister_ability( $slug );
 	}
 
 	/**
@@ -151,9 +222,28 @@ class DefaultServerSeederTest extends WP_UnitTestCase {
 	 * server empty, which is the bug. The slugs are written dormant instead and
 	 * light up when the add-on registers the abilities behind them: no type
 	 * switch, no "Reset to Type Defaults".
+	 *
+	 * Until F106 booted the absorbed abilities half, EVERY curated slug was
+	 * dormant in this plugin's own test environment, so the original assertion
+	 * looped over `$curated` and demanded none of them exist. That premise is
+	 * now false for all fourteen, not just most: `AcrossAI_Core_Abilities_Bootstrap`
+	 * boots on every request, and its ability classes behind every one of
+	 * `Registrar::CORE`'s groups, plus `toolset/other`, `toolset/integrations`
+	 * (via the unconditionally-registered backup-suite groups, see the
+	 * `register_toolsets()` docblock) and Guide's `toolset/server-guide`, all
+	 * have at least one member here regardless of which third-party plugin is
+	 * active. There is no longer a real dormant slug on this type to point at.
+	 *
+	 * So this test manufactures one: `vanish_ability()` removes a real,
+	 * currently-registered ability for the duration of the test and restores
+	 * it in tear_down(), which is what lets `toolset/content` stand in for
+	 * "any declared slug this site happens not to have yet" without touching
+	 * the fourteen declared slugs or the bootstrap at all.
 	 */
 	public function test_declared_tools_are_written_without_the_abilities_existing(): void {
 		global $wpdb;
+
+		$this->vanish_ability( 'toolset/content' );
 		$wpdb->query( $wpdb->prepare( 'DELETE FROM %i', $this->table() ) );
 
 		DefaultServerSeeder::seed();
@@ -170,13 +260,15 @@ class DefaultServerSeederTest extends WP_UnitTestCase {
 		);
 
 		$this->assertNotEmpty( $curated );
-
-		foreach ( $curated as $slug ) {
-			$this->assertFalse(
-				wp_has_ability( (string) $slug ),
-				"Precondition: {$slug} is NOT registered here, and was stored anyway."
-			);
-		}
+		$this->assertContains(
+			'toolset/content',
+			$curated,
+			'Precondition: the slug this test vanished must actually be among the curated tools.'
+		);
+		$this->assertFalse(
+			wp_has_ability( 'toolset/content' ),
+			'Precondition: toolset/content is NOT registered here, and was stored anyway.'
+		);
 	}
 
 	public function test_default_row_identity_is_unchanged_by_f088(): void {

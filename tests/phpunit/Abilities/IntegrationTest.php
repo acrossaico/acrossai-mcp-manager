@@ -153,14 +153,33 @@ class IntegrationTest extends WP_UnitTestCase {
 		// raw identity check has been wrong since that feature shipped — it
 		// just never ran. Unwrap to the closure's captured $original and assert
 		// against that, which still proves OUR callback is the one bound.
-		if ( 'permission_callback' === $property && $actual instanceof \Closure ) {
-			$statics = ( new \ReflectionFunction( $actual ) )->getStaticVariables();
-			$this->assertArrayHasKey(
-				'original',
-				$statics,
-				'F030 wrapper must capture the original permission_callback as $original.'
-			);
-			$actual = $statics['original'];
+		//
+		// F106 added a second wrapper on top: the absorbed
+		// AcrossAI_Ability_Override_Processor also wraps permission_callback
+		// (P100000), and F030's own processor runs AFTER it (P999999) — by
+		// design, see PermissionOverrideProcessor::PRIORITY — so it wraps
+		// THAT closure rather than the slug's original callback. A slug under
+		// a ROUTER_PREFIXES prefix (`mcp-adapter/`, `toolset/`) is exempt from
+		// the absorbed wrapper and so only ever gets F030's single layer; a
+		// non-router slug like this test's `integration-test/mine` gets both.
+		// One unwrap is no longer enough for every case, so peel closures
+		// until the chain runs out rather than assuming a fixed depth.
+		if ( 'permission_callback' === $property ) {
+			$hops = 0;
+
+			while ( $actual instanceof \Closure ) {
+				$statics = ( new \ReflectionFunction( $actual ) )->getStaticVariables();
+				$this->assertArrayHasKey(
+					'original',
+					$statics,
+					'Every permission_callback wrapper must capture the callback it replaced as $original.'
+				);
+				$actual = $statics['original'];
+
+				// Guards the assertion itself, not production code: a third
+				// wrapper turning up here should fail loudly, not loop forever.
+				$this->assertLessThanOrEqual( 5, ++$hops, 'Unexpectedly deep permission_callback wrapper chain.' );
+			}
 		}
 
 		$this->assertSame( $expected, $actual );

@@ -150,6 +150,24 @@ class RegistrarTest extends WP_UnitTestCase {
 				continue;
 			}
 
+			// F106 moved six per-plugin dispatchers into this directory
+			// (Elementor, Rank_Math, Site_Kit, UpdraftPlus, All_In_One, the
+			// generic Integration_Toolset) without moving what constructs
+			// them. They are still `new`'d from
+			// AcrossAI_Core_Abilities_Bootstrap::register_toolsets() /
+			// register_integration_toolsets() — the absorbed add-on's own
+			// bootstrap — not from this Registrar. That split is deliberate,
+			// not an oversight: see the long comment on Registrar::CORE
+			// explaining why a per-plugin Toolset is never part of the
+			// `acrossai` server type's default set, and therefore never
+			// something THIS class builds. Holding them to Registrar's
+			// construction list here would be checking the wrong owner; a
+			// dispatcher left un-`new`'d in the bootstrap is that
+			// bootstrap's test to write, not this one's.
+			if ( in_array( $short, array( 'Elementor', 'Rank_Math', 'Site_Kit', 'UpdraftPlus', 'All_In_One', 'Integration_Toolset' ), true ) ) {
+				continue;
+			}
+
 			$on_disk[] = $short;
 		}
 
@@ -246,48 +264,62 @@ class RegistrarTest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * A guide to nothing is not published.
+	 * The absorbed half always gives the guide something to describe.
 	 *
-	 * Same rule the dispatchers apply to themselves — a Toolset for a group
-	 * with no abilities advertises a subject area that does not exist. Taken to
-	 * its limit, a guide with no Toolsets to describe is a table of contents
-	 * for an empty book, and it would sit in the admin's tool list one line
-	 * under `mcp-adapter/server-guide`, which is the guide that does apply.
+	 * Until F106 this asserted the opposite: "a guide to nothing is not
+	 * published," on the precondition that no Toolset registers in this
+	 * plugin's test environment. That precondition died with the merge, and
+	 * not just inconveniently — structurally. `AcrossAI_Core_Abilities_Bootstrap`
+	 * now boots on every request (see tests/bootstrap-wp.php's
+	 * `AcrossAI_Activator::activate()` call) and several of its ability
+	 * classes are unconditional: `Settings\Get_Permalink_Structure` and
+	 * friends tag `meta.acrossai.tab_group` as `configuration`, `appearance`
+	 * or `updates` and need no host plugin to exist. So `toolset/configuration`
+	 * et al. always have at least one member now, with nothing left to turn
+	 * off — "this plugin running ALONE" no longer means "no abilities," it
+	 * means all of them, because the abilities ARE this plugin now.
 	 *
-	 * This is what keeps a site running this plugin ALONE unchanged, so it is
-	 * the assertion standing between us and the regression that prompted it.
+	 * The decline behaviour itself (`Guide::describes_anything()` returning
+	 * false) is not dead code — `Mcp\Site_Guide` still relies on it for a
+	 * connected host with nothing to report — but exercising it needs a
+	 * WordPress process with no abilities registered at all, which this test
+	 * class cannot produce once its own plugin is one of the registrants.
+	 * What is left to assert honestly is the complementary case.
 	 */
-	public function test_the_guide_declines_when_there_is_nothing_to_describe() {
+	public function test_the_guide_publishes_because_the_absorbed_half_always_gives_it_something_to_describe() {
 		Category_Registrar::instance()->register();
 
-		$this->assertSame(
+		$this->assertNotSame(
 			array(),
 			$this->registered_toolsets(),
-			'Precondition: no Toolset registers in the test environment.'
+			'Precondition: the absorbed half\'s unconditional abilities (toolset/configuration and friends) register regardless of which third-party plugins are active.'
 		);
 
 		$this->inside_abilities_init( array( new Guide(), 'register' ) );
 
-		$this->assertFalse( wp_has_ability( Guide::SLUG ) );
+		$this->assertTrue( wp_has_ability( Guide::SLUG ) );
 	}
 
 	/**
-	 * Having declined, it must not offer itself as a tool either.
+	 * Having published, it offers itself as a tool too.
 	 *
-	 * The admin's tool pool and the protected-slug list both answer "which
-	 * slugs are Toolsets on this site?", so a slug naming nothing belongs on
-	 * neither — offering it would put a tool in the picker that cannot be
-	 * added.
+	 * Mirrors `test_the_guide_publishes_because_the_absorbed_half_always_gives_it_something_to_describe()`
+	 * above — until F106 this test asserted the DECLINED side of the same
+	 * pair ("having declined, it must not offer itself as a tool either"),
+	 * on the same now-dead "nothing registered" precondition. See that
+	 * test's docblock for why. The admin's tool pool and the protected-slug
+	 * list both answer "which slugs are Toolsets on this site?", so a slug
+	 * naming something real belongs on both.
 	 */
-	public function test_a_guide_that_declined_contributes_no_slug() {
+	public function test_a_guide_that_published_contributes_its_slug() {
 		Category_Registrar::instance()->register();
 
 		$guide = new Guide();
 		$this->inside_abilities_init( array( $guide, 'register' ) );
 
-		$this->assertFalse( wp_has_ability( Guide::SLUG ), 'Precondition: it declined.' );
-		$this->assertSame( array(), $guide->declare_tool_level_ability( array() ) );
-		$this->assertSame( array(), $guide->protect_own_slug( array() ) );
+		$this->assertTrue( wp_has_ability( Guide::SLUG ), 'Precondition: it published.' );
+		$this->assertSame( array( Guide::SLUG ), $guide->declare_tool_level_ability( array() ) );
+		$this->assertSame( array( Guide::SLUG ), $guide->protect_own_slug( array() ) );
 	}
 
 	/**
