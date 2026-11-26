@@ -151,6 +151,21 @@ class DefaultServerSeederTest extends WP_UnitTestCase {
 	 * server empty, which is the bug. The slugs are written dormant instead and
 	 * light up when the add-on registers the abilities behind them: no type
 	 * switch, no "Reset to Type Defaults".
+	 *
+	 * Until F106 booted the absorbed abilities half, EVERY curated slug was
+	 * dormant in this plugin's test environment, so the original assertion
+	 * looped over `$curated` and demanded none of them exist. That premise is
+	 * now false for eleven of the fourteen: `AcrossAI_Core_Abilities_Bootstrap`
+	 * boots on every request and several of its ability classes are
+	 * unconditional, so `toolset/content`, `toolset/appearance` and the rest of
+	 * `Registrar::CORE`'s groups always have at least one member, and Guide
+	 * always has something to describe (see RegistrarTest). `toolset/integrations`
+	 * is the one declared slug that reliably stays dormant here — it spans only
+	 * the per-plugin groups (`elementor`, `woocommerce`, …), and this test
+	 * environment runs no third-party plugin, so `Integrations::has_any_member()`
+	 * is false and it declines to register, same as before the merge. Narrowed
+	 * the assertion to that one slug, which is still enough to prove the point:
+	 * a declared slug need not be registered to be stored.
 	 */
 	public function test_declared_tools_are_written_without_the_abilities_existing(): void {
 		global $wpdb;
@@ -170,13 +185,15 @@ class DefaultServerSeederTest extends WP_UnitTestCase {
 		);
 
 		$this->assertNotEmpty( $curated );
-
-		foreach ( $curated as $slug ) {
-			$this->assertFalse(
-				wp_has_ability( (string) $slug ),
-				"Precondition: {$slug} is NOT registered here, and was stored anyway."
-			);
-		}
+		$this->assertContains(
+			'toolset/integrations',
+			$curated,
+			'Precondition: the dormant slug this test proves the point with must actually be among the curated tools.'
+		);
+		$this->assertFalse(
+			wp_has_ability( 'toolset/integrations' ),
+			'Precondition: toolset/integrations is NOT registered here (no third-party plugin is active), and was stored anyway.'
+		);
 	}
 
 	public function test_default_row_identity_is_unchanged_by_f088(): void {

@@ -87,11 +87,21 @@ class SeededToolsBackfillTest extends WP_UnitTestCase {
 	/**
 	 * DECLARED, not `tools_for()`.
 	 *
-	 * The abilities behind these slugs are not registered in the test
-	 * environment, which is the same condition as a site without the add-on —
+	 * The abilities behind these slugs were not registered in the test
+	 * environment, which was the same condition as a site without the add-on —
 	 * and is exactly why resolving through the narrowing accessor would restore
-	 * nothing. Asserting the absence makes the intent unmistakable to whoever
+	 * nothing. Asserting the absence made the intent unmistakable to whoever
 	 * next reads a list of tools that do not exist.
+	 *
+	 * F106 made that "were" true of only one slug. `AcrossAI_Core_Abilities_Bootstrap`
+	 * now boots on every request, and most of `Registrar::CORE`'s groups get an
+	 * unconditional member from it — so most restored slugs ARE registered
+	 * abilities here, same as in production once the add-on arrives. The loop
+	 * over every `$slug` is gone because looping now mostly disproves the
+	 * thing it meant to prove. `toolset/integrations` is the one declared slug
+	 * that stays dormant with no third-party plugin active (see
+	 * DefaultServerSeederTest::test_declared_tools_are_written_without_the_abilities_existing
+	 * for the same reasoning), so it carries the assertion alone.
 	 */
 	public function test_the_restored_tools_are_not_registered_abilities(): void {
 		$id = $this->acrossai_server_id();
@@ -101,10 +111,12 @@ class SeededToolsBackfillTest extends WP_UnitTestCase {
 
 		$restored = MCPServerToolQuery::instance()->get_added_slugs( $id );
 		$this->assertNotEmpty( $restored );
+		$this->assertContains( 'toolset/integrations', $restored, 'Precondition: the dormant slug this test relies on must actually have been restored.' );
 
-		foreach ( $restored as $slug ) {
-			$this->assertFalse( wp_has_ability( (string) $slug ), "{$slug} is dormant, and was restored anyway." );
-		}
+		$this->assertFalse(
+			wp_has_ability( 'toolset/integrations' ),
+			'toolset/integrations is dormant (no third-party plugin is active here), and was restored anyway.'
+		);
 	}
 
 	/**
