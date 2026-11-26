@@ -90,11 +90,37 @@ class SetupRequiredTest extends WP_UnitTestCase {
 		$this->assertNotEmpty( ToolPolicy::compose_effective_tools_for_row( $row ) );
 	}
 
-	public function test_the_message_names_the_required_plugin(): void {
-		// FR-022: the description AND the return value both name what is missing.
-		// FR-022a: it is translatable like every other string, so this asserts
-		// content rather than an exact literal.
-		$this->assertStringContainsString( 'Abilities Manager', SetupRequired::message() );
+	/**
+	 * The message names no plugin, because it cannot know one any more.
+	 *
+	 * Until F106 this asserted the opposite: that `SetupRequired::message()`
+	 * named "Abilities Manager" by FR-022, because that add-on was the one
+	 * thing every built-in type that could trigger this diagnostic needed.
+	 * `fix(106): retire the add-on requirement the merge dissolved` made the
+	 * message generic for exactly that reason — "no built-in type requires
+	 * anything any more, so the only way SetupRequired can be served is a
+	 * THIRD-PARTY type whose requires plugin is inactive... naming the
+	 * absorbed plugin there tells the operator to install something that no
+	 * longer exists" — and updated `FleetTypeRequirementTest` for it, but
+	 * missed this test asserting the same string on the same method.
+	 *
+	 * FR-022/FR-022a still hold: the message still names what is missing, it
+	 * just names it generically ("the plugin this server type needs")
+	 * because `SetupRequired` has no server-type context to be specific with.
+	 * This test's `blocked` fixture type requires
+	 * `a-plugin-that-is-not-installed-here`, a throwaway string the message
+	 * was never going to contain either way — the point is that the message
+	 * is correct for ANY unmet requirement, not that it echoes this one.
+	 */
+	public function test_the_message_names_no_specific_plugin(): void {
+		$message = SetupRequired::message();
+
+		$this->assertStringContainsString( 'plugin', $message, 'FR-022: it must still say SOMETHING is missing.' );
+		$this->assertStringNotContainsString(
+			'Abilities Manager',
+			$message,
+			'The absorbed add-on cannot be the answer to a requirement any more — its toolsets ship in this plugin.'
+		);
 	}
 
 	public function test_the_message_discloses_no_paths_or_versions(): void {
