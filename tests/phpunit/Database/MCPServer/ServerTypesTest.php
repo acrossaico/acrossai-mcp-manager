@@ -35,6 +35,14 @@ class ServerTypesTest extends WP_UnitTestCase {
 	/** @var array<int, string> */
 	private $active_plugins_backup = array();
 
+	/**
+	 * A real ability made to vanish for one test, as [slug, captured args] —
+	 * or null. Restored unconditionally in tear_down(), see vanish_ability().
+	 *
+	 * @var array{0: string, 1: array<string, mixed>}|null
+	 */
+	private $vanished = null;
+
 	public function set_up(): void {
 		parent::set_up();
 		$this->active_plugins_backup = (array) get_option( 'active_plugins', array() );
@@ -43,7 +51,59 @@ class ServerTypesTest extends WP_UnitTestCase {
 	public function tear_down(): void {
 		update_option( 'active_plugins', $this->active_plugins_backup );
 		remove_all_filters( ServerTypes::FILTER );
+
+		if ( null !== $this->vanished ) {
+			list( $slug, $args ) = $this->vanished;
+			if ( ! wp_has_ability( $slug ) ) {
+				\WP_Abilities_Registry::get_instance()->register( $slug, $args );
+			}
+			$this->vanished = null;
+		}
+
 		parent::tear_down();
+	}
+
+	/**
+	 * Make a real, currently-registered ability disappear for one test.
+	 *
+	 * See the identical helper (and its full reasoning) in
+	 * DefaultServerSeederTest — F106 means no declared slug of the AcrossAI
+	 * type is reliably dormant in this plugin's own test environment any
+	 * more, so a test that needs to prove "kept even though unregistered" has
+	 * to manufacture that condition rather than find it lying around. The
+	 * abilities registry is a process-wide static singleton, which is why
+	 * this restores in tear_down() regardless of how the test ends, rather
+	 * than at the end of the test body.
+	 *
+	 * @param string $slug Ability slug to vanish, e.g. `toolset/content`.
+	 * @return void
+	 */
+	private function vanish_ability( string $slug ): void {
+		$ability = wp_get_ability( $slug );
+		$this->assertNotNull( $ability, "Precondition: {$slug} must actually be registered before it can be made to vanish." );
+
+		$reflection = new \ReflectionObject( $ability );
+		$read       = static function ( string $property ) use ( $reflection, $ability ) {
+			$prop = $reflection->getProperty( $property );
+			$prop->setAccessible( true );
+			return $prop->getValue( $ability );
+		};
+
+		$this->vanished = array(
+			$slug,
+			array(
+				'label'               => $ability->get_label(),
+				'description'         => $ability->get_description(),
+				'category'            => $ability->get_category(),
+				'input_schema'        => $ability->get_input_schema(),
+				'output_schema'       => $ability->get_output_schema(),
+				'meta'                => $ability->get_meta(),
+				'execute_callback'    => $read( 'execute_callback' ),
+				'permission_callback' => $read( 'permission_callback' ),
+			),
+		);
+
+		wp_unregister_ability( $slug );
 	}
 
 	// ---------------------------------------------------------------- seed --
@@ -435,19 +495,27 @@ class ServerTypesTest extends WP_UnitTestCase {
 	 * leave a tool the operator removed with no way back.
 	 *
 	 * `toolset/content` was the example here because nothing registered it in
-	 * this plugin's test environment — true until F106 booted the absorbed
-	 * abilities half, which gives `content` (and most of `Registrar::CORE`'s
-	 * other groups) an unconditional member now, so `toolset/content` is no
-	 * longer dormant to prove the point with. `toolset/integrations` still is:
-	 * it only ever has members through a third-party plugin's own groups
-	 * (`elementor`, `woocommerce`, …), and this test environment runs none, so
-	 * it stays unregistered the same way every declared slug used to.
+	 * this plugin's own test environment — true until F106 booted the
+	 * absorbed abilities half. `AcrossAI_Core_Abilities_Bootstrap` now boots
+	 * unconditionally, and its ability classes behind every one of
+	 * `Registrar::CORE`'s groups, plus `toolset/other`, `toolset/integrations`
+	 * (via the unconditionally-registered backup-suite groups) and Guide's
+	 * `toolset/server-guide`, all have at least one member here. There is no
+	 * longer a real declared-but-dormant slug on this type to point at.
+	 *
+	 * So this manufactures one, same as DefaultServerSeederTest and
+	 * SeededToolsBackfillTest do for the same reason: vanish_ability()
+	 * removes a real, currently-registered ability for the duration of the
+	 * test and restores it in tear_down(), which lets `toolset/content` stand
+	 * in for "a declared slug this site happens not to have yet."
 	 */
 	public function test_the_pool_keeps_declared_tools_that_are_not_registered(): void {
+		$this->vanish_ability( 'toolset/content' );
+
 		$pool = ServerTypes::pool( ServerTypes::ACROSSAI );
 
-		$this->assertContains( 'toolset/integrations', $pool );
-		$this->assertFalse( wp_has_ability( 'toolset/integrations' ), 'Precondition: dormant here (no third-party plugin is active).' );
+		$this->assertContains( 'toolset/content', $pool );
+		$this->assertFalse( wp_has_ability( 'toolset/content' ), 'Precondition: toolset/content is NOT registered here.' );
 	}
 
 	public function test_pool_survives_the_registry_being_blind_to_protocol_tools(): void {
