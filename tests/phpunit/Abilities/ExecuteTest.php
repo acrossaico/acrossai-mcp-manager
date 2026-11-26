@@ -158,6 +158,14 @@ class ExecuteTest extends WP_UnitTestCase {
 
 	public function test_execute_returns_success_shape_on_ok(): void {
 		$this->maybe_skip_abilities_api();
+		// F106's absorbed AcrossAI_Ability_Override_Processor wraps every
+		// non-router ability's permission_callback and requires
+		// manage_options when, as here, no access-control rule exists for
+		// the slug — so a `__return_true` callback no longer passes for an
+		// anonymous caller. This test is about execute()'s success shape,
+		// not permissions, so clear that floor by logging in as an admin
+		// rather than letting it become the thing under test.
+		$this->login_admin();
 		$this->register_scratch_ability(
 			'execute-test/ok',
 			true,
@@ -175,6 +183,11 @@ class ExecuteTest extends WP_UnitTestCase {
 
 	public function test_execute_catches_thrown_exceptions(): void {
 		$this->maybe_skip_abilities_api();
+		// Same reasoning as test_execute_returns_success_shape_on_ok() above:
+		// this is about exception catching, not permissions, so clear the
+		// absorbed processor's manage_options floor rather than let it mask
+		// the behaviour under test.
+		$this->login_admin();
 		$this->register_scratch_ability(
 			'execute-test/throws',
 			true,
