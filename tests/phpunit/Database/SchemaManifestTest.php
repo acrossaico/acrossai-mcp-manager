@@ -137,6 +137,42 @@ class SchemaManifestTest extends TestCase {
 			'completed_at'          => array( 'DATETIME', 0, true ),
 			'created_at'            => array( 'DATETIME', 0, false ),
 		),
+		// F106 — absorbed from acrossai-abilities-manager. Its Table/Schema
+		// pair extends the identical BerlinDB `Kern\Table` / `Kern\Schema`
+		// base classes as every stem above (confirmed by reflection, not
+		// assumed), and its $columns array uses the same
+		// name/type/length/allow_null convention `declared()` below reads —
+		// so it satisfies this manifest's contract and belongs in it, unlike
+		// the access-control RuleTable the absorbed half also uses: that
+		// Table/Schema pair lives in the wpboilerplate/wpb-access-control
+		// VENDOR package, not in this repo's own source tree, so this repo's
+		// D28 three-part contract has no commit to attach to and freezing it
+		// here would be meaningless.
+		'acrossai_abilities'            => array(
+			'id'              => array( 'BIGINT', 20, false ),
+			'ability_slug'    => array( 'VARCHAR', 255, false ),
+			'label'           => array( 'VARCHAR', 255, true ),
+			'description'     => array( 'LONGTEXT', 0, true ),
+			'category'        => array( 'VARCHAR', 100, true ),
+			'status'          => array( 'VARCHAR', 20, true ),
+			'provider'        => array( 'VARCHAR', 100, true ),
+			'source'          => array( 'VARCHAR', 50, false ),
+			'site_allowed'    => array( 'TINYINT', 1, true ),
+			'callback_type'   => array( 'VARCHAR', 50, true ),
+			'callback_config' => array( 'LONGTEXT', 0, true ),
+			'input_schema'    => array( 'LONGTEXT', 0, true ),
+			'output_schema'   => array( 'LONGTEXT', 0, true ),
+			'show_in_rest'    => array( 'TINYINT', 1, true ),
+			'show_in_mcp'     => array( 'TINYINT', 1, true ),
+			'mcp_type'        => array( 'VARCHAR', 100, true ),
+			'readonly'        => array( 'TINYINT', 1, true ),
+			'destructive'     => array( 'TINYINT', 1, true ),
+			'idempotent'      => array( 'TINYINT', 1, true ),
+			'created_at'      => array( 'DATETIME', 0, false ),
+			'updated_at'      => array( 'DATETIME', 0, false ),
+			'created_by'      => array( 'BIGINT', 20, true ),
+			'updated_by'      => array( 'BIGINT', 20, true ),
+		),
 	);
 
 	/**
@@ -151,6 +187,8 @@ class SchemaManifestTest extends TestCase {
 		'acrossai_mcp_servers_meta'     => 'AcrossAI_MCP_Manager\Includes\Database\MCPServerMeta\Schema',
 		'acrossai_mcp_cli_auth_logs'    => 'AcrossAI_MCP_Manager\Includes\Database\CliAuthLog\Schema',
 		'acrossai_mcp_clients'          => 'AcrossAI_MCP_Manager\Includes\Database\Clients\Schema',
+		// F106 — see the MANIFEST entry above for why this one belongs here.
+		'acrossai_abilities'            => 'AcrossAI_Abilities_Manager\Includes\Modules\Abilities\Database\AcrossAI_Abilities_Schema',
 	);
 
 	private const REMEDY = "\n\nThe reconciler does NOT perform this change. Ship the D28 three-part contract — bump \$version and add a paired \$upgrades callback on the Table — and update SchemaManifestTest::MANIFEST in the same commit.";
