@@ -8,12 +8,12 @@
  * {@see Base_Toolset_Ability}. If this class ever needs more than these
  * methods, the shared class is missing something; add it there.
  *
- * @package    AcrossAI_Abilities_Manager
- * @subpackage AcrossAI_Abilities_Manager/includes/Abilities/Toolset
+ * @package    AcrossAI_MCP_Manager
+ * @subpackage AcrossAI_MCP_Manager/includes/Abilities/Toolset
  * @since      0.0.35
  */
 
-namespace AcrossAI_Abilities_Manager\Includes\Abilities\Toolset;
+namespace AcrossAI_MCP_Manager\Includes\Abilities\Toolset;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -40,14 +40,14 @@ final class All_In_One extends Base_Toolset_Ability {
 	 * @return string
 	 */
 	protected function toolset_label(): string {
-		return __( 'All-in-One WP Migration', 'acrossai-abilities-manager' );
+		return __( 'All-in-One WP Migration', 'acrossai-mcp-manager' );
 	}
 
 	/**
 	 * @return string
 	 */
 	protected function toolset_description(): string {
-		return __( 'Whether this site can be recovered through All-in-One WP Migration: what archives exist and how recent they are, whether they are reachable over HTTP, and exporting, labelling or removing one. Restoring is part of their paid Unlimited Extension, and the ability says so rather than failing. action=discover lists this group; action=info returns schemas; action=execute runs one ability.', 'acrossai-abilities-manager' );
+		return __( 'Whether this site can be recovered through All-in-One WP Migration: what archives exist and how recent they are, whether they are reachable over HTTP, and exporting, labelling or removing one. Restoring is part of their paid Unlimited Extension, and the ability says so rather than failing. action=discover lists this group; action=info returns schemas; action=execute runs one ability.', 'acrossai-mcp-manager' );
 	}
 
 	/**

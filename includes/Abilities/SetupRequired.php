@@ -155,15 +155,33 @@ final class SetupRequired {
 	 * hardcoding English would leave the only untranslated string in the
 	 * plugin, which a future contributor would "fix" without knowing why.
 	 *
-	 * Discloses the add-on's public name only — no paths, versions, or site
-	 * configuration.
+	 * Names no plugin, and since F106 it must not. It used to name AcrossAI
+	 * Abilities Manager, which was correct while that add-on supplied the
+	 * AcrossAI and Fleet toolsets and was the only thing any built-in type
+	 * required. Absorbing it made both of those requirements `null`, so the
+	 * only way this ability can now be served is a type registered by a THIRD
+	 * PARTY whose `requires` plugin is inactive — and naming the absorbed
+	 * plugin there would send the operator to install something that no longer
+	 * exists, to fix a different plugin's requirement.
+	 *
+	 * The alternative was to carry the type's own `requires` into the message.
+	 * Rejected for now: this is one global ability registered once per request
+	 * with no server-type context — `execute_callback` receives none and the
+	 * `description` is fixed at registration — so naming the right plugin means
+	 * giving the ability that context, which is a larger change than the case
+	 * warrants. The old test warning that this message "must take the name from
+	 * the type" once types disagree is still the right call if a second
+	 * requiring type ever appears; what F106 changed is that there is now no
+	 * name this global message could correctly carry.
+	 *
+	 * Discloses nothing about paths, versions, or site configuration.
 	 *
 	 * @since 0.1.0
 	 * @return string
 	 */
 	public static function message(): string {
 		return __(
-			'This MCP server requires the AcrossAI Abilities Manager plugin to be installed and activated. No tools are available until then. Ask the site administrator to install it from the AcrossAI Add-ons page, or to change this server\'s type.',
+			'This MCP server\'s type requires a plugin that is not active on this site, so no tools are available. Ask the site administrator to activate the plugin this server type needs, or to change this server\'s type.',
 			'acrossai-mcp-manager'
 		);
 	}

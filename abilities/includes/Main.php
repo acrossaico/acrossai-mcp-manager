@@ -171,8 +171,7 @@ final class Main {
 	 *
 	 * @since 0.0.1
 	 * @static
-	 * @see AcrossAI_Abilities_Manager()
-	 * @return AcrossAI_Abilities_Manager - Main instance.
+	 * @return self The one instance.
 	 */
 	public static function instance() {
 		if ( null === self::$instance ) {

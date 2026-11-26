@@ -33,6 +33,13 @@ use AcrossAI_MCP_Manager\Includes\Abilities\AbilityActivityRecorder;
 use AcrossAI_MCP_Manager\Includes\Observability\CaptureContext;
 use AcrossAI_MCP_Manager\Includes\Abilities\Toolset\AbilityGroup;
 use AcrossAI_MCP_Manager\Includes\Abilities\Toolset\InputNormalizer;
+
+// F106 — the integration registry and its on/off switch stayed in the absorbed
+// tree, because neither is a Toolset and neither was duplicated: this plugin
+// never had its own copy. Only the 15 Toolset classes existed twice, and this
+// file is the surviving one.
+use AcrossAI_Abilities_Manager\Includes\Abilities\Integrations\AcrossAI_Toolset_Integrations;
+use AcrossAI_Abilities_Manager\Includes\Modules\Library\AcrossAI_Integration_Settings;
 use WP_Ability;
 use WP_Error;
 
@@ -156,7 +163,10 @@ abstract class Base_Toolset_Ability {
 			return $groups;
 		}
 
-		if ( $this->slug_taken_by_other || $this->is_server_type_default() ) {
+		// F106 added `is_host_only()`: `toolset/integrations` and the server
+		// guide both name tools for a client to CALL, and a host-only Toolset
+		// will never be in that client's tool list.
+		if ( $this->slug_taken_by_other || $this->is_server_type_default() || $this->is_host_only() ) {
 			return $groups;
 		}
 
@@ -255,6 +265,14 @@ abstract class Base_Toolset_Ability {
 			return $types;
 		}
 
+		// F106 — a host-only Toolset is built for a third-party MCP host, so it
+		// must not join the `acrossai` type's default set: "Reset to Type
+		// Defaults" would otherwise add a tool written for somebody else's
+		// audience to an AcrossAI server. See `is_host_only()`.
+		if ( $this->is_host_only() ) {
+			return $types;
+		}
+
 		if ( ! isset( $types['acrossai'] ) || ! is_array( $types['acrossai'] ) ) {
 			$types['acrossai'] = array();
 		}
@@ -309,6 +327,195 @@ abstract class Base_Toolset_Ability {
 		$types['acrossai']['tools'] = array_values( array_unique( $tools ) );
 
 		return $types;
+	}
+
+	/**
+	 * Whether this Toolset's membership tracks what is installed on the site.
+	 *
+	 * False for the Toolsets describing WordPress itself: `content` holds the
+	 * same abilities on every site, so one `discover` stays true for the rest of
+	 * a caller's session.
+	 *
+	 * True where activating a plugin or theme changes the answer. A caller that
+	 * kept such a listing is wrong from the next activation onwards and has no
+	 * way to notice: the adapter advertises `tools.listChanged: false`, and a
+	 * client handed the notification anyway ignored it (#129). Saying so in the
+	 * discover payload is the only channel that reaches the model, because —
+	 * unlike the tool description, which is cached when the client connects — it
+	 * is regenerated on every call.
+	 *
+	 * @since  0.5.0 (ported from acrossai-abilities-manager 0.0.38 by F106)
+	 * @return bool
+	 */
+	protected function is_volatile(): bool {
+		return false;
+	}
+
+	/**
+	 * Whether this Toolset exists for somebody else's MCP server rather than ours.
+	 *
+	 * False for every Toolset that describes this site to an AcrossAI server.
+	 * True for one built to be contributed to a third-party host — see
+	 * {@see \AcrossAI_Abilities_Manager\Includes\Abilities\Mcp\Host_Mcp_Server} —
+	 * which must stay out of three places a normal Toolset belongs in:
+	 *
+	 * - the `acrossai` server type's default set, so **Reset to Type Defaults**
+	 *   does not add a tool written for Elementor's audience to an AcrossAI
+	 *   server;
+	 * - the transport's Tools picker, where it would read as a curation choice
+	 *   an operator could usefully make, and is not;
+	 * - `toolset/integrations` and the server guide, both of which name tools
+	 *   for a client to call. Naming one that will never be in that client's
+	 *   tool list is the precise fault the guide exists to prevent.
+	 *
+	 * It stays PROTECTED either way, which is the one declaration a host-only
+	 * Toolset keeps: it is still a dispatcher, and still not an ability anyone
+	 * should override.
+	 *
+	 * Answered from the class, never from the registry, for the ordering reason
+	 * recorded on `declare_server_type_tool()`.
+	 *
+	 * @since  0.5.0 (ported from acrossai-abilities-manager 0.0.42 by F106)
+	 * @return bool
+	 */
+	protected function is_host_only(): bool {
+		return false;
+	}
+
+	/**
+	 * Mark a discover response whose contents can change under the caller.
+	 *
+	 * Applied to every `discover` return, the empty one included: an empty
+	 * answer is the likeliest of all to be mistaken for a settled one.
+	 *
+	 * @since  0.5.0 (ported from acrossai-abilities-manager 0.0.38 by F106)
+	 * @param  array<string, mixed> $response Response to annotate.
+	 * @return array<string, mixed>
+	 */
+	private function with_volatility( array $response ): array {
+		if ( ! $this->is_volatile() ) {
+			return $response;
+		}
+
+		$response['volatile'] = true;
+		$response['note']     = __( 'This listing reflects the plugins and themes active right now, and changes when one is activated or deactivated. Call discover again rather than reusing an earlier result.', 'acrossai-mcp-manager' );
+
+		return $response;
+	}
+
+	/**
+	 * The integration group this Toolset fronts, when that integration is off.
+	 *
+	 * Only ever answers for a Toolset that fronts exactly one group. The
+	 * multi-group dispatchers — `toolset/integrations` most of all — serve many
+	 * integrations at once, and one of them being off is no reason to take the
+	 * whole tool out of service.
+	 *
+	 * Asks `is_switched_off()` rather than `is_enabled()`, the same question the
+	 * registration gate asks and for the same reason: an unseeded key is not a
+	 * decision, and reading it as "off" here would replace every Toolset on a
+	 * fresh site with a message telling the owner to switch on something they
+	 * never switched off.
+	 *
+	 * @since  0.5.0 (ported from acrossai-abilities-manager 0.0.42 by F106)
+	 * @return string Group slug, or '' when this is not a switched-off integration's.
+	 */
+	private function switched_off_group(): string {
+		$groups = array_values( array_map( 'strval', (array) $this->groups() ) );
+
+		if ( 1 !== count( $groups ) || '' === $groups[0] ) {
+			return '';
+		}
+
+		$group = $groups[0];
+
+		/*
+		 * Only a group an integration actually owns. `content`, `blocks` and
+		 * `appearance` have no integration behind them and no switch, so nothing
+		 * should ever store a decision for them — but this reads a site option a
+		 * filter can rewrite, and the failure mode if one did is every
+		 * first-party Toolset on the site replaced by a message telling the
+		 * owner to switch on something that was never switchable.
+		 */
+		if ( ! class_exists( AcrossAI_Toolset_Integrations::class )
+			|| AcrossAI_Toolset_Integrations::CATCH_ALL_GROUP === $group
+			|| null === AcrossAI_Toolset_Integrations::for_group( $group ) ) {
+			return '';
+		}
+
+		if ( ! class_exists( AcrossAI_Integration_Settings::class ) ) {
+			return '';
+		}
+
+		return AcrossAI_Integration_Settings::is_switched_off( $group ) ? $group : '';
+	}
+
+	/**
+	 * A human name for a group, for the switched-off message.
+	 *
+	 * Prefers the Toolset's own declared label and falls back to the group key,
+	 * so a group whose integration declares no label still names something a
+	 * reader recognises.
+	 *
+	 * @since  0.5.0 (ported from acrossai-abilities-manager 0.0.42 by F106)
+	 * @param  string $group Group slug.
+	 * @return string
+	 */
+	private function toolset_label_for( string $group ): string {
+		$label = trim( (string) $this->toolset_label() );
+
+		return '' !== $label ? $label : $group;
+	}
+
+	/**
+	 * How many dispatchable, visible members each group this Toolset spans holds.
+	 *
+	 * Exists because `AbilityGroup::counts()` answers a different question. It
+	 * counts everything tagged into a group, which includes abilities a Toolset
+	 * can never dispatch to: `mcp.type: resource` entries like Elementor's
+	 * best-practice documents. On a real site that made a menu built from
+	 * `counts()` advertise `elementor 106` while the drill returned 99 — the gap
+	 * was exactly the seven resources, and a caller has no way to tell which.
+	 *
+	 * Built from `members()` so the two cannot disagree by construction:
+	 * whatever a drill would return is what gets counted, the
+	 * `acrossai_toolset_member_visible` filter included.
+	 *
+	 * Buckets by the ability's OWN group rather than this Toolset's identity,
+	 * for the same reason `members()` passes that group to the visibility
+	 * filter — a multi-group dispatcher must report each ability under the area
+	 * a caller can narrow to.
+	 *
+	 * Ordered like `counts()`: largest first, ties alphabetical, so a menu built
+	 * from either reads the same way.
+	 *
+	 * @since  0.5.0 (ported from acrossai-abilities-manager 0.0.42 by F106)
+	 * @param  string $context One of discover, info, execute.
+	 * @return array<string, int> Group slug => dispatchable member count.
+	 */
+	protected function member_counts( string $context = 'discover' ): array {
+		$counts = array();
+
+		foreach ( $this->members( $context ) as $ability ) {
+			$group = (string) AbilityGroup::of( $ability );
+
+			if ( '' === $group ) {
+				continue;
+			}
+
+			$counts[ $group ] = ( $counts[ $group ] ?? 0 ) + 1;
+		}
+
+		uksort(
+			$counts,
+			static function ( string $a, string $b ) use ( $counts ): int {
+				return $counts[ $b ] === $counts[ $a ]
+					? strcmp( $a, $b )
+					: $counts[ $b ] <=> $counts[ $a ];
+			}
+		);
+
+		return $counts;
 	}
 
 	/**
@@ -563,7 +770,13 @@ abstract class Base_Toolset_Ability {
 			return;
 		}
 
-		if ( ! $this->has_any_member() ) {
+		// F106 — a switched-off integration keeps its Toolset. Its abilities are
+		// gone, so `has_any_member()` is false and this would otherwise suppress
+		// itself — and an assistant would be told the tool does not exist, which
+		// is indistinguishable from "this site has no Elementor". It stays, and
+		// `execute()` answers every action by saying it was switched off and
+		// where to switch it back on.
+		if ( ! $this->has_any_member() && '' === $this->switched_off_group() ) {
 			return;
 		}
 
@@ -929,20 +1142,71 @@ abstract class Base_Toolset_Ability {
 		$input  = is_array( $input ) ? $input : array();
 		$action = (string) ( $input['action'] ?? '' );
 
+		// F106 — a Toolset fronting a switched-off integration stays registered
+		// rather than vanishing, so the two cases below can explain themselves.
+		// See `switched_off_group()`.
+		$off = $this->switched_off_group();
+
+		/*
+		 * Switched off, and nothing left in the group — the usual case. Our
+		 * abilities were never registered and the host is not contributing any
+		 * either, so there is nothing to dispatch to and the only useful answer
+		 * is why.
+		 */
+		if ( '' !== $off && array() === $this->members( 'discover' ) ) {
+			return $this->failure(
+				$action,
+				'integration_disabled',
+				sprintf(
+					/* translators: 1: integration name, 2: admin URL of the Integrations screen. */
+					__(
+						'The %1$s integration is switched off, so none of its abilities are available. Switch it back on at %2$s to use this tool.',
+						'acrossai-mcp-manager'
+					),
+					$this->toolset_label_for( $off ),
+					admin_url( 'admin.php?page=acrossai-integrations' )
+				)
+			);
+		}
+
 		switch ( $action ) {
 			case 'discover':
-				return $this->do_discover( $input );
+				$result = $this->do_discover( $input );
+				break;
 			case 'info':
-				return $this->do_info( $input );
+				$result = $this->do_info( $input );
+				break;
 			case 'execute':
-				return $this->do_execute( $input );
+				$result = $this->do_execute( $input );
+				break;
 			default:
-				return $this->failure(
+				$result = $this->failure(
 					$action,
 					'invalid_action',
 					__( 'Unknown action. Use discover, info or execute.', 'acrossai-mcp-manager' )
 				);
 		}
+
+		/*
+		 * Switched off, but the host plugin is publishing abilities of its own
+		 * into this group — someone enabled that on the host's own screen, which
+		 * is not a decision this switch gets to overrule. Those work normally.
+		 * What is missing is our contribution, so the tool says so on every
+		 * answer rather than quietly serving a partial group as if it were whole.
+		 */
+		if ( '' !== $off ) {
+			$result['notice'] = sprintf(
+				/* translators: 1: integration name, 2: admin URL of the Integrations screen. */
+				__(
+					'The %1$s integration is switched off, so only %1$s\'s own abilities are listed here. Switch it on at %2$s to add this plugin\'s %1$s abilities as well.',
+					'acrossai-mcp-manager'
+				),
+				$this->toolset_label_for( $off ),
+				admin_url( 'admin.php?page=acrossai-integrations' )
+			);
+		}
+
+		return $result;
 	}
 
 	/**
@@ -956,22 +1220,31 @@ abstract class Base_Toolset_Ability {
 		$overview = $this->discover_overview( $input );
 
 		if ( null !== $overview ) {
-			return $overview;
+			return $this->with_volatility( $overview );
 		}
 
 		$members = $this->members( 'discover' );
 
 		if ( array() === $members ) {
-			return array(
-				'action'    => 'discover',
-				'group'     => $this->group(),
-				'success'   => true,
-				'abilities' => array(),
-				'total'     => 0,
-				'returned'  => 0,
-				'offset'    => 0,
-				'has_more'  => false,
-				'message'   => __( 'No abilities in this group are currently available to you.', 'acrossai-mcp-manager' ),
+			// A volatile Toolset's empty answer gets the stronger wording: the
+			// generic one reads as "you cannot use these", when the truth is
+			// "nothing is installed that provides these yet".
+			$empty_message = $this->is_volatile()
+				? __( 'Nothing is in this group right now. That changes as plugins and themes are activated, so call discover again rather than treating this as settled.', 'acrossai-mcp-manager' )
+				: __( 'No abilities in this group are currently available to you.', 'acrossai-mcp-manager' );
+
+			return $this->with_volatility(
+				array(
+					'action'    => 'discover',
+					'group'     => $this->group(),
+					'success'   => true,
+					'abilities' => array(),
+					'total'     => 0,
+					'returned'  => 0,
+					'offset'    => 0,
+					'has_more'  => false,
+					'message'   => $empty_message,
+				)
 			);
 		}
 
@@ -990,15 +1263,17 @@ abstract class Base_Toolset_Ability {
 			$rows[] = $this->summarise( $ability, $fields );
 		}
 
-		return array(
-			'action'    => 'discover',
-			'group'     => $this->group(),
-			'success'   => true,
-			'abilities' => $rows,
-			'total'     => $total,
-			'returned'  => count( $rows ),
-			'offset'    => $offset,
-			'has_more'  => ( $offset + count( $rows ) ) < $total,
+		return $this->with_volatility(
+			array(
+				'action'    => 'discover',
+				'group'     => $this->group(),
+				'success'   => true,
+				'abilities' => $rows,
+				'total'     => $total,
+				'returned'  => count( $rows ),
+				'offset'    => $offset,
+				'has_more'  => ( $offset + count( $rows ) ) < $total,
+			)
 		);
 	}
 

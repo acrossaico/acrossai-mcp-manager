@@ -7,12 +7,12 @@
  *
  * Four declarations and no behaviour — everything else is {@see Base_Toolset_Ability}.
  *
- * @package    AcrossAI_Abilities_Manager
- * @subpackage AcrossAI_Abilities_Manager/includes/Abilities/Toolset
+ * @package    AcrossAI_MCP_Manager
+ * @subpackage AcrossAI_MCP_Manager/includes/Abilities/Toolset
  * @since      0.0.39
  */
 
-namespace AcrossAI_Abilities_Manager\Includes\Abilities\Toolset;
+namespace AcrossAI_MCP_Manager\Includes\Abilities\Toolset;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -39,14 +39,14 @@ final class Site_Kit extends Base_Toolset_Ability {
 	 * @return string
 	 */
 	protected function toolset_label(): string {
-		return __( 'Site Kit by Google', 'acrossai-abilities-manager' );
+		return __( 'Site Kit by Google', 'acrossai-mcp-manager' );
 	}
 
 	/**
 	 * @return string
 	 */
 	protected function toolset_description(): string {
-		return __( 'Work with Site Kit by Google: check whether it is set up and whether the current user has connected their own Google account, list and switch modules, read dashboard sharing, and read live Google data — Search Console search analytics, Analytics 4 reports, PageSpeed Insights and AdSense earnings. Start with site-kit/get-status: it reports what is connected and names the one thing to do next, which is what every other ability here depends on. Only present when Site Kit is active. Narrow action=discover with sub_group: site-kit-status (connection and setup), site-kit-modules (modules, settings, sharing, datapoint discovery) and site-kit-data (search, traffic, speed and earnings). action=info returns schemas; action=execute runs one ability.', 'acrossai-abilities-manager' );
+		return __( 'Work with Site Kit by Google: check whether it is set up and whether the current user has connected their own Google account, list and switch modules, read dashboard sharing, and read live Google data — Search Console search analytics, Analytics 4 reports, PageSpeed Insights and AdSense earnings. Start with site-kit/get-status: it reports what is connected and names the one thing to do next, which is what every other ability here depends on. Only present when Site Kit is active. Narrow action=discover with sub_group: site-kit-status (connection and setup), site-kit-modules (modules, settings, sharing, datapoint discovery) and site-kit-data (search, traffic, speed and earnings). action=info returns schemas; action=execute runs one ability.', 'acrossai-mcp-manager' );
 	}
 
 	/**

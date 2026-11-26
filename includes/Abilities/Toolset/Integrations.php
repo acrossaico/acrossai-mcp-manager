@@ -103,6 +103,20 @@ final class Integrations extends Base_Toolset_Ability {
 	}
 
 	/**
+	 * Every group here belongs to a plugin, so the contents move with the site.
+	 *
+	 * This is the Toolset most likely to be read once and remembered, because it
+	 * is the one a caller reaches for when its cached tool list is already out of
+	 * date — exactly the caller least able to notice the answer has moved again.
+	 *
+	 * @since  0.5.0 (ported from acrossai-abilities-manager 0.0.38 by F106)
+	 * @return bool
+	 */
+	protected function is_volatile(): bool {
+		return true;
+	}
+
+	/**
 	 * Answer a bare `discover` with the plugins, not their abilities.
 	 *
 	 * Listing every ability across every plugin would be hundreds of rows for a

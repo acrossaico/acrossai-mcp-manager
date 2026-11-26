@@ -2,7 +2,7 @@
 /**
  * The site guide, for a client connected to an MCP server this plugin does not own.
  *
- * {@see \AcrossAI_Abilities_Manager\Includes\Abilities\Toolset\Guide} written for a different
+ * {@see \AcrossAI_MCP_Manager\Includes\Abilities\Toolset\Guide} written for a different
  * reader. The first-party guide addresses a client holding every dispatcher and explains how to
  * choose between them. This one addresses a client holding a host's own tools plus one gateway, and
  * its job is to say that the gateway exists and what is behind it.
@@ -23,7 +23,7 @@ declare( strict_types = 1 );
 
 namespace AcrossAI_Abilities_Manager\Includes\Abilities\Mcp;
 
-use AcrossAI_Abilities_Manager\Includes\Abilities\Toolset\Guide;
+use AcrossAI_MCP_Manager\Includes\Abilities\Toolset\Guide;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -76,10 +76,10 @@ final class Site_Guide extends Guide {
 	 * @param  string $name     The toolset's ability name.
 	 * @param  string $group    Its group slug.
 	 * @param  bool   $indirect Unused here — every row is indirect from this server.
-	 * @param  bool   $empty    Whether its group currently holds nothing.
+	 * @param  bool   $is_empty    Whether its group currently holds nothing.
 	 * @return string
 	 */
-	protected function call_route( string $name, string $group, bool $indirect, bool $empty ): string {
+	protected function call_route( string $name, string $group, bool $indirect, bool $is_empty ): string {
 		unset( $name, $indirect );
 
 		$route = sprintf(
@@ -89,7 +89,7 @@ final class Site_Guide extends Guide {
 			$group
 		);
 
-		if ( ! $empty ) {
+		if ( ! $is_empty ) {
 			return $route;
 		}
 

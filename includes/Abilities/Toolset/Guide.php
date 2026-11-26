@@ -39,7 +39,7 @@ defined( 'ABSPATH' ) || exit;
 /**
  * A one-call briefing for a client connected to an AcrossAI server.
  */
-final class Guide {
+class Guide {
 
 	/**
 	 * The group the add-on files ungrouped abilities under.
@@ -132,6 +132,7 @@ final class Guide {
 		add_filter( 'acrossai_mcp_manager_tool_abilities', array( $this, 'declare_tool_level_ability' ) );
 		add_filter( 'acrossai_mcp_server_types', array( $this, 'declare_server_type_tool' ) );
 		add_filter( 'acrossai_abilities_manager_protected_slugs', array( $this, 'protect_own_slug' ) );
+		add_filter( 'acrossai_mcp_server_instructions', array( $this, 'declare_server_instructions' ), 10, 2 );
 	}
 
 
@@ -152,9 +153,9 @@ final class Guide {
 			return;
 		}
 
-		if ( wp_has_ability( self::SLUG ) ) {
+		if ( wp_has_ability( static::SLUG ) ) {
 			/** This action is documented in includes/Abilities/Toolset/Base_Toolset_Ability.php */
-			do_action( 'acrossai_toolset_slug_collision', self::SLUG, 'server-guide' );
+			do_action( 'acrossai_toolset_slug_collision', static::SLUG, 'server-guide' );
 			return;
 		}
 
@@ -172,11 +173,22 @@ final class Guide {
 			return;
 		}
 
+		// F106 made this class extensible, so `SLUG` is now whatever a subclass
+		// declares rather than a literal this file can see. `wp_register_ability()`
+		// requires a non-empty lowercase name, and a subclass that got that wrong
+		// would fail deep inside core with nothing pointing back here — so the
+		// contract is enforced where it is knowable instead of assumed.
+		$slug = strtolower( trim( (string) static::SLUG ) );
+
+		if ( ! $slug ) {
+			return;
+		}
+
 		wp_register_ability(
-			self::SLUG,
+			$slug,
 			array(
-				'label'               => __( 'Toolset Guide', 'acrossai-mcp-manager' ),
-				'description'         => __( 'Read this first. Explains how every other tool on this server is called — the three actions, which parameters belong to which, and their real limits — then lists what this site holds, with an ability count per toolset. Also says what the two unusual toolsets are for: Other, which holds abilities that matched no group, and Integrations, which reaches plugin capability including plugins missing from your tool list. Takes no input and changes nothing.', 'acrossai-mcp-manager' ),
+				'label'               => $this->label(),
+				'description'         => $this->description(),
 				'category'            => Base_Toolset_Ability::CATEGORY,
 				'meta'                => array(
 					'mcp' => array(
@@ -363,18 +375,54 @@ final class Guide {
 				// which route works depends on whether this client's tool list
 				// carries it, and only the client knows that. Naming one route
 				// would be a guess; naming both lets it pick.
-				'call'      => isset( $indirect[ (string) $group ] )
-					? sprintf(
-						/* translators: 1: toolset name, 2: plugin group slug. */
-						__( 'Call %1$s directly if it is in your tool list; if it is not, call toolset/integrations with plugin=%2$s.', 'acrossai-mcp-manager' ),
-						$name,
-						$group
-					)
-					: __( 'Call it directly — it is in the default set, so your tool list has it.', 'acrossai-mcp-manager' ),
+				'call'      => $this->call_route(
+					$name,
+					(string) $group,
+					isset( $indirect[ (string) $group ] ),
+					0 === (int) $count
+				),
 			);
 		}
 
 		return $rows;
+	}
+
+	/**
+	 * How a client should reach one named toolset.
+	 *
+	 * Extracted from `toolsets()` by F106 so `Abilities\Mcp\Site_Guide` can
+	 * override it: a guide written for a third-party MCP host cannot tell the
+	 * reader to call `toolset/integrations`, because that tool is ours and is
+	 * not on the host's server.
+	 *
+	 * The `$empty` branch arrived with the same merge. A toolset in the default
+	 * set that currently holds nothing is the case most likely to be read as
+	 * settled and never called again, and for a plugin-backed group it is
+	 * precisely the case that changes on the next activation — so it says so
+	 * rather than looking like a dead end.
+	 *
+	 * @since  0.5.0 (seam and the empty branch ported from acrossai-abilities-manager by F106)
+	 * @param  string $name     Toolset ability name.
+	 * @param  string $group    Group slug the toolset fronts.
+	 * @param  bool   $indirect Whether it is also reachable via toolset/integrations.
+	 * @param  bool   $is_empty Whether it currently holds no abilities.
+	 * @return string
+	 */
+	protected function call_route( string $name, string $group, bool $indirect, bool $is_empty ): string {
+		if ( $indirect ) {
+			return sprintf(
+				/* translators: 1: toolset name, 2: plugin group slug. */
+				__( 'Call %1$s directly if it is in your tool list; if it is not, call toolset/integrations with plugin=%2$s.', 'acrossai-mcp-manager' ),
+				$name,
+				$group
+			);
+		}
+
+		if ( $is_empty ) {
+			return __( 'Call it directly — it is in the default set, so your tool list has it. It holds nothing at the moment, and that changes when a plugin or theme is activated, so call discover rather than ruling it out for the rest of this session.', 'acrossai-mcp-manager' );
+		}
+
+		return __( 'Call it directly — it is in the default set, so your tool list has it.', 'acrossai-mcp-manager' );
 	}
 
 	/**
@@ -418,12 +466,55 @@ final class Guide {
 	}
 
 	/**
+	 * This guide's own name.
+	 *
+	 * An extension point since F106, which absorbed the second copy of this
+	 * class. That copy was not `final` and had this, `description()`,
+	 * `special()`, `call_route()` and `is_host_only()` as overridables, because
+	 * `Abilities\Mcp\Site_Guide` extends it to describe this site to a
+	 * third-party MCP host rather than to one of our own servers. Keeping the
+	 * seam is what let the duplicate be deleted instead of both being kept.
+	 *
+	 * @since  0.5.0 (seam ported from acrossai-abilities-manager by F106)
+	 * @return string
+	 */
+	protected function label(): string {
+		return __( 'Toolset Guide', 'acrossai-mcp-manager' );
+	}
+
+	/**
+	 * What a client reads before calling anything else on this server.
+	 *
+	 * @since  0.5.0 (seam ported from acrossai-abilities-manager by F106)
+	 * @return string
+	 */
+	protected function description(): string {
+		return __( 'Read this first. Explains how every other tool on this server is called — the three actions, which parameters belong to which, and their real limits — then lists what this site holds, with an ability count per toolset. Also says what the two unusual toolsets are for: Other, which holds abilities that matched no group, and Integrations, which reaches plugin capability including plugins missing from your tool list. Takes no input and changes nothing.', 'acrossai-mcp-manager' );
+	}
+
+	/**
+	 * Whether this guide describes a third-party host's server rather than ours.
+	 *
+	 * False here, and the reason it exists at all is `Site_Guide`, which answers
+	 * true. A host-only guide must stay out of the `acrossai` type's default
+	 * set and out of the Tools picker — see
+	 * {@see Base_Toolset_Ability::is_host_only()}, which carries the full
+	 * reasoning for the same method on the dispatchers.
+	 *
+	 * @since  0.5.0 (seam ported from acrossai-abilities-manager by F106)
+	 * @return bool
+	 */
+	protected function is_host_only(): bool {
+		return false;
+	}
+
+	/**
 	 * The two toolsets whose contents are not what their name suggests.
 	 *
 	 * @since  0.0.34
 	 * @return array<string, string>
 	 */
-	private function special(): array {
+	protected function special(): array {
 		$special = array();
 
 		// Only describe the catch-all when it actually exists. It has no
@@ -481,6 +572,40 @@ final class Guide {
 	}
 
 	/**
+	 * Describe the calling convention in the server's MCP instructions.
+	 *
+	 * The transport passes a server's instructions through MCP `initialize`,
+	 * which is the only thing an assistant reads without first choosing to call
+	 * a tool. Everything else published here — this guide, the Toolset
+	 * descriptions — depends on it deciding to look.
+	 *
+	 * Ported by F106 from the absorbed copy of this class, which was the only
+	 * provider of `acrossai_mcp_server_instructions`. `MCP\Controller` applies
+	 * that filter with no fallback, so deleting the duplicate without bringing
+	 * this across would have silently emptied the one text every connecting
+	 * client reads.
+	 *
+	 * Appends; the operator's own description is already the first line.
+	 *
+	 * @since  0.5.0 (ported from acrossai-abilities-manager by F106)
+	 * @param  mixed $instructions Guidance built so far.
+	 * @param  mixed $server_type  The server row's type slug.
+	 * @return mixed
+	 */
+	public function declare_server_instructions( $instructions, $server_type ) {
+		if ( $this->is_host_only() || 'acrossai' !== $server_type ) {
+			return $instructions;
+		}
+
+		return sprintf(
+			/* translators: 1: the server guide's ability name, 2: the integrations toolset name. */
+			__( 'This server exposes Toolsets. Each one takes action=discover to list what it holds, action=info to read an ability\'s parameters, and action=execute to run it — the same three everywhere, so learn them once. Call %1$s first: it names every Toolset on this site with what it covers and how to reach it. Note that your tool list was fixed when you connected and cannot be refreshed, so a capability may exist here without a tool of its own in your list — %2$s reaches those.', 'acrossai-mcp-manager' ),
+			static::SLUG,
+			'toolset/integrations'
+		);
+	}
+
+	/**
 	 * Advertise this as a tool-level entry.
 	 *
 	 * @since  0.0.34
@@ -488,6 +613,12 @@ final class Guide {
 	 * @return mixed
 	 */
 	public function declare_tool_level_ability( $slugs ) {
+		// F106 — a host-only guide describes somebody else's server, so it must
+		// not join this site's tool-level surface. See `is_host_only()`.
+		if ( $this->is_host_only() ) {
+			return $slugs;
+		}
+
 		return $this->contribute_own_slug( $slugs );
 	}
 
@@ -518,7 +649,7 @@ final class Guide {
 			return array_values( $slugs );
 		}
 
-		$slugs[] = self::SLUG;
+		$slugs[] = static::SLUG;
 
 		return array_values( array_unique( $slugs ) );
 	}
@@ -545,10 +676,17 @@ final class Guide {
 			return $types;
 		}
 
+		// F106 — and never into the `acrossai` type's default set. `Site_Guide`
+		// extends this class to describe the site to a third-party MCP host; its
+		// slug belongs to that host's server, not to ours.
+		if ( $this->is_host_only() ) {
+			return $types;
+		}
+
 		$tools   = isset( $types['acrossai']['tools'] ) && is_array( $types['acrossai']['tools'] )
 			? $types['acrossai']['tools']
 			: array();
-		$tools[] = self::SLUG;
+		$tools[] = static::SLUG;
 
 		$types['acrossai']['tools'] = array_values( array_unique( $tools ) );
 

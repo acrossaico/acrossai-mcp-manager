@@ -35,6 +35,14 @@ class ServerTypesTest extends WP_UnitTestCase {
 	/** @var array<int, string> */
 	private $active_plugins_backup = array();
 
+	/**
+	 * A real ability made to vanish for one test, as [slug, captured args] —
+	 * or null. Restored unconditionally in tear_down(), see vanish_ability().
+	 *
+	 * @var array{0: string, 1: array<string, mixed>}|null
+	 */
+	private $vanished = null;
+
 	public function set_up(): void {
 		parent::set_up();
 		$this->active_plugins_backup = (array) get_option( 'active_plugins', array() );
@@ -43,7 +51,59 @@ class ServerTypesTest extends WP_UnitTestCase {
 	public function tear_down(): void {
 		update_option( 'active_plugins', $this->active_plugins_backup );
 		remove_all_filters( ServerTypes::FILTER );
+
+		if ( null !== $this->vanished ) {
+			list( $slug, $args ) = $this->vanished;
+			if ( ! wp_has_ability( $slug ) ) {
+				\WP_Abilities_Registry::get_instance()->register( $slug, $args );
+			}
+			$this->vanished = null;
+		}
+
 		parent::tear_down();
+	}
+
+	/**
+	 * Make a real, currently-registered ability disappear for one test.
+	 *
+	 * See the identical helper (and its full reasoning) in
+	 * DefaultServerSeederTest — F106 means no declared slug of the AcrossAI
+	 * type is reliably dormant in this plugin's own test environment any
+	 * more, so a test that needs to prove "kept even though unregistered" has
+	 * to manufacture that condition rather than find it lying around. The
+	 * abilities registry is a process-wide static singleton, which is why
+	 * this restores in tear_down() regardless of how the test ends, rather
+	 * than at the end of the test body.
+	 *
+	 * @param string $slug Ability slug to vanish, e.g. `toolset/content`.
+	 * @return void
+	 */
+	private function vanish_ability( string $slug ): void {
+		$ability = wp_get_ability( $slug );
+		$this->assertNotNull( $ability, "Precondition: {$slug} must actually be registered before it can be made to vanish." );
+
+		$reflection = new \ReflectionObject( $ability );
+		$read       = static function ( string $property ) use ( $reflection, $ability ) {
+			$prop = $reflection->getProperty( $property );
+			$prop->setAccessible( true );
+			return $prop->getValue( $ability );
+		};
+
+		$this->vanished = array(
+			$slug,
+			array(
+				'label'               => $ability->get_label(),
+				'description'         => $ability->get_description(),
+				'category'            => $ability->get_category(),
+				'input_schema'        => $ability->get_input_schema(),
+				'output_schema'       => $ability->get_output_schema(),
+				'meta'                => $ability->get_meta(),
+				'execute_callback'    => $read( 'execute_callback' ),
+				'permission_callback' => $read( 'permission_callback' ),
+			),
+		);
+
+		wp_unregister_ability( $slug );
 	}
 
 	// ---------------------------------------------------------------- seed --
@@ -239,18 +299,27 @@ class ServerTypesTest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * The floor still holds. Without the add-on the preferred type is
-	 * unavailable, so the requirement check must fall back rather than hand a
-	 * new server a type the site cannot run.
+	 * There is no floor left to fall back to without the add-on, because
+	 * there is no "without the add-on" any more.
+	 *
+	 * Until F106 this asserted the opposite: that `active_plugins = []` made
+	 * the AcrossAI type unavailable and `default_slug()` fell back to
+	 * `mcp-adapter`. That was true while `ServerTypes::ACROSSAI_REQUIRES` named
+	 * the sibling plugin's folder slug — see `fix(106): retire the add-on
+	 * requirement the merge dissolved`, which set it to `null` because the
+	 * Toolsets the type serves ship inside THIS plugin now. `is_available()`
+	 * on a null requirement is unconditionally true, so a bare install with no
+	 * other plugin active is exactly the case this test now has to prove
+	 * stays available, not unavailable.
 	 */
-	public function test_a_site_without_the_add_on_falls_back_to_the_mcp_adapter_type(): void {
+	public function test_a_site_with_no_other_plugin_still_has_the_acrossai_type_available(): void {
 		update_option( 'active_plugins', array() );
 
-		$this->assertFalse(
+		$this->assertTrue(
 			ServerTypes::is_available( ServerTypes::ACROSSAI ),
-			'setup: the AcrossAI type must be UNAVAILABLE, or this asserts nothing.'
+			'The AcrossAI toolsets ship inside this plugin since F106 — no other plugin is required to use them.'
 		);
-		$this->assertSame( ServerTypes::LEGACY, ServerTypes::default_slug() );
+		$this->assertSame( ServerTypes::ACROSSAI, ServerTypes::default_slug() );
 	}
 
 	public function test_default_slug_skips_a_type_whose_requirement_is_unmet(): void {
@@ -270,7 +339,16 @@ class ServerTypesTest extends WP_UnitTestCase {
 
 		// FR-009: a site without the dependency must never default to a type it
 		// cannot use, however loudly that type claims to be the default.
-		$this->assertSame( ServerTypes::LEGACY, ServerTypes::default_slug() );
+		//
+		// Until F106 the fallback this proved landed on `mcp-adapter`, because
+		// `acrossai` needed the sibling add-on too and `active_plugins = []`
+		// left it just as unavailable as the fake type above. Since the merge
+		// `acrossai` requires nothing and is always available (see
+		// test_a_site_with_no_other_plugin_still_has_the_acrossai_type_available()),
+		// so skipping the fake type's unmet requirement now lands one step
+		// earlier than the floor, on `acrossai` — which is still the mechanism
+		// under test: the unmet `is_default` type was skipped rather than won.
+		$this->assertSame( ServerTypes::ACROSSAI, ServerTypes::default_slug() );
 	}
 
 	public function test_default_slug_accepts_a_default_whose_requirement_is_met(): void {
@@ -415,12 +493,29 @@ class ServerTypesTest extends WP_UnitTestCase {
 	 * It is shown as pending beside the list it was declared into. Narrowing it
 	 * away would make the picker disagree with the pane next to it, and would
 	 * leave a tool the operator removed with no way back.
+	 *
+	 * `toolset/content` was the example here because nothing registered it in
+	 * this plugin's own test environment — true until F106 booted the
+	 * absorbed abilities half. `AcrossAI_Core_Abilities_Bootstrap` now boots
+	 * unconditionally, and its ability classes behind every one of
+	 * `Registrar::CORE`'s groups, plus `toolset/other`, `toolset/integrations`
+	 * (via the unconditionally-registered backup-suite groups) and Guide's
+	 * `toolset/server-guide`, all have at least one member here. There is no
+	 * longer a real declared-but-dormant slug on this type to point at.
+	 *
+	 * So this manufactures one, same as DefaultServerSeederTest and
+	 * SeededToolsBackfillTest do for the same reason: vanish_ability()
+	 * removes a real, currently-registered ability for the duration of the
+	 * test and restores it in tear_down(), which lets `toolset/content` stand
+	 * in for "a declared slug this site happens not to have yet."
 	 */
 	public function test_the_pool_keeps_declared_tools_that_are_not_registered(): void {
+		$this->vanish_ability( 'toolset/content' );
+
 		$pool = ServerTypes::pool( ServerTypes::ACROSSAI );
 
 		$this->assertContains( 'toolset/content', $pool );
-		$this->assertFalse( wp_has_ability( 'toolset/content' ), 'Precondition: dormant here.' );
+		$this->assertFalse( wp_has_ability( 'toolset/content' ), 'Precondition: toolset/content is NOT registered here.' );
 	}
 
 	public function test_pool_survives_the_registry_being_blind_to_protocol_tools(): void {

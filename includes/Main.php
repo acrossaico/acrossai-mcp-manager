@@ -396,11 +396,76 @@ final class Main {
 		// callback never fires at all. See the Backfill class docblock.
 		\AcrossAI_MCP_Manager\Includes\Database\Clients\Backfill::maybe_run();
 
+		// F106 — the absorbed Abilities Manager half's own tables and option
+		// migrations. Here for exactly the B68 reason recorded against the
+		// activity log and the clients registry above: WordPress skips
+		// activation hooks on a plugin UPDATE, and every site that gets this
+		// release is an update rather than a fresh activation. Without this a
+		// site would boot the absorbed half against tables that only its
+		// activation hook creates, and the first query would fail.
+		//
+		// On a site that ran the old plugin those tables already exist WITH the
+		// operator's abilities and access rules in them — so this is adoption,
+		// not creation, and every step the absorbed activator takes is guarded
+		// by its own claim option precisely so it can be re-entered safely.
+		$this->adopt_abilities_schemas();
+
 		// F095 — flush rewrites once per version. Activation flushes, but a
 		// plugin UPDATE does not fire activation hooks, so without this the
 		// five OAuth routes 404 after upgrade until someone re-saves
 		// permalinks. Runs after `init` registered them; see the method.
 		\AcrossAI_MCP_Manager\Includes\OAuth\OAuthRouter::maybe_flush_rewrites();
+	}
+
+	/**
+	 * Bring the absorbed Abilities Manager half's schema up to date (F106).
+	 *
+	 * Runs the absorbed activator, which creates two tables and applies seven
+	 * option migrations. Every one of those steps is guarded by its own claim
+	 * option, which is what makes calling it from here legitimate rather than
+	 * merely convenient — this is the same work its activation hook does, and on
+	 * the overwhelmingly common path (a site that already ran the old plugin)
+	 * all of it is a no-op over data that is already correct.
+	 *
+	 * Gated on the absorbed half's own version rather than run on every
+	 * `admin_init`, because the unguarded cost is not zero: nine steps, each
+	 * reading at least one option, on every admin page load forever. Keyed on
+	 * `ACROSSAI_ABILITIES_MANAGER_VERSION` so a later release that adds a
+	 * migration re-runs it, and a release that does not, does not.
+	 *
+	 * The option is stamped only on success. If the absorbed classes are
+	 * unavailable — a partial deploy, a missing autoloader — this does nothing
+	 * and leaves the version unstamped so the next admin load tries again,
+	 * matching how `reconcile_database_schemas()` treats its own failures.
+	 *
+	 * Deliberately NOT gated on `ACROSSAI_MCP_MANAGER_OWNS_ABILITIES`, unlike
+	 * the boot in the entry file. That constant governs whether to attach
+	 * hooks, where running twice means every filter registered twice. Schema
+	 * adoption has no such hazard: it is the same work the old plugin's own
+	 * activation does, over the same tables, and every step is re-entrant
+	 * behind its own claim option — so on a site still running both, whichever
+	 * gets there first does the work and the other finds nothing to do.
+	 *
+	 * @since  0.5.0
+	 * @return void
+	 */
+	private function adopt_abilities_schemas(): void {
+		$activator = 'AcrossAI_Abilities_Manager\Includes\AcrossAI_Activator';
+
+		if ( ! class_exists( $activator ) || ! defined( 'ACROSSAI_ABILITIES_MANAGER_VERSION' ) ) {
+			return;
+		}
+
+		$option  = 'acrossai_mcp_manager_abilities_schema_version';
+		$version = (string) ACROSSAI_ABILITIES_MANAGER_VERSION;
+
+		if ( get_option( $option ) === $version ) {
+			return;
+		}
+
+		$activator::activate();
+
+		update_option( $option, $version, false );
 	}
 
 	/**

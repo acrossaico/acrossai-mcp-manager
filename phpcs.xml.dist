@@ -16,6 +16,22 @@
     <exclude-pattern>*/tests/*</exclude-pattern>
 
     <!--
+        Agent worktrees. `.claude/worktrees/<id>/` holds a complete second
+        checkout of this plugin, so without this PHPCS sniffs `includes/`,
+        `admin/` and `public/` once per worktree on top of the real tree. Three
+        of them was enough to exhaust the memory limit and abort the run — and
+        it aborts rather than failing a sniff, so the symptom is "PHPCS ran out
+        of memory" with no file named, which looks like a codebase problem
+        rather than a stray directory.
+
+        `*/vendor/*` above already covers a worktree's vendor copy; it is the
+        SCANNED paths that need excluding here, and they are the same relative
+        names as the real ones, so nothing but the `.claude/worktrees` prefix
+        distinguishes them.
+    -->
+    <exclude-pattern>*/.claude/worktrees/*</exclude-pattern>
+
+    <!--
         F106 — the tree absorbed from acrossai-abilities-manager, moved
         verbatim so the move itself is reviewable as a move. It carried its
         own phpcs config and passed it; it does not pass THIS one, and a

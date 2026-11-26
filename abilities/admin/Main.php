@@ -191,10 +191,6 @@ class Main {
 			);
 			wp_enqueue_script( 'acrossai-abilities-manager-abilities' );
 
-			if ( ! function_exists( 'is_plugin_active' ) ) {
-				require_once ABSPATH . 'wp-admin/includes/plugin.php';
-			}
-
 			$data = array(
 				'nonce'                      => wp_create_nonce( 'wp_rest' ),
 				'rest_url'                   => untrailingslashit( rest_url() ),
@@ -212,7 +208,15 @@ class Main {
 				// Source of truth: AcrossAI_Abilities_Access_Control::TABLE_SLUG.
 				'access_control_slug'        => \AcrossAI_Abilities_Manager\Includes\Modules\Abilities\AcrossAI_Abilities_Access_Control::TABLE_SLUG,
 				'protected_slugs'            => \AcrossAI_Abilities_Manager\Includes\Utilities\AcrossAI_Protected_Abilities::get_protected_slugs(),
-				'mcp_manager_active'         => is_plugin_active( 'acrossai-mcp-manager/acrossai-mcp-manager.php' ),
+				// Feature 106 absorbed this entire tree into AcrossAI MCP Manager, so this
+				// file now only ever runs as part of that plugin — the standalone plugin's
+				// own copy of it is what runs on the rare pre-0.0.46 fallback path instead
+				// (see acrossai-mcp-manager.php), and never reaches here. So this is not a
+				// live is_plugin_active() check any more; it is unconditionally true
+				// wherever this code executes. Kept as a key (rather than deleted) because
+				// the "install MCP Manager" promo card in AbilityForm.jsx still branches on
+				// it — see `!abilitiesConfig.mcp_manager_active` there.
+				'mcp_manager_active'         => true,
 				'mcp_manager_addons_url'     => admin_url( 'admin.php?page=acrossai-addons' ),
 				'mcp_manager_info_url'       => 'https://acrossai.co/mcp-manager/',
 			);

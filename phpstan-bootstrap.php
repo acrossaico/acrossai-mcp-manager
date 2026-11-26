@@ -29,6 +29,18 @@ defined( 'ACROSSAI_MCP_MANAGER_PLUGIN_URL' ) || define( 'ACROSSAI_MCP_MANAGER_PL
 defined( 'ACROSSAI_MCP_MANAGER_PLUGIN_BASENAME' ) || define( 'ACROSSAI_MCP_MANAGER_PLUGIN_BASENAME', 'acrossai-mcp-manager/acrossai-mcp-manager.php' );
 defined( 'ACROSSAI_MCP_MANAGER_PLUGIN_NAME_SLUG' ) || define( 'ACROSSAI_MCP_MANAGER_PLUGIN_NAME_SLUG', 'acrossai-mcp-manager' );
 
+// F106 — the absorbed half's constants. `ACROSSAI_ABILITIES_MANAGER_VERSION` is
+// defined by `abilities/includes/Main.php`, which is scanned rather than
+// analysed, so nothing in `paths` declares it; `Main::adopt_abilities_schemas()`
+// reads it to key the schema-adoption option.
+//
+// `ACROSSAI_MCP_MANAGER_OWNS_ABILITIES` is declared by the entry file in both
+// branches of its ownership check. Listed here so the value is available to any
+// future reader under analysis, and set to the state every site is in once the
+// old plugin is gone.
+defined( 'ACROSSAI_MCP_MANAGER_OWNS_ABILITIES' ) || define( 'ACROSSAI_MCP_MANAGER_OWNS_ABILITIES', true );
+defined( 'ACROSSAI_ABILITIES_MANAGER_VERSION' ) || define( 'ACROSSAI_ABILITIES_MANAGER_VERSION', '0.0.45' );
+
 // wp-config constants the analysed code reads. Values are irrelevant to
 // static analysis; only their existence is.
 defined( 'DB_NAME' ) || define( 'DB_NAME', 'wordpress' );
