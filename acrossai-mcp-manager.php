@@ -49,6 +49,38 @@ if ( ! defined( 'WPINC' ) ) {
 define( 'ACROSSAI_MCP_MANAGER_PLUGIN_FILE', __FILE__ );
 
 /**
+ * Tell the standalone AcrossAI Abilities Manager plugin (0.0.46+) to stand
+ * itself down.
+ *
+ * Feature 106 absorbed that plugin's entire tree into this one. On a site
+ * running both, letting the standalone plugin load its own copy too would
+ * register every ability, Toolset and admin screen twice. 0.0.46 added
+ * `acrossai_abilities_manager_load_plugin` — a filter it consults on
+ * `plugins_loaded`, before requiring a single file of its own tree — so a
+ * plugin that carries that tree itself, like this one, can answer it and
+ * make the standalone plugin inert: no constants, no autoloader, nothing.
+ *
+ * Registered here at file scope, not inside a hook callback, because it has
+ * to be in place before `plugins_loaded` fires — that is when the standalone
+ * plugin reads it. WordPress loads active plugins in `active_plugins` order,
+ * and `activate_plugin()` sorts that array (wp-admin/includes/plugin.php:719)
+ * — which puts `acrossai-abilities-manager` before `acrossai-mcp-manager` — so
+ * by the time this file is read, the standalone plugin's file has already run
+ * and registered its own `plugins_loaded` callback, but that action has not
+ * fired yet. Any plugin file can still add this filter in time, whatever
+ * order it loads in; file scope is simply the earliest point this plugin
+ * itself gets a turn.
+ *
+ * This only helps against a standalone plugin at 0.0.46 or later. An older
+ * copy has no gate to consult and will define
+ * `ACROSSAI_ABILITIES_MANAGER_PLUGIN_FILE` at file scope regardless — see
+ * that constant below for how the rare case is still handled.
+ *
+ * @since 0.5.0
+ */
+add_filter( 'acrossai_abilities_manager_load_plugin', '__return_false' );
+
+/**
  * Root file of the absorbed Abilities Manager tree (Feature 106).
  *
  * `abilities/` arrived from acrossai-abilities-manager, where its own entry
@@ -62,11 +94,23 @@ define( 'ACROSSAI_MCP_MANAGER_PLUGIN_FILE', __FILE__ );
  * `abilities/`: there is one plugin now, with one basename WordPress knows it
  * by, and the absorbed admin notices and action links have to name that one.
  *
- * Guarded, and the guard is not theoretical. WordPress loads active plugins in
- * alphabetical order, and `acrossai-abilities-manager` sorts BEFORE
- * `acrossai-mcp-manager` — so on a site where the old plugin is still active it
- * has already defined this constant by the time we get here, and an unguarded
- * `define()` would emit "Constant already defined" on every request.
+ * Guarded, and the guard is not theoretical — though with the filter above in
+ * place, it is no longer the expected path. A standalone plugin at 0.0.46+
+ * never reaches the `define()` that would trip this guard; its whole
+ * bootstrap, including that line, is deferred behind the gate it just lost.
+ * So on a current install this plugin always wins the race below, whether or
+ * not the standalone plugin is also installed and active.
+ *
+ * What the guard still protects against: a standalone plugin OLDER than
+ * 0.0.46, which has no gate to answer and defines this constant at file
+ * scope unconditionally. WordPress loads active plugins in alphabetical
+ * order, and `acrossai-abilities-manager` sorts BEFORE `acrossai-mcp-manager`
+ * — so on a site where an old copy is still active, it has already defined
+ * this constant by the time we get here, and an unguarded `define()` would
+ * emit "Constant already defined" on every request. That is now the rare
+ * path rather than the expected one — see acrossai_mcp_manager_run_abilities()
+ * below for what we do about it — but it is not unreachable, so the guard
+ * stays.
  *
  * Whether we won that race is also the only reliable thing to branch the boot
  * on, so it is recorded rather than recomputed: `is_plugin_active()` is not
@@ -214,9 +258,16 @@ function acrossai_mcp_manager_run() {
  */
 function acrossai_mcp_manager_run_abilities(): void {
 
-	// The old plugin is still active and got here first, so its copy of the
-	// tree owns the namespace. Booting ours too would register every hook
-	// twice. Defer to it and say so, rather than racing it.
+	// Reached only on the rare fallback path: a standalone plugin OLDER than
+	// 0.0.46, which has no `acrossai_abilities_manager_load_plugin` filter to
+	// consult and so already defined ACROSSAI_ABILITIES_MANAGER_PLUGIN_FILE at
+	// file scope by the time we got here — see that constant's docblock
+	// above. A current (0.0.46+) standalone install answers the filter
+	// registered near the top of this file and never reaches this branch.
+	//
+	// Either way, its copy of the tree got here first and owns the
+	// namespace. Booting ours too would register every hook twice. Defer to
+	// it and say so, rather than racing it.
 	if ( ! ACROSSAI_MCP_MANAGER_OWNS_ABILITIES ) {
 		add_action(
 			'admin_notices',
@@ -227,7 +278,7 @@ function acrossai_mcp_manager_run_abilities(): void {
 				printf(
 					'<div class="notice notice-warning"><p><strong>%s</strong> %s</p></div>',
 					esc_html__( 'AcrossAI MCP Manager:', 'acrossai-mcp-manager' ),
-					esc_html__( 'The separate AcrossAI Abilities Manager plugin is still active. Its abilities are now built into MCP Manager, so the old plugin is running the same code twice. Deactivate it to finish the move — nothing is lost, and your abilities and access rules stay exactly as they are.', 'acrossai-mcp-manager' )
+					esc_html__( 'The separate AcrossAI Abilities Manager plugin is running a version old enough that it is still loading its own code. Its abilities are now built into MCP Manager, so the old plugin is running the same code twice. Update it to version 0.0.46 or later and it will stand itself down automatically — or deactivate it now if you would rather not wait. Either way nothing is lost: your abilities and access rules stay exactly as they are.', 'acrossai-mcp-manager' )
 				);
 			}
 		);
